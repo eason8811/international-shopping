@@ -115,10 +115,10 @@ CREATE TABLE user_address
 
 -- 2.1 商品分类（树形）
 /*
-uk_cat_slug：SEO/路由稳定唯一。
-uk_cat_parent_name：同父节点下分类名唯一，避免重复类目。
-idx_cat_parent：按父ID加载子类目。
-idx_cat_status：后台启停筛选。
+uk_cat_slug：SEO/路由稳定唯一
+uk_cat_parent_name：同父节点下分类名唯一，避免重复类目
+idx_cat_parent：按父ID加载子类目
+idx_cat_status：后台启停筛选
 idx_cat_path_prefix：按路径前缀检索
  */
 CREATE TABLE product_category
@@ -143,11 +143,11 @@ CREATE TABLE product_category
 
 -- 2.2 商品SPU（标准产品单元）
 /*
-uk_prod_slug：SEO/路由唯一。
-idx_prod_cat：类目下商品列表。
-idx_prod_status_updated (status, updated_at)：上/下架商品列表，按更新时间排序。
-idx_prod_price：价格区间筛选/排序。
-ftx_prod_text (title, subtitle)：站内搜索（标题/副标题全文检索）。
+uk_prod_slug：SEO/路由唯一
+idx_prod_cat：类目下商品列表
+idx_prod_status_updated (status, updated_at)：上/下架商品列表，按更新时间排序
+idx_prod_price：价格区间筛选/排序
+ftx_prod_text (title, subtitle)：站内搜索（标题/副标题全文检索）
  */
 CREATE TABLE product
 (
@@ -178,10 +178,10 @@ CREATE TABLE product
 
 -- 2.3 商品SKU（销售单元/规格）
 /*
-uk_sku_unique (product_id, sku_key)：同一SPU下规格组合唯一，防重复。
-uk_sku_code：对接外部/条码唯一。
-idx_sku_prod：SPU 下加载所有SKU。
-idx_sku_status：启停筛选。
+uk_sku_unique (product_id, sku_key)：同一SPU下规格组合唯一，防重复
+uk_sku_code：对接外部/条码唯一
+idx_sku_prod：SPU 下加载所有SKU
+idx_sku_status：启停筛选
  */
 CREATE TABLE product_sku
 (
@@ -206,8 +206,8 @@ CREATE TABLE product_sku
 
 -- 2.4 商品图片（多图）
 /*
-idx_img_prod：加载商品图集。
-idx_img_main (product_id, is_main)：快速命中主图。
+idx_img_prod：加载商品图集
+idx_img_main (product_id, is_main)：快速命中主图
  */
 CREATE TABLE product_image
 (
@@ -224,8 +224,8 @@ CREATE TABLE product_image
 
 -- 2.5 购物车(用户-SKU 映射)
 /*
-uk_cart_user_sku (user_id, sku_id)：去重一人一SKU一条。
-idx_cart_user：用户购物车列表。
+uk_cart_user_sku (user_id, sku_id)：去重一人一SKU一条
+idx_cart_user：用户购物车列表
  */
 CREATE TABLE shopping_cart_item
 (
@@ -242,8 +242,8 @@ CREATE TABLE shopping_cart_item
 
 -- 2.6 商品 Like (用户-商品 映射)
 /*
-PK (user_id, product_id)：天然唯一，确保一人只 Like 同一商品一次。
-idx_like_product：统计商品被点赞人数 / 列表。
+PK (user_id, product_id)：天然唯一，确保一人只 Like 同一商品一次
+idx_like_product：统计商品被点赞人数 / 列表
  */
 CREATE TABLE product_like
 (
@@ -256,8 +256,8 @@ CREATE TABLE product_like
 
 -- 2.7 库存日志（预占/扣减/释放）
 /*
-idx_inv_sku_time (sku_id, created_at)：按SKU时间序查询流水。
-idx_inv_order：从订单侧定位库存流水。
+idx_inv_sku_time (sku_id, created_at)：按SKU时间序查询流水
+idx_inv_order：从订单侧定位库存流水
  */
 CREATE TABLE inventory_log
 (
@@ -277,19 +277,19 @@ CREATE TABLE inventory_log
 -- 3) 订单领域 (orders)
 -- =========================================================
 
--- 3.1 订单主表
+-- 3.1
 /*
-uk_order_no：对外单号唯一（便于客服/对账）。
-idx_order_user：用户订单列表。
-idx_order_status_time (status, created_at)：状态页/后台列表（按创建时间排序）。
-idx_order_created：时间区间检索。
-idx_order_payment_ext：由 externalId 反查订单（回调/轮询场景）。
+uk_order_no：对外单号唯一（便于客服/对账）
+idx_order_user：用户订单列表
+idx_order_status_time (status, created_at)：状态页/后台列表（按创建时间排序）
+idx_order_created：时间区间检索
+idx_order_payment_ext：由 externalId 反查订单（回调/轮询场景）
  */
 CREATE TABLE orders
 (
     id                  BIGINT UNSIGNED                                           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     order_no            CHAR(26)                                                  NOT NULL COMMENT '业务单号(如ULID/雪花, 对外展示)',
-    user_id             BIGINT UNSIGNED                                           NOT NULL COMMENT '下单用户ID',
+    user_id             BIGINT UNSIGNED                                           NOT NULL COMMENT '下单用户ID, 指向 user_account.id',
     status              ENUM ('CREATED','PENDING_PAYMENT','PAID','CANCELLED','CLOSED','FULFILLED','REFUNDING','REFUNDED')
                                                                                   NOT NULL DEFAULT 'CREATED' COMMENT '订单状态机',
     items_count         INT                                                       NOT NULL DEFAULT 0 COMMENT '商品总件数',
@@ -300,7 +300,7 @@ CREATE TABLE orders
     currency            CHAR(3)                                                   NOT NULL DEFAULT 'CNY' COMMENT '币种',
     pay_channel         ENUM ('NONE','ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL DEFAULT 'NONE' COMMENT '支付通道',
     pay_status          ENUM ('NONE','INIT','SUCCESS','FAIL','CLOSED')            NOT NULL DEFAULT 'NONE' COMMENT '支付状态(网关侧)',
-    payment_external_id VARCHAR(128)                                              NULL COMMENT '支付单externalId(网关唯一标记)',
+    payment_external_id VARCHAR(128)                                              NULL COMMENT '支付单 externalId(网关唯一标记)',
     pay_time            DATETIME(3)                                               NULL COMMENT '支付成功时间',
     address_snapshot    JSON                                                      NULL COMMENT '收货信息快照(JSON)',
     buyer_remark        VARCHAR(500)                                              NULL COMMENT '买家留言',
@@ -313,18 +313,20 @@ CREATE TABLE orders
     KEY idx_order_user (user_id),
     KEY idx_order_status_time (status, created_at),
     KEY idx_order_created (created_at),
-    KEY idx_order_payment_ext (payment_external_id),
-    CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES user_account (id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT
+    KEY idx_order_payment_ext (payment_external_id)
 ) ENGINE = InnoDB COMMENT ='订单主表';
 
 -- 3.2 订单明细
+/*
+idx_item_order：加载订单明细
+idx_item_prod / idx_item_sku：基于商品/SKU 的售卖分析
+ */
 CREATE TABLE order_item
 (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id        BIGINT UNSIGNED NOT NULL COMMENT '订单ID',
-    product_id      BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID',
-    sku_id          BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID',
+    order_id        BIGINT UNSIGNED NOT NULL COMMENT '订单 ID, 指向 orders.id',
+    product_id      BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID, 指向 product.id',
+    sku_id          BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
     title           VARCHAR(255)    NOT NULL COMMENT '商品标题快照',
     sku_attrs       JSON            NULL COMMENT 'SKU属性快照(JSON)',
     cover_image_url VARCHAR(500)    NULL COMMENT '商品图快照',
@@ -335,21 +337,20 @@ CREATE TABLE order_item
     PRIMARY KEY (id),
     KEY idx_item_order (order_id),
     KEY idx_item_prod (product_id),
-    KEY idx_item_sku (sku_id),
-    CONSTRAINT fk_item_order FOREIGN KEY (order_id) REFERENCES orders (id)
-        ON DELETE CASCADE ON UPDATE RESTRICT,
-    CONSTRAINT fk_item_prod FOREIGN KEY (product_id) REFERENCES product (id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT,
-    CONSTRAINT fk_item_sku FOREIGN KEY (sku_id) REFERENCES product_sku (id)
-        ON DELETE RESTRICT ON UPDATE RESTRICT
+    KEY idx_item_sku (sku_id)
 ) ENGINE = InnoDB COMMENT ='订单明细';
 
--- 3.3 支付单（对接支付API，使用 externalId 关联）
+-- 3.3 支付单（对接支付API，使用 externalId 关联）  /* 待定, 视支付通道 API 文档而定 */
+/*
+uk_pay_external：支付网关 externalId 唯一（幂等与关联）
+idx_pay_order：从订单查支付单
+idx_pay_status_update (status, updated_at)：按状态+时间扫描（轮询重试/清理）
+ */
 CREATE TABLE payment_order
 (
     id               BIGINT UNSIGNED                                    NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id         BIGINT UNSIGNED                                    NOT NULL COMMENT '订单ID',
-    external_id      VARCHAR(128)                                       NOT NULL COMMENT '支付网关externalId(唯一)',
+    order_id         BIGINT UNSIGNED                                    NOT NULL COMMENT '订单ID, 指向 orders.id',
+    external_id      VARCHAR(128)                                       NOT NULL COMMENT '支付网关 externalId(唯一)',
     channel          ENUM ('ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL COMMENT '支付通道',
     amount           DECIMAL(18, 2)                                     NOT NULL COMMENT '支付金额',
     currency         CHAR(3)                                            NOT NULL DEFAULT 'CNY' COMMENT '币种',
@@ -364,53 +365,22 @@ CREATE TABLE payment_order
     PRIMARY KEY (id),
     UNIQUE KEY uk_pay_external (external_id),
     KEY idx_pay_order (order_id),
-    KEY idx_pay_status_update (status, updated_at),
-    CONSTRAINT fk_pay_order FOREIGN KEY (order_id) REFERENCES orders (id)
-        ON DELETE CASCADE ON UPDATE RESTRICT
+    KEY idx_pay_status_update (status, updated_at)
 ) ENGINE = InnoDB COMMENT ='支付单(网关externalId对应)';
 
--- 3.4 支付回调日志（用于幂等/审计）
-CREATE TABLE payment_callback_log
-(
-    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    external_id VARCHAR(128)    NOT NULL COMMENT '支付externalId',
-    notify_id   VARCHAR(128)    NOT NULL COMMENT '回调通知唯一ID(由网关或服务生成)',
-    status_code INT             NULL COMMENT '处理结果状态码(自定义)',
-    processed   TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '是否已处理',
-    raw_payload JSON            NULL COMMENT '原始回调报文',
-    received_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '接收时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_cb_ext_notify (external_id, notify_id),
-    KEY idx_cb_ext (external_id)
-) ENGINE = InnoDB COMMENT ='支付回调日志(去重/审计)';
-
--- 3.5 订单状态流转日志（状态机审计）
+-- 3.4 订单状态流转日志（状态机审计）
+/*
+idx_osl_order：订单状态流转历史查询
+ */
 CREATE TABLE order_status_log
 (
-    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id    BIGINT UNSIGNED NOT NULL COMMENT '订单ID',
-    from_status VARCHAR(32)     NULL COMMENT '源状态',
-    to_status   VARCHAR(32)     NOT NULL COMMENT '目标状态',
-    note        VARCHAR(255)    NULL COMMENT '备注',
-    created_at  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    id           BIGINT UNSIGNED                                               NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_id     BIGINT UNSIGNED                                               NOT NULL COMMENT '订单ID, 指向 orders.id',
+    event_source ENUM ('SYSTEM','USER','PAYMENT_CALLBACK','SCHEDULER','ADMIN') NOT NULL DEFAULT 'SYSTEM' COMMENT '事件来源',
+    from_status  VARCHAR(32)                                                   NULL COMMENT '源状态',
+    to_status    VARCHAR(32)                                                   NOT NULL COMMENT '目标状态',
+    note         VARCHAR(255)                                                  NULL COMMENT '备注',
+    created_at   DATETIME(3)                                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
-    KEY idx_osl_order (order_id),
-    CONSTRAINT fk_osl_order FOREIGN KEY (order_id) REFERENCES orders (id)
-        ON DELETE CASCADE ON UPDATE RESTRICT
+    KEY idx_osl_order (order_id)
 ) ENGINE = InnoDB COMMENT ='订单状态流转日志';
-
--- 3.6 支付兜底/探测日志（定时任务用）
-CREATE TABLE payment_probe_log
-(
-    id         BIGINT UNSIGNED                                                   NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id   BIGINT UNSIGNED                                                   NOT NULL COMMENT '订单ID',
-    probe_type ENUM ('CREATE_IF_MISSING','POLL')                                 NOT NULL COMMENT '探测类型：补建/轮询',
-    result     ENUM ('NO_ACTION','CREATED','RETRY','NOT_FOUND','SUCCESS','FAIL') NOT NULL COMMENT '探测结果',
-    message    VARCHAR(255)                                                      NULL COMMENT '结果信息',
-    created_at DATETIME(3)                                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    PRIMARY KEY (id),
-    KEY idx_probe_order (order_id),
-    KEY idx_probe_time (created_at),
-    CONSTRAINT fk_probe_order FOREIGN KEY (order_id) REFERENCES orders (id)
-        ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB COMMENT ='支付兜底探测日志';
