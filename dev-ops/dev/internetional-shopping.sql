@@ -141,12 +141,35 @@ CREATE TABLE product_category
     KEY idx_cat_path_prefix (path(191))
 ) ENGINE = InnoDB COMMENT ='商品分类(树)';
 
--- 2.2 商品SPU（标准产品单元）
+-- 2.2 商品分类 i18n（分类名/slug/品牌文案多语言）
+/*
+uk_cat_i18n(category_id, locale)：每分类的每语言仅 1 条覆盖记录。
+uk_cat_slug_loc(locale, slug)：同一语言下 slug 唯一，保障多语言路由不冲突。
+idx_cat_i18n_loc(locale)：按语言加载整棵类目/SEO 生成。
+*/
+CREATE TABLE product_category_i18n
+(
+    id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    category_id  BIGINT UNSIGNED NOT NULL COMMENT '分类ID, 指向 product_category.id',
+    locale       VARCHAR(16)     NOT NULL COMMENT '语言代码, 指向 locale.code',
+    name         VARCHAR(64)     NOT NULL COMMENT '分类名(本地化)',
+    slug         VARCHAR(64)     NOT NULL COMMENT '分类slug(本地化, 用于多语言路由/SEO)',
+    brand        VARCHAR(120)    NULL COMMENT '品牌文案(本地化, 按你要求放于分类i18n)',
+    created_at   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_cat_i18n (category_id, locale),
+    UNIQUE KEY uk_cat_slug_loc (locale, slug),
+    KEY idx_cat_i18n_loc (locale)
+) ENGINE = InnoDB COMMENT ='商品分类多语言覆盖';
+
+
+-- 2.3 商品SPU（标准产品单元）
 /*
 uk_prod_slug：SEO/路由唯一
 idx_prod_cat：类目下商品列表
 idx_prod_status_updated (status, updated_at)：上/下架商品列表，按更新时间排序
-idx_prod_price：价格区间筛选/排序
+idx_prod_default_sku：根据默认 SKU 查 SPU
 ftx_prod_text (title, subtitle)：站内搜索（标题/副标题全文检索）
  */
 CREATE TABLE product
@@ -159,12 +182,11 @@ CREATE TABLE product
     category_id     BIGINT UNSIGNED                                NOT NULL COMMENT '所属分类ID, 指向 product_category.id',
     brand           VARCHAR(120)                                   NULL COMMENT '品牌',
     cover_image_url VARCHAR(500)                                   NULL COMMENT '主图URL',
-    price           DECIMAL(18, 2)                                 NOT NULL COMMENT '参考价(展示/单规格价格)',
-    price_original  DECIMAL(18, 2)                                 NULL COMMENT '原价(可空)',
     stock_total     INT                                            NOT NULL DEFAULT 0 COMMENT '总库存(聚合)',
     sale_count      INT                                            NOT NULL DEFAULT 0 COMMENT '销量(聚合)',
     sku_type        ENUM ('SINGLE','VARIANT')                      NOT NULL DEFAULT 'SINGLE' COMMENT '规格类型(单/多规格)',
     status          ENUM ('DRAFT','ON_SALE','OFF_SHELF','DELETED') NOT NULL DEFAULT 'DRAFT' COMMENT '商品状态',
+    default_sku_id  BIGINT UNSIGNED                                NULL COMMENT '默认展示SKU, 指向 product_sku.id(单规格指向唯一SKU, 多规格用于默认选中)',
     tags            JSON                                           NULL COMMENT '标签(JSON)',
     created_at      DATETIME(3)                                    NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at      DATETIME(3)                                    NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
@@ -172,39 +194,63 @@ CREATE TABLE product
     UNIQUE KEY uk_prod_slug (slug),
     KEY idx_prod_cat (category_id),
     KEY idx_prod_status_updated (status, updated_at),
-    KEY idx_prod_price (price),
+    KEY idx_prod_default_sku (default_sku_id),
     FULLTEXT KEY ftx_prod_text (title, subtitle)
 ) ENGINE = InnoDB COMMENT ='商品SPU';
 
--- 2.3 商品SKU（销售单元/规格）
+-- 2.4 商品 SPU i18n（标题/副标题/描述/slug 等多语言）
 /*
-uk_sku_unique (product_id, sku_key)：同一SPU下规格组合唯一，防重复
+uk_prod_i18n(product_id, locale)：每商品每语言一条覆盖记录。
+uk_prod_slug_loc(locale, slug)：同语言下 slug 唯一，保障多语言商品路由。
+idx_prod_i18n_loc(locale)：按语言批量加载/导出。
+ftx_prod_i18n_text：在指定语言内做站内全文检索（title/subtitle）。
+*/
+CREATE TABLE product_i18n
+(
+    id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    product_id   BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID, 指向 product.id',
+    locale       VARCHAR(16)     NOT NULL COMMENT '语言代码, 指向 locale.code',
+    title        VARCHAR(255)    NOT NULL COMMENT '标题(本地化)',
+    subtitle     VARCHAR(255)    NULL COMMENT '副标题(本地化)',
+    description  TEXT            NULL COMMENT '描述(本地化)',
+    slug         VARCHAR(120)    NOT NULL COMMENT '商品slug(本地化, 用于多语言路由/SEO)',
+    tags         JSON            NULL COMMENT '标签(本地化, 可用于站内搜索/推荐)',
+    created_at   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_prod_i18n (product_id, locale),
+    UNIQUE KEY uk_prod_slug_loc (locale, slug),
+    KEY idx_prod_i18n_loc (locale),
+    FULLTEXT KEY ftx_prod_i18n_text (title, subtitle)
+) ENGINE = InnoDB COMMENT ='商品SPU多语言覆盖';
+
+-- 2.5 商品SKU（销售单元/规格）
+/*
 uk_sku_code：对接外部/条码唯一
 idx_sku_prod：SPU 下加载所有SKU
 idx_sku_status：启停筛选
+idx_sku_default (product_id, is_default)：根据 SPU 查默认的 SKU
  */
 CREATE TABLE product_sku
 (
     id         BIGINT UNSIGNED             NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     product_id BIGINT UNSIGNED             NOT NULL COMMENT 'SPU ID, 指向 product.id',
     sku_code   VARCHAR(64)                 NULL COMMENT 'SKU编码(外部/条码等)',
-    sku_key    VARCHAR(255)                NOT NULL COMMENT '规格组合键 如 color=Red;size=M',
-    attrs      JSON                        NULL COMMENT '规格属性(JSON)',
-    price      DECIMAL(18, 2)              NOT NULL COMMENT '售价',
     stock      INT                         NOT NULL DEFAULT 0 COMMENT '可售库存',
     weight     DECIMAL(10, 3)              NULL COMMENT '重量(kg)',
     status     ENUM ('ENABLED','DISABLED') NOT NULL DEFAULT 'ENABLED' COMMENT '状态',
+    is_default TINYINT(1)                  NOT NULL DEFAULT 0 COMMENT '是否默认展示SKU(列表/详情默认选中)',
     barcode    VARCHAR(64)                 NULL COMMENT '条码(可空)',
     created_at DATETIME(3)                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at DATETIME(3)                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_sku_code (sku_code),
-    UNIQUE KEY uk_sku_unique (product_id, sku_key),
     KEY idx_sku_prod (product_id),
-    KEY idx_sku_status (status)
+    KEY idx_sku_status (status),
+    KEY idx_sku_default (product_id, is_default)
 ) ENGINE = InnoDB COMMENT ='商品SKU(销售规格)';
 
--- 2.4 商品图片（多图）
+-- 2.6 SPU 图片（多图）
 /*
 idx_img_prod：加载商品图集
 idx_img_main (product_id, is_main)：快速命中主图
@@ -222,7 +268,25 @@ CREATE TABLE product_image
     KEY idx_img_main (product_id, is_main)
 ) ENGINE = InnoDB COMMENT ='商品图片';
 
--- 2.5 购物车(用户-SKU 映射)
+-- 2.7 SKU 图片（变体专属图, 色板图等）
+/*
+idx_sku_img：加载商品图集
+idx_sku_img_main (product_id, is_main)：快速命中主图
+ */
+CREATE TABLE product_sku_image
+(
+    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    sku_id     BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
+    url        VARCHAR(500)    NOT NULL COMMENT '图片URL',
+    is_main    TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '是否主图(该SKU范围内)',
+    sort_order INT             NOT NULL DEFAULT 0 COMMENT '排序(小在前)',
+    created_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_sku_img (sku_id),
+    KEY idx_sku_img_main (sku_id, is_main)
+) ENGINE = InnoDB COMMENT ='商品图片(SKU)';
+
+-- 2.8 购物车(用户-SKU 映射)
 /*
 uk_cart_user_sku (user_id, sku_id)：去重一人一SKU一条
 idx_cart_user：用户购物车列表
@@ -240,7 +304,7 @@ CREATE TABLE shopping_cart_item
     KEY idx_cart_user (user_id)
 ) ENGINE = InnoDB COMMENT ='购物车条目';
 
--- 2.6 商品 Like (用户-商品 映射)
+-- 2.9 商品 Like (用户-商品 映射)
 /*
 PK (user_id, product_id)：天然唯一，确保一人只 Like 同一商品一次
 idx_like_product：统计商品被点赞人数 / 列表
@@ -254,7 +318,7 @@ CREATE TABLE product_like
     KEY idx_like_product (product_id)
 ) ENGINE = InnoDB COMMENT ='商品 Like 关系';
 
--- 2.7 库存日志（预占/扣减/释放）
+-- 2.10 库存日志（预占/扣减/释放）
 /*
 idx_inv_sku_time (sku_id, created_at)：按SKU时间序查询流水
 idx_inv_order：从订单侧定位库存流水
@@ -272,6 +336,124 @@ CREATE TABLE inventory_log
     KEY idx_inv_sku_time (sku_id, created_at),
     KEY idx_inv_order (order_id)
 ) ENGINE = InnoDB COMMENT ='库存变动日志';
+
+-- 2.11 SKU 多币种价格
+/*
+uk_price_sku_ccy：确保一个 sku 在一个结算货币中只对应一个售价
+idx_price_ccy：按币种统计/导出
+ */
+CREATE TABLE product_price
+(
+    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    sku_id     BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
+    currency   CHAR(3)         NOT NULL COMMENT '币种, 指向 currency.code',
+    list_price DECIMAL(18, 2)  NOT NULL COMMENT '标价 (含税口径由业务约定)',
+    sale_price DECIMAL(18, 2)  NULL COMMENT '促销价 (可空, 为空表示无促销)',
+    is_active  TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否可售用价 (预留)',
+    created_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_price_sku_ccy (sku_id, currency), -- 1:1 唯一价
+    KEY idx_price_ccy (currency),                   -- 统计/导出
+    CHECK (sale_price IS NULL OR sale_price <= list_price),
+    CHECK (list_price > 0),
+    CHECK (sale_price IS NULL OR sale_price > 0)
+) ENGINE = InnoDB COMMENT ='SKU 多币种定价(上货即确定各币种价格)';
+
+-- 2.12 SPU 规格类别
+/*
+uk_spec_prod_code / uk_spec_prod_name：同一SPU下规格类别名唯一，防重复
+idx_spec_prod：SPU 下加载所有规格类别
+ */
+CREATE TABLE product_spec
+(
+    id          BIGINT UNSIGNED             NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    product_id  BIGINT UNSIGNED             NOT NULL COMMENT 'SPU ID, 指向 product.id',
+    spec_code   VARCHAR(64)                 NOT NULL COMMENT '类别编码(稳定): color / capacity',
+    spec_name   VARCHAR(64)                 NOT NULL COMMENT '类别名称: 颜色 / 容量',
+    spec_type   ENUM ('COLOR','SIZE','CAPACITY','MATERIAL','OTHER')
+                                            NOT NULL DEFAULT 'OTHER' COMMENT '类别类型(用于UI渲染/业务规则)',
+    is_required TINYINT(1)                  NOT NULL DEFAULT 1 COMMENT '是否必选(每个SKU必须选择一个值)',
+    sort_order  INT                         NOT NULL DEFAULT 0 COMMENT '排序(小在前)',
+    status      ENUM ('ENABLED','DISABLED') NOT NULL DEFAULT 'ENABLED' COMMENT '启用状态',
+    created_at  DATETIME(3)                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at  DATETIME(3)                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_spec_prod_code (product_id, spec_code),
+    UNIQUE KEY uk_spec_prod_name (product_id, spec_name),
+    KEY idx_spec_prod (product_id)
+) ENGINE = InnoDB COMMENT ='SPU规格类别(款式类别)';
+
+-- 2.13 规格类别 i18n（spec 名称多语言）
+/*
+PK(spec_id, locale)：每规格类别在每语言唯一。
+idx_spec_i18n_loc：按语言拉取面板/导出。
+*/
+CREATE TABLE product_spec_i18n
+(
+    spec_id    BIGINT UNSIGNED NOT NULL COMMENT '规格类别ID, 指向 product_spec.id',
+    locale     VARCHAR(16)     NOT NULL COMMENT '语言代码, 指向 locale.code',
+    spec_name  VARCHAR(64)     NOT NULL COMMENT '规格类别名(本地化)',
+    created_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (spec_id, locale),
+    KEY idx_spec_i18n_loc (locale)
+) ENGINE = InnoDB COMMENT ='规格类别多语言';
+
+-- 2.14 SPU 规格值
+/*
+uk_specval_code / uk_specval_name：同一规格类别下值名唯一，防重复
+idx_specval_spec：规格类别下加载所有值
+idx_specval_prod：SPU 下加载所有规格值
+ */
+CREATE TABLE product_spec_value
+(
+    id         BIGINT UNSIGNED             NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    product_id BIGINT UNSIGNED             NOT NULL COMMENT 'SPU ID, 指向 product.id(冗余, 便于校验与查询)',
+    spec_id    BIGINT UNSIGNED             NOT NULL COMMENT '规格类别ID, 指向 product_spec.id',
+    value_code VARCHAR(64)                 NOT NULL COMMENT '值编码(稳定): black / gray / 512gb',
+    value_name VARCHAR(64)                 NOT NULL COMMENT '值名称: 黑色 / 灰色 / 512GB',
+    attributes JSON                        NULL COMMENT '附加属性: 如颜色hex、展示图等',
+    sort_order INT                         NOT NULL DEFAULT 0 COMMENT '排序(小在前)',
+    status     ENUM ('ENABLED','DISABLED') NOT NULL DEFAULT 'ENABLED' COMMENT '启用状态',
+    created_at DATETIME(3)                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at DATETIME(3)                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_specval_code (spec_id, value_code),
+    UNIQUE KEY uk_specval_name (spec_id, value_name),
+    KEY idx_specval_spec (spec_id),
+    KEY idx_specval_prod (product_id)
+) ENGINE = InnoDB COMMENT ='规格值(款式值)';
+
+-- 2.15 规格值 i18n（value 名称多语言）
+/*
+PK(value_id, locale)：每规格值在每语言唯一。
+idx_specval_i18n_loc：按语言拉取面板/导出。
+*/
+CREATE TABLE product_spec_value_i18n
+(
+    value_id   BIGINT UNSIGNED NOT NULL COMMENT '规格值ID, 指向 product_spec_value.id',
+    locale     VARCHAR(16)     NOT NULL COMMENT '语言代码, 指向 locale.code',
+    value_name VARCHAR(64)     NOT NULL COMMENT '规格值名(本地化)',
+    created_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (value_id, locale),
+    KEY idx_specval_i18n_loc (locale)
+) ENGINE = InnoDB COMMENT ='规格值多语言';
+
+-- 2.16 SKU-规格值映射
+/*
+idx_pss_value：按规格值统计/导出
+idx_pss_spec_value：按规格类别-值组合统计/导出
+ */
+CREATE TABLE product_sku_spec
+(
+    sku_id     BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
+    spec_id    BIGINT UNSIGNED NOT NULL COMMENT '规格类别ID, 指向 product_spec.id',
+    value_id   BIGINT UNSIGNED NOT NULL COMMENT '规格值ID, 指向 product_spec_value.id',
+    created_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (sku_id, spec_id),
+    KEY idx_pss_value (value_id),
+    KEY idx_pss_spec_value (spec_id, value_id)
+) ENGINE = InnoDB COMMENT ='SKU-规格值映射(每类别恰好一值)';
 
 -- =========================================================
 -- 3) 订单领域 (orders)
@@ -507,6 +689,48 @@ CREATE TABLE shipment_status_log
     -- 约束：from/to 不相等（MySQL CHECK 在 8/9 可用，但无法跨NULL严格校验）
     CHECK (from_status IS NULL OR from_status <> to_status)
 ) ENGINE = InnoDB COMMENT ='包裹状态流转日志 (源状态→目标状态，含事件来源与原始报文)';
+
+-- =========================================================
+-- 其他辅助表
+-- =========================================================
+
+-- 4.1 货币表
+CREATE TABLE currency
+(
+    code              CHAR(3)        NOT NULL COMMENT 'ISO 4217 代码，如 USD/EUR/JPY',
+    name              VARCHAR(64)    NOT NULL COMMENT '币种名称',
+    symbol            VARCHAR(8)     NULL COMMENT '货币符号，如 $, €',
+    minor_unit        TINYINT        NOT NULL DEFAULT 2 COMMENT '最小货币单位小数位，如 JPY=0, USD=2, KWD=3',
+    cash_rounding_inc DECIMAL(10, 4) NULL COMMENT '现金舍入增量，如 CHF=0.05；为空表示按10^(-minor_unit)',
+    rounding_mode     ENUM ('HALF_UP','HALF_DOWN','BANKERS','UP','DOWN')
+                                     NOT NULL DEFAULT 'HALF_UP' COMMENT '默认舍入规则',
+    enabled           TINYINT(1)     NOT NULL DEFAULT 1 COMMENT '是否启用',
+    created_at        DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at        DATETIME(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (code)
+) ENGINE = InnoDB COMMENT ='币种字典与舍入规则';
+
+-- 4.2 语言字典（站点可用语言）
+/*
+uk_locale_default：利用 NULL 可重复 + 生成列，保证全站仅 1 个默认语言。
+idx_locale_enabled：后台/页面按启用状态过滤语言列表。
+*/
+CREATE TABLE locale
+(
+    code        VARCHAR(16)  NOT NULL COMMENT '语言代码，如 zh-CN, en, ja',
+    name        VARCHAR(64)  NOT NULL COMMENT '语言名称(英文)',
+    native_name VARCHAR(64)  NOT NULL COMMENT '本地语言名',
+    enabled     TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '是否启用',
+    is_default  TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否默认语言(全站唯一)',
+    created_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (code),
+    default_one TINYINT AS (CASE WHEN is_default=1 THEN 1 ELSE NULL END) STORED,
+    UNIQUE KEY uk_locale_default (default_one),
+    KEY idx_locale_enabled (enabled),
+    CHECK (code REGEXP '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$')
+) ENGINE = InnoDB COMMENT ='站点语言字典';
+
 
 
 
