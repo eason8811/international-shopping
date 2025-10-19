@@ -1,0 +1,117 @@
+sequenceDiagram
+    title OAuth2 第三方登录流程
+    actor User as 用户
+    participant Client as 前端
+    participant Backend as 后端
+    participant ThirdPart as 第三方授权服务器
+
+    User->>Client: 点击“使用 第三方 登录”
+    activate User
+    activate Client
+    Client->>Backend: 发送 OAuth2 认证请求
+    activate Backend
+    Backend->>Backend: 生成 state，nonce，code_verifier 并缓存
+    Backend-->>Client: 302 跳转第三方授权页面（带 client_id/redirect_uri/scope/state/nonce/code_challenge/S256）
+    deactivate Backend
+    Client -->> User: 展示第三方授权页面
+    deactivate Client
+    User ->> Client: 进行登录授权
+    activate Client
+    alt 用户取消（或其他原因）授权
+        Client ->> ThirdPart: 用户取消（或其他原因）授权
+        ThirdPart -->> Client: 302 重定向回 redirect_uri 并带上 error （可能会有error_description）参数
+        Client ->> Backend: 调用授权接口（带上error参数）
+        activate Backend
+        Backend->>Backend: 校验 state 是否相同（一次性）
+        Backend -->> Client: 400 错误请求
+        deactivate Backend
+        Client -->> User: 显示授权失败，用户已取消
+    else 用户同意授权
+        Client ->> ThirdPart: 同意授权
+        activate ThirdPart
+        ThirdPart-->> Client: 302 重定向回 redirect_uri 并带上 code=AUTH_CODE 和 state=12xxx 参数
+        deactivate ThirdPart
+        Client ->> Backend: 调用授权接口（带上AUTH_CODE和回传的state参数）
+        activate Backend
+        Backend->>Backend: 校验 state 是否相同（一次性）
+        rect rgba(200, 200, 255, 0.15)
+            alt state 与一开始不相同
+                Backend ->> Backend: 丢弃该请求
+                Backend -->> Client: 400 错误请求
+                Client -->> User: 显示授权失败，提示重试
+            else state 相同，通过校验
+
+                Backend->>ThirdPart: 发送获取access_token请求（带上AUTH_CODE, redirect_uri, client_id, client_secret, code_verifier）
+                activate ThirdPart
+                ThirdPart-->>Backend: 返回access_token, expires_in, id_token, refresh_token（视scope而定）
+                deactivate ThirdPart
+                Backend->>Backend: 验签并校验 id_token（iss/aud/exp/nonce）
+                rect rgba(200, 255, 200, 0.15)
+                    alt nonce 与一开始不同
+                        Backend -->> Client: 400 错误请求
+                        Client -->> User: 显示授权失败，提示重试
+                    else nonce 与一开始相同
+                        Backend->>ThirdPart: GET /userinfo（Authorization: Bearer access_token）
+                        activate ThirdPart
+                        ThirdPart-->>Backend: {sub, email, email_verified, name, picture...}
+                        deactivate ThirdPart
+                        Backend->>Backend: 检查该 issuer，sub 下是否有用户存在
+                        alt 用户不存在
+                            Backend->>Backend: 创建本地用户（issuer, provider_uid=sub）
+                        else 用户存在
+                            Backend ->> Backend: 读取本地用户信息
+                        end
+                        Backend-->>Client: 302 重定向到登陆成功页，并 Set-Cookie JWT
+                        deactivate Backend
+                        deactivate Client
+                        Client-->>User: 登录成功（已是本地会话）
+                        deactivate User
+                    end
+                end
+            end
+        end
+    end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

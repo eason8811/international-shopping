@@ -1,0 +1,83 @@
+---
+config:
+  look: neo
+  theme: redux-color
+---
+sequenceDiagram
+    title 本系统注册/登录时序图
+    actor User as 用户
+    participant Client as 前端（浏览器/APP）
+    participant Backend as 认证服务（后端）
+    participant DB as 用户库
+    participant Mail as 邮件服务
+    rect rgba(200,200,255,0.15)
+        note over User,Backend: 注册流程（验证码激活）
+        User ->> Client: 打开注册页并填写（邮箱/手机号、密码等）
+        activate User
+        activate Client
+        Client ->> Backend: 发送注册请求（仅后端做密码哈希）
+        activate Backend
+        Backend ->> DB: 检查账户是否已存在
+        activate DB
+
+        alt 不存在
+            DB -->> Backend: 不存在
+            Backend ->> DB: 创建用户（status=DISABLE, password_hash,...）
+            note right of Backend: 发送邮件可异步（队列/重试）
+            Backend ->> Mail: 发送邮箱验证码
+            Backend ->> DB: Redis 存储可过期验证码
+            activate Mail
+            Mail -->> Backend: 发送结果
+            Backend -->> Client: 成功发送验证码的响应
+            Client -->> User: 提示已发送验证码，并展示输入框
+            Mail -->> User: 验证码邮件
+            deactivate Mail
+            User ->> Client: 提交验证码
+            Client ->> Backend: 用户邮箱验证请求（code）
+            Backend ->> DB: 检查验证码是否正确
+            rect rgba(255, 255, 200, 0.15)
+                alt 验证码正确
+                    DB -->> Backend: 验证码正确
+                    Backend ->> DB: 校验并更新用户 status=ACTIVE
+                    Backend -->> Client: 201 注册成功
+                Client -->> User: 展示注册成功提示
+                else 验证码不正确
+                    DB -->> Backend: 验证码不存在/不正确
+                    Backend -->> Client: 422 验证码错误
+                    Client -->> User: 展示验证码错误并提示重试
+                end
+            end
+        else 已存在
+            DB -->> Backend: 已存在
+            deactivate DB
+            Backend -->> Client: 409 冲突（邮箱/手机号已注册）
+            deactivate Backend
+            Client -->> User: 展示邮箱已存在提示
+            deactivate Client
+            deactivate User
+        end
+    end
+    rect rgba(200,255,200,0.15)
+        note over User,Backend: 登录流程
+        User ->> Client: 输入账号 + 密码
+        activate User
+        activate Client
+        Client ->> Backend: 登录请求
+        activate Backend
+        Backend ->> DB: 查询用户并校验密码（hash 对比）
+        activate DB
+        alt 校验通过 & 用户 ACTIVE
+            DB -->> Backend: OK
+            Backend ->> Backend: 生成 JWT
+            Backend -->> Client: 200 OK（Set-Cookie）
+            Client -->> User: 登录成功
+        else 校验失败 / 用户未激活
+            DB -->> Backend: 失败/未激活
+            deactivate DB
+            Backend -->> Client: 401/403（必要时提示“重新发送激活邮件”）
+            deactivate Backend
+            Client -->> User: 展示错误原因
+            deactivate Client
+            deactivate User
+        end
+    end
