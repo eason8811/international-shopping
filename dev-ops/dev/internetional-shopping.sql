@@ -502,24 +502,27 @@ CREATE TABLE orders
 /*
 idx_item_order：加载订单明细
 idx_item_prod / idx_item_sku：基于商品/SKU 的售卖分析
+idx_item_discount_code：从折扣码侧统计使用情况/回溯明细。
  */
 CREATE TABLE order_item
 (
-    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id        BIGINT UNSIGNED NOT NULL COMMENT '订单 ID, 指向 orders.id',
-    product_id      BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID, 指向 product.id',
-    sku_id          BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
-    title           VARCHAR(255)    NOT NULL COMMENT '商品标题快照',
-    sku_attrs       JSON            NULL COMMENT 'SKU属性快照(JSON)',
-    cover_image_url VARCHAR(500)    NULL COMMENT '商品图快照',
-    unit_price      DECIMAL(18, 2)  NOT NULL COMMENT '单价快照',
-    quantity        INT             NOT NULL COMMENT '数量',
-    subtotal_amount DECIMAL(18, 2)  NOT NULL COMMENT '小计=单价*数量',
-    created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_id         BIGINT UNSIGNED NOT NULL COMMENT '订单 ID, 指向 orders.id',
+    product_id       BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID, 指向 product.id',
+    sku_id           BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
+    discount_code_id BIGINT UNSIGNED NULL COMMENT '折扣码ID, 指向 discount_code.id',
+    title            VARCHAR(255)    NOT NULL COMMENT '商品标题快照',
+    sku_attrs        JSON            NULL COMMENT 'SKU属性快照(JSON)',
+    cover_image_url  VARCHAR(500)    NULL COMMENT '商品图快照',
+    unit_price       DECIMAL(18, 2)  NOT NULL COMMENT '单价快照',
+    quantity         INT             NOT NULL COMMENT '数量',
+    subtotal_amount  DECIMAL(18, 2)  NOT NULL COMMENT '小计=单价*数量',
+    created_at       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
     KEY idx_item_order (order_id),
     KEY idx_item_prod (product_id),
-    KEY idx_item_sku (sku_id)
+    KEY idx_item_sku (sku_id),
+    KEY idx_item_discount_code (discount_code_id)
 ) ENGINE = InnoDB COMMENT ='订单明细';
 
 -- 3.3 支付单（对接支付API，使用 externalId 关联）  /* 待定, 视支付通道 API 文档而定 */
@@ -689,6 +692,98 @@ CREATE TABLE shipment_status_log
     -- 约束：from/to 不相等（MySQL CHECK 在 8/9 可用，但无法跨NULL严格校验）
     CHECK (from_status IS NULL OR from_status <> to_status)
 ) ENGINE = InnoDB COMMENT ='包裹状态流转日志 (源状态→目标状态，含事件来源与原始报文)';
+
+-- 3.8 折扣策略（策略模板，供折扣码引用）
+/*
+idx_policy_scope_type：后台按“作用域+类型”筛选策略。
+CHECK：基础约束（百分比范围/金额为正；不同类型下字段取值限制）。
+*/
+CREATE TABLE discount_policy
+(
+    id                  BIGINT UNSIGNED           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    name                VARCHAR(120)              NOT NULL COMMENT '策略名称',
+    apply_scope         ENUM ('ORDER','ITEM')     NOT NULL DEFAULT 'ITEM' COMMENT '作用域：整单/单行',
+    strategy_type       ENUM ('PERCENT','AMOUNT') NOT NULL COMMENT '折扣类型：按百分比 or 按固定金额',
+    percent_off         DECIMAL(5, 2)             NULL COMMENT '折扣百分比(0~100)，当 strategy_type=PERCENT 时生效',
+    amount_off          DECIMAL(18, 2)            NULL COMMENT '固定减金额，当 strategy_type=AMOUNT 时生效',
+    currency            CHAR(3)                   NULL COMMENT '金额折扣币种；为空表示随订单币种单位计算',
+    min_order_amount    DECIMAL(18, 2)            NULL COMMENT '门槛金额（按作用域口径）',
+    max_discount_amount DECIMAL(18, 2)            NULL COMMENT '封顶减免金额（可空）',
+    created_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_policy_scope_type (apply_scope, strategy_type),
+    CHECK (strategy_type <> 'PERCENT' OR (percent_off IS NOT NULL AND percent_off >= 0 AND percent_off <= 100)),
+    CHECK (strategy_type <> 'AMOUNT' OR (amount_off IS NOT NULL AND amount_off > 0))
+) ENGINE = InnoDB COMMENT ='折扣策略模板';
+
+-- 3.9 折扣码（6位字母数字，唯一；关联策略；统计使用次数）
+/*
+uk_coupon_code：折扣码文本唯一，快速命中。
+idx_coupon_policy：按策略聚合查询/运营分析。
+idx_coupon_expires：过期清理/有效性筛查。
+idx_coupon_scope：按可用范围模式筛选。
+CHECK code：限定大写字母数字6位。
+*/
+CREATE TABLE discount_code
+(
+    id         BIGINT UNSIGNED                  NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    code       CHAR(6)                          NOT NULL COMMENT '折扣码(6位A-Z/0-9)',
+    policy_id  BIGINT UNSIGNED                  NOT NULL COMMENT '折扣策略ID, 指向 discount_policy.id',
+    name       VARCHAR(120)                     NOT NULL COMMENT '折扣码名称(运营标识)',
+    scope_mode ENUM ('ALL','INCLUDE','EXCLUDE') NOT NULL DEFAULT 'INCLUDE' COMMENT '适用范围模式',
+    expires_at DATETIME(3)                      NOT NULL COMMENT '过期时间(到期不可用)',
+    created_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_coupon_code (code),
+    KEY idx_coupon_policy (policy_id),
+    KEY idx_coupon_expires (expires_at),
+    KEY idx_coupon_scope (scope_mode),
+    CHECK (code REGEXP '^[A-Z0-9]{6}$')
+) ENGINE = InnoDB COMMENT ='折扣码';
+
+-- 3.10 折扣码-商品SPU映射（限制适用范围）
+/*
+PK (discount_code_id, product_id)：去重“一码-一SPU”。
+idx_cpnprod_product：从SPU反查可用折扣码（商品页展示）。
+*/
+CREATE TABLE discount_code_product
+(
+    discount_code_id BIGINT UNSIGNED NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
+    product_id       BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID, 指向 product.id',
+    created_at       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (discount_code_id, product_id),
+    KEY idx_cpnprod_product (product_id)
+) ENGINE = InnoDB COMMENT ='折扣码-商品SPU映射(限定适用范围)';
+
+-- 3.11 折扣使用日志（作为“真实使用”与对账的事实表）
+/*
+idx_oda_order：按订单聚合查询（售后/对账）。
+idx_oda_code：按折扣码查询使用情况。
+唯一约束：
+uk_oda_item_once (order_item_id, discount_code_id)：同一明细同一折扣码仅记录一次。
+uk_oda_order_once (order_id, discount_code_id, order_level_only)：整单层仅记录一次（利用生成列区分 NULL）。
+*/
+CREATE TABLE order_discount_applied
+(
+    id               BIGINT UNSIGNED       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_id         BIGINT UNSIGNED       NOT NULL COMMENT '订单ID, 指向 orders.id',
+    order_item_id    BIGINT UNSIGNED       NULL COMMENT '订单明细ID, 为空表示订单级折扣',
+    discount_code_id BIGINT UNSIGNED       NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
+    applied_scope    ENUM ('ORDER','ITEM') NOT NULL COMMENT '应用范围：订单级/明细级',
+    applied_amount   DECIMAL(18, 2)        NOT NULL COMMENT '本次实际抵扣金额(按订单币种)',
+    created_at       DATETIME(3)           NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_oda_order (order_id),
+    KEY idx_oda_code (discount_code_id),
+    -- 明细级幂等：同一明细+同一码只允许一条
+    UNIQUE KEY uk_oda_item_once (order_item_id, discount_code_id),
+    -- 订单级幂等：同一订单+同一码只允许一条（借助生成列处理 order_item_id 为 NULL 的情况）
+    order_level_only TINYINT AS (CASE WHEN order_item_id IS NULL THEN 1 ELSE NULL END) STORED,
+    UNIQUE KEY uk_oda_order_once (order_id, discount_code_id, order_level_only),
+    CHECK (applied_amount > 0)
+) ENGINE = InnoDB COMMENT ='折扣应用日志(真实使用的事实表)';
 
 -- =========================================================
 -- 其他辅助表
