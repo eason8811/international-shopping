@@ -1,10 +1,13 @@
+---
+config:
+  theme: redux-color
+---
 sequenceDiagram
     title OAuth2 第三方登录流程
     actor User as 用户
     participant Client as 前端
     participant Backend as 后端
     participant ThirdPart as 第三方授权服务器
-
     User->>Client: 点击“使用 第三方 登录”
     activate User
     activate Client
@@ -19,7 +22,9 @@ sequenceDiagram
     activate Client
     alt 用户取消（或其他原因）授权
         Client ->> ThirdPart: 用户取消（或其他原因）授权
+        activate ThirdPart
         ThirdPart -->> Client: 302 重定向回 redirect_uri 并带上 error （可能会有error_description）参数
+        deactivate ThirdPart
         Client ->> Backend: 调用授权接口（带上error参数）
         activate Backend
         Backend->>Backend: 校验 state 是否相同（一次性）
@@ -40,7 +45,6 @@ sequenceDiagram
                 Backend -->> Client: 400 错误请求
                 Client -->> User: 显示授权失败，提示重试
             else state 相同，通过校验
-
                 Backend->>ThirdPart: 发送获取access_token请求（带上AUTH_CODE, redirect_uri, client_id, client_secret, code_verifier）
                 activate ThirdPart
                 ThirdPart-->>Backend: 返回access_token, expires_in, id_token, refresh_token（视scope而定）
@@ -71,47 +75,3 @@ sequenceDiagram
             end
         end
     end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
