@@ -1,0 +1,115 @@
+sequenceDiagram
+    actor User as 用户(User)
+    participant Client as 前端(Client)
+    participant CS as 客服/运营(控制台)
+    participant Backend as 后端(Backend)
+    participant Pay as 支付网关(Payment)
+    participant API as 承运商API(API)
+
+    %% A0 用户发起售后（创建工单）
+    User->>Client: 发起售后（退款/异常/改址/理赔）
+    Client->>CS: 创建工单(cs_ticket)(订单/包裹/原因/证据)
+    activate CS
+
+    %% A1 预发货退款（未揽收：CREATED/LABEL_CREATED）
+    rect rgb(245,245,255)
+      note over Client,API: 预发货退款（全部未揽收）
+      CS->>Backend: ApproveRefundPreShipment(order_no, ticket_id)
+      activate Backend
+      Backend->>Backend: 校验可退 & 锁单
+      opt 已创建面单
+        Backend->>API: 取消运单(ext_external_id / tracking_no)
+        API-->>Backend: 取消成功
+        Backend->>Backend: UPDATE shipment.status=CANCELLED<br/>INSERT shipment_status_log(to=CANCELLED, source=MANUAL/API)
+      end
+
+      %% 新建退款单(头) + （可选）退款明细(行)
+      Backend->>Backend: INSERT payment_refund(status=INIT, reason_code=CUSTOMER_REQUEST,<br/> order_id, payment_order_id, amount=全额, ticket_id)
+      opt 需要按行审计/对账
+        Backend->>Backend: INSERT payment_refund_item[*](order_item_id, quantity, amount)
+      end
+
+      %% 调用网关并写回 external_refund_id
+      Backend->>Pay: RefundRequest(refund_no, amount, currency)
+      Pay-->>Backend: Accepted(external_refund_id)
+      Backend->>Backend: UPDATE payment_refund SET external_refund_id=?, status=PENDING
+
+      %% 回调/轮询成功
+      alt 回调/轮询SUCCESS
+        Pay-->>Backend: Refund SUCCESS(external_refund_id)
+        Backend->>Backend: UPDATE payment_refund.status=SUCCESS<br/>orders.status=REFUNDED<br/>INSERT order_status_log(to=REFUNDED, source=ADMIN)
+        Backend-->>CS: 回填退款结果(成功/金额/凭证)
+      else FAIL/CLOSED
+        Pay-->>Backend: Refund FAIL/CLOSED
+        Backend->>Backend: UPDATE payment_refund.status=FAIL/CLOSED
+        Backend-->>CS: 通知人工处理
+      end
+      deactivate Backend
+      CS-->>Client: 通知用户结果
+    end
+    deactivate CS
+
+    %% A2 已发货后异常：部分退款 / 重派（可并行）
+    rect rgb(245,255,245)
+      note over Client,API: 已发货后异常（EXCEPTION / RETURNED / LOST 等）
+      CS->>Backend: 审核方案(部分退款 / 重派 / 组合)，附 ticket_id
+      activate Backend
+      note over CS,Backend: 依据行项目与折扣分摊计算可退金额<br/>（可参考 order_discount_applied）
+
+      par 方案1：部分退款
+        %% 新建退款单(头)+行
+        Backend->>Backend: INSERT payment_refund(status=INIT, reason_code=RETURNED/LOST/DAMAGED,<br/>amount=∑行, ticket_id)
+        Backend->>Backend: INSERT payment_refund_item[*](order_item_id, quantity, amount)
+        Backend->>Pay: RefundRequest(refund_no, amount)
+        Pay-->>Backend: Accepted(external_refund_id)
+        Backend->>Backend: UPDATE payment_refund SET external_refund_id=?, status=PENDING
+
+        alt 回调/轮询SUCCESS
+          Pay-->>Backend: Refund SUCCESS
+          Backend->>Backend: UPDATE payment_refund.status=SUCCESS
+          note over Backend: 部分退款不改 orders.status（保持 PAID/FULFILLED）<br/>通过汇总退款单展示“已退金额”
+          Backend-->>CS: 回填部分退款完成(金额/行明细)
+        else FAIL/CLOSED
+          Pay-->>Backend: Refund FAIL/CLOSED
+          Backend->>Backend: UPDATE payment_refund.status=FAIL/CLOSED
+          Backend-->>CS: 通知重试/人工
+        end
+
+      and 方案2：重派（改址/补寄）
+        CS->>Backend: CreateReshipment(order_no, items_subset, ticket_id)
+        Backend->>Backend: INSERT shipment(status=CREATED)<br/>INSERT shipment_item[*]
+        Backend->>API: CreateLabel/PlaceOrder
+        API-->>Backend: 返回 new tracking_no / ext_external_id
+        Backend->>Backend: UPDATE shipment.status=LABEL_CREATED<br/>INSERT shipment_status_log(to=LABEL_CREATED, source=API)
+        Backend-->>CS: 回填重派单号
+      end
+      deactivate Backend
+      CS-->>Client: 通知用户（退款进度/新单号）
+    end
+
+    %% A3 理赔协同（LOST/破损）
+    rect rgb(255,250,240)
+      CS->>Backend: OpenClaim(shipment_id, 证据, ticket_id)
+      Backend->>API: CreateClaim(tracking_no, 证据)
+      API-->>Backend: Claim Acknowledged(claim_id)
+      loop 理赔等待/补证
+        API-->>Backend: Claim Update(补证/进度)
+        Backend-->>CS: 待补资料提示
+        CS->>Backend: Upload Evidence
+        Backend->>API: SubmitEvidence
+      end
+      alt Approved(赔付金额)
+        API-->>Backend: Claim Approved(amount)
+        %% 赔付通过后，走退款或补偿
+        Backend->>Backend: INSERT payment_refund(status=INIT, reason_code=LOST/DAMAGED,<br/> amount=赔付向用户部分/全额, initiator=SYSTEM, ticket_id)
+        Backend->>Pay: RefundRequest(refund_no, amount)
+        Pay-->>Backend: SUCCESS
+        Backend->>Backend: UPDATE payment_refund.status=SUCCESS
+        Backend-->>CS: 回填理赔结论 & 用户侧退款完成
+        CS-->>Client: 通知用户结果
+      else Denied
+        API-->>Backend: Claim Denied(原因)
+        Backend-->>CS: 人工决策（是否平台兜底/发券）
+        CS-->>Client: 告知结果
+      end
+    end

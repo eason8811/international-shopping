@@ -1,0 +1,178 @@
+sequenceDiagram
+    actor User as 用户(User)
+    participant Client as 前端(Client)
+    participant Backend as 后端(Backend)
+    participant Pay as 支付网关(Payment)
+    participant API as 承运商API(API)
+
+    %% ====== 1) 下单创建 ======
+    rect rgb(245,245,255)
+        note over User, Backend: 用户下单
+        User->>Client: 选择商品/提交订单请求
+        activate User
+        activate Client
+        Client->>Backend: CreateOrder(商品列表, 地址/优惠信息等)
+        activate Backend
+        Backend->>Backend: 校验价格/库存/折扣策略<br/>(命中 discount_policy/discount_code)
+        Backend->>Backend: 计算金额: total/discount/shipping/pay_amount
+        Backend->>Backend: 持久化 orders(order_no, status=CREATED)<br/>& order_item[*]<br/>记录 order_status_log(CREATED)
+        note over Backend: 对应表：orders / order_item / order_status_log
+        Backend-->>Client: 下单成功(订单摘要, 待支付)
+        deactivate Backend
+        Client -->> User: 展示下单成功页面
+        deactivate Client
+        deactivate User
+    end
+
+    %% ====== 2) 支付 ======
+    rect rgb(245,255,245)
+        note over User, Pay: 拉起支付系统
+        User->>Client: 点击去支付
+        activate User
+        activate Client
+        Client->>Backend: 新建支付单(order_no, pay_channel)
+        activate Backend
+        Backend->>Backend: 新建 payment_order(status=INIT)<br/>更新 orders.pay_status=INIT
+        Backend->>Pay: 下单/获取external_id(QR/收银台)
+        activate Pay
+        Pay-->>Backend: 下单响应( external_id )
+        Backend ->> Backend: 更新 orders.status=PENDING_PAYMENT<br/>并写入order_status_log
+        deactivate Pay
+        Backend-->>Client: 返回支付会话信息(QR/跳转)
+        deactivate Backend
+        Client -->> User: 跳转支付页面（或其他行为）
+        deactivate Client
+        deactivate User
+
+        alt 支付成功(同步/回调)
+            User->>Pay: 完成支付
+            activate Pay
+            Pay-->>Backend: 异步回调 SUCCESS (external_id)
+            deactivate Pay
+            activate Backend
+            Backend->>Backend: 更新 payment_order.status=SUCCESS<br/>orders.pay_status=SUCCESS<br/>orders.status=PAID, pay_time<br/>写 order_status_log(PAID)
+            note over Backend: payment_order / orders / order_status_log
+            Backend-->>Client: 支付成功
+            deactivate Backend
+        else 超时/取消/失败
+            Pay-->>Backend: 回调 FAIL/CLOSED(或超时无回调)
+            activate Backend
+            Backend->>Backend: 标记 payment_order.status=FAIL/CLOSED<br/>orders.pay_status=FAIL/CLOSED
+            opt 未支付超时/用户主动取消
+                Backend->>Backend: orders.status=CANCELLED<br/>写 order_status_log(CANCELLED)
+            end
+            Backend-->>Client: 支付失败/已取消
+            deactivate Backend
+        end
+    end
+
+    %% ====== 3) 付款后：合/拆单 & 生成运单 ======
+    rect rgb(255,250,240)
+        note over Client, API: 付款后生成运单
+        Client->>Backend: 请求订单详情(已支付)
+        activate Backend
+        Backend->>Backend: 规划发货策略：合单/拆单(按仓/体积/目的地)
+        note over Backend: 将多个 order_item 按规则映射到 1..N 个包裹
+        par 为每个包裹创建 shipment & 映射
+            Backend->>Backend: INSERT shipment(status=CREATED)<br/>INSERT shipment_item[*]
+            note over Backend: 表：shipment / shipment_item
+        and 生成面单/下单至承运商
+            Backend->>API: CreateLabel/PlaceOrder(ship_from, ship_to, items,...)
+            activate API
+            API-->>Backend: 返回 tracking_no / ext_external_id
+            deactivate API
+            Backend->>Backend: 更新 shipment.tracking_no/ext_external_id<br/>status=LABEL_CREATED<br/>写 shipment_status_log(from=CREATED,to=LABEL_CREATED,source=SYSTEM_JOB/API)
+        end
+        Backend-->>Client: 返回包裹列表(含 tracking_no / 面单)
+        deactivate Backend
+    end
+
+    %% ====== 4) 轨迹推进：回调 & 轮询 ======
+    rect rgb(240,255,255)
+    note over Backend, API: 更新物流信息
+        alt 承运商回调(Webhook)
+            API-->>Backend: Webhook 通知(轨迹事件: PICKED_UP/IN_TRANSIT/...)
+            activate Backend
+            Backend->>Backend: 幂等处理 uk_ssl_dedupe(shipment_id, source_type, source_ref)
+            Backend->>Backend: 更新 shipment.status / 时间字段<br/>写 shipment_status_log(source=CARRIER_WEBHOOK)
+            deactivate Backend
+        else 定时轮询(Poll)
+            loop 每X分钟
+                Backend->>API: GetTracking(tracking_no)
+                API-->>Backend: 最新轨迹/状态
+                Backend->>Backend: 幂等更新 shipment + 写 shipment_status_log(source=CARRIER_POLL)
+            end
+        end
+    end
+
+    %% ====== 5) 清关/派送/签收 与 订单完结 ======
+    rect rgb(250,255,240)
+        note over Client, API: 订单的清关/派送/签收 与 订单完结
+        alt 正常流转
+            opt 海关环节
+                API-->>Backend: CUSTOMS_HOLD -> CUSTOMS_RELEASED
+                Backend->>Backend: 更新 shipment.status<br/>写 shipment_status_log
+            end
+            API-->>Backend: OUT_FOR_DELIVERY -> DELIVERED(签收)
+            activate Backend
+            Backend->>Backend: 更新 shipment.delivered_time/status=DELIVERED<br/>写 shipment_status_log
+            Backend->>Backend: 判断订单下所有 shipment 是否均 DELIVERED
+            alt 全部签收
+                Backend->>Backend: orders.status=FULFILLED<br/>写 order_status_log(FULFILLED)
+                note over Backend: 后续可由定时任务在售后期结束后置为 CLOSED
+            else 仍有在途/异常包裹
+                Backend->>Backend: 保持订单进行中(部分达)
+            end
+            deactivate Backend
+            Backend-->>Client: 展示签收状态(全部/部分)
+        else 异常分支
+            alt 用户拒收/地址问题导致退回
+                API-->>Backend: RETURNED
+                activate Backend
+                Backend->>Backend: 更新 shipment.status=RETURNED<br/>写 shipment_status_log
+                opt 后续处理策略
+                    Backend->>Backend: 触发售后流程：<br/>1) 重新改址重派(新 shipment)<br/>2) 原路退回并退款
+                end
+            else 包裹异常(EXCEPTION)
+                API-->>Backend: EXCEPTION(破损/延误等)
+                Backend->>Backend: shipment.status=EXCEPTION<br/>写 shipment_status_log<br/>通知客服/用户
+            else 丢失(LOST)
+                API-->>Backend: LOST
+                Backend->>Backend: shipment.status=LOST<br/>写 shipment_status_log<br/>进入理赔/退款流程
+                deactivate Backend
+            end
+        end
+    end
+
+    %% ====== 6) 退款/售后（可发生于发货前或签收失败场景） ======
+    rect rgb(255,245,245)
+        note over User, Pay: 退款/售后（可发生于发货前或签收失败场景）
+        alt 发货前用户申请退款(未揽收)
+            User->>Client: 申请退款/取消
+            Client->>Backend: RefundRequest(order_no)
+            activate Client
+            activate Backend
+            Backend->>Backend: 校验可退条件(未出库/未揽收)
+            Backend->>Backend: orders.status=REFUNDING<br/>写 order_status_log
+            Backend->>Pay: 退款操作
+            activate Pay
+            Pay-->>Backend: 退款成功
+            deactivate Pay
+            Backend->>Backend: orders.status=REFUNDED<br/>写 order_status_log
+            Backend-->>Client: 退款完成
+            deactivate Backend
+        else 发货后异常导致退款(RETURNED/LOST等)
+            Backend->>Backend: 依据策略退部分/全额<br/>orders.status=REFUNDING -> REFUNDED
+            Backend-->>Client: 通知退款结果/或重派方案
+            deactivate Client
+        end
+    end
+
+    %% ====== 7) 订单最终关闭 ======
+    rect rgb(245,245,245)
+        note over Client, Backend: 订单最终关闭
+        opt 全部签收且过售后期
+            Backend->>Backend: 定时任务置 orders.status=CLOSED<br/>写 order_status_log(CLOSED)
+            Backend-->>Client: 订单已完成
+        end
+    end
