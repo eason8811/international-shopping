@@ -479,7 +479,7 @@ CREATE TABLE orders
     discount_amount     DECIMAL(18, 2)                                            NOT NULL DEFAULT 0 COMMENT '折扣总额',
     shipping_amount     DECIMAL(18, 2)                                            NOT NULL DEFAULT 0 COMMENT '运费',
     pay_amount          DECIMAL(18, 2)                                            NOT NULL COMMENT '应付金额=总额-折扣+运费',
-    currency            CHAR(3)                                                   NOT NULL DEFAULT 'CNY' COMMENT '币种',
+    currency            CHAR(3)                                                   NOT NULL DEFAULT 'USD' COMMENT '币种',
     pay_channel         ENUM ('NONE','ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL DEFAULT 'NONE' COMMENT '支付通道',
     pay_status          ENUM ('NONE','INIT','SUCCESS','FAIL','CLOSED')            NOT NULL DEFAULT 'NONE' COMMENT '支付状态(网关侧)',
     payment_external_id VARCHAR(128)                                              NULL COMMENT '支付单 externalId(网关唯一标记)',
@@ -538,7 +538,7 @@ CREATE TABLE payment_order
     external_id      VARCHAR(128)                                       NOT NULL COMMENT '支付网关 externalId(唯一)',
     channel          ENUM ('ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL COMMENT '支付通道',
     amount           DECIMAL(18, 2)                                     NOT NULL COMMENT '支付金额',
-    currency         CHAR(3)                                            NOT NULL DEFAULT 'CNY' COMMENT '币种',
+    currency         CHAR(3)                                            NOT NULL DEFAULT 'USD' COMMENT '币种',
     status           ENUM ('INIT','PENDING','SUCCESS','FAIL','CLOSED')  NOT NULL DEFAULT 'INIT' COMMENT '支付单状态',
     request_payload  JSON                                               NULL COMMENT '下单请求报文(JSON)',
     response_payload JSON                                               NULL COMMENT '下单响应报文(JSON)',
@@ -611,7 +611,7 @@ CREATE TABLE shipment
     width_cm        DECIMAL(10, 1)  NULL COMMENT '宽(cm)',
     height_cm       DECIMAL(10, 1)  NULL COMMENT '高(cm)',
     declared_value  DECIMAL(18, 2)  NULL COMMENT '申报价值(币种见currency)',
-    currency        CHAR(3)         NOT NULL DEFAULT 'CNY' COMMENT '币种',
+    currency        CHAR(3)         NOT NULL DEFAULT 'USD' COMMENT '币种',
     customs_info    JSON            NULL COMMENT '关务/清关信息(HS code, 原产地, 税费等)',
     label_url       VARCHAR(500)    NULL COMMENT '电子面单URL(可选)',
     pickup_time     DATETIME(3)     NULL COMMENT '揽收时间',
@@ -784,6 +784,162 @@ CREATE TABLE order_discount_applied
     UNIQUE KEY uk_oda_order_once (order_id, discount_code_id, order_level_only),
     CHECK (applied_amount > 0)
 ) ENGINE = InnoDB COMMENT ='折扣应用日志(真实使用的事实表)';
+
+-- 3.12 客服工单（售后/异常/理赔/补寄等统一入口）
+/*
+uk_ticket_no：对外/对内统一的工单编号（雪花/ULID），便于定位与对账
+uk_ticket_open_dedupe：(order_id, shipment_id, issue_type, open_only) 保证同一订单/包裹、同一问题类型在“进行中”仅有一张工单（避免并发重复）
+idx_ticket_user：用户侧列表
+idx_ticket_order / idx_ticket_shipment / idx_ticket_orderitem：从订单/包裹/明细反查工单
+idx_ticket_status_update：(status, updated_at) 轮询/看板扫描
+idx_ticket_priority：(priority, created_at) 运营看板
+idx_ticket_sla：SLA 到期预警
+idx_ticket_assignee：坐席工作台（查看本人待处理）
+idx_ticket_claim_ext：承运商理赔单号反查
+CHECK：金额为正、必要时可进一步加严（按 issue_type 约束字段）
+*/
+CREATE TABLE cs_ticket
+(
+    id                      BIGINT UNSIGNED                        NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    ticket_no               CHAR(26)                               NOT NULL COMMENT '工单编号(ULID/雪花等, 对外可见)',
+    user_id                 BIGINT UNSIGNED                        NOT NULL COMMENT '发起用户ID, 指向 user_account.id',
+    order_id                BIGINT UNSIGNED                        NULL COMMENT '关联订单, 指向 orders.id',
+    order_item_id           BIGINT UNSIGNED                        NULL COMMENT '关联订单明细, 指向 order_item.id',
+    shipment_id             BIGINT UNSIGNED                        NULL COMMENT '关联包裹, 指向 shipment.id',
+
+    issue_type              ENUM ('REFUND','RESHIP','CLAIM','DELIVERY','ADDRESS','PRODUCT','PAYMENT','OTHER')
+                                                                   NOT NULL DEFAULT 'OTHER' COMMENT '问题类型: 退款/补寄/理赔/物流/改址/商品/支付/其他',
+    status                  ENUM ('OPEN','IN_PROGRESS','AWAITING_USER','AWAITING_CARRIER','ON_HOLD','RESOLVED','REJECTED','CLOSED')
+                                                                   NOT NULL DEFAULT 'OPEN' COMMENT '工单状态机',
+    priority                ENUM ('LOW','NORMAL','HIGH','URGENT')  NOT NULL DEFAULT 'NORMAL' COMMENT '优先级',
+    channel                 ENUM ('CLIENT','ADMIN','API','SYSTEM') NOT NULL DEFAULT 'CLIENT' COMMENT '来源渠道: 前端/后台/开放API/系统',
+
+    title                   VARCHAR(200)                           NOT NULL COMMENT '标题',
+    `description`           VARCHAR(2000)                          NULL COMMENT '问题描述/背景',
+    attachments             JSON                                   NULL COMMENT '附件(图片/文件)列表(JSON)',
+    evidence                JSON                                   NULL COMMENT '证据/举证材料(JSON)',
+    tags                    JSON                                   NULL COMMENT '业务标签(JSON数组)',
+
+    -- 退款/理赔相关（可选字段）
+    requested_refund_amount DECIMAL(18, 2)                         NULL COMMENT '申请退款金额(按订单币种)',
+    currency                CHAR(3)                                NULL     DEFAULT 'USD' COMMENT '币种',
+    claim_external_id       VARCHAR(128)                           NULL COMMENT '承运商理赔外部编号(存在则填)',
+
+    -- 补寄相关（可选字段）
+    reship_items            JSON                                   NULL COMMENT '补寄明细(含SKU与数量的快照)',
+
+    -- 派工/进度
+    assigned_to_user_id     BIGINT UNSIGNED                        NULL COMMENT '指派坐席用户ID',
+    assigned_at             DATETIME(3)                            NULL COMMENT '指派时间',
+    last_message_at         DATETIME(3)                            NULL COMMENT '最近用户/客服互动时间',
+    sla_due_at              DATETIME(3)                            NULL COMMENT 'SLA 到期时间',
+    resolved_at             DATETIME(3)                            NULL COMMENT '标记解决时间',
+    closed_at               DATETIME(3)                            NULL COMMENT '关闭时间',
+
+    source_ref              VARCHAR(128)                           NULL COMMENT '来源引用ID(如回调/任务run_id/请求id)',
+    extra                   JSON                                   NULL COMMENT '扩展字段(冗余业务信息/调试)',
+
+    created_at              DATETIME(3)                            NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at              DATETIME(3)                            NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_ticket_no (ticket_no),
+
+    -- 仅对“进行中”状态做去重: 一个订单/包裹×问题类型，仅允许一张开放工单
+    open_only               TINYINT AS (CASE
+                                            WHEN status IN
+                                                 ('OPEN', 'IN_PROGRESS', 'AWAITING_USER', 'AWAITING_CARRIER', 'ON_HOLD')
+                                                THEN 1
+                                            ELSE NULL END) STORED,
+    UNIQUE KEY uk_ticket_open_dedupe (order_id, shipment_id, issue_type, open_only),
+    KEY idx_ticket_user (user_id, created_at),
+    KEY idx_ticket_order (order_id),
+    KEY idx_ticket_orderitem (order_item_id),
+    KEY idx_ticket_shipment (shipment_id),
+    KEY idx_ticket_status_update (status, updated_at),
+    KEY idx_ticket_priority (priority, created_at),
+    KEY idx_ticket_sla (sla_due_at),
+    KEY idx_ticket_assignee (assigned_to_user_id, status),
+    KEY idx_ticket_claim_ext (claim_external_id),
+    CHECK (requested_refund_amount IS NULL OR requested_refund_amount > 0)
+) ENGINE = InnoDB COMMENT ='客服工单(售后/异常/理赔/补寄统一入口)';
+
+-- 3.13 支付退款单（对账/幂等/回调 & 轮询）
+/*
+uk_refund_no：内部退款单号唯一（ULID/雪花）
+uk_refund_external：网关退款 external_id 唯一（对账/幂等）
+uk_refund_req_dedupe：(payment_order_id, client_refund_no) 客户端/业务侧幂等键
+idx_refund_order / idx_refund_payment：从订单/原支付定位退款
+idx_refund_status_update：(status, updated_at) 退款轮询/看板
+idx_refund_ticket：从客服工单反查退款
+CHECK：金额为正
+*/
+CREATE TABLE payment_refund
+(
+    id                 BIGINT UNSIGNED                                   NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    refund_no          CHAR(26)                                          NOT NULL COMMENT '退款单号(ULID/雪花等, 对外可见)',
+    order_id           BIGINT UNSIGNED                                   NOT NULL COMMENT '订单ID, 指向 orders.id',
+    payment_order_id   BIGINT UNSIGNED                                   NOT NULL COMMENT '原支付单ID, 指向 payment_order.id',
+
+    external_refund_id VARCHAR(128)                                      NULL COMMENT '支付系统退款 externalId(唯一)',
+    client_refund_no   VARCHAR(64)                                       NULL COMMENT '商户侧/客户端幂等键(可选)',
+
+    amount             DECIMAL(18, 2)                                    NOT NULL COMMENT '退款总金额(订单币种)',
+    currency           CHAR(3)                                           NOT NULL DEFAULT 'USD' COMMENT '币种',
+    -- 可选细分(便于财务拆解；留空则仅使用 amount)
+    items_amount       DECIMAL(18, 2)                                    NULL COMMENT '货品部分的退款金额',
+    shipping_amount    DECIMAL(18, 2)                                    NULL COMMENT '运费部分的退款金额',
+
+    status             ENUM ('INIT','PENDING','SUCCESS','FAIL','CLOSED') NOT NULL DEFAULT 'INIT' COMMENT '退款状态',
+    reason_code        ENUM ('CUSTOMER_REQUEST','RETURNED','LOST','DAMAGED','PRICE_ADJUST','DUPLICATE','OTHER')
+                                                                         NOT NULL DEFAULT 'OTHER' COMMENT '原因分类',
+    reason_text        VARCHAR(255)                                      NULL COMMENT '原因备注(自由文本)',
+    initiator          ENUM ('USER','ADMIN','SYSTEM','SCHEDULER')        NOT NULL DEFAULT 'ADMIN' COMMENT '发起方',
+    ticket_id          BIGINT UNSIGNED                                   NULL COMMENT '关联工单, 指向 cs_ticket.id',
+
+    request_payload    JSON                                              NULL COMMENT '退款请求报文(JSON)',
+    response_payload   JSON                                              NULL COMMENT '退款响应报文(JSON)',
+    notify_payload     JSON                                              NULL COMMENT '最近一次回调报文(JSON)',
+    last_polled_at     DATETIME(3)                                       NULL COMMENT '最近轮询时间',
+    last_notified_at   DATETIME(3)                                       NULL COMMENT '最近回调处理时间',
+
+    created_at         DATETIME(3)                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at         DATETIME(3)                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_refund_no (refund_no),
+    UNIQUE KEY uk_refund_external (external_refund_id),
+    UNIQUE KEY uk_refund_req_dedupe (payment_order_id, client_refund_no),
+    KEY idx_refund_order (order_id),
+    KEY idx_refund_payment (payment_order_id),
+    KEY idx_refund_status_update (status, updated_at),
+    KEY idx_refund_ticket (ticket_id),
+    CHECK (amount > 0),
+    CHECK (items_amount IS NULL OR items_amount >= 0),
+    CHECK (shipping_amount IS NULL OR shipping_amount >= 0)
+) ENGINE = InnoDB COMMENT ='支付退款单(网关 externalId 对应)';
+
+-- 3.14 支付退款明细（可选：按订单明细拆分记录，用于部分退款对账）
+/*
+idx_rfditem_refund：通过退款单查明细
+idx_rfditem_orderitem：通过订单明细查其被退款记录
+CHECK：数量/金额为正；超退校验在业务层做
+*/
+CREATE TABLE payment_refund_item
+(
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    refund_id     BIGINT UNSIGNED NOT NULL COMMENT '退款单ID, 指向 payment_refund.id',
+    order_item_id BIGINT UNSIGNED NOT NULL COMMENT '订单明细ID, 指向 order_item.id',
+    quantity      INT             NOT NULL COMMENT '本次退款数量(件)',
+    amount        DECIMAL(18, 2)  NOT NULL COMMENT '该明细对应的退款金额',
+    reason        VARCHAR(255)    NULL COMMENT '该明细退款原因备注',
+    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_rfditem_refund (refund_id),
+    KEY idx_rfditem_orderitem (order_item_id),
+    CHECK (quantity > 0),
+    CHECK (amount > 0)
+) ENGINE = InnoDB COMMENT ='退款明细(按订单明细拆分)';
 
 -- =========================================================
 -- 其他辅助表
