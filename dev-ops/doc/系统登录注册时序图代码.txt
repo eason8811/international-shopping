@@ -25,8 +25,8 @@ sequenceDiagram
             Backend ->> DB: 创建用户（status=DISABLE, password_hash,...）
             note right of Backend: 发送邮件可异步（队列/重试）
             Backend ->> Mail: 发送邮箱验证码
-            Backend ->> DB: Redis 存储可过期验证码
             activate Mail
+            Backend ->> DB: Redis 存储可过期验证码
             Mail -->> Backend: 发送结果
             Backend -->> Client: 成功发送验证码的响应
             Client -->> User: 提示已发送验证码，并展示输入框
