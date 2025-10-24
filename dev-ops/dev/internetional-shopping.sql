@@ -7,7 +7,7 @@ CREATE DATABASE IF NOT EXISTS shopdb
 USE shopdb;
 
 -- =========================================================
--- 1) 用户领域 (user)
+-- 1. 用户领域 (user)
 -- =========================================================
 
 -- 1.1 账户主表：本系统用户（JWT 认证）
@@ -110,7 +110,7 @@ CREATE TABLE user_address
 ) ENGINE = InnoDB COMMENT ='用户收货地址';
 
 -- =========================================================
--- 2) 商品领域 (product)
+-- 2. 商品领域 (product)
 -- =========================================================
 
 -- 2.1 商品分类（树形）
@@ -162,7 +162,6 @@ CREATE TABLE product_category_i18n
     UNIQUE KEY uk_cat_slug_loc (locale, slug),
     KEY idx_cat_i18n_loc (locale)
 ) ENGINE = InnoDB COMMENT ='商品分类多语言覆盖';
-
 
 -- 2.3 商品SPU（标准产品单元）
 /*
@@ -286,25 +285,7 @@ CREATE TABLE product_sku_image
     KEY idx_sku_img_main (sku_id, is_main)
 ) ENGINE = InnoDB COMMENT ='商品图片(SKU)';
 
--- 2.8 购物车(用户-SKU 映射)
-/*
-uk_cart_user_sku (user_id, sku_id)：去重一人一SKU一条
-idx_cart_user：用户购物车列表
- */
-CREATE TABLE shopping_cart_item
-(
-    id       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    user_id  BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
-    sku_id   BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
-    quantity INT             NOT NULL DEFAULT 1 COMMENT '数量',
-    selected TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否勾选',
-    added_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '加入时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_cart_user_sku (user_id, sku_id),
-    KEY idx_cart_user (user_id)
-) ENGINE = InnoDB COMMENT ='购物车条目';
-
--- 2.9 商品 Like (用户-商品 映射)
+-- 2.8 商品 Like (用户-商品 映射)
 /*
 PK (user_id, product_id)：天然唯一，确保一人只 Like 同一商品一次
 idx_like_product：统计商品被点赞人数 / 列表
@@ -318,26 +299,7 @@ CREATE TABLE product_like
     KEY idx_like_product (product_id)
 ) ENGINE = InnoDB COMMENT ='商品 Like 关系';
 
--- 2.10 库存日志（预占/扣减/释放）
-/*
-idx_inv_sku_time (sku_id, created_at)：按SKU时间序查询流水
-idx_inv_order：从订单侧定位库存流水
- */
-CREATE TABLE inventory_log
-(
-    id          BIGINT UNSIGNED                               NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    sku_id      BIGINT UNSIGNED                               NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
-    order_id    BIGINT UNSIGNED                               NOT NULL COMMENT '关联订单ID',
-    change_type ENUM ('RESERVE','DEDUCT','RELEASE','RESTOCK') NOT NULL COMMENT '变更类型:预占/扣减/释放/入库',
-    quantity    INT                                           NOT NULL COMMENT '变更数量(正数)',
-    reason      VARCHAR(255)                                  NULL COMMENT '原因备注',
-    created_at  DATETIME(3)                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    PRIMARY KEY (id),
-    KEY idx_inv_sku_time (sku_id, created_at),
-    KEY idx_inv_order (order_id)
-) ENGINE = InnoDB COMMENT ='库存变动日志';
-
--- 2.11 SKU 多币种价格
+-- 2.9 SKU 多币种价格
 /*
 uk_price_sku_ccy：确保一个 sku 在一个结算货币中只对应一个售价
 idx_price_ccy：按币种统计/导出
@@ -360,7 +322,7 @@ CREATE TABLE product_price
     CHECK (sale_price IS NULL OR sale_price > 0)
 ) ENGINE = InnoDB COMMENT ='SKU 多币种定价(上货即确定各币种价格)';
 
--- 2.12 SPU 规格类别
+-- 2.10 SPU 规格类别
 /*
 uk_spec_prod_code / uk_spec_prod_name：同一SPU下规格类别名唯一，防重复
 idx_spec_prod：SPU 下加载所有规格类别
@@ -384,7 +346,7 @@ CREATE TABLE product_spec
     KEY idx_spec_prod (product_id)
 ) ENGINE = InnoDB COMMENT ='SPU规格类别(款式类别)';
 
--- 2.13 规格类别 i18n（spec 名称多语言）
+-- 2.11 规格类别 i18n（spec 名称多语言）
 /*
 PK(spec_id, locale)：每规格类别在每语言唯一。
 idx_spec_i18n_loc：按语言拉取面板/导出。
@@ -399,7 +361,7 @@ CREATE TABLE product_spec_i18n
     KEY idx_spec_i18n_loc (locale)
 ) ENGINE = InnoDB COMMENT ='规格类别多语言';
 
--- 2.14 SPU 规格值
+-- 2.12 SPU 规格值
 /*
 uk_specval_code / uk_specval_name：同一规格类别下值名唯一，防重复
 idx_specval_spec：规格类别下加载所有值
@@ -424,7 +386,7 @@ CREATE TABLE product_spec_value
     KEY idx_specval_prod (product_id)
 ) ENGINE = InnoDB COMMENT ='规格值(款式值)';
 
--- 2.15 规格值 i18n（value 名称多语言）
+-- 2.13 规格值 i18n（value 名称多语言）
 /*
 PK(value_id, locale)：每规格值在每语言唯一。
 idx_specval_i18n_loc：按语言拉取面板/导出。
@@ -439,7 +401,7 @@ CREATE TABLE product_spec_value_i18n
     KEY idx_specval_i18n_loc (locale)
 ) ENGINE = InnoDB COMMENT ='规格值多语言';
 
--- 2.16 SKU-规格值映射
+-- 2.14 SKU-规格值映射
 /*
 idx_pss_value：按规格值统计/导出
 idx_pss_spec_value：按规格类别-值组合统计/导出
@@ -456,7 +418,7 @@ CREATE TABLE product_sku_spec
 ) ENGINE = InnoDB COMMENT ='SKU-规格值映射(每类别恰好一值)';
 
 -- =========================================================
--- 3) 订单领域 (orders)
+-- 3. 订单领域 (orders)
 -- =========================================================
 
 -- 3.1
@@ -525,7 +487,157 @@ CREATE TABLE order_item
     KEY idx_item_discount_code (discount_code_id)
 ) ENGINE = InnoDB COMMENT ='订单明细';
 
--- 3.3 支付单（对接支付API，使用 externalId 关联）  /* 待定, 视支付通道 API 文档而定 */
+-- 3.3 订单状态流转日志（状态机审计）
+/*
+idx_osl_order：订单状态流转历史查询
+ */
+CREATE TABLE order_status_log
+(
+    id           BIGINT UNSIGNED                                               NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_id     BIGINT UNSIGNED                                               NOT NULL COMMENT '订单ID, 指向 orders.id',
+    event_source ENUM ('SYSTEM','USER','PAYMENT_CALLBACK','SCHEDULER','ADMIN') NOT NULL DEFAULT 'SYSTEM' COMMENT '事件来源',
+    from_status  VARCHAR(32)                                                   NULL COMMENT '源状态',
+    to_status    VARCHAR(32)                                                   NOT NULL COMMENT '目标状态',
+    note         VARCHAR(255)                                                  NULL COMMENT '备注',
+    created_at   DATETIME(3)                                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_osl_order (order_id)
+) ENGINE = InnoDB COMMENT ='订单状态流转日志';
+
+-- 3.4 库存日志（预占/扣减/释放）
+/*
+idx_inv_sku_time (sku_id, created_at)：按SKU时间序查询流水
+idx_inv_order：从订单侧定位库存流水
+ */
+CREATE TABLE inventory_log
+(
+    id          BIGINT UNSIGNED                               NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    sku_id      BIGINT UNSIGNED                               NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
+    order_id    BIGINT UNSIGNED                               NOT NULL COMMENT '关联订单ID',
+    change_type ENUM ('RESERVE','DEDUCT','RELEASE','RESTOCK') NOT NULL COMMENT '变更类型:预占/扣减/释放/入库',
+    quantity    INT                                           NOT NULL COMMENT '变更数量(正数)',
+    reason      VARCHAR(255)                                  NULL COMMENT '原因备注',
+    created_at  DATETIME(3)                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_inv_sku_time (sku_id, created_at),
+    KEY idx_inv_order (order_id)
+) ENGINE = InnoDB COMMENT ='库存变动日志';
+
+-- 3.5 购物车(用户-SKU 映射)
+/*
+uk_cart_user_sku (user_id, sku_id)：去重一人一SKU一条
+idx_cart_user：用户购物车列表
+ */
+CREATE TABLE shopping_cart_item
+(
+    id       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    user_id  BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
+    sku_id   BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
+    quantity INT             NOT NULL DEFAULT 1 COMMENT '数量',
+    selected TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否勾选',
+    added_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '加入时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_cart_user_sku (user_id, sku_id),
+    KEY idx_cart_user (user_id)
+) ENGINE = InnoDB COMMENT ='购物车条目';
+
+-- 3.6 折扣策略（策略模板，供折扣码引用）
+/*
+idx_policy_scope_type：后台按“作用域+类型”筛选策略。
+CHECK：基础约束（百分比范围/金额为正；不同类型下字段取值限制）。
+*/
+CREATE TABLE discount_policy
+(
+    id                  BIGINT UNSIGNED           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    name                VARCHAR(120)              NOT NULL COMMENT '策略名称',
+    apply_scope         ENUM ('ORDER','ITEM')     NOT NULL DEFAULT 'ITEM' COMMENT '作用域：整单/单行',
+    strategy_type       ENUM ('PERCENT','AMOUNT') NOT NULL COMMENT '折扣类型：按百分比 or 按固定金额',
+    percent_off         DECIMAL(5, 2)             NULL COMMENT '折扣百分比(0~100)，当 strategy_type=PERCENT 时生效',
+    amount_off          DECIMAL(18, 2)            NULL COMMENT '固定减金额，当 strategy_type=AMOUNT 时生效',
+    currency            CHAR(3)                   NULL COMMENT '金额折扣币种；为空表示随订单币种单位计算',
+    min_order_amount    DECIMAL(18, 2)            NULL COMMENT '门槛金额（按作用域口径）',
+    max_discount_amount DECIMAL(18, 2)            NULL COMMENT '封顶减免金额（可空）',
+    created_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_policy_scope_type (apply_scope, strategy_type),
+    CHECK (strategy_type <> 'PERCENT' OR (percent_off IS NOT NULL AND percent_off >= 0 AND percent_off <= 100)),
+    CHECK (strategy_type <> 'AMOUNT' OR (amount_off IS NOT NULL AND amount_off > 0))
+) ENGINE = InnoDB COMMENT ='折扣策略模板';
+
+-- 3.7 折扣码（6位字母数字，唯一；关联策略；统计使用次数）
+/*
+uk_coupon_code：折扣码文本唯一，快速命中。
+idx_coupon_policy：按策略聚合查询/运营分析。
+idx_coupon_expires：过期清理/有效性筛查。
+idx_coupon_scope：按可用范围模式筛选。
+CHECK code：限定大写字母数字6位。
+*/
+CREATE TABLE discount_code
+(
+    id         BIGINT UNSIGNED                  NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    code       CHAR(6)                          NOT NULL COMMENT '折扣码(6位A-Z/0-9)',
+    policy_id  BIGINT UNSIGNED                  NOT NULL COMMENT '折扣策略ID, 指向 discount_policy.id',
+    name       VARCHAR(120)                     NOT NULL COMMENT '折扣码名称(运营标识)',
+    scope_mode ENUM ('ALL','INCLUDE','EXCLUDE') NOT NULL DEFAULT 'INCLUDE' COMMENT '适用范围模式',
+    expires_at DATETIME(3)                      NOT NULL COMMENT '过期时间(到期不可用)',
+    created_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_coupon_code (code),
+    KEY idx_coupon_policy (policy_id),
+    KEY idx_coupon_expires (expires_at),
+    KEY idx_coupon_scope (scope_mode),
+    CHECK (code REGEXP '^[A-Z0-9]{6}$')
+) ENGINE = InnoDB COMMENT ='折扣码';
+
+-- 3.8 折扣码-商品SPU映射（限制适用范围）
+/*
+PK (discount_code_id, product_id)：去重“一码-一SPU”。
+idx_cpnprod_product：从SPU反查可用折扣码（商品页展示）。
+*/
+CREATE TABLE discount_code_product
+(
+    discount_code_id BIGINT UNSIGNED NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
+    product_id       BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID, 指向 product.id',
+    created_at       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (discount_code_id, product_id),
+    KEY idx_cpnprod_product (product_id)
+) ENGINE = InnoDB COMMENT ='折扣码-商品SPU映射(限定适用范围)';
+
+-- 3.9 折扣使用日志（作为“真实使用”与对账的事实表）
+/*
+idx_oda_order：按订单聚合查询（售后/对账）。
+idx_oda_code：按折扣码查询使用情况。
+唯一约束：
+uk_oda_item_once (order_item_id, discount_code_id)：同一明细同一折扣码仅记录一次。
+uk_oda_order_once (order_id, discount_code_id, order_level_only)：整单层仅记录一次（利用生成列区分 NULL）。
+*/
+CREATE TABLE order_discount_applied
+(
+    id               BIGINT UNSIGNED       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_id         BIGINT UNSIGNED       NOT NULL COMMENT '订单ID, 指向 orders.id',
+    order_item_id    BIGINT UNSIGNED       NULL COMMENT '订单明细ID, 为空表示订单级折扣',
+    discount_code_id BIGINT UNSIGNED       NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
+    applied_scope    ENUM ('ORDER','ITEM') NOT NULL COMMENT '应用范围：订单级/明细级',
+    applied_amount   DECIMAL(18, 2)        NOT NULL COMMENT '本次实际抵扣金额(按订单币种)',
+    created_at       DATETIME(3)           NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_oda_order (order_id),
+    KEY idx_oda_code (discount_code_id),
+    -- 明细级幂等：同一明细+同一码只允许一条
+    UNIQUE KEY uk_oda_item_once (order_item_id, discount_code_id),
+    -- 订单级幂等：同一订单+同一码只允许一条（借助生成列处理 order_item_id 为 NULL 的情况）
+    order_level_only TINYINT AS (CASE WHEN order_item_id IS NULL THEN 1 ELSE NULL END) STORED,
+    UNIQUE KEY uk_oda_order_once (order_id, discount_code_id, order_level_only),
+    CHECK (applied_amount > 0)
+) ENGINE = InnoDB COMMENT ='折扣应用日志(真实使用的事实表)';
+
+-- =========================================================
+-- 4. 支付领域 (payment)
+-- =========================================================
+
+-- 4.1 支付单（对接支付API，使用 externalId 关联）  /* 待定, 视支付通道 API 文档而定 */
 /*
 uk_pay_external：支付网关 externalId 唯一（幂等与关联）
 idx_pay_order：从订单查支付单
@@ -553,24 +665,88 @@ CREATE TABLE payment_order
     KEY idx_pay_status_update (status, updated_at)
 ) ENGINE = InnoDB COMMENT ='支付单(网关externalId对应)';
 
--- 3.4 订单状态流转日志（状态机审计）
+-- 4.2 支付退款单（对账/幂等/回调 & 轮询）
 /*
-idx_osl_order：订单状态流转历史查询
- */
-CREATE TABLE order_status_log
+uk_refund_no：内部退款单号唯一（ULID/雪花）
+uk_refund_external：网关退款 external_id 唯一（对账/幂等）
+uk_refund_req_dedupe：(payment_order_id, client_refund_no) 客户端/业务侧幂等键
+idx_refund_order / idx_refund_payment：从订单/原支付定位退款
+idx_refund_status_update：(status, updated_at) 退款轮询/看板
+idx_refund_ticket：从客服工单反查退款
+CHECK：金额为正
+*/
+CREATE TABLE payment_refund
 (
-    id           BIGINT UNSIGNED                                               NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id     BIGINT UNSIGNED                                               NOT NULL COMMENT '订单ID, 指向 orders.id',
-    event_source ENUM ('SYSTEM','USER','PAYMENT_CALLBACK','SCHEDULER','ADMIN') NOT NULL DEFAULT 'SYSTEM' COMMENT '事件来源',
-    from_status  VARCHAR(32)                                                   NULL COMMENT '源状态',
-    to_status    VARCHAR(32)                                                   NOT NULL COMMENT '目标状态',
-    note         VARCHAR(255)                                                  NULL COMMENT '备注',
-    created_at   DATETIME(3)                                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    PRIMARY KEY (id),
-    KEY idx_osl_order (order_id)
-) ENGINE = InnoDB COMMENT ='订单状态流转日志';
+    id                 BIGINT UNSIGNED                                   NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    refund_no          CHAR(26)                                          NOT NULL COMMENT '退款单号(ULID/雪花等, 对外可见)',
+    order_id           BIGINT UNSIGNED                                   NOT NULL COMMENT '订单ID, 指向 orders.id',
+    payment_order_id   BIGINT UNSIGNED                                   NOT NULL COMMENT '原支付单ID, 指向 payment_order.id',
 
--- 3.5 物流包裹（一个包裹对应一张国际运单；支持后续末端换单）
+    external_refund_id VARCHAR(128)                                      NULL COMMENT '支付系统退款 externalId(唯一)',
+    client_refund_no   VARCHAR(64)                                       NULL COMMENT '商户侧/客户端幂等键(可选)',
+
+    amount             DECIMAL(18, 2)                                    NOT NULL COMMENT '退款总金额(订单币种)',
+    currency           CHAR(3)                                           NOT NULL DEFAULT 'USD' COMMENT '币种',
+    -- 可选细分(便于财务拆解；留空则仅使用 amount)
+    items_amount       DECIMAL(18, 2)                                    NULL COMMENT '货品部分的退款金额',
+    shipping_amount    DECIMAL(18, 2)                                    NULL COMMENT '运费部分的退款金额',
+
+    status             ENUM ('INIT','PENDING','SUCCESS','FAIL','CLOSED') NOT NULL DEFAULT 'INIT' COMMENT '退款状态',
+    reason_code        ENUM ('CUSTOMER_REQUEST','RETURNED','LOST','DAMAGED','PRICE_ADJUST','DUPLICATE','OTHER')
+                                                                         NOT NULL DEFAULT 'OTHER' COMMENT '原因分类',
+    reason_text        VARCHAR(255)                                      NULL COMMENT '原因备注(自由文本)',
+    initiator          ENUM ('USER','ADMIN','SYSTEM','SCHEDULER')        NOT NULL DEFAULT 'ADMIN' COMMENT '发起方',
+    ticket_id          BIGINT UNSIGNED                                   NULL COMMENT '关联工单, 指向 cs_ticket.id',
+
+    request_payload    JSON                                              NULL COMMENT '退款请求报文(JSON)',
+    response_payload   JSON                                              NULL COMMENT '退款响应报文(JSON)',
+    notify_payload     JSON                                              NULL COMMENT '最近一次回调报文(JSON)',
+    last_polled_at     DATETIME(3)                                       NULL COMMENT '最近轮询时间',
+    last_notified_at   DATETIME(3)                                       NULL COMMENT '最近回调处理时间',
+
+    created_at         DATETIME(3)                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at         DATETIME(3)                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_refund_no (refund_no),
+    UNIQUE KEY uk_refund_external (external_refund_id),
+    UNIQUE KEY uk_refund_req_dedupe (payment_order_id, client_refund_no),
+    KEY idx_refund_order (order_id),
+    KEY idx_refund_payment (payment_order_id),
+    KEY idx_refund_status_update (status, updated_at),
+    KEY idx_refund_ticket (ticket_id),
+    CHECK (amount > 0),
+    CHECK (items_amount IS NULL OR items_amount >= 0),
+    CHECK (shipping_amount IS NULL OR shipping_amount >= 0)
+) ENGINE = InnoDB COMMENT ='支付退款单(网关 externalId 对应)';
+
+-- 4.3 支付退款明细（可选：按订单明细拆分记录，用于部分退款对账）
+/*
+idx_rfditem_refund：通过退款单查明细
+idx_rfditem_orderitem：通过订单明细查其被退款记录
+CHECK：数量/金额为正；超退校验在业务层做
+*/
+CREATE TABLE payment_refund_item
+(
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    refund_id     BIGINT UNSIGNED NOT NULL COMMENT '退款单ID, 指向 payment_refund.id',
+    order_item_id BIGINT UNSIGNED NOT NULL COMMENT '订单明细ID, 指向 order_item.id',
+    quantity      INT             NOT NULL COMMENT '本次退款数量(件)',
+    amount        DECIMAL(18, 2)  NOT NULL COMMENT '该明细对应的退款金额',
+    reason        VARCHAR(255)    NULL COMMENT '该明细退款原因备注',
+    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_rfditem_refund (refund_id),
+    KEY idx_rfditem_orderitem (order_item_id),
+    CHECK (quantity > 0),
+    CHECK (amount > 0)
+) ENGINE = InnoDB COMMENT ='退款明细(按订单明细拆分)';
+
+-- =========================================================
+-- 5. 物流领域 (shipping)
+-- =========================================================
+
+-- 5.1 物流包裹（一个包裹对应一张国际运单；支持后续末端换单）
 /*
 uk_carrier_tracking (carrier_code, tracking_no)：对接回调/查询时以“承运商+单号”精准命中；避免重复创建
 uk_ship_external：三方下单幂等
@@ -627,7 +803,7 @@ CREATE TABLE shipment
     KEY idx_ship_created (created_at)                           -- 时间窗口扫描
 ) ENGINE = InnoDB COMMENT ='物流包裹/运单(跨境)';
 
--- 3.6 包裹内商品映射（支持合单/拆单：N:N）
+-- 5.2 包裹内商品映射（支持合单/拆单：N:N）
 /*
 uk_ship_orderitem：避免同包裹里重复挂载同一 order_item
 idx_shipitem_order：订单详情页快速反查“包含哪些包裹”
@@ -649,7 +825,7 @@ CREATE TABLE shipment_item
     KEY idx_shipitem_sku (sku_id)                              -- 统计SKU发货情况
 ) ENGINE = InnoDB COMMENT ='包裹-订单明细映射(支持合单与拆单)';
 
--- 3.7 包裹状态流转日志（源状态→目标状态 + 事件来源）
+-- 5.3 包裹状态流转日志（源状态→目标状态 + 事件来源）
 /*
 idx_ssl_ship_time：按包裹时间线查询与“取最新状态”高频
 idx_ssl_to_status：统计流入某状态的包裹量（看板/报表）
@@ -693,99 +869,11 @@ CREATE TABLE shipment_status_log
     CHECK (from_status IS NULL OR from_status <> to_status)
 ) ENGINE = InnoDB COMMENT ='包裹状态流转日志 (源状态→目标状态，含事件来源与原始报文)';
 
--- 3.8 折扣策略（策略模板，供折扣码引用）
-/*
-idx_policy_scope_type：后台按“作用域+类型”筛选策略。
-CHECK：基础约束（百分比范围/金额为正；不同类型下字段取值限制）。
-*/
-CREATE TABLE discount_policy
-(
-    id                  BIGINT UNSIGNED           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    name                VARCHAR(120)              NOT NULL COMMENT '策略名称',
-    apply_scope         ENUM ('ORDER','ITEM')     NOT NULL DEFAULT 'ITEM' COMMENT '作用域：整单/单行',
-    strategy_type       ENUM ('PERCENT','AMOUNT') NOT NULL COMMENT '折扣类型：按百分比 or 按固定金额',
-    percent_off         DECIMAL(5, 2)             NULL COMMENT '折扣百分比(0~100)，当 strategy_type=PERCENT 时生效',
-    amount_off          DECIMAL(18, 2)            NULL COMMENT '固定减金额，当 strategy_type=AMOUNT 时生效',
-    currency            CHAR(3)                   NULL COMMENT '金额折扣币种；为空表示随订单币种单位计算',
-    min_order_amount    DECIMAL(18, 2)            NULL COMMENT '门槛金额（按作用域口径）',
-    max_discount_amount DECIMAL(18, 2)            NULL COMMENT '封顶减免金额（可空）',
-    created_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-    PRIMARY KEY (id),
-    KEY idx_policy_scope_type (apply_scope, strategy_type),
-    CHECK (strategy_type <> 'PERCENT' OR (percent_off IS NOT NULL AND percent_off >= 0 AND percent_off <= 100)),
-    CHECK (strategy_type <> 'AMOUNT' OR (amount_off IS NOT NULL AND amount_off > 0))
-) ENGINE = InnoDB COMMENT ='折扣策略模板';
+-- =========================================================
+-- 6. 售后领域 (customerservice)
+-- =========================================================
 
--- 3.9 折扣码（6位字母数字，唯一；关联策略；统计使用次数）
-/*
-uk_coupon_code：折扣码文本唯一，快速命中。
-idx_coupon_policy：按策略聚合查询/运营分析。
-idx_coupon_expires：过期清理/有效性筛查。
-idx_coupon_scope：按可用范围模式筛选。
-CHECK code：限定大写字母数字6位。
-*/
-CREATE TABLE discount_code
-(
-    id         BIGINT UNSIGNED                  NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    code       CHAR(6)                          NOT NULL COMMENT '折扣码(6位A-Z/0-9)',
-    policy_id  BIGINT UNSIGNED                  NOT NULL COMMENT '折扣策略ID, 指向 discount_policy.id',
-    name       VARCHAR(120)                     NOT NULL COMMENT '折扣码名称(运营标识)',
-    scope_mode ENUM ('ALL','INCLUDE','EXCLUDE') NOT NULL DEFAULT 'INCLUDE' COMMENT '适用范围模式',
-    expires_at DATETIME(3)                      NOT NULL COMMENT '过期时间(到期不可用)',
-    created_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_coupon_code (code),
-    KEY idx_coupon_policy (policy_id),
-    KEY idx_coupon_expires (expires_at),
-    KEY idx_coupon_scope (scope_mode),
-    CHECK (code REGEXP '^[A-Z0-9]{6}$')
-) ENGINE = InnoDB COMMENT ='折扣码';
-
--- 3.10 折扣码-商品SPU映射（限制适用范围）
-/*
-PK (discount_code_id, product_id)：去重“一码-一SPU”。
-idx_cpnprod_product：从SPU反查可用折扣码（商品页展示）。
-*/
-CREATE TABLE discount_code_product
-(
-    discount_code_id BIGINT UNSIGNED NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
-    product_id       BIGINT UNSIGNED NOT NULL COMMENT 'SPU ID, 指向 product.id',
-    created_at       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    PRIMARY KEY (discount_code_id, product_id),
-    KEY idx_cpnprod_product (product_id)
-) ENGINE = InnoDB COMMENT ='折扣码-商品SPU映射(限定适用范围)';
-
--- 3.11 折扣使用日志（作为“真实使用”与对账的事实表）
-/*
-idx_oda_order：按订单聚合查询（售后/对账）。
-idx_oda_code：按折扣码查询使用情况。
-唯一约束：
-uk_oda_item_once (order_item_id, discount_code_id)：同一明细同一折扣码仅记录一次。
-uk_oda_order_once (order_id, discount_code_id, order_level_only)：整单层仅记录一次（利用生成列区分 NULL）。
-*/
-CREATE TABLE order_discount_applied
-(
-    id               BIGINT UNSIGNED       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id         BIGINT UNSIGNED       NOT NULL COMMENT '订单ID, 指向 orders.id',
-    order_item_id    BIGINT UNSIGNED       NULL COMMENT '订单明细ID, 为空表示订单级折扣',
-    discount_code_id BIGINT UNSIGNED       NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
-    applied_scope    ENUM ('ORDER','ITEM') NOT NULL COMMENT '应用范围：订单级/明细级',
-    applied_amount   DECIMAL(18, 2)        NOT NULL COMMENT '本次实际抵扣金额(按订单币种)',
-    created_at       DATETIME(3)           NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    PRIMARY KEY (id),
-    KEY idx_oda_order (order_id),
-    KEY idx_oda_code (discount_code_id),
-    -- 明细级幂等：同一明细+同一码只允许一条
-    UNIQUE KEY uk_oda_item_once (order_item_id, discount_code_id),
-    -- 订单级幂等：同一订单+同一码只允许一条（借助生成列处理 order_item_id 为 NULL 的情况）
-    order_level_only TINYINT AS (CASE WHEN order_item_id IS NULL THEN 1 ELSE NULL END) STORED,
-    UNIQUE KEY uk_oda_order_once (order_id, discount_code_id, order_level_only),
-    CHECK (applied_amount > 0)
-) ENGINE = InnoDB COMMENT ='折扣应用日志(真实使用的事实表)';
-
--- 3.12 客服工单（售后/异常/理赔/补寄等统一入口）
+-- 6.1 客服工单（售后/异常/理赔/补寄等统一入口）
 /*
 uk_ticket_no：对外/对内统一的工单编号（雪花/ULID），便于定位与对账
 uk_ticket_open_dedupe：(order_id, shipment_id, issue_type, open_only) 保证同一订单/包裹、同一问题类型在“进行中”仅有一张工单（避免并发重复）
@@ -864,88 +952,12 @@ CREATE TABLE cs_ticket
     CHECK (requested_refund_amount IS NULL OR requested_refund_amount > 0)
 ) ENGINE = InnoDB COMMENT ='客服工单(售后/异常/理赔/补寄统一入口)';
 
--- 3.13 支付退款单（对账/幂等/回调 & 轮询）
-/*
-uk_refund_no：内部退款单号唯一（ULID/雪花）
-uk_refund_external：网关退款 external_id 唯一（对账/幂等）
-uk_refund_req_dedupe：(payment_order_id, client_refund_no) 客户端/业务侧幂等键
-idx_refund_order / idx_refund_payment：从订单/原支付定位退款
-idx_refund_status_update：(status, updated_at) 退款轮询/看板
-idx_refund_ticket：从客服工单反查退款
-CHECK：金额为正
-*/
-CREATE TABLE payment_refund
-(
-    id                 BIGINT UNSIGNED                                   NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    refund_no          CHAR(26)                                          NOT NULL COMMENT '退款单号(ULID/雪花等, 对外可见)',
-    order_id           BIGINT UNSIGNED                                   NOT NULL COMMENT '订单ID, 指向 orders.id',
-    payment_order_id   BIGINT UNSIGNED                                   NOT NULL COMMENT '原支付单ID, 指向 payment_order.id',
-
-    external_refund_id VARCHAR(128)                                      NULL COMMENT '支付系统退款 externalId(唯一)',
-    client_refund_no   VARCHAR(64)                                       NULL COMMENT '商户侧/客户端幂等键(可选)',
-
-    amount             DECIMAL(18, 2)                                    NOT NULL COMMENT '退款总金额(订单币种)',
-    currency           CHAR(3)                                           NOT NULL DEFAULT 'USD' COMMENT '币种',
-    -- 可选细分(便于财务拆解；留空则仅使用 amount)
-    items_amount       DECIMAL(18, 2)                                    NULL COMMENT '货品部分的退款金额',
-    shipping_amount    DECIMAL(18, 2)                                    NULL COMMENT '运费部分的退款金额',
-
-    status             ENUM ('INIT','PENDING','SUCCESS','FAIL','CLOSED') NOT NULL DEFAULT 'INIT' COMMENT '退款状态',
-    reason_code        ENUM ('CUSTOMER_REQUEST','RETURNED','LOST','DAMAGED','PRICE_ADJUST','DUPLICATE','OTHER')
-                                                                         NOT NULL DEFAULT 'OTHER' COMMENT '原因分类',
-    reason_text        VARCHAR(255)                                      NULL COMMENT '原因备注(自由文本)',
-    initiator          ENUM ('USER','ADMIN','SYSTEM','SCHEDULER')        NOT NULL DEFAULT 'ADMIN' COMMENT '发起方',
-    ticket_id          BIGINT UNSIGNED                                   NULL COMMENT '关联工单, 指向 cs_ticket.id',
-
-    request_payload    JSON                                              NULL COMMENT '退款请求报文(JSON)',
-    response_payload   JSON                                              NULL COMMENT '退款响应报文(JSON)',
-    notify_payload     JSON                                              NULL COMMENT '最近一次回调报文(JSON)',
-    last_polled_at     DATETIME(3)                                       NULL COMMENT '最近轮询时间',
-    last_notified_at   DATETIME(3)                                       NULL COMMENT '最近回调处理时间',
-
-    created_at         DATETIME(3)                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at         DATETIME(3)                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_refund_no (refund_no),
-    UNIQUE KEY uk_refund_external (external_refund_id),
-    UNIQUE KEY uk_refund_req_dedupe (payment_order_id, client_refund_no),
-    KEY idx_refund_order (order_id),
-    KEY idx_refund_payment (payment_order_id),
-    KEY idx_refund_status_update (status, updated_at),
-    KEY idx_refund_ticket (ticket_id),
-    CHECK (amount > 0),
-    CHECK (items_amount IS NULL OR items_amount >= 0),
-    CHECK (shipping_amount IS NULL OR shipping_amount >= 0)
-) ENGINE = InnoDB COMMENT ='支付退款单(网关 externalId 对应)';
-
--- 3.14 支付退款明细（可选：按订单明细拆分记录，用于部分退款对账）
-/*
-idx_rfditem_refund：通过退款单查明细
-idx_rfditem_orderitem：通过订单明细查其被退款记录
-CHECK：数量/金额为正；超退校验在业务层做
-*/
-CREATE TABLE payment_refund_item
-(
-    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    refund_id     BIGINT UNSIGNED NOT NULL COMMENT '退款单ID, 指向 payment_refund.id',
-    order_item_id BIGINT UNSIGNED NOT NULL COMMENT '订单明细ID, 指向 order_item.id',
-    quantity      INT             NOT NULL COMMENT '本次退款数量(件)',
-    amount        DECIMAL(18, 2)  NOT NULL COMMENT '该明细对应的退款金额',
-    reason        VARCHAR(255)    NULL COMMENT '该明细退款原因备注',
-    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    PRIMARY KEY (id),
-    KEY idx_rfditem_refund (refund_id),
-    KEY idx_rfditem_orderitem (order_item_id),
-    CHECK (quantity > 0),
-    CHECK (amount > 0)
-) ENGINE = InnoDB COMMENT ='退款明细(按订单明细拆分)';
 
 -- =========================================================
 -- 其他辅助表
 -- =========================================================
 
--- 4.1 货币表
+-- 7.1 货币表
 CREATE TABLE currency
 (
     code              CHAR(3)        NOT NULL COMMENT 'ISO 4217 代码，如 USD/EUR/JPY',
@@ -961,7 +973,7 @@ CREATE TABLE currency
     PRIMARY KEY (code)
 ) ENGINE = InnoDB COMMENT ='币种字典与舍入规则';
 
--- 4.2 语言字典（站点可用语言）
+-- 7.2 语言字典（站点可用语言）
 /*
 uk_locale_default：利用 NULL 可重复 + 生成列，保证全站仅 1 个默认语言。
 idx_locale_enabled：后台/页面按启用状态过滤语言列表。
