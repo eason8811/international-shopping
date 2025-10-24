@@ -1,129 +1,141 @@
 ---
 config:
+  look: neo
   theme: redux-color
   layout: elk
 ---
 erDiagram
 	direction LR
-	USER_ACCOUNT {
+	user_account {
 	}
-	USER_AUTH {
+	user_auth {
 	}
-	USER_PROFILE {
+	user_profile {
 	}
-	USER_ADDRESS {
+	user_address {
 	}
-	ORDERS {
+	orders {
 	}
-	SHOPPING_CART_ITEM {
+	product_like {
 	}
-	PRODUCT_LIKE {
+	shopping_cart_item {
 	}
-	PRODUCT_CATEGORY {
+	cs_ticket {
 	}
-	PRODUCT {
+	product_category {
 	}
-	PRODUCT_CATEGORY_I18N {
+	product_category_i18n {
 	}
-	LOCALE {
+	locale {
 	}
-	PRODUCT_I18N {
+	product {
 	}
-	PRODUCT_SKU {
+	product_i18n {
 	}
-	PRODUCT_IMAGE {
+	product_sku {
 	}
-	PRODUCT_SKU_IMAGE {
+	product_image {
 	}
-	PRODUCT_SPEC {
+	product_sku_image {
 	}
-	PRODUCT_SPEC_VALUE {
+	product_spec {
 	}
-	PRODUCT_SPEC_I18N {
+	product_spec_i18n {
 	}
-	PRODUCT_SPEC_VALUE_I18N {
+	product_spec_value {
 	}
-	PRODUCT_SKU_SPEC {
+	product_spec_value_i18n {
 	}
-	PRODUCT_PRICE {
+	product_sku_spec {
 	}
-	CURRENCY {
+	product_price {
 	}
-	ORDER_ITEM {
+	currency {
 	}
-	PAYMENT_ORDER {
+	order_item {
 	}
-	ORDER_STATUS_LOG {
+	order_status_log {
 	}
-	SHIPMENT {
+	inventory_log {
 	}
-	SHIPMENT_ITEM {
+	discount_policy {
 	}
-	SHIPMENT_STATUS_LOG {
+	discount_code {
 	}
-	INVENTORY_LOG {
+	discount_code_product {
 	}
-	DISCOUNT_POLICY {
+	order_discount_applied {
 	}
-	DISCOUNT_CODE {
+	payment_order {
 	}
-	DISCOUNT_CODE_PRODUCT {
+	payment_refund {
 	}
-	ORDER_DISCOUNT_APPLIED {
+	payment_refund_item {
+	}
+	shipment {
+	}
+	shipment_item {
+	}
+	shipment_status_log {
 	}
 
-	USER_ACCOUNT||--o{USER_AUTH:"has"
-	USER_ACCOUNT||--||USER_PROFILE:"has"
-	USER_ACCOUNT||--o{USER_ADDRESS:"has"
-	USER_ACCOUNT||--o{ORDERS:"places"
-	USER_ACCOUNT||--o{SHOPPING_CART_ITEM:"adds"
-	USER_ACCOUNT||--o{PRODUCT_LIKE:"likes"
-	PRODUCT_CATEGORY||--o{PRODUCT_CATEGORY:"parent_of"
-	PRODUCT_CATEGORY||--o{PRODUCT:"categorizes"
-	PRODUCT_CATEGORY||--o{PRODUCT_CATEGORY_I18N:"i18n"
-	LOCALE||--o{PRODUCT_CATEGORY_I18N:"localizes"
-	PRODUCT||--o{PRODUCT_I18N:"i18n"
-	LOCALE||--o{PRODUCT_I18N:"localizes"
-	PRODUCT||--o{PRODUCT_SKU:"has"
-	PRODUCT||--o|PRODUCT_SKU:"default_sku"
-	PRODUCT||--o{PRODUCT_IMAGE:"has"
-	PRODUCT_SKU||--o{PRODUCT_SKU_IMAGE:"has"
-	PRODUCT||--o{PRODUCT_SPEC:"defines"
-	PRODUCT_SPEC||--o{PRODUCT_SPEC_VALUE:"has"
-	PRODUCT_SPEC||--o{PRODUCT_SPEC_I18N:"i18n"
-	LOCALE||--o{PRODUCT_SPEC_I18N:"localizes"
-	PRODUCT_SPEC_VALUE||--o{PRODUCT_SPEC_VALUE_I18N:"i18n"
-	LOCALE||--o{PRODUCT_SPEC_VALUE_I18N:"localizes"
-	PRODUCT_SKU||--o{PRODUCT_SKU_SPEC:"maps"
-	PRODUCT_SPEC||--o{PRODUCT_SKU_SPEC:"maps"
-	PRODUCT_SPEC_VALUE||--o{PRODUCT_SKU_SPEC:"maps"
-	PRODUCT_SKU||--o{PRODUCT_PRICE:"priced_in"
-	CURRENCY||--o{PRODUCT_PRICE:"defines"
-	SHOPPING_CART_ITEM||--||PRODUCT_SKU:"refers"
-	SHOPPING_CART_ITEM||--||USER_ACCOUNT:"belongs_to"
-	PRODUCT_LIKE||--||PRODUCT:"for"
-	PRODUCT_LIKE||--||USER_ACCOUNT:"by"
-	ORDERS||--o{ORDER_ITEM:"contains"
-	PRODUCT||--o{ORDER_ITEM:"snapshot_of"
-	PRODUCT_SKU||--o{ORDER_ITEM:"snapshot_of"
-	ORDERS||--o{PAYMENT_ORDER:"has"
-	ORDERS||--o{ORDER_STATUS_LOG:"logs"
-	ORDERS||--o{SHIPMENT:"ships"
-	SHIPMENT||--o{SHIPMENT_ITEM:"contains"
-	ORDER_ITEM||--o{SHIPMENT_ITEM:"packed_from"
-	PRODUCT_SKU||--o{SHIPMENT_ITEM:"sku_ref"
-	PRODUCT||--o{SHIPMENT_ITEM:"product_ref"
-	SHIPMENT||--o{SHIPMENT_STATUS_LOG:"logs"
-	PRODUCT_SKU||--o{INVENTORY_LOG:"impacts"
-	ORDERS||--o{INVENTORY_LOG:"relates"
-	DISCOUNT_POLICY||--o{DISCOUNT_CODE:"templates"
-	DISCOUNT_CODE||--o{DISCOUNT_CODE_PRODUCT:"applies_to"
-	PRODUCT||--o{DISCOUNT_CODE_PRODUCT:"constrained_by"
-	DISCOUNT_CODE||--o{ORDER_ITEM:"referenced_by"
-	DISCOUNT_CODE||--o{ORDER_DISCOUNT_APPLIED:"used_in"
-	ORDERS||--o{ORDER_DISCOUNT_APPLIED:"logs"
-	ORDER_ITEM||--o{ORDER_DISCOUNT_APPLIED:"item_logs"
-	LOCALE||--o{PRODUCT_CATEGORY_I18N:"localizes"
-	LOCALE||--o{PRODUCT_I18N:"localizes"
-	LOCALE||--o{PRODUCT_SPEC_I18N:"localizes"
-	LOCALE||--o{PRODUCT_SPEC_VALUE_I18N:"localizes"
+	user_account||--o{user_auth:"has"
+	user_account||--||user_profile:"has"
+	user_account||--o{user_address:"has"
+	user_account||--o{orders:"places"
+	user_account||--o{product_like:"likes"
+	user_account||--o{shopping_cart_item:"carts"
+	user_account||--o{cs_ticket:"raises"
+	product_category||--o{product_category:"parent_of"
+	product_category||--o{product_category_i18n:"has_i18n"
+	locale||--o{product_category_i18n:"in_locale"
+	product_category||--o{product:"contains"
+	product||--o{product_i18n:"has_i18n"
+	locale||--o{product_i18n:"in_locale"
+	product||--o{product_sku:"has_sku"
+	product||--o{product_image:"has_image"
+	product_sku||--o{product_sku_image:"has_image"
+	product||--o{product_spec:"has_spec"
+	product_spec||--o{product_spec_i18n:"has_i18n"
+	locale||--o{product_spec_i18n:"in_locale"
+	product_spec||--o{product_spec_value:"has_value"
+	product_spec_value||--o{product_spec_value_i18n:"has_i18n"
+	locale||--o{product_spec_value_i18n:"in_locale"
+	product_sku||--o{product_sku_spec:"composed_of"
+	product_spec||--o{product_sku_spec:"uses_spec"
+	product_spec_value||--o{product_sku_spec:"selects_value"
+	product_sku||--o{product_price:"priced_in"
+	currency||--o{product_price:"currency"
+	product||--o{product_like:"liked"
+	product_sku||--o{shopping_cart_item:"carted"
+	orders||--o{order_item:"contains"
+	product||--o{order_item:"for_spu"
+	product_sku||--o{order_item:"for_sku"
+	orders||--o{order_status_log:"status_events"
+	orders||--o{inventory_log:"inventory_events"
+	product_sku||--o{inventory_log:"inventory_on_sku"
+	discount_policy||--o{discount_code:"defines"
+	discount_code||--o{discount_code_product:"scopes"
+	product||--o{discount_code_product:"product_scope"
+	discount_code||--o{order_item:"applied_on_item"
+	orders||--o{order_discount_applied:"discount_facts"
+	discount_code||--o{order_discount_applied:"by_code"
+	order_item||--o{order_discount_applied:"item_entry"
+	orders||--o{payment_order:"pays"
+	orders||--o{payment_refund:"refunds"
+	payment_order||--o{payment_refund:"refunds_of_payment"
+	cs_ticket||--o{payment_refund:"from_ticket"
+	payment_refund||--o{payment_refund_item:"splits"
+	order_item||--o{payment_refund_item:"refunded_item"
+	orders||--o{shipment:"ships"
+	shipment||--o{shipment_item:"includes_item"
+	orders||--o{shipment_item:"links_order"
+	order_item||--o{shipment_item:"packs_item"
+	product||--o{shipment_item:"for_spu"
+	product_sku||--o{shipment_item:"for_sku"
+	shipment||--o{shipment_status_log:"status_events"
+	shipment||--o{cs_ticket:"referenced_by_ticket"
+	user_account||--o{cs_ticket:"creates"
+	orders||--o{cs_ticket:"on_order"
+	order_item||--o{cs_ticket:"on_order_item"
+	shipment||--o{cs_ticket:"on_shipment"
