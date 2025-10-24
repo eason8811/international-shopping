@@ -1,0 +1,99 @@
+sequenceDiagram
+    participant CS as 客服通知/工单
+    participant Sch as 调度器(Scheduler/Job)
+    participant Backend as 后端(Backend)
+    participant API as 承运商API(API)
+    participant Pay as 支付网关(Payment)
+
+    %% B1 轨迹轮询 & 异常升级（shipment）
+    rect rgb(245,245,255)
+      note over CS, Pay: 定时向承运商更新运单信息
+      loop 每N分钟 (用 idx_ship_status_updated / idx_ship_created)
+        Sch->>Backend: 拉取待更新的 shipment 列表
+        activate Backend
+        Backend->>API: GetTracking(tracking_no)
+        activate API
+        API-->>Backend: 返回最新轨迹/状态/引用ID
+        deactivate API
+        Backend->>Backend: 幂等写 shipment_status_log(uk_ssl_dedupe)<br/>更新 shipment.status/时间字段
+        alt 长时间无进展/超阈值
+          Backend-->>CS: 推送异常工单或升级提醒
+        else RETURNED/LOST
+          Backend-->>CS: 推送高优先级处理建议（退款/重派）
+          deactivate Backend
+        end
+      end
+    end
+
+    %% B2 退款对账（以 payment_refund 为核心）
+    rect rgb(245,255,245)
+      note over CS, Pay: 定时跟进退款单
+      loop 每M分钟 (用 idx_refund_status_update)
+        Sch->>Backend: 扫描 payment_refund WHERE status IN ('INIT','PENDING')<br/>获取状态为待处理和处理中的退款单
+        activate Backend
+        alt status = INIT 且 external_refund_id 为空（待处理的退款单）
+          Backend->>Pay: RefundRequest(refund_no, amount, currency)
+          activate Pay
+          Pay-->>Backend: Accepted(external_refund_id)
+          deactivate Pay
+          Backend->>Backend: UPDATE payment_refund SET external_refund_id=?, status='PENDING', last_polled_at=NOW()
+        else status = PENDING（处理中的退款单）
+          Backend->>Pay: QueryRefund(external_refund_id 或 refund_no)
+          activate Pay
+          Pay-->>Backend: 返回网关状态(SUCCESS/FAIL/PENDING/CLOSED)
+          deactivate Pay
+          alt SUCCESS
+            Backend->>Backend: UPDATE payment_refund.status='SUCCESS', last_notified_at=NOW()
+            note over Backend: 可选：汇总成功退款金额用于展示“已退金额”
+            alt 全额退款且满足业务条件(未发货/已取消面单等)
+              Backend->>Backend: UPDATE orders.status='REFUNDED'<br/>INSERT order_status_log(to=REFUNDED, source=SCHEDULER)
+            else 部分退款/已发货
+              Backend->>Backend: 保持订单原状态(PAID/FULFILLED)，仅做退款累计
+            end
+          else FAIL
+            Backend->>Backend: UPDATE payment_refund.status='FAIL'
+            Backend-->>CS: 通知人工介入(重试/改线)
+          else CLOSED
+            Backend->>Backend: UPDATE payment_refund.status='CLOSED'
+          else PENDING
+            Backend->>Backend: UPDATE payment_refund.last_polled_at=NOW()
+            deactivate Backend
+          end
+        end
+      end
+    end
+
+    %% B3 自动关闭订单（售后期满）
+    rect rgb(255,250,240)
+      note over CS, Pay: 定时自动关闭订单
+      loop 每日
+        Sch->>Backend: 查找“全部 shipment=DELIVERED 且 超过售后期”的订单
+        Backend->>Backend: UPDATE orders.status='CLOSED'<br/>INSERT order_status_log(to=CLOSED, source=SCHEDULER)
+      end
+    end
+
+    %% B4 可选：自动重派（策略命中）
+    rect rgb(240,255,255)
+      note over CS, Pay: 定时任务检测到工单标记订单为“需要重派”
+      opt 策略命中：RETURNED 且 工单标记“需要重派”
+        Sch->>Backend: 生成重派任务(读取 cs_ticket 及受影响明细)
+        activate Backend
+        Backend->>Backend: INSERT shipment + shipment_item
+        Backend->>API: CreateLabel/PlaceOrder
+        activate API
+        API-->>Backend: 返回 new tracking_no
+        deactivate API
+        Backend->>Backend: INSERT shipment_status_log(to=LABEL_CREATED, source=SYSTEM_JOB)
+        Backend-->>CS: 回填新单号并通知用户
+        deactivate Backend
+      end
+    end
+
+    %% B5 工单 SLA 预警（可选）
+    loop 每X分钟 (用 idx_ticket_sla)
+      note over CS, Pay: 定时扫描即将过期 / 已超时的工单并发送提醒（升级优先级）
+      Sch->>Backend: 扫描即将超时/已超时的 cs_ticket(sla_due_at)
+      activate Backend
+      Backend-->>CS: 发送SLA提醒/升级
+      deactivate Backend
+    end

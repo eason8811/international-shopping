@@ -1,0 +1,128 @@
+---
+config:
+  look: neo
+  theme: neutral
+  layout: elk
+---
+flowchart TD
+ subgraph ORD["订单生命周期（orders.status）"]
+    direction LR
+        O0["CREATED 创建<br/>订单已生成，尚未创建/进入支付流程"]
+        O1["PENDING_PAYMENT 待支付<br/>已发起支付，等待用户完成支付"]
+        O2["PAID 已支付<br/>支付成功，等待拣配/出库与发货"]
+        O3["FULFILLED 已履约<br/>全部包裹签收，进入售后观察期"]
+        O4["CLOSED 已关闭<br/>售后期满或人工关闭，不再流转"]
+        OC["CANCELLED 已取消<br/>下单后未履约即取消（用户/系统/客服）"]
+        OR1["REFUNDING 退款中<br/>已创建退款单，等待网关结果"]
+        OR2["REFUNDED 已退款<br/>全额退款完成（部分退款不进入该状态）"]
+  end
+ subgraph PAY["支付/退款（payment_order / payment_refund）"]
+    direction LR
+        P1["Payment PENDING<br/>支付单已提交网关，等待回调/轮询"]
+        P0["Payment INIT<br/>已创建支付单，尚未提交或刚提交"]
+        P2["Payment SUCCESS<br/>网关确认支付成功"]
+        P3["Payment FAIL/CLOSED<br/>支付失败/关闭/超时作废"]
+        R1["Refund PENDING<br/>退款单已提交网关，等待回调/轮询"]
+        R0["Refund INIT<br/>已创建退款单，尚未提交或刚提交"]
+        R2["Refund SUCCESS<br/>网关确认退款成功（可能为部分/全额）"]
+        R3["Refund FAIL/CLOSED<br/>退款失败/关闭/网关拒绝"]
+  end
+ subgraph SHP["物流运单（shipment.status：每包裹）"]
+    direction LR
+        S0["CREATED<br/>系统内包裹已创建，未向承运商下单"]
+        S1["LABEL_CREATED<br/>已获取面单号/下单成功，待揽收"]
+        S2["PICKED_UP<br/>承运商已揽收出仓"]
+        S3["IN_TRANSIT<br/>干线运输中（国际/跨境在途）"]
+        SH["CUSTOMS_HOLD<br/>清关受阻/查验中，等待处理"]
+        SR["CUSTOMS_RELEASED<br/>清关放行，准备末端派送"]
+        S4["OUT_FOR_DELIVERY<br/>末端派送中"]
+        S5["DELIVERED<br/>收件人已签收"]
+        SE["EXCEPTION<br/>异常（破损/地址问题/延误等）"]
+        SRN["RETURNED<br/>包裹退回寄件方/仓库"]
+        SC["CANCELLED<br/>运单取消/面单作废（未发出）"]
+        SL["LOST<br/>丢失（承运商判定或长期无轨迹）"]
+  end
+ subgraph CS["客服工单与处置（cs_ticket）"]
+    direction TB
+        T0["工单创建：退款/补寄/理赔/改址<br/>用户/系统/客服创建售后入口，记录证据"]
+        T1{"审核：采取何种处理？<br/>根据证据与政策评估处理方案"}
+        T2a["部分或全额退款<br/>(payment_refund + 可选 payment_refund_item)<br/>生成退款单，必要时按行记录数量/金额"]
+        T2b["重派/改址<br/>(新建 shipment + shipment_item)<br/>生成新包裹并向承运商下单"]
+        T2c["理赔<br/>(与承运商协同)<br/>提交证据，等待赔付结论；通过后可触发退款/补偿"]
+  end
+    O0 -- 发起支付会话 --> O1
+    O1 -- 支付成功 --> O2
+    O1 -- 超时/用户取消 --> OC
+    O0 -- 人工取消 --> OC
+    O2 -- 全部包裹已签收 --> O3
+    O3 -- 售后期满 --> O4
+    O2 -. 全额退款 .-> OR1
+    OR1 -. 回调/对账SUCCESS .-> OR2
+    OR1 -. 退款失败/关闭 .-> O2
+    O2 -. 部分退款（仅累计已退金额） .- O2
+    P0 --> P1
+    P1 -- 回调/轮询SUCCESS --> P2
+    P1 -- FAIL/CLOSED --> P3
+    P2 -. "更新订单=PAID" .- O2
+    R0 --> R1
+    R1 -- SUCCESS --> R2
+    R1 -- FAIL/CLOSED --> R3
+    R2 -. 全额：订单→REFUNDED；部分：仅累计金额 .- O2
+    S0 --> S1
+    S1 --> S2 & SC
+    S2 --> S3 & SE
+    S3 --> SH & SE & SRN & SL
+    SH --> SR
+    SR --> S4
+    S4 --> S5 & SRN & SL
+    S5 == 全部包裹签收 ==> O3
+    SE -. 异常上报 .-> T0
+    SRN -. 退回上报 .-> T0
+    SL -. 丢失上报 .-> T0
+    SC -. 预发货取消 .-> T0
+    T0 --> T1
+    T1 -- 退款 --> T2a
+    T2a --> R0
+    T1 -- 重派/改址 --> T2b
+    T2b --> S1
+    T1 -- 理赔 --> T2c
+    T2c -. 赔付通过→退款/发券 .-> R0
+    R2 -. 若为全额退款 .-> OR2
+    SRN -. 退回可能触发退款或重派 .-> T0
+     O0:::neut
+     O1:::warn
+     O2:::neut
+     O3:::good
+     O4:::good
+     OC:::bad
+     OR1:::neut
+     OR2:::neut
+     P0:::neut
+     P1:::warn
+     P2:::neut
+     P3:::neut
+     R0:::neut
+     R1:::warn
+     R2:::neut
+     R3:::neut
+     S0:::neut
+     S1:::neut
+     S2:::neut
+     S3:::neut
+     SH:::warn
+     SR:::neut
+     S4:::neut
+     S5:::good
+     SE:::bad
+     SRN:::bad
+     SC:::bad
+     SL:::bad
+     T0:::neut
+     T1:::neut
+     T2a:::neut
+     T2b:::neut
+     T2c:::neut
+    classDef good fill:#eaffea,stroke:#2a7,stroke-width:1px
+    classDef warn fill:#fff6e6,stroke:#e6a700,stroke-width:1px
+    classDef bad  fill:#ffecec,stroke:#d33,stroke-width:1px
+    classDef neut fill:#f6f7fb,stroke:#7b8dae,stroke-width:1px
