@@ -869,6 +869,36 @@ CREATE TABLE shipment_status_log
     CHECK (from_status IS NULL OR from_status <> to_status)
 ) ENGINE = InnoDB COMMENT ='包裹状态流转日志 (源状态→目标状态，含事件来源与原始报文)';
 
+-- 承运商理赔单
+/*
+uk_claim_external：避免同一外部编号重复落库
+idx_claim_shipment / idx_claim_order / idx_claim_reship / idx_claim_ticket：从包裹/订单/补寄/工单反查理赔单
+ */
+CREATE TABLE shipping_claim
+(
+    id           BIGINT UNSIGNED                                                     NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    ticket_id    BIGINT UNSIGNED                                                     NULL COMMENT '工单ID, 指向 cs_ticket.id',
+    shipment_id  BIGINT UNSIGNED                                                     NOT NULL COMMENT '包裹ID, 指向 shipment.id',
+    order_id     BIGINT UNSIGNED                                                     NOT NULL COMMENT '订单ID, 指向 orders.id',
+    reship_id    BIGINT UNSIGNED                                                     NULL COMMENT '补发单ID, 指向 aftersales_reship.id',
+    carrier_code VARCHAR(64)                                                         NOT NULL COMMENT '承运商编码 (来源于承运商事件时可填)',
+    external_id  VARCHAR(128)                                                        NULL COMMENT '承运商理赔编号',
+    reason_code  ENUM ('LOST','DAMAGED','DELAY','OTHER')                             NOT NULL DEFAULT 'OTHER' COMMENT '理赔原因',
+    status       ENUM ('FILED','UNDER_REVIEW','APPROVED','REJECTED','PAID','CLOSED') NOT NULL DEFAULT 'FILED' COMMENT '理赔状态',
+    claim_amount DECIMAL(18, 2)                                                      NOT NULL COMMENT '理赔金额',
+    paid_amount  DECIMAL(18, 2)                                                      NULL COMMENT '已支付金额',
+    currency     CHAR(3)                                                             NOT NULL DEFAULT 'USD' COMMENT '币种',
+    paid_at      DATETIME(3)                                                         NULL COMMENT '支付时间',
+    created_at   DATETIME(3)                                                         NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at   DATETIME(3)                                                         NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_claim_external (external_id),
+    KEY idx_claim_shipment (shipment_id),
+    KEY idx_claim_order (order_id),
+    KEY idx_claim_reship (reship_id),
+    KEY idx_claim_ticket (ticket_id)
+) ENGINE = InnoDB COMMENT ='承运商理赔单（独立于支付体系）';
+
 -- =========================================================
 -- 6. 售后领域 (customerservice)
 -- =========================================================
@@ -952,6 +982,70 @@ CREATE TABLE cs_ticket
     CHECK (requested_refund_amount IS NULL OR requested_refund_amount > 0)
 ) ENGINE = InnoDB COMMENT ='客服工单(售后/异常/理赔/补寄统一入口)';
 
+-- 6.2 补发单（登记补发记录）
+/*
+uk_reship_no：对外/对内统一的补发单编号（雪花/ULID）
+idx_reship_order：从订单反查补发单
+idx_reship_ticket：从客服工单反查补发单
+ */
+CREATE TABLE aftersales_reship
+(
+    id            BIGINT UNSIGNED                 NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    reship_no     CHAR(26)                        NOT NULL COMMENT '补发单号(ULID/雪花)',
+    order_id      BIGINT UNSIGNED                 NOT NULL COMMENT '原订单ID, 指向 orders.id',
+    ticket_id     BIGINT UNSIGNED                 NULL COMMENT '关联客服工单, 指向 cs_ticket.id',
+    reason_code   ENUM ('LOST','DAMAGED','OTHER') NOT NULL DEFAULT 'OTHER' COMMENT '补发原因',
+    status        ENUM ('INIT','APPROVED','FULFILLING','FULFILLED','CANCELLED')
+                                                  NOT NULL DEFAULT 'INIT' COMMENT '补发状态',
+    currency      CHAR(3)                         NOT NULL DEFAULT 'USD' COMMENT '币种(费用口径)',
+    items_cost    DECIMAL(18, 2)                  NULL COMMENT '补发货品成本(可后置结算填充)',
+    shipping_cost DECIMAL(18, 2)                  NULL COMMENT '补发运费成本',
+    note          VARCHAR(255)                    NULL COMMENT '备注/原因',
+    created_at    DATETIME(3)                     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at    DATETIME(3)                     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_reship_no (reship_no),
+    KEY idx_reship_order (order_id),
+    KEY idx_reship_ticket (ticket_id)
+) ENGINE = InnoDB COMMENT ='售后补发单(登记补发记录)';
+
+-- 6.3 补发明细（基于原订单明细做数量维度的补发）
+/*
+uk_reship_item_once：同一补发单内，同一订单明细只允许出现一次
+idx_reship_item_reship：从补发单反查明细
+idx_reship_item_orderitem：从订单明细反查明细
+ */
+CREATE TABLE aftersales_reship_item
+(
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    reship_id     BIGINT UNSIGNED NOT NULL COMMENT '补发单ID, 指向 aftersales_reship.id',
+    order_item_id BIGINT UNSIGNED NOT NULL COMMENT '原订单明细ID, 指向 order_item.id',
+    sku_id        BIGINT UNSIGNED NOT NULL COMMENT 'SKU(冗余校验/统计), 指向 product_sku.id',
+    quantity      INT             NOT NULL COMMENT '补发数量(>0)',
+    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_reship_item_once (reship_id, order_item_id), -- 单一补发单内防重复
+    KEY idx_reship_item_reship (reship_id),
+    KEY idx_reship_item_orderitem (order_item_id),
+    CHECK (quantity > 0)
+) ENGINE = InnoDB COMMENT ='售后补发单明细';
+
+-- 6.4 补发-包裹 关联（一个补发单可产生1..N个shipment）
+/*
+uk_reship_one_shipment：一个包裹只能被一个补发单关联
+idx_reship_ship_reship：从补发单反查包裹
+idx_reship_ship_shipment：从包裹反查补发单
+ */
+CREATE TABLE aftersales_reship_shipment
+(
+    reship_id   BIGINT UNSIGNED NOT NULL COMMENT '补发单ID, 指向 aftersales_reship.id',
+    shipment_id BIGINT UNSIGNED NOT NULL COMMENT '包裹ID, 指向 shipment.id',
+    created_at  DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (reship_id, shipment_id),
+    UNIQUE KEY uk_reship_one_shipment (shipment_id), -- 避免一个包裹被多个补发单占用
+    KEY idx_reship_ship_reship (reship_id),
+    KEY idx_reship_ship_shipment (shipment_id)
+) ENGINE = InnoDB COMMENT ='补发单-包裹关联';
 
 -- =========================================================
 -- 其他辅助表
