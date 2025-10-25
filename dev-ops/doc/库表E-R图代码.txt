@@ -1,8 +1,8 @@
 ---
 config:
+  layout: elk
   look: neo
   theme: redux-color
-  layout: elk
 ---
 erDiagram
 	direction LR
@@ -14,29 +14,27 @@ erDiagram
 	}
 	user_address {
 	}
-	orders {
-	}
-	product_like {
-	}
-	shopping_cart_item {
-	}
-	cs_ticket {
-	}
 	product_category {
+	}
+	product {
 	}
 	product_category_i18n {
 	}
 	locale {
 	}
-	product {
+	product_sku {
 	}
 	product_i18n {
-	}
-	product_sku {
 	}
 	product_image {
 	}
 	product_sku_image {
+	}
+	product_like {
+	}
+	product_price {
+	}
+	currency {
 	}
 	product_spec {
 	}
@@ -48,19 +46,19 @@ erDiagram
 	}
 	product_sku_spec {
 	}
-	product_price {
-	}
-	currency {
+	orders {
 	}
 	order_item {
+	}
+	discount_code {
 	}
 	order_status_log {
 	}
 	inventory_log {
 	}
-	discount_policy {
+	shopping_cart_item {
 	}
-	discount_code {
+	discount_policy {
 	}
 	discount_code_product {
 	}
@@ -70,6 +68,8 @@ erDiagram
 	}
 	payment_refund {
 	}
+	cs_ticket {
+	}
 	payment_refund_item {
 	}
 	shipment {
@@ -78,64 +78,87 @@ erDiagram
 	}
 	shipment_status_log {
 	}
-
+	shipping_claim {
+	}
+	aftersales_reship {
+	}
+	aftersales_reship_item {
+	}
+	aftersales_reship_shipment {
+	}
 	user_account||--o{user_auth:"has"
 	user_account||--||user_profile:"has"
 	user_account||--o{user_address:"has"
-	user_account||--o{orders:"places"
-	user_account||--o{product_like:"likes"
-	user_account||--o{shopping_cart_item:"carts"
-	user_account||--o{cs_ticket:"raises"
-	product_category||--o{product_category:"parent_of"
-	product_category||--o{product_category_i18n:"has_i18n"
-	locale||--o{product_category_i18n:"in_locale"
+	product_category|o--o{product_category:"parent_of"
 	product_category||--o{product:"contains"
-	product||--o{product_i18n:"has_i18n"
+	product_category||--o{product_category_i18n:"i18n"
+	locale||--o{product_category_i18n:"in_locale"
+	product||--o{product_sku:"has"
+	product|o--||product_sku:"default_sku"
+	product||--o{product_i18n:"i18n"
 	locale||--o{product_i18n:"in_locale"
-	product||--o{product_sku:"has_sku"
-	product||--o{product_image:"has_image"
-	product_sku||--o{product_sku_image:"has_image"
-	product||--o{product_spec:"has_spec"
-	product_spec||--o{product_spec_i18n:"has_i18n"
-	locale||--o{product_spec_i18n:"in_locale"
-	product_spec||--o{product_spec_value:"has_value"
-	product_spec_value||--o{product_spec_value_i18n:"has_i18n"
-	locale||--o{product_spec_value_i18n:"in_locale"
-	product_sku||--o{product_sku_spec:"composed_of"
-	product_spec||--o{product_sku_spec:"uses_spec"
-	product_spec_value||--o{product_sku_spec:"selects_value"
+	product||--o{product_image:"has"
+	product_sku||--o{product_sku_image:"has"
+	user_account||--o{product_like:"likes"
+	product||--o{product_like:"liked_by"
 	product_sku||--o{product_price:"priced_in"
 	currency||--o{product_price:"currency"
-	product||--o{product_like:"liked"
-	product_sku||--o{shopping_cart_item:"carted"
-	orders||--o{order_item:"contains"
-	product||--o{order_item:"for_spu"
-	product_sku||--o{order_item:"for_sku"
-	orders||--o{order_status_log:"status_events"
-	orders||--o{inventory_log:"inventory_events"
-	product_sku||--o{inventory_log:"inventory_on_sku"
+	product||--o{product_spec:"has_spec"
+	product_spec||--o{product_spec_i18n:"i18n"
+	locale||--o{product_spec_i18n:"in_locale"
+	product_spec||--o{product_spec_value:"has_value"
+	product||--o{product_spec_value:"of_product"
+	product_spec_value||--o{product_spec_value_i18n:"i18n"
+	locale||--o{product_spec_value_i18n:"in_locale"
+	product_sku||--o{product_sku_spec:"has_spec_value"
+	product_spec||--o{product_sku_spec:"spec"
+	product_spec_value||--o{product_sku_spec:"value"
+	user_account||--o{orders:"places"
+	orders||--o{order_item:"has"
+	product||--o{order_item:"item_of"
+	product_sku||--o{order_item:"sku_of"
+	discount_code|o--o{order_item:"used_code"
+	orders||--o{order_status_log:"status_log"
+	product_sku||--o{inventory_log:"inventory_flow"
+	orders||--o{inventory_log:"caused_by"
+	user_account||--o{shopping_cart_item:"cart_has"
+	product_sku||--o{shopping_cart_item:"cart_sku"
 	discount_policy||--o{discount_code:"defines"
 	discount_code||--o{discount_code_product:"scopes"
-	product||--o{discount_code_product:"product_scope"
-	discount_code||--o{order_item:"applied_on_item"
-	orders||--o{order_discount_applied:"discount_facts"
+	product||--o{discount_code_product:"in_scope"
+	orders||--o{order_discount_applied:"discount_fact"
+	order_item|o--o{order_discount_applied:"item_level"
 	discount_code||--o{order_discount_applied:"by_code"
-	order_item||--o{order_discount_applied:"item_entry"
-	orders||--o{payment_order:"pays"
-	orders||--o{payment_refund:"refunds"
-	payment_order||--o{payment_refund:"refunds_of_payment"
-	cs_ticket||--o{payment_refund:"from_ticket"
-	payment_refund||--o{payment_refund_item:"splits"
-	order_item||--o{payment_refund_item:"refunded_item"
-	orders||--o{shipment:"ships"
-	shipment||--o{shipment_item:"includes_item"
-	orders||--o{shipment_item:"links_order"
-	order_item||--o{shipment_item:"packs_item"
-	product||--o{shipment_item:"for_spu"
-	product_sku||--o{shipment_item:"for_sku"
-	shipment||--o{shipment_status_log:"status_events"
-	shipment||--o{cs_ticket:"referenced_by_ticket"
-	user_account||--o{cs_ticket:"creates"
-	orders||--o{cs_ticket:"on_order"
-	order_item||--o{cs_ticket:"on_order_item"
-	shipment||--o{cs_ticket:"on_shipment"
+	orders||--o{payment_order:"has_payment"
+	orders||--o{payment_refund:"has_refund"
+	payment_order||--o{payment_refund:"refund_of"
+	cs_ticket|o--o{payment_refund:"related_ticket"
+	payment_refund||--o{payment_refund_item:"splits_to"
+	order_item||--o{payment_refund_item:"refund_item_of"
+	orders|o--o{shipment:"ships_for"
+	shipment||--o{shipment_item:"contains"
+	orders||--o{shipment_item:"from_order"
+	order_item||--o{shipment_item:"from_order_item"
+	product||--o{shipment_item:"product_of"
+	product_sku||--o{shipment_item:"sku_of"
+	shipment||--o{shipment_status_log:"status_log"
+	cs_ticket|o--o{shipping_claim:"ticket_rel"
+	shipment||--o{shipping_claim:"claim_for"
+	orders||--o{shipping_claim:"claim_on_order"
+	aftersales_reship|o--o{shipping_claim:"claim_on_reship"
+	user_account||--o{cs_ticket:"raises"
+	orders|o--o{cs_ticket:"about_order"
+	order_item|o--o{cs_ticket:"about_item"
+	shipment|o--o{cs_ticket:"about_shipment"
+	orders||--o{aftersales_reship:"reship_for"
+	cs_ticket|o--o{aftersales_reship:"initiated_by"
+	aftersales_reship||--o{aftersales_reship_item:"has"
+	order_item||--o{aftersales_reship_item:"reship_of_item"
+	product_sku||--o{aftersales_reship_item:"reship_sku"
+	aftersales_reship||--o{aftersales_reship_shipment:"binds"
+	shipment||--o{aftersales_reship_shipment:"bound_to"
+	product_price}o--||currency:"in_ccy"
+	product_category_i18n}o--||locale:"in_locale"
+	product_i18n}o--||locale:"in_locale"
+	product_spec_i18n}o--||locale:"in_locale"
+	product_spec_value_i18n}o--||locale:"in_locale"
