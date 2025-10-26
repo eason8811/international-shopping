@@ -1,0 +1,1 @@
+package international.shopping.domain.adapter.port;
