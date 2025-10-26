@@ -112,10 +112,8 @@ public class Result<T> {
      * @param data 要包含在结果中的业务数据
      * @return 包含指定数据且状态为 {@link ApiCode#FOUND} 的 {@link Result} 对象
      */
-    public static <T> Result<T> found(Object data) {
-        @SuppressWarnings("unchecked")
-        T cast = (T) data;
-        return base(true, ApiCode.FOUND, null, cast, null);
+    public static <T> Result<T> found(T data) {
+        return base(true, ApiCode.FOUND, null, data, null);
     }
 
     /**
