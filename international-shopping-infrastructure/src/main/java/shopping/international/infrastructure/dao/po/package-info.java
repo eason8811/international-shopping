@@ -1,0 +1,1 @@
+package shopping.international.infrastructure.dao.po;

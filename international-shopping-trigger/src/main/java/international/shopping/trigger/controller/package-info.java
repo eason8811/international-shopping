@@ -1,1 +1,0 @@
-package international.shopping.trigger.controller;

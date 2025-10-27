@@ -52,7 +52,13 @@ public enum ApiCode {
     /**
      * 422 Unprocessable Entity
      */
-    UNPROCESSABLE_ENTITY(HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Entity");
+    UNPROCESSABLE_ENTITY(HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Entity"),
+
+    // ===== 客户端错误类 =====
+    /**
+     * 500 Internal Server Error
+     */
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error");
 
     private final int httpStatus;
     private final String defaultMessage;

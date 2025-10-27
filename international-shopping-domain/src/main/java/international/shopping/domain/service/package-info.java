@@ -1,1 +1,0 @@
-package international.shopping.domain.service;
