@@ -7,6 +7,9 @@ import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.regex.Pattern;
 
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
 /**
  * 用户名 (登录名) 值对象
  * <p>不可变, 持有规范化后的用户名 (去首尾空格)</p>
@@ -41,11 +44,9 @@ public final class Username {
      * @return 值对象
      */
     public static Username of(String raw) {
-        if (raw == null)
-            throw new IllegalParamException("用户名不能为空");
+        requireNotNull(raw, "用户名不能为空");
         String val = raw.trim();
-        if (!PATTERN.matcher(val).matches())
-            throw new IllegalParamException("用户名必须是3-64位字母数字下划线或 (_) 连字符 (-)");
+        require(!PATTERN.matcher(val).matches(), "用户名必须是3-64位字母数字下划线或 (_) 连字符 (-)");
         return new Username(val);
     }
 }

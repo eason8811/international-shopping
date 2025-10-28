@@ -8,6 +8,9 @@ import shopping.international.types.exceptions.IllegalParamException;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
 /**
  * 邮箱值对象 (统一小写)
  */
@@ -43,11 +46,9 @@ public final class EmailAddress {
      * @throws IllegalParamException 如果提供的邮箱为空或格式不正确时抛出
      */
     public static EmailAddress of(String raw) {
-        if (raw == null)
-            throw new IllegalParamException("邮箱不能为空");
+        requireNotNull(raw, "邮箱不能为空");
         String val = raw.trim().toLowerCase(Locale.ROOT);
-        if (!PATTERN.matcher(val).matches())
-            throw new IllegalParamException("邮箱格式不正确");
+        require(!PATTERN.matcher(val).matches(), "邮箱格式不正确");
         return new EmailAddress(val);
     }
 }

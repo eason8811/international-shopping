@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.ToString;
 import shopping.international.types.exceptions.IllegalParamException;
 
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
 /**
  * 昵称值对象
  */
@@ -33,11 +36,9 @@ public final class Nickname {
      * @return {@link Nickname} 实例
      */
     public static Nickname of(String raw) {
-        if (raw == null)
-            throw new IllegalParamException("昵称不能为空");
+        requireNotNull(raw, "昵称不能为空");
         String val = raw.trim();
-        if (val.isEmpty() || val.length() > 64)
-            throw new IllegalParamException("昵称长度必须为 1~64 个字符");
+        require(val.isEmpty() || val.length() > 64, "昵称长度必须为 1~64 个字符");
         return new Nickname(val);
     }
 }

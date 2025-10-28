@@ -7,6 +7,8 @@ import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.Arrays;
 
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
 /**
  * 加密密文值对象 (用于存储 VARBINARY: access_token / refresh_token)
  * <p>不可变，仅封装字节数组的拷贝，避免外部修改</p>
@@ -39,8 +41,7 @@ public final class EncryptedSecret {
      * @throws IllegalParamException 如果提供的密文字节数组为 null
      */
     public static EncryptedSecret of(byte[] bytes) {
-        if (bytes == null)
-            throw new IllegalParamException("密文字节数组不能为 null");
+        requireNotNull(bytes, "密文字节数组不能为 null");
         return new EncryptedSecret(Arrays.copyOf(bytes, bytes.length));
     }
 

@@ -7,6 +7,9 @@ import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.regex.Pattern;
 
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
 /**
  * 手机号值对象 (存储为 E.164 格式)
  * <p>此处仅进行基础格式校验, 国际化规范化可在应用层完成</p>
@@ -42,11 +45,9 @@ public final class PhoneNumber {
      * @throws IllegalParamException 如果提供的手机号为空或格式不正确时抛出
      */
     public static PhoneNumber of(String raw) {
-        if (raw == null)
-            throw new IllegalParamException("手机号不能为空");
+        requireNotNull(raw, "手机号不能为空");
         String val = raw.trim();
-        if (!SIMPLE.matcher(val).matches())
-            throw new IllegalParamException("手机号格式不正确");
+        require(!SIMPLE.matcher(val).matches(), "手机号格式不正确");
         return new PhoneNumber(val);
     }
 }

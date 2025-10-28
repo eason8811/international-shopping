@@ -12,6 +12,8 @@ import java.util.Map;
 
 import shopping.international.domain.model.enums.user.Gender;
 
+import static shopping.international.types.utils.FieldValidateUtils.require;
+
 /**
  * 用户资料值对象 (1:1)
  * <p>不可变；对外通过 withXxx 方法返回新实例</p>
@@ -134,8 +136,7 @@ public final class UserProfile {
      * @throws IllegalParamException 如果提供的显示名称长度超过 64 个字符
      */
     public UserProfile withDisplayName(String name) {
-        if (name != null && name.length() > 64)
-            throw new IllegalParamException("显示名称长度不能超过 64 个字符");
+        require(name != null && name.length() > 64, "显示名称长度不能超过 64 个字符");
         return new UserProfile(name, this.avatarUrl, this.gender, this.birthday, this.country,
                 this.province, this.city, this.addressLine, this.zipcode, this.extra);
     }
