@@ -8,6 +8,7 @@ import shopping.international.domain.model.vo.user.PhoneNumber;
 import java.time.LocalDateTime;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 用户收货地址实体 (对应表 user_address), 归属 User 聚合
@@ -74,6 +75,7 @@ public class UserAddress {
                                  boolean isDefault) {
         requireNotBlank(receiverName, "收货人不能为空");
         requireNotBlank(addressLine1, "地址行1 不能为空");
+        requireNotNull(phone, "联系电话不能为空");
         return new UserAddress(null, receiverName, phone, country, province, city, district,
                 addressLine1, addressLine2, zipcode, isDefault, null, null);
     }

@@ -292,14 +292,14 @@ public class User {
      * @throws IllegalParamException 如果移除所有给定类型的认证绑定之后, 用户没有任何可用的登录方式
      */
     public void removeBinding(AuthProvider provider) {
-        int before = bindingList.size();
+        long remainIfRemoved = bindingList.stream()
+                .filter(binding -> binding.getProvider() != provider)
+                .count();
+        if (remainIfRemoved == 0)
+            throw new IllegalParamException("不允许解绑最后一个登录方式");
         bindingList.removeIf(binding -> binding.getProvider() == provider);
-        if (before == bindingList.size()) {
-            // 未删除任何东西
-            return;
-        }
-        ensureHasAtLeastOneLoginMethod();
     }
+
 
     /**
      * 修改用户的本地密码哈希
