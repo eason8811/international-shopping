@@ -1,1 +1,0 @@
-package shopping.international.domain.model.aggregate;
