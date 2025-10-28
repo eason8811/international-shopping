@@ -14,7 +14,7 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
 /**
  * 认证映射实体 (对应表 {@code user_auth}), 用户的身份验证绑定信息, 归属 {@link User} 聚合
  *
- * @apiNote 在实体内不保存 {@code userId} 字段, 避免与聚合根重复, 持久化层映射时由聚合根 {@link User#id} 参与
+ * @apiNote 在实体内不保存 {@code userId} 字段, 避免与聚合根重复, 持久化层映射时由聚合根的 {@code id} 参与
  */
 @Getter
 @ToString(exclude = {"accessToken", "refreshToken", "passwordHash"})
