@@ -117,8 +117,7 @@ public class AuthBinding {
      * @param scope        令牌的作用域, 不能为空或空白
      * @throws IllegalParamException 如果当前认证提供方为 LOCAL 或者提供的参数为空或不合法
      */
-    public void updateTokens(EncryptedSecret accessToken, EncryptedSecret refreshToken,
-                             LocalDateTime expiresAt, String scope) {
+    public void updateTokens(EncryptedSecret accessToken, EncryptedSecret refreshToken, LocalDateTime expiresAt, String scope) {
         requireNotNull(accessToken, "访问令牌不能为空");
         requireNotNull(refreshToken, "刷新令牌不能为空");
         requireNotNull(expiresAt, "有效期不能为空");
