@@ -36,6 +36,7 @@
     <properties>
         <java.version>17</java.version>
         <jetbrains.version>21.0.1</jetbrains.version>
+        <jwt.version>9.39.3</jwt.version>
     </properties>
 
     <dependencyManagement>
@@ -46,6 +47,12 @@
                 <artifactId>annotations</artifactId>
                 <version>${jetbrains.version}</version>
                 <scope>compile</scope>
+            </dependency>
+            <!-- 解析与验签 JWT（HS256/RS256 等） -->
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>${jwt.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
