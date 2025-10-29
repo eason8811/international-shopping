@@ -72,6 +72,29 @@ public class Result<T> {
     }
 
     /**
+     * 创建一个表示成功的结果对象, 使用默认的业务码 {@link ApiCode#OK} 和给定的消息
+     *
+     * @param <T>     业务数据类型
+     * @param message 自定义响应消息, 如果为空则使用 {@link ApiCode#OK} 的默认消息
+     * @return 包含指定消息且状态为成功的 {@link Result} 对象
+     */
+    public static <T> Result<T> ok(String message) {
+        return base(true, ApiCode.OK, message, null, null);
+    }
+
+    /**
+     * 创建一个表示成功的结果对象, 使用默认的业务码 {@link ApiCode#OK}, 并带有自定义消息和给定的数据
+     *
+     * @param <T>     业务数据类型
+     * @param data    要包含在结果中的业务数据
+     * @param message 自定义响应消息, 如果为空则使用 {@link ApiCode#OK} 的默认消息
+     * @return 包含指定数据和消息的成功 {@link Result} 对象
+     */
+    public static <T> Result<T> ok(T data, String message) {
+        return base(true, ApiCode.OK, message, data, null);
+    }
+
+    /**
      * 创建一个表示成功的响应结果, 使用默认的业务码 {@link ApiCode#OK}, 没有响应信息, 并携带给定的数据和元信息
      *
      * @param <T>  业务数据类型
