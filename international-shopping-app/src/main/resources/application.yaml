@@ -4,3 +4,17 @@ server:
 spring:
   application:
     name: international-shopping
+  profiles:
+    active: dev
+
+security:
+  cookie:
+    secure: ${security.cookie.secure}
+    sameSite: ${security.cookie.sameSite}
+    path: ${security.cookie.path}
+    httpOnly: ${security.cookie.httpOnly}
+  jwt:
+    issuer: ${security.jwt.issuer}
+    audience: ${security.jwt.audience}
+    secret-base64: ${security.jwt.secret-base64}
+    clock-skew-seconds: ${security.jwt.clock-skew-seconds}

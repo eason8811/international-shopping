@@ -1,0 +1,11 @@
+security:
+  cookie:
+    secure: false
+    sameSite: Lax
+    path: /
+    httpOnly: false
+  jwt:
+    issuer: shopping.international
+    audience: web
+    secret-base64: w4Lw9...（Base64 编码的 256bit HMAC 密钥）
+    clock-skew-seconds: 60
