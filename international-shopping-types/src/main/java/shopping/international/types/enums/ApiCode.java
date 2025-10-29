@@ -42,6 +42,10 @@ public enum ApiCode {
      */
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Unauthorized"),
     /**
+     * 403 Forbidden
+     */
+    FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden"),
+    /**
      * 404 Not Found
      */
     NOT_FOUND(HttpStatus.NOT_FOUND, "Not Found"),
