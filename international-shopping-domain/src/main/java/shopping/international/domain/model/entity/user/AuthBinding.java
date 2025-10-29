@@ -14,7 +14,7 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
 /**
  * 认证映射实体 (对应表 {@code user_auth}), 用户的身份验证绑定信息, 归属 {@link User} 聚合
  *
- * @apiNote 在实体内不保存 {@code userId} 字段, 避免与聚合根重复, 持久化层映射时由聚合根 {@link User#id} 参与
+ * @apiNote 在实体内不保存 {@code userId} 字段, 避免与聚合根重复, 持久化层映射时由聚合根的 {@code id} 参与
  */
 @Getter
 @ToString(exclude = {"accessToken", "refreshToken", "passwordHash"})
@@ -101,7 +101,7 @@ public class AuthBinding {
      * @throws IllegalParamException 如果提供的参数不符合要求
      */
     public static AuthBinding oauth(AuthProvider provider, String issuer, String providerUid) {
-        require(provider == null || provider == AuthProvider.LOCAL, "提供方必须为 OAuth 2.0 提供方");
+        require(provider != null && provider != AuthProvider.LOCAL, "提供方必须为 OAuth 2.0 提供方");
         requireNotBlank(issuer, "Issuer不能为空");
         requireNotBlank(providerUid, "ProviderUid不能为空");
         return new AuthBinding(null, provider, issuer, providerUid, null,
@@ -117,13 +117,12 @@ public class AuthBinding {
      * @param scope        令牌的作用域, 不能为空或空白
      * @throws IllegalParamException 如果当前认证提供方为 LOCAL 或者提供的参数为空或不合法
      */
-    public void updateTokens(EncryptedSecret accessToken, EncryptedSecret refreshToken,
-                             LocalDateTime expiresAt, String scope) {
+    public void updateTokens(EncryptedSecret accessToken, EncryptedSecret refreshToken, LocalDateTime expiresAt, String scope) {
         requireNotNull(accessToken, "访问令牌不能为空");
         requireNotNull(refreshToken, "刷新令牌不能为空");
         requireNotNull(expiresAt, "有效期不能为空");
         requireNotBlank(scope, "令牌作用域不能为空");
-        require(provider == AuthProvider.LOCAL, "LOCAL 绑定无需更新令牌");
+        require(provider != AuthProvider.LOCAL, "LOCAL 绑定无需更新令牌");
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.expiresAt = expiresAt;
@@ -155,7 +154,7 @@ public class AuthBinding {
      */
     public void changeLocalPassword(String newPasswordHash) {
         requireNotNull(newPasswordHash, "密码哈希不能为空");
-        require(provider != AuthProvider.LOCAL, "只有 LOCAL 绑定才有密码哈希");
+        require(provider == AuthProvider.LOCAL, "只有 LOCAL 绑定才有密码哈希");
         this.passwordHash = newPasswordHash;
     }
 }

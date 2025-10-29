@@ -8,6 +8,7 @@ import shopping.international.domain.model.vo.user.PhoneNumber;
 import java.time.LocalDateTime;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 用户收货地址实体 (对应表 user_address), 归属 User 聚合
@@ -74,12 +75,13 @@ public class UserAddress {
                                  boolean isDefault) {
         requireNotBlank(receiverName, "收货人不能为空");
         requireNotBlank(addressLine1, "地址行1 不能为空");
+        requireNotNull(phone, "联系电话不能为空");
         return new UserAddress(null, receiverName, phone, country, province, city, district,
                 addressLine1, addressLine2, zipcode, isDefault, null, null);
     }
 
     /**
-     * 更新用户地址信息。此方法允许更新收货人姓名、联系电话及详细的地址信息等字段。
+     * 更新用户地址信息。此方法允许更新收货人姓名、联系电话及详细的地址信息等字段<br/>
      * 注意, 如果提供的 <code>receiverName</code> 或 <code>addressLine1</code> 为空白, 则会抛出异常
      *
      * @param receiverName 收货人姓名 不得为空白
@@ -101,15 +103,24 @@ public class UserAddress {
         if (addressLine1 != null && addressLine1.isBlank())
             throw new IllegalParamException("地址行1 不能为空");
 
-        if (receiverName != null) this.receiverName = receiverName;
-        if (phone != null) this.phone = phone;
-        if (country != null) this.country = country;
-        if (province != null) this.province = province;
-        if (city != null) this.city = city;
-        if (district != null) this.district = district;
-        if (addressLine1 != null) this.addressLine1 = addressLine1;
-        if (addressLine2 != null) this.addressLine2 = addressLine2;
-        if (zipcode != null) this.zipcode = zipcode;
+        if (receiverName != null)
+            this.receiverName = receiverName;
+        if (phone != null)
+            this.phone = phone;
+        if (country != null)
+            this.country = country;
+        if (province != null)
+            this.province = province;
+        if (city != null)
+            this.city = city;
+        if (district != null)
+            this.district = district;
+        if (addressLine1 != null)
+            this.addressLine1 = addressLine1;
+        if (addressLine2 != null)
+            this.addressLine2 = addressLine2;
+        if (zipcode != null)
+            this.zipcode = zipcode;
     }
 
     /**
