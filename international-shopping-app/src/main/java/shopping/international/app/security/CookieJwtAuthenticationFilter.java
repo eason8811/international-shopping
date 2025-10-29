@@ -60,11 +60,15 @@ public class CookieJwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NotNull HttpServletRequest request, @NotNull HttpServletResponse response,
                                     @NotNull FilterChain chain) throws ServletException, IOException {
         try {
-            if (SecurityContextHolder.getContext().getAuthentication() != null)
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                chain.doFilter(request, response);
                 return;
+            }
             String raw = readCookie(request, SecurityConstants.ACCESS_TOKEN_COOKIE);
-            if (raw == null || raw.isBlank())
+            if (raw == null || raw.isBlank()) {
+                chain.doFilter(request, response);
                 return;
+            }
             Authentication auth = jwtTokenService.parseAndAuthenticate(raw);
             if (auth != null)
                 SecurityContextHolder.getContext().setAuthentication(auth);
