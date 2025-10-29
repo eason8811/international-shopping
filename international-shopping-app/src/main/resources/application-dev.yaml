@@ -9,3 +9,7 @@ security:
     audience: web
     secret-base64: w4Lw9...（Base64 编码的 256bit HMAC 密钥）
     clock-skew-seconds: 60
+
+logging:
+  level:
+    org.springframework.security: DEBUG

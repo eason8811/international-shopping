@@ -12,6 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import shopping.international.app.security.JwtTokenService;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.app.security.CookieJwtAuthenticationFilter;
@@ -39,16 +40,14 @@ public class SecurityConfig {
      * JWT 令牌服务 (你需提供具体实现)
      */
     private final JwtTokenService jwtTokenService;
-
     /**
      * JSON 序列化器
      */
     private final ObjectMapper objectMapper;
-
     /**
-     * Cookie CSRF 仓储对象配置项
+     * CSRF Token 仓库
      */
-    private final CookieProperties cookieProperties;
+    private final CookieCsrfTokenRepository csrfRepo;
 
     /**
      * 定义 Spring Security 的过滤链
@@ -59,20 +58,6 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
-        // ========== CSRF: Cookie 双提交 ==========
-        CookieCsrfTokenRepository csrfRepo = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        csrfRepo.setCookieName(SecurityConstants.CSRF_COOKIE);
-        csrfRepo.setHeaderName(SecurityConstants.CSRF_HEADER);
-        csrfRepo.setParameterName(SecurityConstants.CSRF_HEADER); // 仅 header 生效即可
-        // 用 Cookie 自定义器统一设置属性 (含 secure/sameSite/path 等) 
-        csrfRepo.setCookieCustomizer(builder -> builder
-                .secure(cookieProperties.getSecure())      // 生产建议 true, 本地 HTTP 开发可配成 false
-                .sameSite(cookieProperties.getSameSite())
-                .path(cookieProperties.getPath())
-                .httpOnly(cookieProperties.getHttpOnly())   // 与 withHttpOnlyFalse() 对齐, 显式声明也无妨
-        );
-
         // 匿名入口 (无需 CSRF 的接口) ——使用字符串重载, 避免 AntPathRequestMatcher
         String[] csrfIgnoring = new String[]{
                 // Auth: 匿名入口
@@ -134,9 +119,9 @@ public class SecurityConfig {
     /**
      * 配置 CSRF (双提交):
      * <ul>
-     *   <li>令牌存于 Cookie {@code csrf_token} (非 HttpOnly) , </li>
-     *   <li>客户端提交 Header {@code X-CSRF-Token}, </li>
-     *   <li>对匿名入口接口关闭 CSRF 检查, </li>
+     *   <li>令牌存于 Cookie {@code csrf_token} (非 HttpOnly)</li>
+     *   <li>客户端提交 Header {@code X-CSRF-Token}</li>
+     *   <li>对匿名入口接口关闭 CSRF 检查</li>
      *   <li>对所有写操作 (POST/PUT/PATCH/DELETE) 强制校验</li>
      * </ul>
      *
@@ -145,8 +130,9 @@ public class SecurityConfig {
      * @param ignoringPatterns 需要忽略 CSRF 的路径模式 (字符串模式)
      */
     private void configureCsrf(CsrfConfigurer<HttpSecurity> csrf, CookieCsrfTokenRepository repo, String... ignoringPatterns) {
-        csrf.csrfTokenRepository(repo).ignoringRequestMatchers(ignoringPatterns);
+        csrf.csrfTokenRepository(repo)
+                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                .ignoringRequestMatchers(ignoringPatterns);
         // 默认仅对写操作启用检查, GET/HEAD/TRACE/OPTIONS 不校验
     }
-
 }
