@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nls;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * 字段验证工具类, 当字段不符合要求时抛出 {@link IllegalParamException} 异常
@@ -46,6 +47,24 @@ public final class FieldValidateUtils {
     @Contract(value = "false, !null -> fail", pure = true)
     public static void require(boolean ok, @Nls String msg) {
         if (!ok)
+            throw IllegalParamException.of(msg);
+    }
+
+    /**
+     * 确保给定的字符串是有效的电子邮件地址, 如果不是则抛出 {@link IllegalParamException} 异常
+     *
+     * @param email 待检查的电子邮件地址
+     * @param msg   当 <code>email</code> 不符合电子邮件格式时, 抛出异常的信息
+     * @throws IllegalParamException 如果 <code>email</code> 为 <code>null</code>, 空白或不符合电子邮件格式
+     */
+    @Contract("null,_->fail")
+    public static void requireIsEmail(String email, String msg) {
+        Pattern EMAIL_REGEX = Pattern.compile(
+                "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@" +
+                        "(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$"
+        );
+        requireNotBlank(email, "邮箱不能为空");
+        if (!EMAIL_REGEX.matcher(email).matches())
             throw IllegalParamException.of(msg);
     }
 }
