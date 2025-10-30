@@ -49,6 +49,9 @@ public class OAuth2Controller {
      * Cookie 安全属性配置
      */
     private final CookieProperties cookieProperties;
+    /**
+     * JWT 安全属性配置
+     */
     private final JwtProperties jwtProperties;
 
     /**
