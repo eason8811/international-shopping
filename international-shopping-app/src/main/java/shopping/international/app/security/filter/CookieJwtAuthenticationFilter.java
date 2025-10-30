@@ -1,4 +1,4 @@
-package shopping.international.app.security;
+package shopping.international.app.security.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,6 +12,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import shopping.international.app.security.service.IJwtTokenService;
 import shopping.international.types.constant.SecurityConstants;
 
 import java.io.IOException;
@@ -23,7 +24,7 @@ import java.util.Arrays;
  * <p>工作流程：</p>
  * <ol>
  *   <li>从请求 Cookie 中读取 {@code access_token}</li>
- *   <li>调用 {@link JwtTokenService#parseAndAuthenticate(String)} 验签并构造 {@link Authentication}</li>
+ *   <li>调用 {@link IJwtTokenService#parseAndAuthenticate(String)} 验签并构造 {@link Authentication}</li>
  *   <li>若成功, 则设置到 {@link SecurityContextHolder}, 使后续授权链路生效</li>
  * </ol>
  *
@@ -36,7 +37,7 @@ public class CookieJwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * 令牌服务, 负责校验并构造 Authentication
      */
-    private final JwtTokenService jwtTokenService;
+    private final IJwtTokenService jwtTokenService;
 
     /**
      * 实现过滤器的核心逻辑, 用于处理基于 Cookie 的 JWT 认证
@@ -45,7 +46,7 @@ public class CookieJwtAuthenticationFilter extends OncePerRequestFilter {
      * <ol>
      *   <li>检查当前安全上下文中是否已有认证信息, 若有则直接放行</li>
      *   <li>从请求的 Cookie 中读取名为 {@code access_token} 的访问令牌</li>
-     *   <li>通过 {@link JwtTokenService#parseAndAuthenticate(String)} 方法解析并验证该令牌</li>
+     *   <li>通过 {@link IJwtTokenService#parseAndAuthenticate(String)} 方法解析并验证该令牌</li>
      *   <li>若令牌有效, 则将其对应的认证信息设置到安全上下文中, 使后续授权链路生效</li>
      *   <li>若过程中发生任何异常, 则记录日志但不中断请求链路, 交由统一入口点处理未认证访问</li>
      * </ol>

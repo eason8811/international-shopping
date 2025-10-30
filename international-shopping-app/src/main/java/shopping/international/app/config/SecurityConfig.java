@@ -13,21 +13,21 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
-import shopping.international.app.security.JwtTokenService;
+import shopping.international.app.security.service.IJwtTokenService;
 import shopping.international.types.constant.SecurityConstants;
-import shopping.international.app.security.CookieJwtAuthenticationFilter;
-import shopping.international.app.security.RestAuthErrorHandlers;
-import shopping.international.app.security.RestLogoutSuccessHandler;
+import shopping.international.app.security.filter.CookieJwtAuthenticationFilter;
+import shopping.international.app.security.handler.RestAuthErrorHandlers;
+import shopping.international.app.security.handler.RestLogoutSuccessHandler;
 
 /**
  * Spring Security 主配置
  *
  * <p>能力: </p>
  * <ul>
- *   <li>基于 Cookie (HttpOnly) 承载的 JWT 访问令牌进行无状态认证, </li>
- *   <li>双提交 CSRF (Header {@code X-CSRF-Token} 与 Cookie {@code csrf_token}) , </li>
- *   <li>匿名白名单: OpenAPI 中声明为 security:[] 的端点, </li>
- *   <li>统一未认证/授权失败处理, </li>
+ *   <li>基于 Cookie (HttpOnly) 承载的 JWT 访问令牌进行无状态认证</li>
+ *   <li>双提交 CSRF (Header {@code X-CSRF-Token} 与 Cookie {@code csrf_token})</li>
+ *   <li>匿名白名单: OpenAPI 中声明为 security:[] 的端点</li>
+ *   <li>统一未认证/授权失败处理</li>
  *   <li>退出登录时清除 Cookie</li>
  * </ul>
  */
@@ -37,9 +37,9 @@ import shopping.international.app.security.RestLogoutSuccessHandler;
 public class SecurityConfig {
 
     /**
-     * JWT 令牌服务 (你需提供具体实现)
+     * JWT 令牌服务
      */
-    private final JwtTokenService jwtTokenService;
+    private final IJwtTokenService jwtTokenService;
     /**
      * JSON 序列化器
      */

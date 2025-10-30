@@ -1,4 +1,4 @@
-package shopping.international.app.security;
+package shopping.international.app.security.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;

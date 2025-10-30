@@ -1,4 +1,4 @@
-package shopping.international.app.security;
+package shopping.international.app.security.service;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -46,7 +46,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
 @Service
 @RequiredArgsConstructor
 @EnableConfigurationProperties(JwtProperties.class)
-public class JwtTokenService {
+public class JwtTokenService implements IJwtTokenService{
 
     /**
      * JWT 配置项
