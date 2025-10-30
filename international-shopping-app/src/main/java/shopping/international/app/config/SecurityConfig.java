@@ -11,13 +11,14 @@ import org.springframework.security.config.annotation.web.configurers.CsrfConfig
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import shopping.international.app.security.service.IJwtTokenService;
-import shopping.international.types.constant.SecurityConstants;
 import shopping.international.app.security.filter.CookieJwtAuthenticationFilter;
 import shopping.international.app.security.handler.RestAuthErrorHandlers;
 import shopping.international.app.security.handler.RestLogoutSuccessHandler;
+
+import static shopping.international.types.constant.SecurityConstants.API_PREFIX;
 
 /**
  * Spring Security 主配置
@@ -47,7 +48,7 @@ public class SecurityConfig {
     /**
      * CSRF Token 仓库
      */
-    private final CookieCsrfTokenRepository csrfRepo;
+    private final CsrfTokenRepository csrfRepo;
 
     /**
      * 定义 Spring Security 的过滤链
@@ -61,15 +62,15 @@ public class SecurityConfig {
         // 匿名入口 (无需 CSRF 的接口) ——使用字符串重载, 避免 AntPathRequestMatcher
         String[] csrfIgnoring = new String[]{
                 // Auth: 匿名入口
-                SecurityConstants.API_PREFIX + "/auth/register",
-                SecurityConstants.API_PREFIX + "/auth/verify-email",
-                SecurityConstants.API_PREFIX + "/auth/resend-activation",
-                SecurityConstants.API_PREFIX + "/auth/login",
+                API_PREFIX + "/auth/register",
+                API_PREFIX + "/auth/verify-email",
+                API_PREFIX + "/auth/resend-activation",
+                API_PREFIX + "/auth/login",
                 // OAuth2: 匿名入口
-                SecurityConstants.API_PREFIX + "/oauth2/*/authorize",
-                SecurityConstants.API_PREFIX + "/oauth2/*/callback",
+                API_PREFIX + "/oauth2/*/authorize",
+                API_PREFIX + "/oauth2/*/callback",
                 // 刷新端点 (可按策略决定是否忽略) 
-                SecurityConstants.API_PREFIX + "/auth/refresh-token"
+                API_PREFIX + "/auth/refresh-token"
         };
 
         http.csrf(csrf -> configureCsrf(csrf, csrfRepo, csrfIgnoring));
@@ -89,12 +90,12 @@ public class SecurityConfig {
         http.authorizeHttpRequests(registry ->
                 // 匿名接口允许访问
                 registry.requestMatchers(
-                                SecurityConstants.API_PREFIX + "/auth/register",
-                                SecurityConstants.API_PREFIX + "/auth/verify-email",
-                                SecurityConstants.API_PREFIX + "/auth/resend-activation",
-                                SecurityConstants.API_PREFIX + "/auth/login",
-                                SecurityConstants.API_PREFIX + "/oauth2/*/authorize",
-                                SecurityConstants.API_PREFIX + "/oauth2/*/callback"
+                                API_PREFIX + "/auth/register",
+                                API_PREFIX + "/auth/verify-email",
+                                API_PREFIX + "/auth/resend-activation",
+                                API_PREFIX + "/auth/login",
+                                API_PREFIX + "/oauth2/*/authorize",
+                                API_PREFIX + "/oauth2/*/callback"
                         ).permitAll()
                         // 其余默认需要认证
                         .anyRequest().authenticated()
@@ -105,7 +106,7 @@ public class SecurityConfig {
 
         // ========== 登出 ==========
         http.logout(logout -> logout
-                .logoutUrl(SecurityConstants.API_PREFIX + "/auth/logout")
+                .logoutUrl(API_PREFIX + "/auth/logout")
                 .logoutSuccessHandler(new RestLogoutSuccessHandler(objectMapper))
         );
 
@@ -129,7 +130,7 @@ public class SecurityConfig {
      * @param repo             Cookie CSRF 仓库
      * @param ignoringPatterns 需要忽略 CSRF 的路径模式 (字符串模式)
      */
-    private void configureCsrf(CsrfConfigurer<HttpSecurity> csrf, CookieCsrfTokenRepository repo, String... ignoringPatterns) {
+    private void configureCsrf(CsrfConfigurer<HttpSecurity> csrf, CsrfTokenRepository repo, String... ignoringPatterns) {
         csrf.csrfTokenRepository(repo)
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                 .ignoringRequestMatchers(ignoringPatterns);

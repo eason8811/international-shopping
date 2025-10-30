@@ -41,11 +41,11 @@ public class CsrfController {
      */
     @GetMapping(SecurityConstants.API_PREFIX + "/auth/csrf")
     public Result<Map<String, String>> issue(HttpServletRequest request, HttpServletResponse response) {
-        // 生成并下发（实际写 Cookie 由 repo 完成）
+        // 生成并下发 (实际写 Cookie 由 repo 完成)
         CsrfToken token = csrfTokenRepository.generateToken(request);
         csrfTokenRepository.saveToken(token, request, response);
 
-        // 仅回显 token；无需再次手动 Set-Cookie（避免重复写入）
+        // 仅回显 token, 无需再次手动 Set-Cookie (避免重复写入)
         return Result.ok(Map.of("csrfToken", token.getToken()), "CSRF token 已发布");
     }
 }
