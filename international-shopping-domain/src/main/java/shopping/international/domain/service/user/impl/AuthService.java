@@ -202,10 +202,12 @@ public class AuthService implements IAuthService {
     @Override
     public String issueAccessToken(@NotNull Long userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new AccountException("账户不存在"));
-        String scopeListString = user.getBindingList().stream()
+        String scopeListString = user.getBindingsSnapshot().stream()
                 .map(AuthBinding::getScope)
-                .map(element -> element.split(","))
-                .flatMap(Arrays::stream)
+                .filter(Objects::nonNull)                 // 防空
+                .flatMap(string -> Arrays.stream(string.split(",")))
+                .map(String::trim)
+                .filter(string -> !string.isEmpty())
                 .distinct()
                 .collect(Collectors.joining(","));
         Instant now = Instant.now();
@@ -222,10 +224,12 @@ public class AuthService implements IAuthService {
     @Override
     public String issueRefreshToken(@NotNull Long userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new AccountException("账户不存在"));
-        String scopeListString = user.getBindingList().stream()
+        String scopeListString = user.getBindingsSnapshot().stream()
                 .map(AuthBinding::getScope)
-                .map(element -> element.split(","))
-                .flatMap(Arrays::stream)
+                .filter(Objects::nonNull)                 // 防空
+                .flatMap(string -> Arrays.stream(string.split(",")))
+                .map(String::trim)
+                .filter(string -> !string.isEmpty())
                 .distinct()
                 .collect(Collectors.joining(","));
         Instant now = Instant.now();
@@ -267,6 +271,10 @@ public class AuthService implements IAuthService {
             if (jwtSpec.audience() != null && claims.getAudience() != null && !claims.getAudience().isEmpty()
                     && !claims.getAudience().contains(jwtSpec.audience()))
                 throw new RefreshTokenInvalidException("受众不匹配");
+
+            String typ = Objects.toString(claims.getClaim("typ"), null);
+            if (!"refresh".equals(typ))
+                throw new RefreshTokenInvalidException("非法的令牌类型");
 
             // 2. 读取 uid, 签发新的 Access Token
             Object uid = claims.getClaim("uid"); // 我们在签发时始终放入 uid
@@ -318,8 +326,8 @@ public class AuthService implements IAuthService {
 
             if (jwtSpec.issuer() != null)
                 claimSetBuilder.issuer(jwtSpec.issuer());
-            if (jwtSpec.audience() != null)
-                claimSetBuilder.audience(jwtSpec.audience());
+            if (jwtSpec.audience() != null && !jwtSpec.audience().isBlank())
+                claimSetBuilder.audience(Collections.singletonList(jwtSpec.audience()));
 
             SignedJWT signed = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claimSetBuilder.build());
             signed.sign(new MACSigner(hmacKey()));

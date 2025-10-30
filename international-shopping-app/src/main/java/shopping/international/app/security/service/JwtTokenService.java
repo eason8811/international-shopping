@@ -39,7 +39,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
  *   <li><b>sub</b>: 用户名 (或用户标识)</li>
  *   <li><b>uid</b>: 用户 ID (可选)</li>
  *   <li><b>roles</b>: 字符串数组 (如 ["USER","ADMIN"]) 或</li>
- *   <li><b>scope</b>: 空格分隔的权限集合 (如 "ROLE_USER profile:read")</li>
+ *   <li><b>scope</b>: 逗号分隔的权限集合 (如 "ROLE_USER profile:read")</li>
  * </ul>
  */
 @Slf4j
@@ -119,6 +119,12 @@ public class JwtTokenService implements IJwtTokenService{
             if (props.getAudience() != null && claimsSet.getAudience() != null && !claimsSet.getAudience().isEmpty()
                     && !claimsSet.getAudience().contains(props.getAudience())) {
                 log.error("受众 (Audience) '{}' 不匹配 ", claimsSet.getAudience());
+                return null;
+            }
+
+            Object typ = claimsSet.getClaim("typ");
+            if (typ != null && !"access".equals(String.valueOf(typ))) {
+                log.error("令牌类型不是 access，拒绝作为访问令牌使用");
                 return null;
             }
 
