@@ -18,3 +18,5 @@ security:
     audience: ${security.jwt.audience}
     secret-base64: ${security.jwt.secret-base64}
     clock-skew-seconds: ${security.jwt.clock-skew-seconds}
+    access-token-validity-seconds: ${security.jwt.access-token-validity-seconds}
+    refresh-token-validity-seconds: ${security.jwt.refresh-token-validity-seconds}
