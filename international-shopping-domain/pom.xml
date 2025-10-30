@@ -23,6 +23,11 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+        <!-- 解析与验签 JWT（HS256/RS256 等） -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+        </dependency>
 
         <!-- types 子模块依赖 -->
         <dependency>

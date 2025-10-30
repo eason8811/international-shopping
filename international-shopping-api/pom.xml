@@ -28,12 +28,19 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+
         <!-- types 子模块依赖 -->
         <dependency>
             <groupId>xin.eason</groupId>
             <artifactId>international-shopping-types</artifactId>
             <version>1.0.0</version>
             <scope>compile</scope>
+        </dependency>
+        <!-- domain 子模块依赖 -->
+        <dependency>
+            <groupId>xin.eason</groupId>
+            <artifactId>international-shopping-domain</artifactId>
+            <version>1.0.0</version>
         </dependency>
     </dependencies>
 

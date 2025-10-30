@@ -63,7 +63,7 @@ public class JwtTokenService implements IJwtTokenService{
      * @throws IllegalParamException 如果配置中的密钥为空或空白
      */
     private byte[] hmacKey() {
-        requireNotBlank(props.getSecretBase64(), "security.jwt.secret-base64 未配置");
+        requireNotBlank(props.getSecretBase64(), "JWT 密钥未配置");
         return Base64.getDecoder().decode(props.getSecretBase64().getBytes(UTF_8));
     }
 
