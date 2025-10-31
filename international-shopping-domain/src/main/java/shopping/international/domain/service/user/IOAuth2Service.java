@@ -89,7 +89,6 @@ public interface IOAuth2Service {
      * @return 处理结果 (是否成功, 本地 access/refresh 令牌字符串, 跳转地址)
      * @throws IllegalParamException 当 state 非法/失配, token 置换失败, id_token 验签失败等场景抛出
      */
-
     OAuth2CallbackResult handleCallback(AuthProvider provider, @Nullable String code, @Nullable String state,
                                         @Nullable String error, @Nullable String errorDescription);
 }
