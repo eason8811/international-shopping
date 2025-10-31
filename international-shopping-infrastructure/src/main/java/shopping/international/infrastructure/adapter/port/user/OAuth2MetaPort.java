@@ -3,7 +3,7 @@ package shopping.international.infrastructure.adapter.port.user;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 import shopping.international.app.config.OAuth2Properties;
 import shopping.international.domain.adapter.port.user.IOAuth2MetaPort;
 import shopping.international.domain.model.enums.user.AuthProvider;
@@ -14,7 +14,7 @@ import shopping.international.types.exceptions.IllegalParamException;
  * OAuth2/OIDC 提供方元信息装配实现类
  * <p>职责: 按 {@link AuthProvider} 返回 clientId, 端点, scope, redirectUri, issuer 等配置</p>
  */
-@Configuration
+@Component
 @RequiredArgsConstructor
 @EnableConfigurationProperties(OAuth2Properties.class)
 public class OAuth2MetaPort implements IOAuth2MetaPort {
