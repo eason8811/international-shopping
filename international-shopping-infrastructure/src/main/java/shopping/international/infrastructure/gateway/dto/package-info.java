@@ -1,1 +1,0 @@
-package shopping.international.infrastructure.gateway.dto;
