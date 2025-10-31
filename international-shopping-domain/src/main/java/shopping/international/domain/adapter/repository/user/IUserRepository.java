@@ -92,4 +92,13 @@ public interface IUserRepository {
      * @param loginTime 登录时间
      */
     void recordLogin(@NotNull Long userId, @NotNull AuthProvider provider, @NotNull LocalDateTime loginTime);
+
+    /**
+     * 按第三方身份 (issuer + provider_uid/sub) 查询用户
+     *
+     * @param issuer      OIDC iss (或等价发行方标识)
+     * @param providerUid OIDC sub (发行方内用户唯一 ID)
+     * @return 用户聚合
+     */
+    @NotNull Optional<User> findByProviderUid(@NotNull String issuer, @NotNull String providerUid);
 }

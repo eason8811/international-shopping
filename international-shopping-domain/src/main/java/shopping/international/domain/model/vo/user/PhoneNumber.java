@@ -50,4 +50,17 @@ public final class PhoneNumber {
         require(!SIMPLE.matcher(val).matches(), "手机号格式不正确");
         return new PhoneNumber(val);
     }
+
+    /**
+     * 创建一个可为空的 {@link PhoneNumber} 实例
+     *
+     * <p>此方法允许传入空字符串或 null 作为参数, 不会进行任何验证直接创建实例
+     * 如果需要验证手机号格式, 使用 {@link PhoneNumber#of(String)} 方法</p>
+     *
+     * @param raw 原始手机号 可以是空字符串或 null
+     * @return 返回 {@link PhoneNumber} 实例
+     */
+    public static PhoneNumber nullableOf(String raw) {
+        return new PhoneNumber(raw);
+    }
 }

@@ -1,11 +1,12 @@
 package shopping.international.domain.model.entity.user;
 
+import jakarta.annotation.Nullable;
 import lombok.*;
 import lombok.experimental.Accessors;
 import shopping.international.domain.model.aggregate.user.User;
-import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.domain.model.enums.user.AuthProvider;
 import shopping.international.domain.model.vo.user.EncryptedSecret;
+import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
 
@@ -66,6 +67,10 @@ public class AuthBinding {
      */
     private String scope;
     /**
+     * 角色
+     */
+    private String role;
+    /**
      * 该通道最近登录时间
      */
     private LocalDateTime lastLoginAt;
@@ -88,24 +93,33 @@ public class AuthBinding {
     public static AuthBinding local(String passwordHash) {
         requireNotBlank(passwordHash, "密码哈希不能为空");
         return new AuthBinding(null, AuthProvider.LOCAL, null, null, passwordHash,
-                null, null, null, null, null, null, null);
+                null, null, null, null, "USER", null,
+                null, null);
     }
 
     /**
      * 创建一个基于 OAuth 2.0 认证的 {@link AuthBinding} 实例
      *
-     * @param provider    OAuth 2.0 提供方, 必须为有效的第三方认证提供方, 不能为 <code>null</code> 或 <code>AuthProvider.LOCAL</code>
-     * @param issuer      发行者标识, 不能为空或空白
-     * @param providerUid 提供方用户唯一标识, 不能为空或空白
+     * @param provider     OAuth 2.0 提供方, 必须为有效的第三方认证提供方, 不能为 <code>null</code> 或 <code>AuthProvider.LOCAL</code>
+     * @param issuer       发行者标识, 不能为空或空白
+     * @param providerUid  提供方用户唯一标识, 不能为空或空白
+     * @param accessToken  访问令牌 (基础设施层加密落库)
+     * @param refreshToken 刷新令牌 (基础设施层加密落库)
+     * @param expiresAt    访问令牌过期时间 (可空)
+     * @param scope        授权范围 (逗号或空格分隔，存储前可归一化)
      * @return 新创建的 {@link AuthBinding} 实例, 使用指定的 OAuth 2.0 认证方式
      * @throws IllegalParamException 如果提供的参数不符合要求
      */
-    public static AuthBinding oauth(AuthProvider provider, String issuer, String providerUid) {
+    public static AuthBinding oauth(AuthProvider provider, String issuer, String providerUid, String accessToken,
+                                    @Nullable String refreshToken, LocalDateTime expiresAt, String scope) {
         require(provider != null && provider != AuthProvider.LOCAL, "提供方必须为 OAuth 2.0 提供方");
         requireNotBlank(issuer, "Issuer不能为空");
         requireNotBlank(providerUid, "ProviderUid不能为空");
-        return new AuthBinding(null, provider, issuer, providerUid, null,
-                null, null, null, null, null, null, null);
+        return new AuthBinding(
+                null, provider, issuer, providerUid, null, EncryptedSecret.of(accessToken.getBytes()),
+                refreshToken == null? null : EncryptedSecret.of(refreshToken.getBytes()),
+                expiresAt, scope, "USER", null, null, null
+        );
     }
 
     /**

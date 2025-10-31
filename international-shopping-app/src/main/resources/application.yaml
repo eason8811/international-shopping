@@ -20,3 +20,18 @@ security:
     clock-skew-seconds: ${security.jwt.clock-skew-seconds}
     access-token-validity-seconds: ${security.jwt.access-token-validity-seconds}
     refresh-token-validity-seconds: ${security.jwt.refresh-token-validity-seconds}
+
+oauth2:
+  auth-provider-properties-list:
+    - provider: GOOGLE
+      issuer: https://accounts.google.com
+      client-id: '${GOOGLE_CLIENT_ID?Google Client ID 未设置}'
+      client-secret: '${GOOGLE_CLIENT_SECRET?Google Client Secret 未设置}'
+      authorization-endpoint: https://accounts.google.com/o/oauth2/v2/auth
+      token-endpoint: https://oauth2.googleapis.com/token
+      userinfo-endpoint: https://openidconnect.googleapis.com/v1/userinfo
+      jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
+      redirect-uri: http://localhost:8080/api/v1/oauth2/google/callback
+      scope: openid email profile
+      default-success-redirect: http://localhost:8080
+      clock-skew-seconds: 120

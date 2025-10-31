@@ -55,6 +55,7 @@ CREATE TABLE user_auth
     refresh_token VARBINARY(1024) NULL COMMENT '刷新令牌(密文/加密保存)',
     expires_at    DATETIME(3)     NULL COMMENT '访问令牌过期时间',
     scope         VARCHAR(512)    NULL COMMENT '授权范围',
+    role          VARCHAR(64)     NULL COMMENT '角色',
     last_login_at DATETIME(3)     NULL COMMENT '该通道最近登录时间',
     created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
