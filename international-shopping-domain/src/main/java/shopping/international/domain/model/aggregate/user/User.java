@@ -154,6 +154,23 @@ public class User {
     }
 
     /**
+     * 使用OAuth认证信息注册新用户
+     *
+     * @param username 用户名
+     * @param nickname 昵称
+     * @param email 电子邮件地址
+     * @param phone 手机号码
+     * @param oauthBinding OAuth绑定信息, 包括了第三方平台的用户标识等数据
+     * @return 注册成功后的用户对象, 包含了通过OAuth获得的基本信息及状态
+     */
+    public static User registerByOAuth(Username username, Nickname nickname, EmailAddress email, PhoneNumber phone, AuthBinding oauthBinding) {
+        User user = new User(null, username, nickname, email, phone, AccountStatus.ACTIVE, null,
+                false, LocalDateTime.now(), LocalDateTime.now(), UserProfile.empty());
+        user.addBinding(oauthBinding);
+        return user;
+    }
+
+    /**
      * 从持久化层重建 {@link  User} 聚合 (供仓储使用)
      *
      * @param id          用户唯一标识符
