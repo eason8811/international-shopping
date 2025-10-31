@@ -67,6 +67,10 @@ public class AuthBinding {
      */
     private String scope;
     /**
+     * 角色
+     */
+    private String role;
+    /**
      * 该通道最近登录时间
      */
     private LocalDateTime lastLoginAt;
@@ -89,7 +93,8 @@ public class AuthBinding {
     public static AuthBinding local(String passwordHash) {
         requireNotBlank(passwordHash, "密码哈希不能为空");
         return new AuthBinding(null, AuthProvider.LOCAL, null, null, passwordHash,
-                null, null, null, null, null, null, null);
+                null, null, null, null, "USER", null,
+                null, null);
     }
 
     /**
@@ -113,7 +118,7 @@ public class AuthBinding {
         return new AuthBinding(
                 null, provider, issuer, providerUid, null, EncryptedSecret.of(accessToken.getBytes()),
                 refreshToken == null? null : EncryptedSecret.of(refreshToken.getBytes()),
-                expiresAt, scope, null, null, null
+                expiresAt, scope, "USER", null, null, null
         );
     }
 
