@@ -40,6 +40,7 @@
         <retrofit2.version>2.11.0</retrofit2.version>
         <okhttp3.core.version>4.12.0</okhttp3.core.version>
         <okhttp3.logging.intercepter.version>3.14.9</okhttp3.logging.intercepter.version>
+        <mybatis-plus.version>3.5.9</mybatis-plus.version>
     </properties>
 
     <dependencyManagement>
@@ -84,6 +85,12 @@
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>logging-interceptor</artifactId>
                 <version>${okhttp3.logging.intercepter.version}</version>
+            </dependency>
+            <!-- MyBatis Plus 依赖 -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus</artifactId>
+                <version>${mybatis-plus.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

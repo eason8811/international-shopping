@@ -65,6 +65,15 @@ public interface IUserRepository {
     boolean existsByPhone(@NotNull String phone);
 
     /**
+     * 按第三方身份 (issuer + provider_uid/sub) 查询用户
+     *
+     * @param issuer      OIDC iss (或等价发行方标识)
+     * @param providerUid OIDC sub (发行方内用户唯一 ID)
+     * @return 用户聚合
+     */
+    @NotNull Optional<User> findByProviderUid(@NotNull String issuer, @NotNull String providerUid);
+
+    /**
      * 持久化一个全新的用户聚合 (账户 + 绑定 + 资料 + 地址)
      *
      * <p>要求 {@code user.id == null}, 至少存在一种登录方式
@@ -92,13 +101,4 @@ public interface IUserRepository {
      * @param loginTime 登录时间
      */
     void recordLogin(@NotNull Long userId, @NotNull AuthProvider provider, @NotNull LocalDateTime loginTime);
-
-    /**
-     * 按第三方身份 (issuer + provider_uid/sub) 查询用户
-     *
-     * @param issuer      OIDC iss (或等价发行方标识)
-     * @param providerUid OIDC sub (发行方内用户唯一 ID)
-     * @return 用户聚合
-     */
-    @NotNull Optional<User> findByProviderUid(@NotNull String issuer, @NotNull String providerUid);
 }
