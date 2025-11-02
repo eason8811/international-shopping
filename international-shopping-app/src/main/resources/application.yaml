@@ -6,6 +6,44 @@ spring:
     name: international-shopping
   profiles:
     active: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/shopdb?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    hikari:
+      pool-name: shopdb-hikari
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 600000     # 10min
+      max-lifetime: 1800000    # 30min
+      connection-timeout: 30000
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: your_redis_password
+      database: 3
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 0
+          time-between-eviction-runs: 120s
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    jdbc-type-for-null: 'NULL'
+    default-executor-type: SIMPLE
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: AUTO
+      table-underline: true
+
 
 security:
   cookie:
@@ -35,3 +73,12 @@ oauth2:
       scope: openid email profile
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
+
+# Mailjet 发送邮件配置
+mailjet:
+  base-url: https://api.mailjet.com/v3.1
+  api-key: YOUR_MAILJET_API_KEY
+  api-secret: YOUR_MAILJET_API_SECRET
+  from-email: no-reply@yourdomain.com
+  from-name: YourBrand
+  activation-subject: Your verification code
