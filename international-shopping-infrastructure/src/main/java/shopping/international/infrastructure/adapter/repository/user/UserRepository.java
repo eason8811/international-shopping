@@ -1,4 +1,3 @@
-// MybatisUserRepository.java
 package shopping.international.infrastructure.adapter.repository.user;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;

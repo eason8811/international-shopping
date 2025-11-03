@@ -8,9 +8,9 @@ spring:
     active: dev
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/shopdb?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    url: jdbc:mysql://${spring.datasource.host}:${spring.datasource.port}/shopdb?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${spring.datasource.username}
+    password: ${spring.datasource.password}
     hikari:
       pool-name: shopdb-hikari
       maximum-pool-size: 10
@@ -20,10 +20,10 @@ spring:
       connection-timeout: 30000
   data:
     redis:
-      host: 127.0.0.1
-      port: 6379
-      password: your_redis_password
-      database: 3
+      host: ${spring.data.redis.host}
+      port: ${spring.data.redis.port}
+      password: ${spring.data.redis.password}
+      database: ${spring.data.redis.database}
       timeout: 3000
       lettuce:
         pool:
