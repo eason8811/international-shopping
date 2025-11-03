@@ -1,0 +1,31 @@
+version: "3.8"
+services:
+  mysql:
+    image: mysql:9.5.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: xxx   # 数据库密码
+    ports:
+      - "3306:3306"
+    volumes:
+      - /root/docker/mysql/mysql-data:/var/lib/mysql
+    networks:
+      - international-shopping-network
+
+  redis:
+    image: redis:8.2.2
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - /root/docker/redis/redis-data:/data
+      - /root/docker/redis/redis-conf/redis.conf:/usr/local/etc/redis/redis.conf
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    networks:
+      - international-shopping-network
+
+networks:
+  international-shopping-network:
+    name: international-shopping-network
