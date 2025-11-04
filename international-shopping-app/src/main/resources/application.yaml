@@ -74,6 +74,18 @@ oauth2:
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
 
+# 选择邮件提供商: mailjet | resend
+mail:
+  provider: resend
+
+# Resend 配置
+resend:
+  base-url: https://api.resend.com            # 绝对URL, 后面我们用 @Url 直传
+  api-key: YOUR_RESEND_API_KEY
+  from-email: no-reply@yourdomain.com
+  from-name: YourBrand
+  activation-subject: Your verification code
+
 # Mailjet 发送邮件配置
 mailjet:
   base-url: https://api.mailjet.com/v3.1

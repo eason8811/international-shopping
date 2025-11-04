@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ResponseBody;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import retrofit2.Response;
 import shopping.international.domain.adapter.port.user.IEmailPort;
@@ -29,6 +30,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "mail.provider", havingValue = "mailjet")
 public class MailjetEmailPort implements IEmailPort {
 
     /**
@@ -90,7 +92,7 @@ public class MailjetEmailPort implements IEmailPort {
 
             // 2. 构建网关并调用
             String auth = basicAuth(mailjetSpec.getApiKey(), mailjetSpec.getApiSecret());
-            Response<MailjetSendResponse> resp = mailjetGateway.send(mailjetSpec.getBaseUrl(), auth, body).execute();
+            Response<MailjetSendResponse> resp = mailjetGateway.send(mailjetSpec.getBaseUrl() + "/send", auth, body).execute();
 
             // 3. 解析响应
             if (!resp.isSuccessful())

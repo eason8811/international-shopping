@@ -23,7 +23,7 @@ public interface MailjetGateway {
      * @param request 请求体, 应遵循 Mailjet v3.1 {@code /send} 接口定义的 Messages 结构
      * @return {@code Call<MailjetSendResponse>} 返回一个 Call 对象, 该对象可以用来异步执行网络请求并获取响应体, 响应体中包含了发送结果信息, 如状态, 消息ID等
      */
-    @POST("/send")
+    @POST
     Call<MailjetSendResponse> send(@Url String baseUrl,  @Header("Authorization") String authorization,
                                    @Body MailjetSendRequest request);
 }

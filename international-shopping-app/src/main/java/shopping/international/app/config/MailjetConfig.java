@@ -1,5 +1,6 @@
 package shopping.international.app.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,7 @@ import shopping.international.domain.model.vo.user.MailjetSpec;
  */
 @Configuration
 @EnableConfigurationProperties(MailjetProperties.class)
+@ConditionalOnProperty(name = "mail.provider", havingValue = "mailjet")
 public class MailjetConfig {
     /**
      * 依据配置文件中的 Mailjet 配置信息, 构建并返回一个 {@code MailjetSpec} 对象
