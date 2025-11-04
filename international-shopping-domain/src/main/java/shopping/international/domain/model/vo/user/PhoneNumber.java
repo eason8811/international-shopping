@@ -47,7 +47,7 @@ public final class PhoneNumber {
     public static PhoneNumber of(String raw) {
         requireNotNull(raw, "手机号不能为空");
         String val = raw.trim();
-        require(!SIMPLE.matcher(val).matches(), "手机号格式不正确");
+        require(SIMPLE.matcher(val).matches(), "手机号格式不正确");
         return new PhoneNumber(val);
     }
 

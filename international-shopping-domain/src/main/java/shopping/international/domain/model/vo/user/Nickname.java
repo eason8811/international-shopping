@@ -3,7 +3,6 @@ package shopping.international.domain.model.vo.user;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import shopping.international.types.exceptions.IllegalParamException;
 
 import static shopping.international.types.utils.FieldValidateUtils.require;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
@@ -38,7 +37,7 @@ public final class Nickname {
     public static Nickname of(String raw) {
         requireNotNull(raw, "昵称不能为空");
         String val = raw.trim();
-        require(val.isEmpty() || val.length() > 64, "昵称长度必须为 1~64 个字符");
+        require(!val.isEmpty() && val.length() <= 64, "昵称长度必须为 1~64 个字符");
         return new Nickname(val);
     }
 }

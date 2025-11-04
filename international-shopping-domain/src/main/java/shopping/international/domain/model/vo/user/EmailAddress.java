@@ -48,7 +48,7 @@ public final class EmailAddress {
     public static EmailAddress of(String raw) {
         requireNotNull(raw, "邮箱不能为空");
         String val = raw.trim().toLowerCase(Locale.ROOT);
-        require(!PATTERN.matcher(val).matches(), "邮箱格式不正确");
+        require(PATTERN.matcher(val).matches(), "邮箱格式不正确");
         return new EmailAddress(val);
     }
 }
