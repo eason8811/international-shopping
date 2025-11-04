@@ -17,10 +17,10 @@ import shopping.international.api.req.user.VerifyEmailRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.user.CsrfTokenRespond;
 import shopping.international.api.resp.user.UserAccountRespond;
-import shopping.international.app.config.JwtProperties;
 import shopping.international.domain.model.aggregate.user.User;
+import shopping.international.domain.model.vo.user.CookieSpec;
+import shopping.international.domain.model.vo.user.JwtIssueSpec;
 import shopping.international.domain.service.user.IAuthService;
-import shopping.international.app.config.CookieProperties;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -54,11 +54,11 @@ public class AuthController {
     /**
      * Cookie 安全属性配置
      */
-    private final CookieProperties cookieProperties;
+    private final CookieSpec cookieSpec;
     /**
      * JWT 安全属性配置
      */
-    private final JwtProperties jwtProperties;
+    private final JwtIssueSpec jwtIssueSpec;
 
     /**
      * 本地注册, 创建 DISABLED 账户并发送激活邮件
@@ -98,8 +98,8 @@ public class AuthController {
         String accessToken = authService.issueAccessToken(user.getId());
         String refreshToken = authService.issueRefreshToken(user.getId());
 
-        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, accessToken, true, jwtProperties.getAccessTokenValiditySeconds());
-        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, refreshToken, true, jwtProperties.getRefreshTokenValiditySeconds());
+        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, accessToken, true, jwtIssueSpec.accessTokenValiditySeconds());
+        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, refreshToken, true, jwtIssueSpec.refreshTokenValiditySeconds());
 
         // 生成并保存 CSRF Token (与会话绑定)
         rotateAndSetCsrfCookie(request, response);
@@ -144,8 +144,8 @@ public class AuthController {
         String accessToken = authService.issueAccessToken(user.getId());
         String refreshToken = authService.issueRefreshToken(user.getId());
 
-        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, accessToken, true, jwtProperties.getAccessTokenValiditySeconds());
-        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, refreshToken, true, jwtProperties.getRefreshTokenValiditySeconds());
+        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, accessToken, true, jwtIssueSpec.accessTokenValiditySeconds());
+        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, refreshToken, true, jwtIssueSpec.refreshTokenValiditySeconds());
 
         rotateAndSetCsrfCookie(request, response);
 
@@ -167,7 +167,7 @@ public class AuthController {
         String refresh = readCookie(request, SecurityConstants.REFRESH_TOKEN_COOKIE);
         String newAccess = authService.refreshAccessToken(refresh);
 
-        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, newAccess, true, jwtProperties.getAccessTokenValiditySeconds());
+        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, newAccess, true, jwtIssueSpec.accessTokenValiditySeconds());
         // 轮换 CSRF Token (与会话绑定)
         rotateAndSetCsrfCookie(request, response);
 
@@ -217,9 +217,9 @@ public class AuthController {
             return;
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(httpOnly)
-                .secure(cookieProperties.getSecure())
-                .path(cookieProperties.getPath())
-                .sameSite(cookieProperties.getSameSite());
+                .secure(cookieSpec.getSecure())
+                .path(cookieSpec.getPath())
+                .sameSite(cookieSpec.getSameSite());
 
         if (ttlSeconds != null && ttlSeconds > 0)
             builder.maxAge(Duration.ofSeconds(ttlSeconds));

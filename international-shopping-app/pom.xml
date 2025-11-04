@@ -96,6 +96,11 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
+        <!-- Spring Boot Bean 监控依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
         <!-- api 子模块依赖 -->
         <dependency>
@@ -113,6 +118,12 @@
         <dependency>
             <groupId>xin.eason</groupId>
             <artifactId>international-shopping-infrastructure</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <!-- trigger 子模块依赖 -->
+        <dependency>
+            <groupId>xin.eason</groupId>
+            <artifactId>international-shopping-trigger</artifactId>
             <version>1.0.0</version>
         </dependency>
     </dependencies>

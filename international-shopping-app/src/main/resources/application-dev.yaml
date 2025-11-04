@@ -3,12 +3,12 @@ spring:
     host: 154.219.125.98
     port: 3306
     username: root
-    password: '${MYSQL_PASSWORD?MySQL 密码未设置}'
+    password: '${MYSQL_PASSWORD}'
   data:
     redis:
       host: 154.219.125.98
       port: 6379
-      password: '${REDIS_PASSWORD?Redis 密码未设置}'
+      password: '${REDIS_PASSWORD}'
       database: 0
 
 security:

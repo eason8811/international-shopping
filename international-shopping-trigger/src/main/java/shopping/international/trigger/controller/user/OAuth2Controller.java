@@ -11,12 +11,12 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.user.RedirectUrlRespond;
-import shopping.international.app.config.JwtProperties;
 import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.vo.user.CookieSpec;
+import shopping.international.domain.model.vo.user.JwtIssueSpec;
 import shopping.international.domain.model.vo.user.OAuth2CallbackResult;
 import shopping.international.domain.service.user.IOAuth2Service;
 import shopping.international.types.constant.SecurityConstants;
-import shopping.international.app.config.CookieProperties;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,11 +48,11 @@ public class OAuth2Controller {
     /**
      * Cookie 安全属性配置
      */
-    private final CookieProperties cookieProperties;
+    private final CookieSpec cookieSpec;
     /**
      * JWT 安全属性配置
      */
-    private final JwtProperties jwtProperties;
+    private final JwtIssueSpec jwtIssueSpec;
 
     /**
      * 生成授权页 URL 并 (由前端) 发起跳转
@@ -106,8 +106,8 @@ public class OAuth2Controller {
         }
 
         // 下发会话 Cookie
-        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, result.getAccessToken(), true, jwtProperties.getAccessTokenValiditySeconds());
-        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, result.getRefreshToken(), true, jwtProperties.getRefreshTokenValiditySeconds());
+        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, result.getAccessToken(), true, jwtIssueSpec.accessTokenValiditySeconds());
+        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, result.getRefreshToken(), true, jwtIssueSpec.refreshTokenValiditySeconds());
 
         // 轮换 CSRF
         CsrfToken token = csrfTokenRepository.generateToken(request);
@@ -131,9 +131,9 @@ public class OAuth2Controller {
             return;
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(httpOnly)
-                .secure(cookieProperties.getSecure())
-                .path(cookieProperties.getPath())
-                .sameSite(cookieProperties.getSameSite());
+                .secure(cookieSpec.getSecure())
+                .path(cookieSpec.getPath())
+                .sameSite(cookieSpec.getSameSite());
 
         if (ttlSeconds != null && ttlSeconds > 0) {
             builder.maxAge(Duration.ofSeconds(ttlSeconds));

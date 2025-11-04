@@ -46,12 +46,6 @@
             <artifactId>international-shopping-api</artifactId>
             <version>1.0.0</version>
         </dependency>
-        <!-- app 子模块依赖 -->
-        <dependency>
-            <groupId>xin.eason</groupId>
-            <artifactId>international-shopping-app</artifactId>
-            <version>1.0.0</version>
-        </dependency>
         <!-- domain 子模块依赖 -->
         <dependency>
             <groupId>xin.eason</groupId>

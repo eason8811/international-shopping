@@ -63,8 +63,8 @@ oauth2:
   auth-provider-properties-list:
     - provider: GOOGLE
       issuer: https://accounts.google.com
-      client-id: '${GOOGLE_CLIENT_ID?Google Client ID 未设置}'
-      client-secret: '${GOOGLE_CLIENT_SECRET?Google Client Secret 未设置}'
+      client-id: '${GOOGLE_CLIENT_ID}'
+      client-secret: '${GOOGLE_CLIENT_SECRET}'
       authorization-endpoint: https://accounts.google.com/o/oauth2/v2/auth
       token-endpoint: https://oauth2.googleapis.com/token
       userinfo-endpoint: https://openidconnect.googleapis.com/v1/userinfo
