@@ -3,7 +3,6 @@ package shopping.international.domain.model.vo.user;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.regex.Pattern;
 
@@ -46,7 +45,7 @@ public final class Username {
     public static Username of(String raw) {
         requireNotNull(raw, "用户名不能为空");
         String val = raw.trim();
-        require(!PATTERN.matcher(val).matches(), "用户名必须是3-64位字母数字下划线或 (_) 连字符 (-)");
+        require(PATTERN.matcher(val).matches(), "用户名必须是3-64位字母数字下划线或 (_) 连字符 (-)");
         return new Username(val);
     }
 }
