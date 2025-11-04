@@ -1,5 +1,6 @@
 package shopping.international.infrastructure.dao.user.po;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -43,7 +44,9 @@ public record UserProfilePO(
         @TableField("address_line") String addressLine,
         @TableField("zipcode") String zipcode,
         @TableField("extra") String extra,
-        @TableField("created_at") LocalDateTime createdAt,
-        @TableField("updated_at") LocalDateTime updatedAt
+        @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+        LocalDateTime createdAt,
+        @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+        LocalDateTime updatedAt
 ) {
 }
