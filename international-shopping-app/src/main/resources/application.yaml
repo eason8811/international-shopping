@@ -81,7 +81,7 @@ mail:
 # Resend 配置
 resend:
   api-key: ${RESEND_API_KEY}
-  from-email: no-reply@eason.xin
+  from-email: leila@verification.eason.xin
   from-name: international-shopping
   activation-subject: Your verification code
 
