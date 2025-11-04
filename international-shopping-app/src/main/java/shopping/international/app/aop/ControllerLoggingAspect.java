@@ -63,7 +63,7 @@ public class ControllerLoggingAspect {
         // 出参日志（统一以 result=... 打印）
         String outKv = "result=" + toStringSafe(sanitize(ret));
         if (log.isInfoEnabled()) {
-            log.debug("方法结束 [{}] 耗时 {} ms, 输出参数为: {}", methodName, start - end, outKv);
+            log.debug("方法结束 [{}] 耗时 {} ms, 输出参数为: {}", methodName, end - start, outKv);
         }
         return ret;
     }
