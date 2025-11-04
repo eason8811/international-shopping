@@ -22,7 +22,7 @@ public class MailjetProperties {
 
     /**
      * Mailjet API 基础地址, 默认 v3.1
-     * 示例: <a href="https://api.mailjet.com/v3.1">https://api.mailjet.com/v3.1</a>>
+     * 示例: <a href="https://api.mailjet.com/v3.1">https://api.mailjet.com/v3.1</a>
      */
     private String baseUrl = "https://api.mailjet.com/v3.1";
 

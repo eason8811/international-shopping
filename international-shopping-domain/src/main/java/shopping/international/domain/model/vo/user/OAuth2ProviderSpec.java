@@ -1,5 +1,6 @@
 package shopping.international.domain.model.vo.user;
 
+import lombok.Builder;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.user.AuthProvider;
 
@@ -19,6 +20,7 @@ import shopping.international.domain.model.enums.user.AuthProvider;
  * @param defaultSuccessRedirect 本地登录完成默认前端落地页 (当未携带 redirect 时使用)
  * @param clockSkewSeconds       允许的时钟偏移 (验签时间窗口)
  */
+@Builder
 public record OAuth2ProviderSpec(
         AuthProvider provider,
         @Nullable String issuer,

@@ -14,8 +14,6 @@ import okhttp3.ResponseBody;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import retrofit2.Response;
-import retrofit2.Retrofit;
-import shopping.international.app.config.RetrofitConfig.RetrofitFactory;
 import shopping.international.domain.adapter.port.user.IOAuth2RemotePort;
 import shopping.international.domain.model.vo.user.*;
 import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
@@ -44,28 +42,18 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
 @Component
 @RequiredArgsConstructor
 public class OAuth2RemotePort implements IOAuth2RemotePort {
-
-    /**
-     * Retrofit 工厂
-     *
-     * @see RetrofitFactory RetrofitFactory
-     */
-    private final RetrofitFactory retrofitFactory;
     /**
      * JSON 处理器
      */
     private final ObjectMapper mapper;
-
     /**
-     * 创建并返回一个 <code>Retrofit</code> 实例, 用于与 OAuth2/OIDC 提供方进行 HTTP 通信
-     * <p>此方法使用占位符作为基础 URL, 在实际请求中, 通过 {@link retrofit2.http.Url @Url} 注解传入完整的请求地址</p>
-     *
-     * @return 返回配置好的 <code>Retrofit</code> 实例, 包含了对象映射器和 HTTP 客户端的设置
+     * @see IOAuth2TokenApi
      */
-    private Retrofit retrofit() {
-        // Base URL 仅作占位, 真实请求使用 @Url 传入完整地址
-        return retrofitFactory.create("https://oauth-placeholder/");
-    }
+    private final IOAuth2TokenApi oauth2TokenApi;
+    /**
+     * @see IOidcUserInfoApi
+     */
+    private final IOidcUserInfoApi oidcUserInfoApi;
 
     /**
      * 授权码置换 Token (支持 PKCE)
@@ -80,7 +68,6 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
     public @NotNull OAuth2TokenResponse exchangeAuthorizationCode(@NotNull OAuth2ProviderSpec providerSpec, @NotNull String code,
                                                                   @NotNull String redirectUri, @NotNull String codeVerifier) {
         try {
-            IOAuth2TokenApi api = retrofit().create(IOAuth2TokenApi.class);
             TokenRequest request = TokenRequest.builder()
                     .code(code)
                     .redirectUri(redirectUri)
@@ -89,7 +76,7 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
                     .codeVerifier(codeVerifier)
                     .build();
 
-            Response<ResponseBody> resp = api.exchangeCode(providerSpec.tokenEndpoint(), request.toFieldMap()).execute();
+            Response<ResponseBody> resp = oauth2TokenApi.exchangeCode(providerSpec.tokenEndpoint(), request.toFieldMap()).execute();
             try (ResponseBody body = resp.body(); ResponseBody errorBody = resp.errorBody()) {
                 if (!resp.isSuccessful() || body == null)
                     throw new IllegalParamException("Token 置换失败, HTTP " + resp.code() + " 错误体: " + errorBody);
@@ -195,8 +182,7 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
     public @NotNull OidcUserInfo fetchUserInfo(@NotNull OAuth2ProviderSpec spec, @NotNull String accessToken) {
         requireNotBlank(spec.userinfoEndpoint(), "未配置 userinfoEndpoint, 无法获取用户信息");
         try {
-            IOidcUserInfoApi api = retrofit().create(IOidcUserInfoApi.class);
-            Response<ResponseBody> resp = api.userInfo(spec.userinfoEndpoint(), "Bearer " + accessToken).execute();
+            Response<ResponseBody> resp = oidcUserInfoApi.userInfo(spec.userinfoEndpoint(), "Bearer " + accessToken).execute();
             try (ResponseBody body = resp.body(); ResponseBody errorBody = resp.errorBody()) {
                 if (!resp.isSuccessful() || body == null) {
                     throw new IllegalParamException("获取 UserInfo 失败, HTTP " + resp.code() + " 错误体: " + errorBody);

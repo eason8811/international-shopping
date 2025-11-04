@@ -2,17 +2,22 @@ package shopping.international.app.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
-import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
+import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
+import shopping.international.infrastructure.gateway.user.IOidcUserInfoApi;
+import shopping.international.infrastructure.gateway.user.MailjetGateway;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -51,7 +56,7 @@ public class RetrofitConfig {
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         return mapper;
     }
-    
+
     /**
      * 配置并返回一个适用于 OAuth 相关操作的 <code>OkHttpClient</code> 实例
      * <p>此方法创建了一个 <code>OkHttpClient</code>, 该客户端配置了 SSL 上下文, 日志拦截器, 超时设置等, 以适应 OAuth 请求的需求</p>
@@ -85,18 +90,6 @@ public class RetrofitConfig {
                 .addInterceptor(logging)
                 .build();
     }
-    
-    /**
-     * 配置并返回一个 <code>RetrofitFactory</code> 实例, 用于创建适用于 OAuth 相关操作的 Retrofit 客户端
-     *
-     * @param oauthObjectMapper 一个经过特别配置的 <code>ObjectMapper</code> 实例, 用于处理 OAuth 操作中的 JSON 数据
-     * @param oauthOkHttpClient 一个经过特别配置的 <code>OkHttpClient</code> 实例, 用于处理 OAuth 操作中的 HTTP 请求
-     * @return 返回一个 <code>RetrofitFactory</code> 实例, 可以用来根据需要创建不同的 Retrofit 客户端
-     */
-    @Bean
-    public RetrofitFactory retrofitFactory(ObjectMapper oauthObjectMapper, OkHttpClient oauthOkHttpClient) {
-        return new RetrofitFactory(oauthObjectMapper, oauthOkHttpClient);
-    }
 
     /**
      * 初始化并返回一个基于系统默认设置的 <code>SSLContext</code> 实例
@@ -118,25 +111,6 @@ public class RetrofitConfig {
     }
 
     /**
-         * 简单 Retrofit 工厂
-         */
-        public record RetrofitFactory(ObjectMapper mapper, OkHttpClient client) {
-            /**
-             * 创建并返回一个 Retrofit 实例, 该实例基于给定的基础 URL 和当前工厂配置的对象映射器与 HTTP 客户端进行构建
-             *
-             * @param baseUrl 任意合法的 Base URL, 用于定义 API 请求的基本地址. 如果 baseUrl 不以斜杠结尾, 则自动添加一个斜杠
-             * @return 返回一个新创建的 {@link Retrofit} 实例, 该实例已经配置好对象映射器和 HTTP 客户端
-             */
-            public Retrofit create(@NotNull String baseUrl) {
-                return new Retrofit.Builder()
-                        .client(client)
-                        .baseUrl(baseUrl.endsWith("/") ? baseUrl : baseUrl + "/")
-                        .addConverterFactory(JacksonConverterFactory.create(mapper))
-                        .build();
-            }
-        }
-
-    /**
      * SSL 工具: 暴露系统默认 TrustManager
      */
     static class SslUtil {
@@ -156,5 +130,54 @@ public class RetrofitConfig {
                 throw new IllegalStateException("获取系统默认 TrustManager 失败", e);
             }
         }
+    }
+
+    /**
+     * 配置并返回一个 <code>Retrofit</code> 实例, 用于处理 OAuth 操作中的 HTTP 请求
+     *
+     * @param mapper 一个经过特别配置的 <code>ObjectMapper</code> 实例, 用于处理 OAuth 操作中的 JSON 数据
+     * @param client 一个经过特别配置的 <code>OkHttpClient</code> 实例, 用于处理 OAuth 操作中的 HTTP 请求
+     * @return 返回一个已配置好的 <code>Retrofit</code> 实例, 可以用来创建 REST API 客户端
+     */
+    @Bean
+    public Retrofit retrofit(ObjectMapper mapper, OkHttpClient client) {
+        return new Retrofit.Builder()
+                .baseUrl("https://example.com/")
+                .client(client)
+                .addConverterFactory(JacksonConverterFactory.create(mapper))
+                .build();
+    }
+
+    /**
+     * 创建并返回一个实现 <code>IOAuth2TokenApi</code> 接口的 Retrofit 客户端实例
+     *
+     * @param retrofit 已配置好的 <code>Retrofit</code> 实例
+     * @return 返回一个实现了 {@link IOAuth2TokenApi} 接口的 Retrofit 客户端实例, 可以用来执行 OAuth 令牌相关的网络请求
+     */
+    @Bean
+    public IOAuth2TokenApi oauthTokenApi(Retrofit retrofit) {
+        return retrofit.create(IOAuth2TokenApi.class);
+    }
+
+    /**
+     * 创建并返回一个实现 <code>IOidcUserInfoApi</code> 接口的 Retrofit 客户端实例
+     *
+     * @param retrofit 已配置好的 Retrofit 实例
+     * @return 返回一个实现了 {@link IOidcUserInfoApi} 接口的 Retrofit 客户端实例, 可以用来执行 OIDC 用户信息相关的网络请求
+     */
+    @Bean
+    public IOidcUserInfoApi oidcUserInfoApi(Retrofit retrofit) {
+        return retrofit.create(IOidcUserInfoApi.class);
+    }
+
+    /**
+     * 创建并返回一个实现 <code>MailjetGateway</code> 接口的 Retrofit 客户端实例
+     *
+     * @param retrofit 已配置好的 Retrofit 实例
+     * @return 返回一个实现了 {@link MailjetGateway} 接口的 Retrofit 客户端实例, 可以用来执行邮件发送相关的网络请求
+     */
+    @Bean
+    public MailjetGateway mailjetGateway(Retrofit retrofit) {
+        return retrofit.create(MailjetGateway.class);
     }
 }

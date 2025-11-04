@@ -5,13 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import shopping.international.domain.adapter.port.user.IOAuth2MetaPort;
 import shopping.international.domain.adapter.port.user.IOAuth2RemotePort;
 import shopping.international.domain.adapter.port.user.IOAuth2StatePort;
 import shopping.international.domain.adapter.repository.user.IUserRepository;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.entity.user.AuthBinding;
 import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.enums.user.Gender;
 import shopping.international.domain.model.vo.user.*;
 import shopping.international.domain.service.user.IAuthService;
 import shopping.international.domain.service.user.IOAuth2Service;
@@ -23,10 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 
 import static java.util.Objects.requireNonNullElse;
 import static shopping.international.types.utils.FieldValidateUtils.*;
@@ -52,9 +49,9 @@ public class OAuth2Service implements IOAuth2Service {
      */
     private final IUserRepository userRepository;
     /**
-     * 提供方元信息端口: clientId, 端点, scope, redirectUri 等
+     * 提供方信息配置列表
      */
-    private final IOAuth2MetaPort metaPort;
+    private final List<OAuth2ProviderSpec> oAuth2ProviderSpecList;
     /**
      * 远端交互端口: 换 token, 验 id_token, 取 userinfo
      */
@@ -85,7 +82,7 @@ public class OAuth2Service implements IOAuth2Service {
      */
     @Override
     public String buildAuthorizationUrl(@NotNull AuthProvider provider, @Nullable String redirect) {
-        OAuth2ProviderSpec providerSpec = metaPort.getProviderSpec(provider);
+        OAuth2ProviderSpec providerSpec = selectConfigByProvider(provider);
 
         // 1. 生成一次性参数
         String state = randomUrlSafe(32);
@@ -183,13 +180,13 @@ public class OAuth2Service implements IOAuth2Service {
 
         // 失败分支 (用户取消等) : 仅清理一次性状态并返回失败结果 (携带前端落地页)
         if (error != null && !error.isBlank()) {
-            String redirect = resolveRedirect(ephemeralState, metaPort.getProviderSpec(provider));
+            String redirect = resolveRedirect(ephemeralState, selectConfigByProvider(provider));
             return OAuth2CallbackResult.failure(redirect);
         }
 
         requireNotBlank(code, "授权码缺失");
 
-        OAuth2ProviderSpec providerSpec = metaPort.getProviderSpec(provider);
+        OAuth2ProviderSpec providerSpec = selectConfigByProvider(provider);
 
         // 1. 换取 Token (带上 redirect_uri 与 code_verifier)
         OAuth2TokenResponse tokenResponse = remotePort.exchangeAuthorizationCode(
@@ -277,6 +274,17 @@ public class OAuth2Service implements IOAuth2Service {
             );
 
             user = User.registerByOAuth(username, nickname, emailAddress, phone, binding);
+            user.updateProfile(UserProfile.of(
+                    name,
+                    avatar,
+                    Gender.UNKNOWN,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null));
             user.activate(); // 第三方登录默认直接 ACTIVE
             user = userRepository.saveNewUserWithBindings(user);
         }
@@ -377,7 +385,8 @@ public class OAuth2Service implements IOAuth2Service {
      * @return 返回非空且不只包含空白字符的 <code>value</code>
      * @throws IllegalArgumentException 如果 <code>value</code> 为空或空白
      */
-    @NotNull private static String requireNonBlank(String value, String msg) {
+    @NotNull
+    private static String requireNonBlank(String value, String msg) {
         requireNotBlank(value, msg);
         return value;
     }
@@ -409,5 +418,19 @@ public class OAuth2Service implements IOAuth2Service {
                 throw new AccountException("无法生成唯一用户名");
         }
         return candidate;
+    }
+
+    /**
+     * 根据给定的认证提供者选择对应的 OAuth2 配置信息
+     *
+     * @param provider 认证提供者的枚举类型, 用于匹配 {@code oAuth2ProviderSpecList} 中的配置项
+     * @return 返回与指定提供者匹配的第一个 {@link OAuth2ProviderSpec} 对象 如果没有找到匹配的配置, 则抛出异常
+     * @throws IllegalArgumentException 如果没有找到与指定提供者相匹配的任何配置, 将抛出此异常
+     */
+    private OAuth2ProviderSpec selectConfigByProvider(AuthProvider provider) {
+        return oAuth2ProviderSpecList.stream()
+                .filter(spec -> spec.provider() == provider)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("未找到 provider 配置: " + provider));
     }
 }

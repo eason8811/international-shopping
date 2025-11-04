@@ -4,13 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ResponseBody;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
 import retrofit2.Response;
-import retrofit2.Retrofit;
-import shopping.international.app.config.MailjetProperties;
-import shopping.international.app.config.RetrofitConfig.RetrofitFactory;
 import shopping.international.domain.adapter.port.user.IEmailPort;
+import shopping.international.domain.model.vo.user.MailjetSpec;
 import shopping.international.infrastructure.gateway.user.MailjetGateway;
 import shopping.international.infrastructure.gateway.user.dto.MailjetSendRequest;
 import shopping.international.infrastructure.gateway.user.dto.MailjetSendRequest.MailjetEmail;
@@ -32,19 +29,18 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@EnableConfigurationProperties(MailjetProperties.class)
 public class MailjetEmailPort implements IEmailPort {
 
     /**
      * Mailjet API 配置
      *
-     * @see MailjetProperties
+     * @see MailjetSpec
      */
-    private final MailjetProperties props;
+    private final MailjetSpec mailjetSpec;
     /**
-     * Retrofit 工厂
+     * Mailjet 发送邮件的 Retrofit 网关实例
      */
-    private final RetrofitFactory retrofitFactory;
+    private final MailjetGateway mailjetGateway;
 
     /**
      * 发送激活验证码邮件
@@ -60,15 +56,15 @@ public class MailjetEmailPort implements IEmailPort {
         try {
             // 1. 构建请求体
             MailjetEmail from = MailjetEmail.builder()
-                    .email(props.getFromEmail())
-                    .name(props.getFromName())
+                    .email(mailjetSpec.getFromEmail())
+                    .name(mailjetSpec.getFromName())
                     .build();
             MailjetEmail to = MailjetEmail.builder()
                     .email(email)
                     .name(email)
                     .build();
 
-            String subject = props.getActivationSubject();
+            String subject = mailjetSpec.getActivationSubject();
             String text = "Your verification code is: " + code + "\n\n"
                     + "If you did not request this, please ignore this email.";
             String html = """
@@ -93,12 +89,8 @@ public class MailjetEmailPort implements IEmailPort {
                     .build();
 
             // 2. 构建网关并调用
-            Retrofit retrofit = retrofitFactory.create(props.getBaseUrl());
-            MailjetGateway gateway = retrofit.create(MailjetGateway.class);
-
-            String auth = basicAuth(props.getApiKey(), props.getApiSecret());
-
-            Response<MailjetSendResponse> resp = gateway.send(auth, body).execute();
+            String auth = basicAuth(mailjetSpec.getApiKey(), mailjetSpec.getApiSecret());
+            Response<MailjetSendResponse> resp = mailjetGateway.send(mailjetSpec.getBaseUrl(), auth, body).execute();
 
             // 3. 解析响应
             if (!resp.isSuccessful())
