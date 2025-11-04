@@ -80,7 +80,6 @@ mail:
 
 # Resend 配置
 resend:
-  base-url: https://api.resend.com            # 绝对URL, 后面我们用 @Url 直传
   api-key: YOUR_RESEND_API_KEY
   from-email: no-reply@yourdomain.com
   from-name: YourBrand
