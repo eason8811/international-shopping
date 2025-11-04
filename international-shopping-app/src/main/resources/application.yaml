@@ -74,22 +74,9 @@ oauth2:
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
 
-# 选择邮件提供商: mailjet | resend
-mail:
-  provider: resend
-
 # Resend 配置
 resend:
   api-key: ${RESEND_API_KEY}
   from-email: leila@eason.xin
   from-name: international-shopping
-  activation-subject: Your verification code
-
-# Mailjet 发送邮件配置
-mailjet:
-  base-url: https://api.mailjet.com/v3.1
-  api-key: YOUR_MAILJET_API_KEY
-  api-secret: YOUR_MAILJET_API_SECRET
-  from-email: no-reply@yourdomain.com
-  from-name: YourBrand
   activation-subject: Your verification code

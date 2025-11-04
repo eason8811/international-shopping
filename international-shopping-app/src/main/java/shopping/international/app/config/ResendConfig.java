@@ -1,6 +1,5 @@
 package shopping.international.app.config;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +12,6 @@ import shopping.international.domain.model.vo.user.ResendSpec;
  */
 @Configuration
 @EnableConfigurationProperties(ResendProperties.class)
-@ConditionalOnProperty(prefix = "mail", name = "provider", havingValue = "resend")
 public class ResendConfig {
 
     /**

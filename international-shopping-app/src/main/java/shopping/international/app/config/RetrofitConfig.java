@@ -17,7 +17,6 @@ import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
 import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
 import shopping.international.infrastructure.gateway.user.IOidcUserInfoApi;
-import shopping.international.infrastructure.gateway.user.MailjetGateway;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -168,16 +167,5 @@ public class RetrofitConfig {
     @Bean
     public IOidcUserInfoApi oidcUserInfoApi(Retrofit retrofit) {
         return retrofit.create(IOidcUserInfoApi.class);
-    }
-
-    /**
-     * 创建并返回一个实现 <code>MailjetGateway</code> 接口的 Retrofit 客户端实例
-     *
-     * @param retrofit 已配置好的 Retrofit 实例
-     * @return 返回一个实现了 {@link MailjetGateway} 接口的 Retrofit 客户端实例, 可以用来执行邮件发送相关的网络请求
-     */
-    @Bean
-    public MailjetGateway mailjetGateway(Retrofit retrofit) {
-        return retrofit.create(MailjetGateway.class);
     }
 }

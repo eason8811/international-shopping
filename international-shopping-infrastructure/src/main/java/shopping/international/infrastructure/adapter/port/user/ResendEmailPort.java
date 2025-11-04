@@ -7,7 +7,6 @@ import com.resend.services.emails.model.CreateEmailResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import shopping.international.domain.adapter.port.user.IEmailPort;
 import shopping.international.domain.model.vo.user.ResendSpec;
@@ -16,7 +15,6 @@ import shopping.international.types.exceptions.EmailSendException;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "mail.provider", havingValue = "resend")
 public class ResendEmailPort implements IEmailPort {
 
     /**
