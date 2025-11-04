@@ -225,7 +225,7 @@ public class UserRepository implements IUserRepository {
                     .userId(userId)
                     .provider(binding.getProvider().name())
                     .issuer(binding.getIssuer())
-                    .providerUid(binding.getProviderUid())
+                    .providerUid(binding.getProvider() == AuthProvider.LOCAL ? userId.toString() :binding.getProviderUid())
                     .passwordHash(binding.getPasswordHash())
                     .accessToken(binding.getAccessToken() == null ? null : binding.getAccessToken().getBytes())   // EncryptedSecret → bytes()
                     .refreshToken(binding.getRefreshToken() == null ? null : binding.getRefreshToken().getBytes())
