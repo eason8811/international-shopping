@@ -423,6 +423,80 @@ paths:
                 traceId: "f1a2b3c4d5"
                 data: null
 
+  /auth/email-status:
+    get:
+      security: [ ]
+      tags: [ Auth ]
+      summary: 轮询邮件发送状态
+      description: |
+        传入邮箱地址，后端从 Redis 查找 {email → messageId} 映射，
+        再调用 Resend 查询该邮件的当前状态并返回。
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 目标邮箱地址
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponseBase'
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        description: 业务是否成功（非 HTTP 含义）
+                        example: true
+                      code:
+                        type: string
+                        description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                        example: "OK"
+                      message:
+                        type: string
+                        description: 人类可读的简短信息
+                        example: "查询成功"
+                      timestamp:
+                        type: string
+                        format: date-time
+                        description: 服务器时间
+                        example: "2025-10-26T06:30:00.123Z"
+                      traceId:
+                        type: string
+                        nullable: true
+                        description: 请求追踪ID
+                        example: "af9c5b1f0e2a4c1b"
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        nullable: true
+                        type: object
+                        properties:
+                          email:
+                            type: string
+                            example: user@example.com
+                          messageId:
+                            type: string
+                            example: "7cce5f49-0d6f-4e09-bb7f-2a1b7a2d2a6e"
+                          status:
+                            type: string
+                            enum: [ BOUNCED, CANCELED, CLICKED, COMPLAINED, DELIVERED, DELIVERY_DELAYED, FAILED, OPENED, QUEUED, SCHEDULED, SENT, UNKNOWN ]
+                      meta:
+                        description: 附加元信息（分页等，可选）
+                        nullable: true
+                        type: object
+                        properties:
+                          page: { type: integer, example: 1 }
+                          size: { type: integer, example: 20 }
+                          total: { type: integer, example: 135 }
+        "400":
+          description: 参数错误
+        "500":
+          description: 服务器内部错误
+
   /auth/verify-email:
     post:
       security: []

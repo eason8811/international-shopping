@@ -2,6 +2,7 @@ package shopping.international.domain.service.user;
 
 import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.aggregate.user.User;
+import shopping.international.types.enums.EmailDeliveryStatus;
 import shopping.international.types.exceptions.*;
 
 /**
@@ -90,4 +91,19 @@ public interface IAuthService {
      */
     String refreshAccessToken(String refreshToken);
 
+    /**
+     * 获取指定邮箱的激活消息ID
+     *
+     * @param email 用户的电子邮件地址 用于查询对应的激活消息ID
+     * @return 激活消息的唯一标识符 如果没有找到 则返回空字符串
+     */
+    String getActivationMessageId(@NotNull String email);
+
+    /**
+     * 通过消息ID获取邮件投递状态
+     *
+     * @param messageId 消息ID, 用于唯一标识一封邮件
+     * @return EmailDeliveryStatus 返回与给定消息ID相关的邮件投递状态
+     */
+    EmailDeliveryStatus getStatusByMessageId(@NotNull String messageId);
 }

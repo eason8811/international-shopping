@@ -16,6 +16,7 @@ import shopping.international.api.req.user.ResendActivationRequest;
 import shopping.international.api.req.user.VerifyEmailRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.user.CsrfTokenRespond;
+import shopping.international.api.resp.user.EmailStatusRespond;
 import shopping.international.api.resp.user.UserAccountRespond;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.vo.user.CookieSpec;
@@ -25,10 +26,12 @@ import shopping.international.domain.service.user.IAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.enums.EmailDeliveryStatus;
 
 import java.time.Duration;
 
 import static shopping.international.types.constant.SecurityConstants.API_PREFIX;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 本地认证控制器
@@ -75,6 +78,25 @@ public class AuthController {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(Result.accepted("激活邮件已发送"));
+    }
+
+    /**
+     * 轮询当前邮箱的邮件状态：通过 Redis 找到 messageId，再访问 Resend 查询状态。
+     *
+     * <p><b>入参：</b>请求参数 {@code email}</p>
+     * <p><b>返回：</b>{@link EmailStatusRespond}（包含 email、messageId、status）</p>
+     *
+     * @param email 目标邮箱
+     * @return 200 OK + 状态体；若未找到映射会抛出参数异常
+     */
+    @GetMapping("/email-status")
+    @PreAuthorize("permitAll()")
+    public ResponseEntity<Result<EmailStatusRespond>> emailStatus(@RequestParam("email") String email) {
+        String messageId = authService.getActivationMessageId(email);
+        requireNotNull(messageId, "尚未找到该邮箱的发送记录");
+
+        EmailDeliveryStatus status = authService.getStatusByMessageId(messageId);
+        return ResponseEntity.ok(Result.ok(new EmailStatusRespond(email, messageId, status), "查询成功"));
     }
 
     /**

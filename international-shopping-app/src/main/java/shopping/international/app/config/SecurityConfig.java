@@ -63,6 +63,7 @@ public class SecurityConfig {
         String[] csrfIgnoring = new String[]{
                 // Auth: 匿名入口
                 API_PREFIX + "/auth/register",
+                API_PREFIX + "/auth/email-status",
                 API_PREFIX + "/auth/verify-email",
                 API_PREFIX + "/auth/resend-activation",
                 API_PREFIX + "/auth/login",
@@ -91,6 +92,7 @@ public class SecurityConfig {
                 // 匿名接口允许访问
                 registry.requestMatchers(
                                 API_PREFIX + "/auth/register",
+                                API_PREFIX + "/auth/email-status",
                                 API_PREFIX + "/auth/verify-email",
                                 API_PREFIX + "/auth/resend-activation",
                                 API_PREFIX + "/auth/login",

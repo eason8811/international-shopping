@@ -41,6 +41,7 @@
         <okhttp3.core.version>4.12.0</okhttp3.core.version>
         <okhttp3.logging.intercepter.version>3.14.9</okhttp3.logging.intercepter.version>
         <mybatis-plus.version>3.5.9</mybatis-plus.version>
+        <resend.version>4.6.0</resend.version>
     </properties>
 
     <dependencyManagement>
@@ -91,6 +92,12 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!-- Resend 依赖 -->
+            <dependency>
+                <groupId>com.resend</groupId>
+                <artifactId>resend-java</artifactId>
+                <version>${resend.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
