@@ -103,7 +103,7 @@ public class AuthService implements IAuthService {
                 Username.of(username),
                 Nickname.of(nickname),
                 EmailAddress.of(email),
-                PhoneNumber.of(phone),
+                PhoneNumber.nullableOf(phone),
                 passwordHash
         );
 
