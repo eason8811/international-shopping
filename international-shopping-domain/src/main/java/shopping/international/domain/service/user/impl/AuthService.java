@@ -89,12 +89,13 @@ public class AuthService implements IAuthService {
      */
     @Override
     public void register(@NotNull String username, @NotNull String rawPassword, @NotNull String nickname,
-                         @NotNull String email, @NotNull String phone) {
+                         @NotNull String email, @Nullable String phone) {
 
         // 1. 幂等唯一性前置校验 (DB 层仍需唯一索引兜底)
         require(!userRepository.existsByUsername(username), "用户名已存在");
         require(!userRepository.existsByEmail(email), "邮箱已存在");
-        require(!userRepository.existsByPhone(phone), "手机号已存在");
+        if (phone != null)
+            require(!userRepository.existsByPhone(phone), "手机号已存在");
 
         // 2. 领域聚合构造 (User.register 内部会附带 LOCAL 绑定)
         String passwordHash = bcrypt.encode(rawPassword);
