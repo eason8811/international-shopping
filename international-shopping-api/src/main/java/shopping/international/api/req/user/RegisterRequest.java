@@ -54,6 +54,5 @@ public class RegisterRequest {
         requireNotBlank(nickname, "昵称不能为空");
         requireNotBlank(email, "邮箱不能为空");
         require(emailPattern.matcher(email).matches(), "邮箱格式不正确");
-        requireNotNull(phone, "手机号码不能为 NULL");
     }
 }

@@ -1,6 +1,7 @@
 package shopping.international.domain.service.user;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.types.enums.EmailDeliveryStatus;
 import shopping.international.types.exceptions.*;
@@ -35,7 +36,7 @@ public interface IAuthService {
      * @throws EmailSendException       如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
     void register(@NotNull String username, @NotNull String rawPassword, @NotNull String nickname,
-                  @NotNull String email, @NotNull String phone);
+                  @NotNull String email, @Nullable String phone);
 
     /**
      * 校验邮箱验证码并激活账户 (状态从 DISABLED → ACTIVE), 返回激活后的用户聚合快照
