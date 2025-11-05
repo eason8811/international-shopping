@@ -87,9 +87,9 @@ public class UserRepository implements IUserRepository {
      * @return 用户聚合, 可为空
      */
     @Override
-    public Optional<User> findByEmail(@NotNull String email) {
+    public Optional<User> findByEmail(@NotNull EmailAddress email) {
         UserAccountPO po = accountMapper.selectOne(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getEmail, email)
+                .eq(UserAccountPO::getEmail, email.getValue())
                 .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
                 .last("limit 1"));
         return assembleOptional(po);
@@ -116,9 +116,9 @@ public class UserRepository implements IUserRepository {
      * @return 是否存在
      */
     @Override
-    public boolean existsByUsername(@NotNull String username) {
+    public boolean existsByUsername(@NotNull Username username) {
         Long n = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getUsername, username)
+                .eq(UserAccountPO::getUsername, username.getValue())
                 .eq(UserAccountPO::getIsDeleted, Boolean.FALSE));
         return n != null && n > 0;
     }
@@ -130,9 +130,9 @@ public class UserRepository implements IUserRepository {
      * @return 是否存在 (忽略 null)
      */
     @Override
-    public boolean existsByEmail(@NotNull String email) {
+    public boolean existsByEmail(@NotNull EmailAddress email) {
         Long n = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getEmail, email)
+                .eq(UserAccountPO::getEmail, email.getValue())
                 .eq(UserAccountPO::getIsDeleted, Boolean.FALSE));
         return n != null && n > 0;
     }
@@ -144,9 +144,9 @@ public class UserRepository implements IUserRepository {
      * @return 是否存在 (忽略 null)
      */
     @Override
-    public boolean existsByPhone(@NotNull String phone) {
+    public boolean existsByPhone(@NotNull PhoneNumber phone) {
         Long n = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getPhone, phone)
+                .eq(UserAccountPO::getPhone, phone.getValue())
                 .eq(UserAccountPO::getIsDeleted, Boolean.FALSE));
         return n != null && n > 0;
     }

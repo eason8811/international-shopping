@@ -3,6 +3,10 @@ package shopping.international.domain.service.user;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.user.User;
+import shopping.international.domain.model.vo.user.EmailAddress;
+import shopping.international.domain.model.vo.user.Nickname;
+import shopping.international.domain.model.vo.user.PhoneNumber;
+import shopping.international.domain.model.vo.user.Username;
 import shopping.international.types.enums.EmailDeliveryStatus;
 import shopping.international.types.exceptions.*;
 
@@ -35,8 +39,8 @@ public interface IAuthService {
      * @throws IllegalParamException 当用户名/邮箱/手机存在唯一性冲突, 或参数非法时抛出
      * @throws EmailSendException       如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
-    void register(@NotNull String username, @NotNull String rawPassword, @NotNull String nickname,
-                  @NotNull String email, @Nullable String phone);
+    void register(@NotNull Username username, @NotNull String rawPassword, @NotNull Nickname nickname,
+                  @NotNull EmailAddress email, @Nullable PhoneNumber phone);
 
     /**
      * 校验邮箱验证码并激活账户 (状态从 DISABLED → ACTIVE), 返回激活后的用户聚合快照
@@ -46,7 +50,7 @@ public interface IAuthService {
      * @return 激活后的 {@link User} 快照
      * @throws VerificationCodeInvalidException 当验证码错误/过期, 或账户不存在/已激活时抛出
      */
-    User verifyEmailAndActivate(String email, String code);
+    User verifyEmailAndActivate(EmailAddress email, String code);
 
     /**
      * 重新发送激活邮件给指定邮箱地址
@@ -55,7 +59,7 @@ public interface IAuthService {
      * @throws IllegalArgumentException 如果提供的邮箱地址格式不正确
      * @throws EmailSendException 如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
-    void resendActivationEmail(String email);
+    void resendActivationEmail(EmailAddress email);
 
     /**
      * 本地登录: 支持 {@code 用户名 / 邮箱 / 手机号其一} + 明文密码, 校验成功返回用户聚合快照
@@ -98,7 +102,7 @@ public interface IAuthService {
      * @param email 用户的电子邮件地址 用于查询对应的激活消息ID
      * @return 激活消息的唯一标识符 如果没有找到 则返回空字符串
      */
-    String getActivationMessageId(@NotNull String email);
+    String getActivationMessageId(@NotNull EmailAddress email);
 
     /**
      * 通过消息ID获取邮件投递状态

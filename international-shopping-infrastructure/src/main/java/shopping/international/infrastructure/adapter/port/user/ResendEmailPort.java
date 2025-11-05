@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import shopping.international.domain.adapter.port.user.IEmailPort;
+import shopping.international.domain.model.vo.user.EmailAddress;
 import shopping.international.domain.model.vo.user.ResendSpec;
 import shopping.international.types.enums.EmailDeliveryStatus;
 import shopping.international.types.exceptions.EmailSendException;
@@ -60,7 +61,7 @@ public class ResendEmailPort implements IEmailPort {
     }
 
     @Override
-    public void sendActivationEmail(@NotNull String email, @NotNull String code) throws EmailSendException {
+    public void sendActivationEmail(@NotNull EmailAddress email, @NotNull String code) throws EmailSendException {
         try {
             // 立即构造请求数据, 异步执行真正发送
             String from;
@@ -83,7 +84,7 @@ public class ResendEmailPort implements IEmailPort {
             // 构造发件请求
             CreateEmailOptions request = CreateEmailOptions.builder()
                     .from(from)
-                    .to(email)
+                    .to(email.getValue())
                     .subject(subject)
                     .text(text)
                     .html(html)
@@ -129,8 +130,8 @@ public class ResendEmailPort implements IEmailPort {
      * @param ttl       绑定的有效期, 可以为空. 如果为 null, 则表示没有过期时间; 否则, 表示从当前时刻起该绑定有效的持续时间
      */
     @Override
-    public void bindActivationMessageId(@NotNull String email, @NotNull String messageId, Duration ttl) {
-        String key = KEY_PREFIX + email;
+    public void bindActivationMessageId(@NotNull EmailAddress email, @NotNull String messageId, Duration ttl) {
+        String key = KEY_PREFIX + email.getValue();
         if (ttl == null)
             redisTemplate.opsForValue().set(key, messageId);
         else
@@ -144,8 +145,8 @@ public class ResendEmailPort implements IEmailPort {
      * @return 返回与指定邮箱关联的激活邮件的消息 ID. 如果没有找到相关联的消息 ID, 则返回 null
      */
     @Override
-    public String getActivationMessageId(@NotNull String email) {
-        return redisTemplate.opsForValue().get(KEY_PREFIX + email);
+    public String getActivationMessageId(@NotNull EmailAddress email) {
+        return redisTemplate.opsForValue().get(KEY_PREFIX + email.getValue());
     }
 
     /**

@@ -251,7 +251,7 @@ public class OAuth2Service implements IOAuth2Service {
         } else {
             // 生成唯一用户名 (如 google_xxxxx), 昵称与邮箱尽量填入
             String baseUsername = (provider.name().toLowerCase() + "_" + sub).replaceAll("[^a-zA-Z0-9_\\-]", "");
-            String uniqueUsername = generateUniqueUsername(baseUsername);
+            String uniqueUsername = generateUniqueUsername(Username.of(baseUsername));
 
             Username username = Username.of(uniqueUsername);
             Nickname nickname = Nickname.of(requireNonNullElse(name, uniqueUsername));
@@ -408,12 +408,12 @@ public class OAuth2Service implements IOAuth2Service {
      * @return 返回生成的唯一用户名
      * @throws AccountException 当尝试超过 1000 次仍无法生成唯一用户名时抛出异常
      */
-    private String generateUniqueUsername(String baseUsername) {
-        String candidate = baseUsername;
+    private String generateUniqueUsername(Username baseUsername) {
+        String candidate = baseUsername.getValue();
         int seq = 1;
-        while (userRepository.existsByUsername(candidate)) {
+        while (userRepository.existsByUsername(Username.of(candidate))) {
             seq++;
-            candidate = baseUsername + "_" + seq;
+            candidate = baseUsername.getValue() + "_" + seq;
             if (seq > 1000)
                 throw new AccountException("无法生成唯一用户名");
         }

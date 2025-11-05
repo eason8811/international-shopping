@@ -52,15 +52,15 @@ public final class PhoneNumber {
     }
 
     /**
-     * 创建一个可为空的 {@link PhoneNumber} 实例
+     * 工厂方法, 创建可接受空值的 {@link PhoneNumber} 实例
      *
-     * <p>此方法允许传入空字符串或 null 作为参数, 不会进行任何验证直接创建实例
-     * 如果需要验证手机号格式, 使用 {@link PhoneNumber#of(String)} 方法</p>
-     *
-     * @param raw 原始手机号 可以是空字符串或 null
-     * @return 返回 {@link PhoneNumber} 实例
+     * @param raw 原始手机号 可以为 null 或空字符串, 如果非空则需要符合 E.164 格式
+     * @return {@link PhoneNumber} 实例 如果 <code>raw</code> 为 null 或空字符串, 则返回包含 null 的实例; 否则返回包含格式化后的手机号的实例
+     * @throws IllegalParamException 如果提供的手机号不为空但格式不正确时抛出
      */
     public static PhoneNumber nullableOf(String raw) {
+        if (raw != null && !raw.trim().isEmpty())
+            require(SIMPLE.matcher(raw.trim()).matches(), "手机号格式不正确");
         return new PhoneNumber(raw);
     }
 }
