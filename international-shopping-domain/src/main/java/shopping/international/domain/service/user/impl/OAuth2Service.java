@@ -415,7 +415,7 @@ public class OAuth2Service implements IOAuth2Service {
             seq++;
             candidate = baseUsername.getValue() + "_" + seq;
             if (seq > 1000)
-                throw new AccountException("无法生成唯一用户名");
+                throw new IllegalParamException("无法生成唯一用户名");
         }
         return candidate;
     }

@@ -171,12 +171,12 @@ public class AuthService implements IAuthService {
      * @param account     用户名 / 邮箱 / 手机号
      * @param rawPassword 明文密码
      * @return 登录成功的用户聚合快照
-     * @throws AccountException 当凭证无效, 账户未激活或被禁用时抛出
+     * @throws AccountException 当账户未激活或被禁用时抛出
      */
     @Override
     public User login(@NotNull String account, @NotNull String rawPassword) {
         User user = userRepository.findByLoginAccount(account)
-                .orElseThrow(() -> new AccountException("账户不存在"));
+                .orElseThrow(() -> new IllegalParamException("账户不存在"));
 
         // 必须存在 LOCAL 绑定, 且密码匹配
         String localPasswordHash = user.getBindingsSnapshot().stream()
@@ -185,7 +185,7 @@ public class AuthService implements IAuthService {
                 .findFirst()
                 .orElse(null);
         if (localPasswordHash == null || !bcrypt.matches(rawPassword, localPasswordHash))
-            throw new AccountException("用户名或密码错误");
+            throw new IllegalParamException("用户名或密码错误");
 
         if (user.getStatus() != AccountStatus.ACTIVE)
             throw new AccountException("账户未激活或已禁用");
@@ -207,7 +207,7 @@ public class AuthService implements IAuthService {
      */
     @Override
     public String issueAccessToken(@NotNull Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new AccountException("账户不存在"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalParamException("账户不存在"));
         String scopeListString = user.getBindingsSnapshot().stream()
                 .map(AuthBinding::getScope)
                 .filter(Objects::nonNull)                 // 防空
@@ -229,7 +229,7 @@ public class AuthService implements IAuthService {
      */
     @Override
     public String issueRefreshToken(@NotNull Long userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new AccountException("账户不存在"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalParamException("账户不存在"));
         String scopeListString = user.getBindingsSnapshot().stream()
                 .map(AuthBinding::getScope)
                 .filter(Objects::nonNull)                 // 防空
