@@ -20,7 +20,7 @@ public final class Username {
     /**
      * 用户名正则表达式
      */
-    private static final Pattern PATTERN = Pattern.compile("^[A-Za-z0-9_\\-]{3,64}$");
+    private static final Pattern PATTERN = Pattern.compile("^(?=.*[^0-9])[A-Za-z0-9_-]{3,64}$");
 
     /**
      * 规范化后的用户名

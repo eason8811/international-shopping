@@ -5,8 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import shopping.international.types.exceptions.IllegalParamException;
 
-import java.util.regex.Pattern;
-
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**

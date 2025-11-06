@@ -19,8 +19,7 @@ import shopping.international.api.resp.user.CsrfTokenRespond;
 import shopping.international.api.resp.user.EmailStatusRespond;
 import shopping.international.api.resp.user.UserAccountRespond;
 import shopping.international.domain.model.aggregate.user.User;
-import shopping.international.domain.model.vo.user.CookieSpec;
-import shopping.international.domain.model.vo.user.JwtIssueSpec;
+import shopping.international.domain.model.vo.user.*;
 import shopping.international.domain.service.user.IAuthService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -74,7 +73,12 @@ public class AuthController {
     public ResponseEntity<Result<Void>> register(@RequestBody RegisterRequest req) {
         req.validate();
         // 领域服务处理注册与发送激活邮件 (基础设施层后续用 SendGrid 实现)
-        authService.register(req.getUsername(), req.getPassword(), req.getNickname(), req.getEmail(), req.getPhone());
+        authService.register(
+                Username.of(req.getUsername()),
+                req.getPassword(),
+                Nickname.of(req.getNickname()),
+                EmailAddress.of(req.getEmail()),
+                PhoneNumber.nullableOf(req.getPhone()));
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(Result.accepted("激活邮件已发送"));
@@ -92,11 +96,12 @@ public class AuthController {
     @GetMapping("/email-status")
     @PreAuthorize("permitAll()")
     public ResponseEntity<Result<EmailStatusRespond>> emailStatus(@RequestParam("email") String email) {
-        String messageId = authService.getActivationMessageId(email);
+        EmailAddress emailAddress = EmailAddress.of(email);
+        String messageId = authService.getActivationMessageId(emailAddress);
         requireNotNull(messageId, "尚未找到该邮箱的发送记录");
 
         EmailDeliveryStatus status = authService.getStatusByMessageId(messageId);
-        return ResponseEntity.ok(Result.ok(new EmailStatusRespond(email, messageId, status), "查询成功"));
+        return ResponseEntity.ok(Result.ok(new EmailStatusRespond(emailAddress.getValue(), messageId, status), "查询成功"));
     }
 
     /**
@@ -114,7 +119,7 @@ public class AuthController {
                                                                   HttpServletResponse response) {
         req.validate();
         // 激活账户并返回聚合快照
-        User user = authService.verifyEmailAndActivate(req.getEmail(), req.getCode());
+        User user = authService.verifyEmailAndActivate(EmailAddress.of(req.getEmail()), req.getCode());
 
         // 下发会话 token (由应用/领域服务生成原始字符串, 控制器仅负责下发 Cookie)
         String accessToken = authService.issueAccessToken(user.getId());
@@ -141,7 +146,7 @@ public class AuthController {
     @PreAuthorize("permitAll()")
     public ResponseEntity<Result<Void>> resendActivation(@RequestBody ResendActivationRequest req) {
         req.validate();
-        authService.resendActivationEmail(req.getEmail());
+        authService.resendActivationEmail(EmailAddress.of(req.getEmail()));
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(Result.accepted("激活邮件已重新发送"));

@@ -88,29 +88,33 @@ public class AuthService implements IAuthService {
      * @throws EmailSendException    如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
     @Override
-    public void register(@NotNull String username, @NotNull String rawPassword, @NotNull String nickname,
-                         @NotNull String email, @Nullable String phone) {
+    public void register(@NotNull Username username, @NotNull String rawPassword, @NotNull Nickname nickname,
+                         @NotNull EmailAddress email, @Nullable PhoneNumber phone) {
 
         // 1. 幂等唯一性前置校验 (DB 层仍需唯一索引兜底)
-        require(!userRepository.existsByUsername(username), "用户名已存在");
-        require(!userRepository.existsByEmail(email), "邮箱已存在");
-        if (phone!= null)
-            require(!userRepository.existsByPhone(phone), "手机号已存在");
+        try {
+            require(!userRepository.existsByUsername(username), "用户名已存在");
+            require(!userRepository.existsByEmail(email), "邮箱已存在");
+            if (phone != null)
+                require(!userRepository.existsByPhone(phone), "手机号已存在");
+        } catch (IllegalParamException e) {
+            throw new ConflictException(e.getMessage(), e);
+        }
 
         // 2. 领域聚合构造 (User.register 内部会附带 LOCAL 绑定)
         String passwordHash = bcrypt.encode(rawPassword);
         User toSave = User.register(
-                Username.of(username),
-                Nickname.of(nickname),
-                EmailAddress.of(email),
-                PhoneNumber.nullableOf(phone),
+                username,
+                nickname,
+                email,
+                phone,
                 passwordHash
         );
 
         // 3. 原子持久化 (账户 + 本地绑定)
         userRepository.saveNewUserWithBindings(toSave);
 
-        // 4. 如有邮箱则下发验证码 (覆盖式存储, 最后一次生效)
+        // 4. 下发邮箱验证码 (覆盖式存储, 最后一次生效)
         String code = generateNumericCode(6);
         verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);
         emailPort.sendActivationEmail(email, code);
@@ -125,7 +129,7 @@ public class AuthService implements IAuthService {
      * @throws VerificationCodeInvalidException 当验证码错误/过期, 或账户不存在/已激活时抛出
      */
     @Override
-    public User verifyEmailAndActivate(@NotNull String email, @NotNull String code) {
+    public User verifyEmailAndActivate(@NotNull EmailAddress email, @NotNull String code) {
         boolean pass = verificationCodePort.verifyAndConsumeEmailActivationCode(email, code);
         if (!pass)
             throw new VerificationCodeInvalidException("验证码错误或已过期");
@@ -148,7 +152,7 @@ public class AuthService implements IAuthService {
      * @throws EmailSendException       如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
     @Override
-    public void resendActivationEmail(@NotNull String email) {
+    public void resendActivationEmail(@NotNull EmailAddress email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalParamException("账户不存在"));
         if (user.getStatus() == AccountStatus.ACTIVE)
@@ -295,7 +299,7 @@ public class AuthService implements IAuthService {
      * @param email 用户的电子邮件地址 用于查询对应的激活消息ID
      * @return 激活消息的唯一标识符 如果没有找到 则返回空字符串
      */
-    public String getActivationMessageId(@NotNull String email) {
+    public String getActivationMessageId(@NotNull EmailAddress email) {
         return emailPort.getActivationMessageId(email);
     }
 

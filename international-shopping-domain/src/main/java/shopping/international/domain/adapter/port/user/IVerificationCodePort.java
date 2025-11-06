@@ -1,6 +1,7 @@
 package shopping.international.domain.adapter.port.user;
 
 import org.jetbrains.annotations.NotNull;
+import shopping.international.domain.model.vo.user.EmailAddress;
 
 import java.time.Duration;
 
@@ -16,7 +17,7 @@ public interface IVerificationCodePort {
      * @param code  验证码
      * @param ttl   有效期
      */
-    void storeEmailActivationCode(@NotNull String email, @NotNull String code, @NotNull Duration ttl);
+    void storeEmailActivationCode(@NotNull EmailAddress email, @NotNull String code, @NotNull Duration ttl);
 
     /**
      * 校验并消费 (删除) 邮箱激活验证码
@@ -25,5 +26,5 @@ public interface IVerificationCodePort {
      * @param code  用户提交的验证码
      * @return 校验是否通过 (通过则同时消费掉) 
      */
-    boolean verifyAndConsumeEmailActivationCode(@NotNull String email, @NotNull String code);
+    boolean verifyAndConsumeEmailActivationCode(@NotNull EmailAddress email, @NotNull String code);
 }

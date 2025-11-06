@@ -4,6 +4,9 @@ import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.enums.user.AccountStatus;
 import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.vo.user.EmailAddress;
+import shopping.international.domain.model.vo.user.PhoneNumber;
+import shopping.international.domain.model.vo.user.Username;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -30,7 +33,7 @@ public interface IUserRepository {
      * @param email 邮箱
      * @return 用户聚合, 可为空
      */
-    Optional<User> findByEmail(@NotNull String email);
+    Optional<User> findByEmail(@NotNull EmailAddress email);
 
     /**
      * 按主键查询用户
@@ -46,7 +49,7 @@ public interface IUserRepository {
      * @param username 用户名
      * @return 是否存在
      */
-    boolean existsByUsername(@NotNull String username);
+    boolean existsByUsername(@NotNull Username username);
 
     /**
      * 检查邮箱是否已存在 (幂等注册前置唯一性校验)
@@ -54,7 +57,7 @@ public interface IUserRepository {
      * @param email 邮箱
      * @return 是否存在 (忽略 null)
      */
-    boolean existsByEmail(@NotNull String email);
+    boolean existsByEmail(@NotNull EmailAddress email);
 
     /**
      * 检查手机号是否已存在 (幂等注册前置唯一性校验)
@@ -62,7 +65,7 @@ public interface IUserRepository {
      * @param phone 手机号
      * @return 是否存在 (忽略 null)
      */
-    boolean existsByPhone(@NotNull String phone);
+    boolean existsByPhone(@NotNull PhoneNumber phone);
 
     /**
      * 按第三方身份 (issuer + provider_uid/sub) 查询用户

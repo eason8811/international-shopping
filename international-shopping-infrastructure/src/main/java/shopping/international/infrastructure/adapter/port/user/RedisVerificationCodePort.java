@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 import shopping.international.domain.adapter.port.user.IVerificationCodePort;
+import shopping.international.domain.model.vo.user.EmailAddress;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -36,7 +37,7 @@ public class RedisVerificationCodePort implements IVerificationCodePort {
      * @param ttl   有效期
      */
     @Override
-    public void storeEmailActivationCode(@NotNull String email, @NotNull String code, @NotNull Duration ttl) {
+    public void storeEmailActivationCode(@NotNull EmailAddress email, @NotNull String code, @NotNull Duration ttl) {
         String key = keyOf(email);
         stringRedisTemplate.opsForValue().set(key, code, ttl);
     }
@@ -51,7 +52,7 @@ public class RedisVerificationCodePort implements IVerificationCodePort {
      * @return true 表示校验通过且已消费, false 表示验证码不存在或不匹配
      */
     @Override
-    public boolean verifyAndConsumeEmailActivationCode(@NotNull String email, @NotNull String code) {
+    public boolean verifyAndConsumeEmailActivationCode(@NotNull EmailAddress email, @NotNull String code) {
         String key = keyOf(email);
 
         String lua = """
@@ -73,7 +74,7 @@ public class RedisVerificationCodePort implements IVerificationCodePort {
      * @param email 邮箱
      * @return key，如 auth:email:activation:{email}
      */
-    private static String keyOf(String email) {
-        return "auth:email:activation:" + email;
+    private static String keyOf(EmailAddress email) {
+        return "auth:email:activation:" + email.getValue();
     }
 }
