@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
@@ -89,18 +90,24 @@ public class SecurityConfig {
 
         // ========== 授权规则 ==========
         http.authorizeHttpRequests(registry ->
-                // 匿名接口允许访问
-                registry.requestMatchers(
-                                API_PREFIX + "/auth/register",
-                                API_PREFIX + "/auth/email-status",
-                                API_PREFIX + "/auth/verify-email",
-                                API_PREFIX + "/auth/resend-activation",
-                                API_PREFIX + "/auth/login",
-                                API_PREFIX + "/oauth2/*/authorize",
-                                API_PREFIX + "/oauth2/*/callback"
-                        ).permitAll()
-                        // 其余默认需要认证
-                        .anyRequest().authenticated()
+                        // 匿名接口允许访问
+                {
+                    registry.requestMatchers(HttpMethod.GET).permitAll();
+                    registry.requestMatchers(HttpMethod.HEAD).permitAll();
+                    registry.requestMatchers(HttpMethod.TRACE).permitAll();
+                    registry.requestMatchers(HttpMethod.OPTIONS).permitAll();
+                    registry.requestMatchers(
+                                    API_PREFIX + "/auth/register",
+                                    API_PREFIX + "/auth/email-status",
+                                    API_PREFIX + "/auth/verify-email",
+                                    API_PREFIX + "/auth/resend-activation",
+                                    API_PREFIX + "/auth/login",
+                                    API_PREFIX + "/oauth2/*/authorize",
+                                    API_PREFIX + "/oauth2/*/callback"
+                            ).permitAll()
+                            // 其余默认需要认证
+                            .anyRequest().authenticated();
+                }
         );
 
         // ========== JWT Cookie 认证过滤器 ==========
