@@ -20,7 +20,7 @@ security:
   jwt:
     issuer: shopping.international
     audience: web
-    secret-base64: w4Lw9...（Base64 编码的 256bit HMAC 密钥）
+    secret-base64: ${JWT_SECRET_BASE64}
     clock-skew-seconds: 60
     access-token-validity-seconds: 259200 # 3 days
     refresh-token-validity-seconds: 2592000 # 30 days
