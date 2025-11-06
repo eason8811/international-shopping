@@ -20,6 +20,7 @@ import shopping.international.types.exceptions.AppException;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.enums.ApiCode;
+import shopping.international.types.exceptions.VerificationCodeInvalidException;
 
 /**
  * 全局异常处理器
@@ -49,6 +50,30 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * traceId 的请求头名称, 可根据网关/链路追踪系统调整
      */
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
+
+    /**
+     * 处理验证码不合法异常: 返回 422
+     *
+     * @param ex      抛出的 {@link VerificationCodeInvalidException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 422
+     */
+    @ExceptionHandler(VerificationCodeInvalidException.class)
+    public ResponseEntity<Result<Void>> handleIllegalParam(final VerificationCodeInvalidException ex,
+                                                           final HttpServletRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.UNPROCESSABLE_ENTITY,
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request));
+
+        return respond(HttpStatus.UNPROCESSABLE_ENTITY, ApiCode.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
 
     /**
      * 处理冲突异常: 返回 409
