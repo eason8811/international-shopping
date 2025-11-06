@@ -30,6 +30,7 @@ import shopping.international.types.enums.EmailDeliveryStatus;
 import java.time.Duration;
 
 import static shopping.international.types.constant.SecurityConstants.API_PREFIX;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
@@ -192,6 +193,7 @@ public class AuthController {
     @PreAuthorize("permitAll()")
     public ResponseEntity<Result<Void>> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         String refresh = readCookie(request, SecurityConstants.REFRESH_TOKEN_COOKIE);
+        requireNotBlank(refresh, "refresh_token 未提供");
         String newAccess = authService.refreshAccessToken(refresh);
 
         addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, newAccess, true, jwtIssueSpec.accessTokenValiditySeconds());
