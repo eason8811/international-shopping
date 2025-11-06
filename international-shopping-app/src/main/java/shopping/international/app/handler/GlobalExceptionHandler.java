@@ -2,12 +2,19 @@ package shopping.international.app.handler;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import shopping.international.api.resp.Result;
 import shopping.international.types.exceptions.AppException;
 import shopping.international.types.exceptions.ConflictException;
@@ -36,7 +43,7 @@ import shopping.international.types.enums.ApiCode;
 @Slf4j
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     /**
      * traceId 的请求头名称, 可根据网关/链路追踪系统调整
@@ -178,11 +185,41 @@ public class GlobalExceptionHandler {
      * @return traceId 字符串, 可能为 null
      */
     private String resolveTraceId(final HttpServletRequest request) {
+        if (request == null)
+            return null;
         String fromHeader = request.getHeader(TRACE_ID_HEADER);
         if (fromHeader != null && !fromHeader.isBlank())
             return fromHeader;
 
         Object attr = request.getAttribute("traceId");
         return attr == null ? null : String.valueOf(attr);
+    }
+
+    /**
+     * 处理缺少 Servlet 请求参数的异常, 返回 400 错误
+     *
+     * @param ex 抛出的 {@link MissingServletRequestParameterException} 异常
+     * @param headers 响应头, 通常用于设置额外的 HTTP 头信息
+     * @param status HTTP 状态码, 对于此类异常固定为 400 (Bad Request)
+     * @param request 当前 Web 请求, 用于获取请求相关信息如 HTTP 方法等
+     * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 400 状态码
+     */
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+                                                                          @NotNull HttpHeaders headers,
+                                                                          @NotNull HttpStatusCode status,
+                                                                          @NotNull WebRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.BAD_REQUEST,
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                null,
+                ((ServletWebRequest) request).getHttpMethod(),
+                null,
+                resolveTraceId(null));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Result.<Void>error(ApiCode.BAD_REQUEST, ex.getMessage()));
     }
 }
