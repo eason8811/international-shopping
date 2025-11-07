@@ -22,6 +22,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.time.Duration;
+import java.util.regex.Pattern;
+
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 第三方登录 (OAuth2/OIDC) 控制器
@@ -65,6 +68,10 @@ public class OAuth2Controller {
     @PreAuthorize("permitAll()")
     public ResponseEntity<Result<RedirectUrlRespond>> authorize(@PathVariable("provider") AuthProvider provider,
                                                                 @RequestParam(value = "redirectUrl", required = false) String redirectUrl) {
+        requireNotNull(provider, "认证提供者不能为空");
+        requireNotBlank(redirectUrl, "跳转地址不能为空");
+        Pattern URL_REGEX = Pattern.compile("^https?://.*$");
+        require(URL_REGEX.matcher(redirectUrl).matches(), "跳转地址格式错误");
         String url = oAuth2Service.buildAuthorizationUrl(provider, redirectUrl);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .body(Result.found(new RedirectUrlRespond(url)));
