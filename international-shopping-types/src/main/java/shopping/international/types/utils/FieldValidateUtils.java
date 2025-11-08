@@ -59,6 +59,7 @@ public final class FieldValidateUtils {
      */
     @Contract("null,_->fail")
     public static void requireIsEmail(String email, String msg) {
+        email = email.strip();
         Pattern EMAIL_REGEX = Pattern.compile(
                 "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@" +
                         "(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$"
