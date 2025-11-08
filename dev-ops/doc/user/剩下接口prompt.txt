@@ -1,0 +1,3020 @@
+现在我需要继续编写用户（user）领域的后端代码，我想先编写用户（user）领域中剩下的接口的trigger层的内容，首先，以下是之前我们一起编写的用户（user）领域的相关库表的DDL语句：
+-- =========================================================
+-- 1. 用户领域 (user)
+-- =========================================================
+
+-- 1.1 账户主表：本系统用户（JWT 认证）
+/*
+uk_user_username/email/phone：登录唯一性，避免重复注册，用于登录/找回帐号的等值查询
+idx_user_status：后台用户列表按状态筛选
+idx_user_last_login：近期登录活跃度排序/检索
+*/
+CREATE TABLE user_account
+(
+    id            BIGINT UNSIGNED            NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    username      VARCHAR(64)                NOT NULL COMMENT '用户名(登录名)',
+    nickname      VARCHAR(64)                NOT NULL COMMENT '昵称/显示名',
+    email         VARCHAR(255)               NOT NULL COMMENT '邮箱(可空)',
+    phone         VARCHAR(32)                NULL COMMENT '手机号(可空, 含区号需要统一格式)',
+    status        ENUM ('ACTIVE','DISABLED') NOT NULL DEFAULT 'DISABLED' COMMENT '账户状态',
+    last_login_at DATETIME(3)                NULL COMMENT '最近登录时间',
+    is_deleted    TINYINT(1)                 NOT NULL DEFAULT 0 COMMENT '软删除标记(0否1是)',
+    created_at    DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at    DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_username (username),
+    UNIQUE KEY uk_user_email (email),
+    UNIQUE KEY uk_user_phone (phone),
+    KEY idx_user_status (status),
+    KEY idx_user_last_login (last_login_at)
+) ENGINE = InnoDB COMMENT ='用户账户(本系统登录/JWT)';
+
+-- 1.2 第三方/本地认证映射：兼容 OAuth2 登录
+/*
+uk_auth_provider_uid：同一 Provider 下用户唯一（OAuth2 绑定与登录命中）
+idx_auth_user：按用户查看其所有绑定通道
+idx_auth_provider：后台筛选某通道用户
+ */
+CREATE TABLE user_auth
+(
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    user_id       BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
+    provider      ENUM ('LOCAL','GOOGLE', 'FACEBOOK', 'APPLE', 'INSTAGRAM', 'TIKTOK')
+                                  NOT NULL COMMENT '认证提供方',
+    issuer        VARCHAR(255)    NULL COMMENT '发行方(如 OIDC iss: https://accounts.google.com)',
+    provider_uid  VARCHAR(191)    NOT NULL COMMENT '发行方内用户唯一ID(如 OIDC sub / openid)',
+    password_hash VARCHAR(255)    NULL COMMENT '本地账号密码哈希(仅provider=LOCAL需要)',
+    access_token  VARBINARY(1024) NULL COMMENT '访问令牌(密文/加密保存)',
+    refresh_token VARBINARY(1024) NULL COMMENT '刷新令牌(密文/加密保存)',
+    expires_at    DATETIME(3)     NULL COMMENT '访问令牌过期时间',
+    scope         VARCHAR(512)    NULL COMMENT '授权范围',
+    role          VARCHAR(64)     NULL COMMENT '角色',
+    last_login_at DATETIME(3)     NULL COMMENT '该通道最近登录时间',
+    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_auth_provider_uid (issuer, provider_uid),
+    KEY idx_auth_user (user_id),
+    KEY idx_auth_provider (provider)
+) ENGINE = InnoDB COMMENT ='用户认证映射(本地/OAuth2)';
+
+-- 1.3 用户资料（扩展信息，1:1）
+CREATE TABLE user_profile
+(
+    user_id      BIGINT UNSIGNED                  NOT NULL COMMENT '用户ID, 指向 user_account.id',
+    display_name VARCHAR(64)                      NULL COMMENT '昵称/显示名',
+    avatar_url   VARCHAR(500)                     NULL COMMENT '头像URL',
+    gender       ENUM ('UNKNOWN','MALE','FEMALE') NOT NULL DEFAULT 'UNKNOWN' COMMENT '性别',
+    birthday     DATE                             NULL COMMENT '生日',
+    country      VARCHAR(64)                      NULL COMMENT '国家',
+    province     VARCHAR(64)                      NULL COMMENT '省/州',
+    city         VARCHAR(64)                      NULL COMMENT '城市',
+    address_line VARCHAR(255)                     NULL COMMENT '地址(简单场景)',
+    zipcode      VARCHAR(20)                      NULL COMMENT '邮编',
+    extra        JSON                             NULL COMMENT '扩展信息(JSON)',
+    created_at   DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at   DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (user_id)
+) ENGINE = InnoDB COMMENT ='用户资料(扩展)';
+
+-- 1.4 用户收货地址（1:N）
+/*
+idx_addr_user：用户地址列表
+idx_addr_user_default (user_id, is_default)：快速命中默认地址
+ */
+CREATE TABLE user_address
+(
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    user_id       BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
+    receiver_name VARCHAR(64)     NOT NULL COMMENT '收货人',
+    phone         VARCHAR(32)     NOT NULL COMMENT '联系电话',
+    country       VARCHAR(64)     NULL COMMENT '国家',
+    province      VARCHAR(64)     NULL COMMENT '省/州',
+    city          VARCHAR(64)     NULL COMMENT '城市',
+    district      VARCHAR(64)     NULL COMMENT '区/县',
+    address_line1 VARCHAR(255)    NOT NULL COMMENT '地址行1',
+    address_line2 VARCHAR(255)    NULL COMMENT '地址行2',
+    zipcode       VARCHAR(20)     NULL COMMENT '邮编',
+    is_default    TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '是否默认地址',
+    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_addr_user (user_id),
+    KEY idx_addr_user_default (user_id, is_default)
+) ENGINE = InnoDB COMMENT ='用户收货地址';
+
+以及我们之前一起编写的用户（user）领域的除了本地认证和OAuth2认证之外的其它接口：
+openapi: 3.0.3
+info:
+  title: User Service API (CookieAuth + CSRF Double-Submit + Unified Envelope)
+  version: 1.3.0
+  description: >
+    - 统一鉴权：Cookie 会话（HttpOnly `access_token`）<br/>
+    - 统一返回包裹结构（所有 HTTP 状态码均使用相同结构）<br/>
+    - CSRF 防护：双提交（Header: `X-CSRF-Token` 与 Cookie: `csrf_token` 必须相等）<br/>
+    - 匿名接口：显式 `security: []`<br/>
+servers:
+  - url: https://api.example.com/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local Dev
+
+# 全局需要会话 Cookie；匿名接口在各 path 下显式 security: []
+security:
+  - cookieAuth: []
+
+tags:
+  - name: Auth
+    description: 本地注册/登录/激活/密码找回/令牌刷新/CSRF
+  - name: OAuth2
+    description: 第三方登录授权与回调
+  - name: Users
+    description: 当前用户账户信息（user_account）
+  - name: Profile
+    description: 用户资料（user_profile）
+  - name: Addresses
+    description: 用户收货地址（user_address）
+  - name: Bindings
+    description: 第三方/本地认证映射（user_auth）
+
+components:
+  securitySchemes:
+    cookieAuth:       # 会话：access_token
+      type: apiKey
+      in: cookie
+      name: access_token
+    refreshAuth:      # 刷新：refresh_token
+      type: apiKey
+      in: cookie
+      name: refresh_token
+    csrfHeader:       # 双提交之一：Header
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: 与 csrf_token Cookie 等值
+    csrfCookie:       # 双提交之二：Cookie
+      type: apiKey
+      in: cookie
+      name: csrf_token
+      description: 与 X-CSRF-Token Header 等值
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: 幂等键（建议对创建类接口提供，格式 UUID）
+      schema: { type: string, example: "8c1f7f5a-9c91-4a40-8d9d-7e1c1b4b0b7d" }
+
+    CsrfHeader:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+      schema: { type: string, example: "1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0" }
+
+    CsrfCookie:
+      name: csrf_token
+      in: cookie
+      required: true
+      description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+      schema: { type: string, example: "1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0" }
+
+    ProviderPath:
+      name: provider
+      in: path
+      required: true
+      description: 第三方登录提供方
+      schema:
+        $ref: '#/components/schemas/Provider'
+      example: GOOGLE
+
+    AddressId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+      description: 收货地址ID
+      example: 123
+
+    RedirectQuery:
+      name: redirect
+      in: query
+      required: false
+      description: 登录完成后跳回的站内地址
+      schema: { type: string, example: "/dashboard" }
+
+    CodeQuery:
+      name: code
+      in: query
+      required: false
+      schema: { type: string }
+      description: 授权码
+      example: "4/0AfJohXn...abc"
+
+    StateQuery:
+      name: state
+      in: query
+      required: false
+      schema: { type: string }
+      description: 回传的 state
+      example: "d9e2b7b4f9c84b109a2a7c2f8f0c2c2d"
+
+    ErrorQuery:
+      name: error
+      in: query
+      required: false
+      schema: { type: string }
+      description: 第三方回调错误码
+      example: "access_denied"
+
+    ErrorDescQuery:
+      name: error_description
+      in: query
+      required: false
+      schema: { type: string }
+      description: 第三方回调错误描述
+      example: "The user denied the request"
+
+  schemas:
+    # ========== 统一返回结构 ==========
+    ApiResponseBase:
+      type: object
+      required: [success, code, message, timestamp]
+      properties:
+        success:
+          type: boolean
+          description: 业务是否成功（非 HTTP 含义）
+          example: true
+        code:
+          type: string
+          description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+          example: "OK"
+        message:
+          type: string
+          description: 人类可读的简短信息
+          example: "OK"
+        timestamp:
+          type: string
+          format: date-time
+          description: 服务器时间
+          example: "2025-10-26T06:30:00.123Z"
+        traceId:
+          type: string
+          nullable: true
+          description: 请求追踪ID
+          example: "af9c5b1f0e2a4c1b"
+        data:
+          description: 业务数据（随具体接口定义）
+          nullable: true
+        meta:
+          description: 附加元信息（分页等，可选）
+          nullable: true
+          type: object
+          properties:
+            page: { type: integer, example: 1 }
+            size: { type: integer, example: 20 }
+            total: { type: integer, example: 135 }
+
+    # ========== 领域枚举/模型 ==========
+    AccountStatus:
+      type: string
+      enum: [ACTIVE, DISABLED]
+    Gender:
+      type: string
+      enum: [UNKNOWN, MALE, FEMALE]
+    Provider:
+      type: string
+      enum: [LOCAL, GOOGLE, FACEBOOK, APPLE, INSTAGRAM, TIKTOK]
+
+    UserAccount:
+      type: object
+      properties:
+        id: { type: integer, format: int64, example: 1001 }
+        username: { type: string, example: "eason" }
+        nickname: { type: string, example: "Eason" }
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: "eason@example.com"
+        phone:
+          type: string
+          nullable: true
+          example: "+86-13800138000"
+        status: { $ref: '#/components/schemas/AccountStatus' }
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-10-25T09:10:00.000Z"
+        createdAt: { type: string, format: date-time, example: "2025-10-20T10:00:00.000Z" }
+        updatedAt: { type: string, format: date-time, example: "2025-10-25T09:10:00.000Z" }
+      required: [id, username, nickname, status, createdAt, updatedAt]
+
+    UserProfile:
+      type: object
+      properties:
+        displayName: { type: string, nullable: true, example: "Eason" }
+        avatarUrl: { type: string, nullable: true, example: "https://cdn.example.com/avatar/1001.png" }
+        gender: { $ref: '#/components/schemas/Gender' }
+        birthday: { type: string, format: date, nullable: true, example: "1990-01-01" }
+        country: { type: string, nullable: true, example: "CN" }
+        province: { type: string, nullable: true, example: "Guangdong" }
+        city: { type: string, nullable: true, example: "Guangzhou" }
+        addressLine: { type: string, nullable: true, example: "Tianhe CBD" }
+        zipcode: { type: string, nullable: true, example: "510000" }
+        extra:
+          type: object
+          additionalProperties: true
+          example: { marketingOptIn: true }
+      required: [gender]
+
+    UserAuthBinding:
+      type: object
+      properties:
+        id: { type: integer, format: int64, example: 11 }
+        provider: { $ref: '#/components/schemas/Provider' }
+        issuer: { type: string, nullable: true, example: "https://accounts.google.com" }
+        providerUid: { type: string, example: "1132244556677889900" }
+        scope: { type: string, nullable: true, example: "openid email profile" }
+        lastLoginAt: { type: string, format: date-time, nullable: true, example: "2025-10-25T08:00:00.000Z" }
+        createdAt: { type: string, format: date-time, example: "2025-10-20T10:00:00.000Z" }
+        updatedAt: { type: string, format: date-time, example: "2025-10-25T08:00:00.000Z" }
+
+    Address:
+      type: object
+      properties:
+        id: { type: integer, format: int64, example: 123 }
+        userId: { type: integer, format: int64, example: 1001 }
+        receiverName: { type: string, example: "张三" }
+        phone: { type: string, example: "+81-90-1234-5678" }
+        country: { type: string, nullable: true, example: "JP" }
+        province: { type: string, nullable: true, example: "Tokyo" }
+        city: { type: string, nullable: true, example: "Shinjuku" }
+        district: { type: string, nullable: true, example: "Nishi-Shinjuku" }
+        addressLine1: { type: string, example: "1-1-1" }
+        addressLine2: { type: string, nullable: true, example: "Room 901" }
+        zipcode: { type: string, nullable: true, example: "160-0023" }
+        isDefault: { type: boolean, example: true }
+        createdAt: { type: string, format: date-time, example: "2025-10-20T10:00:00.000Z" }
+        updatedAt: { type: string, format: date-time, example: "2025-10-25T09:10:00.000Z" }
+      required: [id, userId, receiverName, phone, addressLine1, isDefault, createdAt, updatedAt]
+
+    # ======== Requests（附示例） ========
+    RegisterRequest:
+      type: object
+      required: [username, password, nickname]
+      properties:
+        username: { type: string, example: "eason" }
+        password: { type: string, format: password, minLength: 6, example: "Passw0rd!" }
+        nickname: { type: string, example: "Eason" }
+        email: { type: string, format: email, nullable: true, example: "eason@example.com" }
+        phone: { type: string, nullable: true, example: "+86-13800138000" }
+
+    VerifyEmailRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email: { type: string, format: email, example: "eason@example.com" }
+        code: { type: string, example: "893642" }
+
+    ResendActivationRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, example: "eason@example.com" }
+
+    LoginRequest:
+      type: object
+      required: [account, password]
+      properties:
+        account: { type: string, description: "用户名 / 邮箱 / 手机号其一", example: "eason" }
+        password: { type: string, format: password, example: "Passw0rd!" }
+
+    ForgotPasswordRequest:
+      type: object
+      required: [account]
+      properties:
+        account: { type: string, example: "eason@example.com" }
+
+    ResetPasswordRequest:
+      type: object
+      required: [account, code, newPassword]
+      properties:
+        account: { type: string, example: "eason@example.com" }
+        code: { type: string, description: "找回密码验证码", example: "317955" }
+        newPassword: { type: string, format: password, minLength: 6, example: "NewPassw0rd!" }
+
+    UpdateAccountRequest:
+      type: object
+      properties:
+        nickname: { type: string, example: "Eason Chen" }
+        phone: { type: string, nullable: true, example: "+81-80-0000-0000" }
+
+    ChangeEmailRequest:
+      type: object
+      required: [newEmail]
+      properties:
+        newEmail: { type: string, format: email, example: "new.eason@example.com" }
+
+    VerifyNewEmailRequest:
+      type: object
+      required: [newEmail, code]
+      properties:
+        newEmail: { type: string, format: email, example: "new.eason@example.com" }
+        code: { type: string, example: "556677" }
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName: { type: string, nullable: true, example: "Eason C." }
+        avatarUrl: { type: string, nullable: true, example: "https://cdn.example.com/avatar/1001.png" }
+        gender: { $ref: '#/components/schemas/Gender' }
+        birthday: { type: string, format: date, nullable: true, example: "1992-10-01" }
+        country: { type: string, nullable: true, example: "JP" }
+        province: { type: string, nullable: true, example: "Tokyo" }
+        city: { type: string, nullable: true, example: "Shinjuku" }
+        addressLine: { type: string, nullable: true, example: "1-1-1 Nishi-Shinjuku" }
+        zipcode: { type: string, nullable: true, example: "160-0023" }
+        extra:
+          type: object
+          additionalProperties: true
+          example: { language: "ja-JP" }
+
+    CreateAddressRequest:
+      type: object
+      required: [receiverName, phone, addressLine1]
+      properties:
+        receiverName: { type: string, example: "张三" }
+        phone: { type: string, example: "+81-90-1234-5678" }
+        country: { type: string, nullable: true, example: "JP" }
+        province: { type: string, nullable: true, example: "Tokyo" }
+        city: { type: string, nullable: true, example: "Shinjuku" }
+        district: { type: string, nullable: true, example: "Nishi-Shinjuku" }
+        addressLine1: { type: string, example: "1-1-1" }
+        addressLine2: { type: string, nullable: true, example: "Room 901" }
+        zipcode: { type: string, nullable: true, example: "160-0023" }
+        isDefault: { type: boolean, default: false, example: true }
+
+    UpdateAddressRequest:
+      type: object
+      properties:
+        receiverName: { type: string, example: "张三" }
+        phone: { type: string, example: "+81-90-1234-5678" }
+        country: { type: string, nullable: true, example: "JP" }
+        province: { type: string, nullable: true, example: "Tokyo" }
+        city: { type: string, nullable: true, example: "Shinjuku" }
+        district: { type: string, nullable: true, example: "Nishi-Shinjuku" }
+        addressLine1: { type: string, example: "1-1-1" }
+        addressLine2: { type: string, nullable: true, example: "Room 901" }
+        zipcode: { type: string, nullable: true, example: "160-0023" }
+        isDefault: { type: boolean, example: true }
+
+paths:
+    # =========================
+    # Users（仅读不需 CSRF；修改需 CSRF）
+    # =========================
+    /users/me:
+      get:
+        tags: [Users]
+        summary: 获取当前用户账户信息
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/UserAccount' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "OK"
+                  timestamp: "2025-10-26T06:34:00.000Z"
+                  data:
+                    id: 1001
+                    username: "eason"
+                    nickname: "Eason"
+                    email: "eason@example.com"
+                    status: "ACTIVE"
+          "401":
+            description: 未登录
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: false
+                  code: "UNAUTHORIZED"
+                  message: "Unauthorized"
+                  timestamp: "2025-10-26T06:34:00.000Z"
+                  data: null
+
+      patch:
+        tags: [Users]
+        summary: 修改当前用户账户信息（昵称、手机号等）
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UpdateAccountRequest' }
+              example:
+                nickname: "Eason Chen"
+                phone: "+81-80-0000-0000"
+        responses:
+          "200":
+            description: 修改成功
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/UserAccount' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "Profile updated"
+                  timestamp: "2025-10-26T06:34:30.000Z"
+                  data:
+                    id: 1001
+                    username: "eason"
+                    nickname: "Eason Chen"
+                    email: "eason@example.com"
+                    status: "ACTIVE"
+
+    /users/me/email/change:
+      post:
+        tags: [Users]
+        summary: 申请变更邮箱（向新邮箱发送验证码）
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChangeEmailRequest' }
+              example: { newEmail: "new.eason@example.com" }
+        responses:
+          "202":
+            description: 已发送验证码
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: true
+                  code: "ACCEPTED"
+                  message: "Verification code sent to new email"
+                  timestamp: "2025-10-26T06:35:00.000Z"
+                  data: null
+          "409":
+            description: 新邮箱已被占用
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: false
+                  code: "CONFLICT"
+                  message: "Email already in use"
+                  timestamp: "2025-10-26T06:35:00.000Z"
+                  data: null
+
+    /users/me/email/verify:
+      post:
+        tags: [Users]
+        summary: 验证新邮箱验证码并生效
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerifyNewEmailRequest' }
+              example: { newEmail: "new.eason@example.com", code: "556677" }
+        responses:
+          "200":
+            description: 已更新邮箱
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/UserAccount' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "Email updated"
+                  timestamp: "2025-10-26T06:35:20.000Z"
+                  data:
+                    id: 1001
+                    username: "eason"
+                    nickname: "Eason"
+                    email: "new.eason@example.com"
+                    status: "ACTIVE"
+          "422":
+            description: 验证码错误或过期
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: false
+                  code: "UNPROCESSABLE_ENTITY"
+                  message: "Invalid or expired code"
+                  timestamp: "2025-10-26T06:35:20.000Z"
+                  data: null
+
+    # =========================
+    # Profile
+    # =========================
+    /users/me/profile:
+      get:
+        tags: [Profile]
+        summary: 获取当前用户资料
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/UserProfile' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "OK"
+                  timestamp: "2025-10-26T06:36:00.000Z"
+                  data:
+                    displayName: "Eason C."
+                    avatarUrl: "https://cdn.example.com/avatar/1001.png"
+                    gender: "UNKNOWN"
+                    country: "JP"
+
+      patch:
+        tags: [Profile]
+        summary: 更新当前用户资料
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UpdateProfileRequest' }
+              example:
+                displayName: "Eason C."
+                avatarUrl: "https://cdn.example.com/avatar/1001.png"
+                gender: "MALE"
+                country: "JP"
+        responses:
+          "200":
+            description: 已更新
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/UserProfile' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "Profile updated"
+                  timestamp: "2025-10-26T06:36:30.000Z"
+                  data:
+                    displayName: "Eason C."
+                    avatarUrl: "https://cdn.example.com/avatar/1001.png"
+                    gender: "MALE"
+                    country: "JP"
+
+    # =========================
+    # Bindings（第三方映射）
+    # =========================
+    /users/me/bindings:
+      get:
+        tags: [Bindings]
+        summary: 查看当前用户的认证绑定列表
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items: { $ref: '#/components/schemas/UserAuthBinding' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "OK"
+                  timestamp: "2025-10-26T06:37:00.000Z"
+                  data:
+                    - id: 11
+                      provider: "GOOGLE"
+                      issuer: "https://accounts.google.com"
+                      providerUid: "1132..."
+                      scope: "openid email profile"
+
+    /users/me/bindings/{provider}/link:
+      post:
+        tags: [Bindings]
+        summary: 绑定第三方账号
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+          - $ref: '#/components/parameters/ProviderPath'
+        requestBody:
+          required: false
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authCode:
+                    type: string
+                    description: 当采用 code 交换的直连绑定流程时使用
+                    example: "4/0AfJohXn...abc"
+        responses:
+          "201":
+            description: 绑定成功
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/UserAuthBinding' }
+                example:
+                  success: true
+                  code: "CREATED"
+                  message: "Binding created"
+                  timestamp: "2025-10-26T06:37:30.000Z"
+                  data:
+                    id: 12
+                    provider: "GOOGLE"
+                    issuer: "https://accounts.google.com"
+                    providerUid: "1132..."
+          "409":
+            description: 该第三方账号已绑定其他用户
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: false
+                  code: "CONFLICT"
+                  message: "Provider account already bound"
+                  timestamp: "2025-10-26T06:37:30.000Z"
+                  data: null
+
+    /users/me/bindings/{provider}:
+      delete:
+        tags: [Bindings]
+        summary: 解绑第三方账号
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+          - $ref: '#/components/parameters/ProviderPath'
+        responses:
+          "200":
+            description: 已解绑
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "Binding removed"
+                  timestamp: "2025-10-26T06:38:00.000Z"
+                  data: null
+          "400":
+            description: 不允许解绑仅有的登录方式
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: false
+                  code: "BAD_REQUEST"
+                  message: "Cannot remove the only login method"
+                  timestamp: "2025-10-26T06:38:00.000Z"
+                  data: null
+
+    # =========================
+    # Addresses（地址）
+    # =========================
+    /users/me/addresses:
+      get:
+        tags: [Addresses]
+        summary: 列出当前用户的收货地址
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data:
+                          type: array
+                          items: { $ref: '#/components/schemas/Address' }
+                        meta:
+                          type: object
+                          properties:
+                            page: { type: integer, example: 1 }
+                            size: { type: integer, example: 20 }
+                            total: { type: integer, example: 2 }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "OK"
+                  timestamp: "2025-10-26T06:39:00.000Z"
+                  data:
+                    - id: 123
+                      receiverName: "张三"
+                      phone: "+81-90-1234-5678"
+                      addressLine1: "1-1-1"
+                      isDefault: true
+                    - id: 124
+                      receiverName: "李四"
+                      phone: "+81-90-9876-5432"
+                      addressLine1: "2-2-2"
+                      isDefault: false
+                  meta:
+                    page: 1
+                    size: 20
+                    total: 2
+
+      post:
+        tags: [Addresses]
+        summary: 新增收货地址
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/IdempotencyKey'
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateAddressRequest' }
+              example:
+                receiverName: "张三"
+                phone: "+81-90-1234-5678"
+                addressLine1: "1-1-1"
+                zipcode: "160-0023"
+                isDefault: true
+        responses:
+          "201":
+            description: 已创建
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/Address' }
+                example:
+                  success: true
+                  code: "CREATED"
+                  message: "Address created"
+                  timestamp: "2025-10-26T06:39:30.000Z"
+                  data:
+                    id: 125
+                    receiverName: "张三"
+                    phone: "+81-90-1234-5678"
+                    addressLine1: "1-1-1"
+                    isDefault: true
+
+    /users/me/addresses/{id}:
+      get:
+        tags: [Addresses]
+        summary: 获取收货地址详情
+        parameters:
+          - $ref: '#/components/parameters/AddressId'
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/Address' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "OK"
+                  timestamp: "2025-10-26T06:40:00.000Z"
+                  data:
+                    id: 123
+                    receiverName: "张三"
+                    phone: "+81-90-1234-5678"
+                    addressLine1: "1-1-1"
+                    isDefault: true
+          "404":
+            description: 未找到或不属于当前用户
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: false
+                  code: "NOT_FOUND"
+                  message: "Address not found"
+                  timestamp: "2025-10-26T06:40:00.000Z"
+                  data: null
+
+      patch:
+        tags: [Addresses]
+        summary: 修改收货地址
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/AddressId'
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UpdateAddressRequest' }
+              example:
+                receiverName: "张三"
+                phone: "+81-90-1111-2222"
+                isDefault: false
+        responses:
+          "200":
+            description: 已修改
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/ApiResponseBase'
+                    - type: object
+                      properties:
+                        data: { $ref: '#/components/schemas/Address' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "Address updated"
+                  timestamp: "2025-10-26T06:40:30.000Z"
+                  data:
+                    id: 123
+                    receiverName: "张三"
+                    phone: "+81-90-1111-2222"
+                    addressLine1: "1-1-1"
+                    isDefault: false
+
+      delete:
+        tags: [Addresses]
+        summary: 删除收货地址
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/AddressId'
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        responses:
+          "200":
+            description: 已删除
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "Address deleted"
+                  timestamp: "2025-10-26T06:41:00.000Z"
+                  data: null
+
+    /users/me/addresses/{id}/set-default:
+      post:
+        tags: [Addresses]
+        summary: 设为默认地址（保证同用户仅一个默认）
+        security:
+          - cookieAuth: []
+            csrfHeader: []
+            csrfCookie: []
+        parameters:
+          - $ref: '#/components/parameters/AddressId'
+          - $ref: '#/components/parameters/CsrfHeader'
+          - $ref: '#/components/parameters/CsrfCookie'
+        responses:
+          "200":
+            description: 已设为默认
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/ApiResponseBase' }
+                example:
+                  success: true
+                  code: "OK"
+                  message: "Default address set"
+                  timestamp: "2025-10-26T06:41:30.000Z"
+                  data: null
+
+还有一些我们之前一起编写的统一返回结构以及ApiCode，还有一些用户（user）领域的聚合根，实体，以及涉及的一些值对象和整个应用的全局异常处理器等：
+// shopping.international.api.resp.Result
+package shopping.international.api.resp;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+import shopping.international.types.enums.ApiCode;
+
+import java.time.LocalDateTime;
+
+/**
+ * 统一返回结构
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Accessors(chain = true)
+public class Result<T> {
+
+    /**
+     * 业务是否成功 (与 HTTP 状态码无关)
+     */
+    private boolean success;
+
+    /**
+     * 业务码
+     *
+     * @see ApiCode
+     */
+    private ApiCode code;
+
+    /**
+     * 人类可读的简短信息, 为空时默认取 ApiCode 的默认消息
+     */
+    private String message;
+
+    /**
+     * 服务器时间，统一格式 {@code yyyy-MM-dd HH:mm:ss}
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime timestamp;
+
+    /**
+     * 请求追踪ID (可由网关/拦截器注入)
+     */
+    private String traceId;
+
+    /**
+     * 业务数据体
+     */
+    private T data;
+
+    /**
+     * 附加信息 (如分页)
+     */
+    private Meta meta;
+
+    // ======= 工厂方法 =======
+
+    /**
+     * 创建一个表示成功的结果对象, 使用默认的业务码 {@link ApiCode#OK}, 没有响应信息, 并携带给定的数据
+     *
+     * @param <T>  业务数据类型
+     * @param data 要包含在结果中的业务数据
+     * @return 包含指定数据的成功 {@link Result} 对象
+     */
+    public static <T> Result<T> ok(T data) {
+        return base(true, ApiCode.OK, null, data, null);
+    }
+
+    /**
+     * 创建一个表示成功的结果对象, 使用默认的业务码 {@link ApiCode#OK} 和给定的消息
+     *
+     * @param <T>     业务数据类型
+     * @param message 自定义响应消息, 如果为空则使用 {@link ApiCode#OK} 的默认消息
+     * @return 包含指定消息且状态为成功的 {@link Result} 对象
+     */
+    public static <T> Result<T> ok(String message) {
+        return base(true, ApiCode.OK, message, null, null);
+    }
+
+    /**
+     * 创建一个表示成功的结果对象, 使用默认的业务码 {@link ApiCode#OK}, 并带有自定义消息和给定的数据
+     *
+     * @param <T>     业务数据类型
+     * @param data    要包含在结果中的业务数据
+     * @param message 自定义响应消息, 如果为空则使用 {@link ApiCode#OK} 的默认消息
+     * @return 包含指定数据和消息的成功 {@link Result} 对象
+     */
+    public static <T> Result<T> ok(T data, String message) {
+        return base(true, ApiCode.OK, message, data, null);
+    }
+
+    /**
+     * 创建一个表示成功的响应结果, 使用默认的业务码 {@link ApiCode#OK}, 没有响应信息, 并携带给定的数据和元信息
+     *
+     * @param <T>  业务数据类型
+     * @param data 要包含在结果中的业务数据
+     * @param meta 结果中附加的元信息, 包括分页等信息
+     * @return 包含指定数据和元信息的成功 {@link Result} 对象
+     */
+    public static <T> Result<T> ok(T data, Meta meta) {
+        return base(true, ApiCode.OK, null, data, meta);
+    }
+
+    /**
+     * 创建一个表示资源已创建的结果对象, 使用默认的业务码 {@link ApiCode#CREATED}, 没有响应信息, 并携带给定的数据
+     *
+     * @param <T>  业务数据类型
+     * @param data 要包含在结果中的业务数据
+     * @return 包含指定数据且状态为 {@link ApiCode#CREATED} 的 {@link Result} 对象
+     */
+    public static <T> Result<T> created(T data) {
+        return base(true, ApiCode.CREATED, null, data, null);
+    }
+
+    /**
+     * 创建一个表示请求已接受的结果对象, 使用默认的业务码 {@link ApiCode#ACCEPTED} 和给定的消息
+     *
+     * @param <T>     业务数据类型
+     * @param message 自定义响应消息, 如果为空则使用 {@link ApiCode#ACCEPTED} 的默认消息
+     * @return 包含指定消息且状态为 {@link ApiCode#ACCEPTED} 的 {@link Result} 对象
+     */
+    public static <T> Result<T> accepted(String message) {
+        return base(true, ApiCode.ACCEPTED, defaultIfBlank(message, ApiCode.ACCEPTED.getDefaultMessage()), null, null);
+    }
+
+    /**
+     * 创建一个表示重定向的结果对象, 使用默认的业务码 {@link ApiCode#FOUND}, 没有响应信息, 并携带给定的数据
+     *
+     * @param <T>  业务数据类型
+     * @param data 要包含在结果中的业务数据
+     * @return 包含指定数据且状态为 {@link ApiCode#FOUND} 的 {@link Result} 对象
+     */
+    public static <T> Result<T> found(T data) {
+        return base(true, ApiCode.FOUND, null, data, null);
+    }
+
+    /**
+     * 创建一个表示失败的结果对象, 使用给定的业务码和消息.
+     *
+     * @param <T>     业务数据类型
+     * @param code    业务码, 表示具体的错误类型
+     * @param message 自定义响应消息, 如果为空则使用 {@link ApiCode} 的默认消息
+     * @return 包含指定业务码和消息的失败 {@link Result} 对象
+     */
+    public static <T> Result<T> error(ApiCode code, String message) {
+        return base(false, code, defaultIfBlank(message, code.getDefaultMessage()), null, null);
+    }
+
+    /**
+     * 创建一个通用的响应结果对象, 可以灵活地指定业务是否成功, 业务码, 响应信息, 数据及附加元信息.
+     *
+     * @param <T>     业务数据类型
+     * @param success 标识业务是否成功的布尔值
+     * @param code    用于标识具体业务状态或错误类型的业务码
+     * @param message 响应给调用方的信息, 如果为空则使用业务码默认的消息
+     * @param data    将被包含在响应中的业务数据
+     * @param meta    结果中附加的元信息, 如分页等
+     * @return 包含了指定参数的 {@link Result} 对象
+     */
+    public static <T> Result<T> of(boolean success, ApiCode code, String message, T data, Meta meta) {
+        return base(success, code, message, data, meta);
+    }
+
+    // ======= 基础构造 =======
+
+    /**
+     * 基础构造方法
+     *
+     * @param success 业务是否成功
+     * @param code    业务码
+     * @param message 响应信息
+     * @param data    业务数据
+     * @param meta    附加元信息
+     * @param <T>     业务数据类型
+     * @return Result 对象
+     */
+    private static <T> Result<T> base(boolean success, ApiCode code, String message, T data, Meta meta) {
+        return Result.<T>builder()
+                .success(success)
+                .code(code)
+                .message(defaultIfBlank(message, code != null ? code.getDefaultMessage() : null))
+                .timestamp(LocalDateTime.now())
+                .data(data)
+                .meta(meta)
+                .build();
+    }
+
+    /**
+     * 如果给定的字符串 <code>str</code> 为 <code>null</code> 或者是空白, 则返回默认值 <code>def</code>, 否则返回 <code>str</code>.
+     *
+     * @param str          需要检查的字符串
+     * @param defaultValue 当 <code>str</code> 为 <code>null</code> 或空白时返回的默认字符串
+     * @return 如果 <code>str</code> 为 <code>null</code> 或空白, 返回 <code>def</code>; 否则返回 <code>str</code>
+     */
+    private static String defaultIfBlank(String str, String defaultValue) {
+        return (str == null || str.isBlank()) ? defaultValue : str;
+    }
+
+    // ======= 附加元信息 (分页等) =======
+
+    /**
+     * 附加元信息, 如分页信息等
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Meta {
+        /**
+         * 当前页码 (从 1 开始约定)
+         */
+        private Integer page;
+        /**
+         * 每页大小
+         */
+        private Integer size;
+        /**
+         * 总条目数
+         */
+        private Long total;
+    }
+}
+
+// shopping.international.app.handler.GlobalExceptionHandler
+package shopping.international.app.handler;
+
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import shopping.international.api.resp.Result;
+import shopping.international.types.exceptions.*;
+import shopping.international.types.enums.ApiCode;
+
+/**
+ * 全局异常处理器
+ *
+ * <p>职责:
+ * <ul>
+ *   <li>拦截系统内常见异常并统一返回 {@link Result}</li>
+ *   <li>根据异常类型设置合适的 HTTP 状态码与 {@link ApiCode}</li>
+ *   <li>使用 {@code Slf4j} 输出统一格式的错误日志, 日志中包含错误原因, 请求基本信息与可用的 traceId</li>
+ * </ul>
+ * </p>
+ *
+ * <p>HTTP 状态与业务码约定:
+ * <ul>
+ *   <li>{@link IllegalParamException} → 400 Bad Request / {@link ApiCode#BAD_REQUEST}</li>
+ *   <li>{@link AppException} → 500 Internal Server Error / {@link ApiCode#INTERNAL_SERVER_ERROR}</li>
+ *   <li>{@link RuntimeException} (兜底) → 500 Internal Server Error / {@link ApiCode#INTERNAL_SERVER_ERROR}</li>
+ * </ul>
+ * </p>
+ */
+@Slf4j
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@RestControllerAdvice
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    /**
+     * traceId 的请求头名称, 可根据网关/链路追踪系统调整
+     */
+    public static final String TRACE_ID_HEADER = "X-Trace-Id";
+
+    /**
+     * 处理用户账号异常异常: 返回 401
+     *
+     * @param ex      抛出的 {@link AccountException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 401
+     */
+    @ExceptionHandler(AccountException.class)
+    public ResponseEntity<Result<Void>> handleIllegalParam(final AccountException ex,
+                                                           final HttpServletRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.UNAUTHORIZED,
+                HttpStatus.UNAUTHORIZED.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request));
+
+        return respond(HttpStatus.UNAUTHORIZED, ApiCode.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    /**
+     * 处理验证码不合法异常: 返回 422
+     *
+     * @param ex      抛出的 {@link VerificationCodeInvalidException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 422
+     */
+    @ExceptionHandler(VerificationCodeInvalidException.class)
+    public ResponseEntity<Result<Void>> handleIllegalParam(final VerificationCodeInvalidException ex,
+                                                           final HttpServletRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.UNPROCESSABLE_ENTITY,
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request));
+
+        return respond(HttpStatus.UNPROCESSABLE_ENTITY, ApiCode.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
+    /**
+     * 处理冲突异常: 返回 409
+     *
+     * @param ex      抛出的 {@link ConflictException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 409
+     */
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Result<Void>> handleIllegalParam(final ConflictException ex,
+                                                           final HttpServletRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.CONFLICT,
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request));
+
+        return respond(HttpStatus.CONFLICT, ApiCode.CONFLICT, ex.getMessage(), request);
+    }
+
+
+    /**
+     * 处理参数错误异常: 返回 400
+     *
+     * @param ex      抛出的 {@link IllegalParamException} 或 {@link RefreshTokenInvalidException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 400
+     */
+    @ExceptionHandler({IllegalParamException.class, RefreshTokenInvalidException.class})
+    public ResponseEntity<Result<Void>> handleIllegalParam(final Exception ex,
+                                                           final HttpServletRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.BAD_REQUEST,
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request));
+
+        return respond(HttpStatus.BAD_REQUEST, ApiCode.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    /**
+     * 处理系统内自定义异常: 返回 500
+     *
+     * @param ex      抛出的 {@link AppException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 500
+     */
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<Result<Void>> handleAppException(final AppException ex,
+                                                           final HttpServletRequest request) {
+        // 系统异常打印堆栈, 便于排查
+        log.error(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.INTERNAL_SERVER_ERROR,
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request),
+                ex);
+
+        return respond(HttpStatus.INTERNAL_SERVER_ERROR, ApiCode.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
+    }
+
+    /**
+     * 处理未显式捕获的运行时异常 (兜底): 返回 500
+     *
+     * @param ex      抛出的 {@link RuntimeException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 500
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Result<Void>> handleRuntimeException(final RuntimeException ex,
+                                                               final HttpServletRequest request) {
+        log.error(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.INTERNAL_SERVER_ERROR,
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request),
+                ex);
+
+        return respond(HttpStatus.INTERNAL_SERVER_ERROR, ApiCode.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
+    }
+
+    // ===================== 私有工具方法 =====================
+
+    /**
+     * 构造统一的日志格式字符串
+     *
+     * @return 占位符格式: type, code, status, message, uri, method, remote, traceId
+     */
+    private String buildLogFormat() {
+        return "[EXCEPTION] type={}, code={}, status={}, message=\"{}\", uri={}, method={}, remote={}, traceId={}";
+    }
+
+    /**
+     * 组装统一返回结构并附带 HTTP 状态码
+     *
+     * @param status  HTTP 状态码
+     * @param code    业务码 (与统一返回结构中的 code 一致)
+     * @param message 错误消息 (优先使用异常 message)
+     * @param request 当前请求 (用于提取 traceId)
+     * @return {@link ResponseEntity} 包裹的 {@link Result}
+     */
+    private ResponseEntity<Result<Void>> respond(final HttpStatus status,
+                                                 final ApiCode code,
+                                                 final String message,
+                                                 final HttpServletRequest request) {
+        Result<Void> body = Result.<Void>error(code, message)
+                .setTraceId(resolveTraceId(request));
+        return ResponseEntity.status(status).body(body);
+    }
+
+    /**
+     * 从请求中解析 traceId
+     * 优先取请求头 {@link #TRACE_ID_HEADER}, 可扩展为从 MDC 或 request attribute 获取
+     *
+     * @param request 当前请求
+     * @return traceId 字符串, 可能为 null
+     */
+    private String resolveTraceId(final HttpServletRequest request) {
+        if (request == null)
+            return null;
+        String fromHeader = request.getHeader(TRACE_ID_HEADER);
+        if (fromHeader != null && !fromHeader.isBlank())
+            return fromHeader;
+
+        Object attr = request.getAttribute("traceId");
+        return attr == null ? null : String.valueOf(attr);
+    }
+
+    /**
+     * 处理缺少 Servlet 请求参数的异常, 返回 400 错误
+     *
+     * @param ex 抛出的 {@link MissingServletRequestParameterException} 异常
+     * @param headers 响应头, 通常用于设置额外的 HTTP 头信息
+     * @param status HTTP 状态码, 对于此类异常固定为 400 (Bad Request)
+     * @param request 当前 Web 请求, 用于获取请求相关信息如 HTTP 方法等
+     * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 400 状态码
+     */
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+                                                                          @NotNull HttpHeaders headers,
+                                                                          @NotNull HttpStatusCode status,
+                                                                          @NotNull WebRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.BAD_REQUEST,
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                null,
+                ((ServletWebRequest) request).getHttpMethod(),
+                null,
+                resolveTraceId(null));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Result.<Void>error(ApiCode.BAD_REQUEST, ex.getMessage()));
+    }
+}
+
+// shopping.international.domain.model.aggregate.user.User
+package shopping.international.domain.model.aggregate.user;
+
+import lombok.Getter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
+import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.domain.model.entity.user.AuthBinding;
+import shopping.international.domain.model.entity.user.UserAddress;
+import shopping.international.domain.model.enums.user.AccountStatus;
+import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.vo.user.*;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 用户聚合根, 对应 {@code user_account} 为主表, 并聚合:
+ * <ul>
+ *     <li>认证映射 {@code user_auth, 1:N}</li>
+ *     <li>资料 {@code user_profile, 1:1, 建模为值对象}</li>
+ *     <li>收货地址 {@code user_address, 1:N}</li>
+ * </ul>
+ *
+ * <p>聚合职责: </p>
+ * <ul>
+ *     <li>维护账户不变式: 用户名、昵称、邮箱/手机格式, 状态切换 (激活/禁用)</li>
+ *     <li>维护绑定不变式: 同一用户至少有一种登录方式；同 provider 唯一；issuer+providerUid 唯一</li>
+ *     <li>维护地址不变式: 同一用户仅允许一个默认地址</li>
+ * </ul>
+ */
+@Getter
+@ToString
+@Accessors(chain = true)
+public class User {
+    // ========== 标识与账户主信息 ==========
+    /**
+     * 主键ID (可为 null 表示未持久化)
+     */
+    private Long id;
+    /**
+     * 用户名 (登录名, 唯一)
+     */
+    private Username username;
+    /**
+     * 昵称/显示名
+     */
+    private Nickname nickname;
+    /**
+     * 邮箱 (可空)
+     */
+    private EmailAddress email;
+    /**
+     * 手机号 (可空)
+     */
+    private PhoneNumber phone;
+    /**
+     * 账户状态 (默认 {@link AccountStatus#DISABLED DISABLED})
+     */
+    private AccountStatus status;
+    /**
+     * 最近登录时间 (可空)
+     */
+    private LocalDateTime lastLoginAt;
+    /**
+     * 软删除标记
+     */
+    private boolean deleted;
+    /**
+     * 创建时间 (快照)
+     */
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间 (快照)
+     */
+    private LocalDateTime updatedAt;
+
+    // ========== 聚合内对象 ==========
+    /**
+     * 认证映射列表 (LOCAL/OAuth2)
+     */
+    private final List<AuthBinding> bindingList = new ArrayList<>();
+    /**
+     * 用户资料 (值对象, 1:1)
+     */
+    private UserProfile profile;
+    /**
+     * 收货地址 (1:N)
+     */
+    private final List<UserAddress> addressList = new ArrayList<>();
+
+    // ========== 构造与工厂 ==========
+
+    /**
+     * 用户实体的私有构造方法, 用于防止外部直接实例化
+     * <p>用户实体应当通过工厂方法或静态方法创建</p>
+     */
+    private User() {
+    }
+
+    /**
+     * 用户实体的私有构造方法, 用于防止外部直接实例化
+     * <p>用户实体应当通过工厂方法或静态方法创建</p>
+     *
+     * @param id          用户唯一标识符
+     * @param username    用户名, 必须非空
+     * @param nickname    昵称, 必须非空
+     * @param email       邮箱地址, 可为空
+     * @param phone       手机号码, 可为空
+     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#DISABLED DISABLED}
+     * @param lastLoginAt 上次登录时间, 可为空
+     * @param deleted     是否已删除 (软删除标记), 默认为 false
+     * @param createdAt   创建时间, 可为空
+     * @param updatedAt   更新时间, 可为空
+     * @param profile     用户资料, 如果为 null, 默认设置为 UserProfile.empty()
+     */
+    private User(Long id, Username username, Nickname nickname, EmailAddress email, PhoneNumber phone,
+                 AccountStatus status, LocalDateTime lastLoginAt, boolean deleted, LocalDateTime createdAt,
+                 LocalDateTime updatedAt, UserProfile profile) {
+        requireNotNull(username, "用户名不能为空");
+        requireNotNull(nickname, "昵称不能为空");
+        this.id = id;
+        this.username = username;
+        this.nickname = nickname;
+        this.email = email;
+        this.phone = phone;
+        this.status = status == null ? AccountStatus.DISABLED : status;
+        this.lastLoginAt = lastLoginAt;
+        this.deleted = deleted;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.profile = profile == null ? UserProfile.empty() : profile;
+    }
+
+    /**
+     * 注册工厂, 创建一个新用户 (DISABLED), 并附带本地账号绑定
+     *
+     * @param username          用户名
+     * @param nickname          昵称
+     * @param email             邮箱 (可空)
+     * @param phone             手机 (可空)
+     * @param localPasswordHash 本地登录密码哈希
+     * @return 新的聚合根实例
+     */
+    public static User register(Username username, Nickname nickname, EmailAddress email, PhoneNumber phone, String localPasswordHash) {
+        // 创建新用户
+        User user = new User(null, username, nickname, email, phone, AccountStatus.DISABLED, null,
+                false, LocalDateTime.now(), LocalDateTime.now(), UserProfile.empty());
+        // 绑定 LOCAL 登录方式
+        user.addBinding(AuthBinding.local(localPasswordHash));
+        return user;
+    }
+
+    /**
+     * 使用OAuth认证信息注册新用户
+     *
+     * @param username 用户名
+     * @param nickname 昵称
+     * @param email 电子邮件地址
+     * @param phone 手机号码
+     * @param oauthBinding OAuth绑定信息, 包括了第三方平台的用户标识等数据
+     * @return 注册成功后的用户对象, 包含了通过OAuth获得的基本信息及状态
+     */
+    public static User registerByOAuth(Username username, Nickname nickname, EmailAddress email, PhoneNumber phone, AuthBinding oauthBinding) {
+        User user = new User(null, username, nickname, email, phone, AccountStatus.ACTIVE, null,
+                false, LocalDateTime.now(), LocalDateTime.now(), UserProfile.empty());
+        user.addBinding(oauthBinding);
+        return user;
+    }
+
+    /**
+     * 从持久化层重建 {@link  User} 聚合 (供仓储使用)
+     *
+     * @param id          用户唯一标识符
+     * @param username    用户名, 必须非空
+     * @param nickname    昵称, 必须非空
+     * @param email       邮箱地址, 可为空
+     * @param phone       手机号码, 可为空
+     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#DISABLED DISABLED}
+     * @param lastLoginAt 上次登录时间, 可为空
+     * @param deleted     是否已删除 (软删除标记), 默认为 false
+     * @param createdAt   创建时间, 可为空
+     * @param updatedAt   更新时间, 可为空
+     * @param profile     用户资料, 如果为 null, 默认设置为空资料 {@link UserProfile#empty()}
+     * @param bindings    认证绑定列表, 可为空
+     * @param addresses   用户地址列表, 可为空
+     * @return 重建后的 User 对象
+     */
+    public static User reconstitute(Long id, Username username, Nickname nickname, EmailAddress email, PhoneNumber phone,
+                                    AccountStatus status, LocalDateTime lastLoginAt, boolean deleted,
+                                    LocalDateTime createdAt, LocalDateTime updatedAt, UserProfile profile,
+                                    List<AuthBinding> bindings, List<UserAddress> addresses) {
+        User user = new User(id, username, nickname, email, phone, status, lastLoginAt, deleted, createdAt, updatedAt, profile);
+        if (bindings != null)
+            user.bindingList.addAll(bindings);
+        if (addresses != null) {
+            user.addressList.addAll(addresses);
+            user.ensureSingleDefaultAddress();
+        }
+        user.ensureHasAtLeastOneLoginMethod();
+        return user;
+    }
+
+    // ========== 账户行为 ==========
+
+    /**
+     * 幂等激活账户 (从 DISABLED → ACTIVE)
+     */
+    public void activate() {
+        if (this.status == AccountStatus.ACTIVE)
+            return;
+        this.status = AccountStatus.ACTIVE;
+    }
+
+    /**
+     * 幂等禁用账户 (从 ACTIVE → DISABLED)
+     */
+    public void disable() {
+        if (this.status == AccountStatus.DISABLED)
+            return;
+        this.status = AccountStatus.DISABLED;
+    }
+
+    /**
+     * 修改用户的昵称
+     *
+     * @param newNickname 新的昵称, 必须非空
+     * @throws IllegalParamException 如果 <code>newNickname</code> 为 <code>null</code>
+     */
+    public void changeNickname(Nickname newNickname) {
+        requireNotNull(newNickname, "昵称不能为空");
+        this.nickname = newNickname;
+    }
+
+    /**
+     * 修改用户的邮箱地址 (需由应用层完成验证码校验后再调用)
+     *
+     * <p>允许将邮箱设置为 <code>null</code>, 以清空邮箱信息</p>
+     *
+     * @param newEmail 新的邮箱地址, 可以为 <code>null</code>
+     */
+    public void changeEmail(EmailAddress newEmail) {
+        this.email = newEmail; // 可 null → 允许清空
+    }
+
+    /**
+     * 修改用户的手机号码 (需由应用层完成验证码校验后再调用)
+     *
+     * @param newPhone 新的 {@link PhoneNumber} 实例, 用于更新用户当前的手机号码
+     */
+    public void changePhone(PhoneNumber newPhone) {
+        this.phone = newPhone;
+    }
+
+    /**
+     * 记录用户的登录信息, 更新最后一次登录时间, 并根据认证提供者更新相应的认证绑定的登录时间
+     *
+     * @param authProvider 用于此次登录的认证提供者, 可以为 null
+     * @param loginTime    用户登录的具体时间, 如果为 null 则使用当前时间
+     */
+    public void recordLogin(AuthProvider authProvider, LocalDateTime loginTime) {
+        LocalDateTime ts = loginTime == null ? LocalDateTime.now() : loginTime;
+        this.lastLoginAt = ts;
+        if (authProvider != null) {
+            this.bindingList.stream()
+                    .filter(binding -> binding.getProvider() == authProvider)
+                    .findFirst()
+                    .ifPresent(binding -> binding.recordLogin(ts));
+        }
+    }
+
+    // ========== 绑定行为 ==========
+
+    /**
+     * 增加一个认证绑定
+     * <ul>
+     *     <li>同 provider 不得重复 (LOCAL 唯一)</li>
+     *     <li>OAuth2: issuer + providerUid 在本聚合内唯一</li>
+     * </ul>
+     */
+    public void addBinding(AuthBinding binding) {
+        requireNotNull(binding, "绑定信息不能为空");
+        // 从认证绑定列表中查找同 provider 的绑定
+        boolean providerExists = bindingList.stream()
+                .anyMatch(b -> b.getProvider() == binding.getProvider());
+        // 如果需要添加的认证绑定为 LOCAL, 且已存在 LOCAL 绑定, 则抛出异常
+        if (providerExists && binding.getProvider() == AuthProvider.LOCAL)
+            throw new IllegalParamException("LOCAL 认证绑定已经存在");
+
+        // 如果需要添加的认证绑定为 OAuth2, 且已存在相同 issuer+providerUid 绑定, 则抛出异常
+        if (binding.getProvider() != AuthProvider.LOCAL) {
+            boolean isDuplicate = bindingList.stream()
+                    .anyMatch(b -> Objects.equals(b.getIssuer(), binding.getIssuer()) && Objects.equals(b.getProviderUid(), binding.getProviderUid()));
+            if (isDuplicate)
+                throw new IllegalParamException("OAuth2 认证绑定已存在, (issuer, providerUid) 重复");
+        }
+        this.bindingList.add(binding);
+        ensureHasAtLeastOneLoginMethod();
+    }
+
+    /**
+     * 从用户认证绑定列表中移除指定的认证提供者绑定
+     *
+     * <p>不允许解绑唯一的登录方式</p>
+     *
+     * @param provider 要移除的认证提供者的类型, 如 {@code LOCAL, GOOGLE} 等
+     * @throws IllegalParamException 如果移除所有给定类型的认证绑定之后, 用户没有任何可用的登录方式
+     */
+    public void removeBinding(AuthProvider provider) {
+        long remainIfRemoved = bindingList.stream()
+                .filter(binding -> binding.getProvider() != provider)
+                .count();
+        if (remainIfRemoved == 0)
+            throw new IllegalParamException("不允许解绑最后一个登录方式");
+        bindingList.removeIf(binding -> binding.getProvider() == provider);
+    }
+
+
+    /**
+     * 修改用户的本地密码哈希
+     *
+     * @param newPasswordHash 新的密码哈希, 必须非空
+     * @throws IllegalParamException 如果找不到 LOCAL 绑定
+     */
+    public void changeLocalPassword(String newPasswordHash) {
+        AuthBinding localBinding = bindingList.stream()
+                .filter(b -> b.getProvider() == AuthProvider.LOCAL)
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("不存在 LOCAL 绑定"));
+        localBinding.changeLocalPassword(newPasswordHash);
+    }
+
+    // ========== 地址行为 ==========
+
+    /**
+     * 向用户的地址列表中添加一个新的地址
+     *
+     * @param address 待添加的 {@link UserAddress} 实例, 必须非空 如果该地址被设置为默认地址, 则会将用户现有的所有其他默认地址取消
+     */
+    public void addAddress(UserAddress address) {
+        requireNotNull(address, "地址信息不能为空");
+        if (address.isDefaultAddress())
+            // 置为唯一默认
+            addressList.forEach(a -> a.setDefault(false));
+        addressList.add(address);
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 更新用户的指定地址信息 (按 id 定位), 包括收件人姓名、电话号码、国家、省份、城市、区县、详细地址以及邮政编码
+     * 如果设置了 <code>makeDefault</code> 为 <code>true</code>, 则会将该地址设为默认地址, 并取消其他所有地址的默认状态
+     *
+     * @param addressId    地址的唯一标识符
+     * @param receiverName 收件人姓名
+     * @param phone        手机号, 必须符合 E.164 格式
+     * @param country      国家名称
+     * @param province     省份或州名
+     * @param city         城市名
+     * @param district     区县名
+     * @param addressLine1 第一行地址
+     * @param addressLine2 第二行地址 (可选)
+     * @param zipcode      邮政编码
+     * @param makeDefault  是否将此地址设为默认地址
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 或手机号格式不正确时抛出
+     */
+    public void updateAddress(Long addressId, String receiverName, PhoneNumber phone, String country, String province,
+                              String city, String district, String addressLine1, String addressLine2, String zipcode,
+                              Boolean makeDefault) {
+        UserAddress address = findAddress(addressId);
+        address.update(receiverName, phone, country, province, city, district, addressLine1, addressLine2, zipcode);
+        if (Boolean.TRUE.equals(makeDefault)) {
+            addressList.forEach(a -> a.setDefault(false));
+            address.setDefault(true);
+        }
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 从用户的地址列表中移除指定的地址 (按 id 定位)
+     *
+     * @param addressId 待移除地址的唯一标识符
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 则抛出此异常
+     */
+    public void removeAddress(Long addressId) {
+        boolean removed = addressList.removeIf(address -> Objects.equals(address.getId(), addressId));
+        if (!removed)
+            throw new IllegalParamException("ID 为: " + addressId + " 的地址不存在");
+        // 默认地址唯一性仍成立
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 将指定的地址设置为用户的默认地址
+     *
+     * <p>该方法首先查找给定ID对应的地址, 然后将用户的所有其他地址的默认状态取消, 最后将查找到的地址设为默认</p>
+     *
+     * @param addressId 待设置为默认地址的唯一标识符
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 则抛出此异常
+     */
+    public void setDefaultAddress(Long addressId) {
+        UserAddress address = findAddress(addressId);
+        addressList.forEach(a -> a.setDefault(false));
+        address.setDefault(true);
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 获取用户的默认地址
+     *
+     * @return 返回找到的默认 {@link UserAddress} 对象, 如果没有默认地址则返回 null
+     */
+    public UserAddress getDefaultAddress() {
+        return addressList.stream().filter(UserAddress::isDefaultAddress).findFirst().orElse(null);
+    }
+
+    /**
+     * 获取用户地址列表的只读快照
+     *
+     * @return 返回一个不可修改的 {@link UserAddress} 列表, 代表当前用户的地址信息快照
+     */
+    public List<UserAddress> getAddressesSnapshot() {
+        return Collections.unmodifiableList(addressList);
+    }
+
+    /**
+     * 获取用户认证绑定列表的只读快照
+     *
+     * @return 返回一个不可修改的 {@link AuthBinding} 列表, 代表当前用户的认证绑定信息快照
+     */
+    public List<AuthBinding> getBindingsSnapshot() {
+        return Collections.unmodifiableList(bindingList);
+    }
+
+    // ========== 资料行为 ==========
+
+    /**
+     * 更新用户资料信息
+     *
+     * <p>此方法允许更新用户的个人资料, 包括但不限于头像、简介等. 如果传入的 {@code newProfile} 为 {@code null},
+     * 则会将用户的资料设置为空资料 ({@link UserProfile#empty()})</p>
+     *
+     * @param newProfile 新的用户资料实例, 可以为 {@code null}
+     */
+    public void updateProfile(UserProfile newProfile) {
+        this.profile = Objects.requireNonNullElseGet(newProfile, UserProfile::empty);
+    }
+
+    /**
+     * 修改用户的显示名称
+     *
+     * <p>此方法允许用户更新其个人资料中的显示名称, 如果新的显示名称为空字符串, 则会抛出 {@link IllegalParamException} 异常</p>
+     *
+     * @param name 新的显示名称
+     * @throws IllegalParamException 如果新的显示名称为空字符串
+     */
+    public void changeDisplayName(String name) {
+        this.profile = this.profile.withDisplayName(name);
+    }
+
+    // ========== 内部工具 ==========
+
+    /**
+     * 根据给定的地址ID查找用户的特定地址信息
+     *
+     * @param id 地址的唯一标识符, 用于定位用户地址列表中的特定地址
+     * @return 返回找到的 {@link UserAddress} 对象 如果没有找到对应的地址, 则抛出异常
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 则抛出此异常
+     */
+    private UserAddress findAddress(Long id) {
+        return addressList.stream()
+                .filter(address -> Objects.equals(address.getId(), id))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("ID 为: " + id + " 的地址不存在"));
+    }
+
+    /**
+     * 确保存在至少一种登录方式
+     */
+    private void ensureHasAtLeastOneLoginMethod() {
+        if (bindingList.isEmpty())
+            throw new IllegalParamException("用户必须绑定至少一种登录方式");
+    }
+
+    /**
+     * 确保用户地址列表中只有一个默认地址
+     * <p>
+     * 如果发现存在多个默认地址, 则保留第一个默认地址, 并将其他地址的默认状态取消
+     * 若没有或只有一个默认地址, 则直接返回不做任何修改
+     */
+    private void ensureSingleDefaultAddress() {
+        List<UserAddress> defaultAddressList = addressList.stream()
+                .filter(UserAddress::isDefaultAddress)
+                .toList();
+        if (defaultAddressList.size() <= 1)
+            return;
+        // 保留最早的那个默认, 其他置为非默认
+        boolean first = true;
+        for (UserAddress address : defaultAddressList) {
+            if (first) {
+                first = false;
+                continue;
+            }
+            address.setDefault(false);
+        }
+    }
+
+    // ========== 便捷方法 (可供仓储等调用) ==========
+
+    /**
+     * 禁止删除: 使用软删除标记
+     */
+    public void softDelete() {
+        this.deleted = true;
+        this.status = AccountStatus.DISABLED;
+    }
+
+    /**
+     * 恢复软删除
+     */
+    public void restore() {
+        this.deleted = false;
+    }
+}
+
+// shopping.international.domain.model.entity.user.AuthBinding
+package shopping.international.domain.model.entity.user;
+
+import jakarta.annotation.Nullable;
+import lombok.*;
+import lombok.experimental.Accessors;
+import shopping.international.domain.model.aggregate.user.User;
+import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.vo.user.EncryptedSecret;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import java.time.LocalDateTime;
+
+import static shopping.international.types.utils.FieldValidateUtils.*;
+
+/**
+ * 认证映射实体 (对应表 {@code user_auth}), 用户的身份验证绑定信息, 归属 {@link User} 聚合
+ *
+ * @apiNote 在实体内不保存 {@code userId} 字段, 避免与聚合根重复, 持久化层映射时由聚合根的 {@code id} 参与
+ */
+@Getter
+@ToString(exclude = {"accessToken", "refreshToken", "passwordHash"})
+@EqualsAndHashCode(of = "id")
+@NoArgsConstructor
+@AllArgsConstructor
+@Accessors(chain = true)
+public class AuthBinding {
+    /**
+     * 主键ID (可为 null, 表示尚未持久化)
+     */
+    private Long id;
+    /**
+     * 提供方
+     *
+     * @see AuthProvider
+     */
+    private AuthProvider provider;
+    /**
+     * 发行方 (OIDC iss), LOCAL 可为 null
+     */
+    private String issuer;
+    /**
+     * 提供方用户唯一ID (OIDC sub/openid), LOCAL 可为 null
+     */
+    private String providerUid;
+    /**
+     * 本地密码哈希 (仅 provider=LOCAL 有值)
+     */
+    private String passwordHash;
+    /**
+     * 访问令牌 (密文/加密后使用对象保存)
+     *
+     * @see EncryptedSecret
+     */
+    private EncryptedSecret accessToken;
+    /**
+     * 刷新令牌 (密文/加密后使用对象保存)
+     *
+     * @see EncryptedSecret
+     */
+    private EncryptedSecret refreshToken;
+    /**
+     * 访问令牌过期时间
+     */
+    private LocalDateTime expiresAt;
+    /**
+     * 授权范围
+     */
+    private String scope;
+    /**
+     * 角色
+     */
+    private String role;
+    /**
+     * 该通道最近登录时间
+     */
+    private LocalDateTime lastLoginAt;
+    /**
+     * 创建时间 (快照)
+     */
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间 (快照)
+     */
+    private LocalDateTime updatedAt;
+
+    /**
+     * 创建一个基于本地认证的 {@link AuthBinding} 实例
+     *
+     * @param passwordHash 用户的密码哈希值, 不能为空或空白
+     * @return 新创建的 {@link AuthBinding} 实例, 使用本地认证方式
+     * @throws IllegalParamException 如果提供的 <code>passwordHash</code> 参数为空或仅包含空白字符
+     */
+    public static AuthBinding local(String passwordHash) {
+        requireNotBlank(passwordHash, "密码哈希不能为空");
+        return new AuthBinding(null, AuthProvider.LOCAL, null, null, passwordHash,
+                null, null, null, null, "USER", null,
+                null, null);
+    }
+
+    /**
+     * 创建一个基于 OAuth 2.0 认证的 {@link AuthBinding} 实例
+     *
+     * @param provider     OAuth 2.0 提供方, 必须为有效的第三方认证提供方, 不能为 <code>null</code> 或 <code>AuthProvider.LOCAL</code>
+     * @param issuer       发行者标识, 不能为空或空白
+     * @param providerUid  提供方用户唯一标识, 不能为空或空白
+     * @param accessToken  访问令牌 (基础设施层加密落库)
+     * @param refreshToken 刷新令牌 (基础设施层加密落库)
+     * @param expiresAt    访问令牌过期时间 (可空)
+     * @param scope        授权范围 (逗号或空格分隔，存储前可归一化)
+     * @return 新创建的 {@link AuthBinding} 实例, 使用指定的 OAuth 2.0 认证方式
+     * @throws IllegalParamException 如果提供的参数不符合要求
+     */
+    public static AuthBinding oauth(AuthProvider provider, String issuer, String providerUid, String accessToken,
+                                    @Nullable String refreshToken, LocalDateTime expiresAt, String scope) {
+        require(provider != null && provider != AuthProvider.LOCAL, "提供方必须为 OAuth 2.0 提供方");
+        requireNotBlank(issuer, "Issuer不能为空");
+        requireNotBlank(providerUid, "ProviderUid不能为空");
+        return new AuthBinding(
+                null, provider, issuer, providerUid, null, EncryptedSecret.of(accessToken.getBytes()),
+                refreshToken == null? null : EncryptedSecret.of(refreshToken.getBytes()),
+                expiresAt, scope, "USER", null, null, null
+        );
+    }
+
+    /**
+     * 更新当前认证绑定的访问令牌、刷新令牌及其有效期和作用域
+     *
+     * @param accessToken  新的加密访问令牌, 不能为空
+     * @param refreshToken 新的加密刷新令牌, 不能为空
+     * @param expiresAt    访问令牌的有效期, 不能为空
+     * @param scope        令牌的作用域, 不能为空或空白
+     * @throws IllegalParamException 如果当前认证提供方为 LOCAL 或者提供的参数为空或不合法
+     */
+    public void updateTokens(EncryptedSecret accessToken, EncryptedSecret refreshToken, LocalDateTime expiresAt, String scope) {
+        requireNotNull(accessToken, "访问令牌不能为空");
+        requireNotNull(refreshToken, "刷新令牌不能为空");
+        requireNotNull(expiresAt, "有效期不能为空");
+        requireNotBlank(scope, "令牌作用域不能为空");
+        require(provider != AuthProvider.LOCAL, "LOCAL 绑定无需更新令牌");
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.expiresAt = expiresAt;
+        this.scope = scope;
+    }
+
+    /**
+     * 记录用户的最后一次登录时间 (使用当前时间)
+     */
+    public void recordLogin() {
+        recordLogin(null);
+    }
+
+    /**
+     * 记录用户的最后一次登录时间
+     *
+     * @param now 用户登录的具体时间, 如果为 null 则使用当前时间
+     */
+    public void recordLogin(LocalDateTime now) {
+        this.lastLoginAt = now == null ? LocalDateTime.now() : now;
+    }
+
+    /**
+     * 修改当前认证绑定的本地密码哈希值。
+     *
+     * @param newPasswordHash 新的密码哈希值, 不能为空
+     * @throws IllegalParamException 如果提供的 <code>newPasswordHash</code> 参数为空或仅包含空白字符,
+     *                               或者当前认证提供方不是 <code>AuthProvider.LOCAL</code>
+     */
+    public void changeLocalPassword(String newPasswordHash) {
+        requireNotNull(newPasswordHash, "密码哈希不能为空");
+        require(provider == AuthProvider.LOCAL, "只有 LOCAL 绑定才有密码哈希");
+        this.passwordHash = newPasswordHash;
+    }
+}
+
+// shopping.international.domain.model.entity.user.UserAddress
+package shopping.international.domain.model.entity.user;
+
+import lombok.*;
+import lombok.experimental.Accessors;
+import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.domain.model.vo.user.PhoneNumber;
+
+import java.time.LocalDateTime;
+
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 用户收货地址实体 (对应表 user_address), 归属 User 聚合
+ * <p>负责维护自身可修改字段与基本校验；默认地址唯一性的约束由聚合根 User 负责</p>
+ */
+@Getter
+@ToString
+@EqualsAndHashCode(of = "id")
+@NoArgsConstructor
+@AllArgsConstructor
+@Accessors(chain = true)
+public class UserAddress {
+    /**
+     * 主键ID (可为 null, 表示尚未持久化)
+     */
+    private Long id;
+    /**
+     * 收货人
+     */
+    private String receiverName;
+    /**
+     * 联系电话 (值对象)
+     */
+    private PhoneNumber phone;
+    /**
+     * 国家/省/市/区县/地址行1/行2/邮编
+     */
+    private String country;
+    private String province;
+    private String city;
+    private String district;
+    private String addressLine1;
+    private String addressLine2;
+    private String zipcode;
+    /**
+     * 是否默认地址 (聚合根保证唯一)
+     */
+    private boolean defaultAddress;
+    /**
+     * 创建与更新时间 (快照)
+     */
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    /**
+     * 快速构建一个地址 (新增)
+     *
+     * @param receiverName 收货人姓名 不能为空
+     * @param phone        联系电话 值对象, 不可为空
+     * @param country      国家
+     * @param province     省份
+     * @param city         城市
+     * @param district     区县
+     * @param addressLine1 地址行1 不能为空
+     * @param addressLine2 地址行2 可选
+     * @param zipcode      邮编 可选
+     * @param isDefault    是否设为默认地址
+     * @return 新建的 {@link UserAddress} 对象, 其 id 为 null 表示尚未持久化到数据库
+     * @throws IllegalParamException 如果收货人姓名或地址行1为空白时抛出
+     */
+    public static UserAddress of(String receiverName, PhoneNumber phone,
+                                 String country, String province, String city, String district,
+                                 String addressLine1, String addressLine2, String zipcode,
+                                 boolean isDefault) {
+        requireNotBlank(receiverName, "收货人不能为空");
+        requireNotBlank(addressLine1, "地址行1 不能为空");
+        requireNotNull(phone, "联系电话不能为空");
+        return new UserAddress(null, receiverName, phone, country, province, city, district,
+                addressLine1, addressLine2, zipcode, isDefault, null, null);
+    }
+
+    /**
+     * 更新用户地址信息。此方法允许更新收货人姓名、联系电话及详细的地址信息等字段<br/>
+     * 注意, 如果提供的 <code>receiverName</code> 或 <code>addressLine1</code> 为空白, 则会抛出异常
+     *
+     * @param receiverName 收货人姓名 不得为空白
+     * @param phone        联系电话 值对象, 需要符合 E.164 标准格式
+     * @param country      国家
+     * @param province     省份
+     * @param city         城市
+     * @param district     区县
+     * @param addressLine1 地址行1 不得为空白
+     * @param addressLine2 地址行2 可选
+     * @param zipcode      邮编 可选
+     * @throws IllegalParamException 当 <code>receiverName</code> 或 <code>addressLine1</code> 为空白时抛出
+     */
+    public void update(String receiverName, PhoneNumber phone,
+                       String country, String province, String city, String district,
+                       String addressLine1, String addressLine2, String zipcode) {
+        if (receiverName != null && receiverName.isBlank())
+            throw new IllegalParamException("收货人不能为空");
+        if (addressLine1 != null && addressLine1.isBlank())
+            throw new IllegalParamException("地址行1 不能为空");
+
+        if (receiverName != null)
+            this.receiverName = receiverName;
+        if (phone != null)
+            this.phone = phone;
+        if (country != null)
+            this.country = country;
+        if (province != null)
+            this.province = province;
+        if (city != null)
+            this.city = city;
+        if (district != null)
+            this.district = district;
+        if (addressLine1 != null)
+            this.addressLine1 = addressLine1;
+        if (addressLine2 != null)
+            this.addressLine2 = addressLine2;
+        if (zipcode != null)
+            this.zipcode = zipcode;
+    }
+
+    /**
+     * 设置当前地址是否为默认地址。
+     *
+     * @param isDefault 如果设置为 <code>true</code>, 则将此地址设为用户的默认收货地址; 否则, 不作为默认地址使用
+     */
+    public void setDefault(boolean isDefault) {
+        this.defaultAddress = isDefault;
+    }
+}
+
+// shopping.international.domain.model.enums.user.AccountStatus
+package shopping.international.domain.model.enums.user;
+
+import lombok.Getter;
+
+/**
+ * 账户状态，与表 user_account.status 一致。
+ */
+@Getter
+public enum AccountStatus {
+    /** 已激活，可登录 */
+    ACTIVE,
+    /** 未激活或禁用 */
+    DISABLED
+}
+
+// shopping.international.domain.model.enums.user.AuthProvider
+package shopping.international.domain.model.enums.user;
+
+import lombok.Getter;
+
+/**
+ * 第三方 / 本地认证通道, 与表 {@code user_auth.provider} 一致
+ * <ul>
+ *     <li>{@code LOCAL}: 本地认证</li>
+ *     <li>{@code GOOGLE}: Google 认证</li>
+ *     <li>{@code FACEBOOK}: Facebook 认证</li>
+ *     <li>{@code APPLE}: Apple 认证</li>
+ *     <li>{@code INSTAGRAM}: Instagram 认证</li>
+ *     <li>{@code TIKTOK}: TikTok 认证</li>
+ * </ul>
+ */
+@Getter
+public enum AuthProvider {
+    LOCAL, GOOGLE, FACEBOOK, APPLE, INSTAGRAM, TIKTOK
+}
+
+// shopping.international.domain.model.enums.user.Gender
+package shopping.international.domain.model.enums.user;
+
+import lombok.Getter;
+
+/**
+ * 性别，与表 user_profile.gender 一致。
+ */
+@Getter
+public enum Gender {
+    UNKNOWN, MALE, FEMALE
+}
+
+// shopping.international.domain.model.vo.user.Username
+package shopping.international.domain.model.vo.user;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+import java.util.regex.Pattern;
+
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 用户名 (登录名) 值对象
+ * <p>不可变, 持有规范化后的用户名 (去首尾空格)</p>
+ */
+@Getter
+@EqualsAndHashCode
+@ToString
+public final class Username {
+    /**
+     * 用户名正则表达式
+     */
+    private static final Pattern PATTERN = Pattern.compile("^(?=.*[^0-9])[A-Za-z0-9_-]{3,64}$");
+
+    /**
+     * 规范化后的用户名
+     */
+    private final String value;
+
+    /**
+     * 构造方法, 私有化, 不允许外部创建实例
+     *
+     * @param value 用户名
+     */
+    private Username(String value) {
+        this.value = value;
+    }
+
+    /**
+     * 工厂方法, 创建用户名
+     *
+     * @param raw 原始输入
+     * @return 值对象
+     */
+    public static Username of(String raw) {
+        requireNotNull(raw, "用户名不能为空");
+        String val = raw.trim();
+        require(PATTERN.matcher(val).matches(), "用户名必须是3-64位字母数字下划线或 (_) 连字符 (-)");
+        return new Username(val);
+    }
+}
+
+// shopping.international.domain.model.vo.user.UserProfile
+package shopping.international.domain.model.vo.user;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import shopping.international.domain.model.enums.user.Gender;
+
+import static shopping.international.types.utils.FieldValidateUtils.require;
+
+/**
+ * 用户资料值对象 (1:1)
+ * <p>不可变；对外通过 withXxx 方法返回新实例</p>
+ */
+@Getter
+@EqualsAndHashCode
+@ToString
+public final class UserProfile {
+    /**
+     * 用户在系统中的显示名称, 用于界面展示
+     * <p>该字段为不可变属性, 一旦设置后无法直接修改, 如果需要更新显示名, 应该通过 {@link UserProfile#withDisplayName(String)} 方法创建一个新的 {@link UserProfile} 实例</p>
+     * <p>显示名称的长度必须 <b>小于或等于 64 个字符</b> </p>
+     */
+    private final String displayName;
+    /**
+     * 用户头像的 URL 地址
+     */
+    private final String avatarUrl;
+    /**
+     * 用户性别
+     *
+     * @see Gender
+     */
+    private final Gender gender;
+    /**
+     * 用户的生日日期
+     */
+    private final LocalDate birthday;
+    /**
+     * 用户的国家
+     */
+    private final String country;
+    /**
+     * 用户所在的省份
+     */
+    private final String province;
+    /**
+     * 用户所在的城市
+     */
+    private final String city;
+    /**
+     * 用户的详细地址
+     */
+    private final String addressLine;
+    /**
+     * 用户的邮编
+     */
+    private final String zipcode;
+    /**
+     * 用户的额外信息
+     */
+    private final Map<String, Object> extra;
+
+    /**
+     * 构造用户资料值对象
+     * <p>此构造函数用于创建一个包含详细信息的 {@link UserProfile} 实例, 该实例是不可变的, 任何属性的修改都需要通过相应的 withXxx 方法返回一个新的实例</p>
+     *
+     * @param displayName 用户在系统中的显示名称, 用于界面展示
+     * @param avatarUrl   用户头像的 URL 地址
+     * @param gender      用户性别, 如果为 null 则默认设置为 {@link Gender#UNKNOWN}
+     * @param birthday    用户的生日日期
+     * @param country     用户所在的国家
+     * @param province    用户所在的省份
+     * @param city        用户所在的城市
+     * @param addressLine 用户的详细地址
+     * @param zipcode     用户的邮编
+     * @param extra       用户的额外信息, 如果为 null 则使用空映射代替
+     */
+    private UserProfile(String displayName, String avatarUrl, Gender gender, LocalDate birthday,
+                        String country, String province, String city, String addressLine,
+                        String zipcode, Map<String, Object> extra) {
+        this.displayName = displayName;
+        this.avatarUrl = avatarUrl;
+        this.gender = gender == null ? Gender.UNKNOWN : gender;
+        this.birthday = birthday;
+        this.country = country;
+        this.province = province;
+        this.city = city;
+        this.addressLine = addressLine;
+        this.zipcode = zipcode;
+        this.extra = extra == null ? Collections.emptyMap() : Collections.unmodifiableMap(new LinkedHashMap<>(extra));
+    }
+
+    /**
+     * 返回一个所有字段均为空或默认值的 {@link UserProfile} 实例
+     *
+     * @return 一个空的 {@link UserProfile} 对象, 其中所有字段要么为 null, 要么为其默认值(如 {@link Gender#UNKNOWN}), extra 字段则为一个空映射
+     */
+    public static UserProfile empty() {
+        return new UserProfile(null, null, Gender.UNKNOWN, null, null, null, null, null, null, Map.of());
+    }
+
+    /**
+     * 创建一个包含用户详细信息的 {@link UserProfile} 实例
+     *
+     * @param displayName 用户在系统中的显示名称, 用于界面展示
+     * @param avatarUrl   用户头像的 URL 地址
+     * @param gender      用户性别, 如果为 null 则默认设置为 {@link Gender#UNKNOWN}
+     * @param birthday    用户的生日日期
+     * @param country     用户所在的国家
+     * @param province    用户所在的省份
+     * @param city        用户所在的城市
+     * @param addressLine 用户的详细地址
+     * @param zipcode     用户的邮编
+     * @param extra       用户的额外信息, 如果为 null 则使用空映射代替
+     * @return 一个新的 {@link UserProfile} 对象
+     */
+    public static UserProfile of(String displayName, String avatarUrl, Gender gender, LocalDate birthday,
+                                 String country, String province, String city, String addressLine,
+                                 String zipcode, Map<String, Object> extra) {
+        return new UserProfile(displayName, avatarUrl, gender, birthday, country, province, city, addressLine, zipcode, extra);
+    }
+
+    /**
+     * 创建一个新的 {@link UserProfile} 实例, 其中显示名称被更新为指定值
+     * <p>此方法用于更改用户的显示名称, 如果提供的名称长度超过 64 个字符, 则抛出异常</p>
+     *
+     * @param name 新的显示名称 需要满足长度限制, 最大为 64 个字符
+     * @return 一个新的 {@link UserProfile} 对象, 包含更新后的显示名称
+     * @throws IllegalParamException 如果提供的显示名称长度超过 64 个字符
+     */
+    public UserProfile withDisplayName(String name) {
+        require(name != null && name.length() > 64, "显示名称长度不能超过 64 个字符");
+        return new UserProfile(name, this.avatarUrl, this.gender, this.birthday, this.country,
+                this.province, this.city, this.addressLine, this.zipcode, this.extra);
+    }
+
+    // 其他 withXxx 可按需补充……
+}
+
+// shopping.international.domain.model.vo.user.PhoneNumber
+package shopping.international.domain.model.vo.user;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import java.util.regex.Pattern;
+
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 手机号值对象 (存储为 E.164 格式)
+ * <p>此处仅进行基础格式校验, 国际化规范化可在应用层完成</p>
+ */
+@Getter
+@EqualsAndHashCode
+@ToString
+public final class PhoneNumber {
+    /**
+     * E.164 格式手机号正则表达式
+     */
+    private static final Pattern SIMPLE = Pattern.compile("^\\+?[0-9\\- ]{6,32}$");
+
+    /**
+     * 手机号值
+     */
+    private final String value;
+
+    /**
+     * 构造方法, 私有化, 不允许外部直接创建实例
+     *
+     * @param value 手机号值 该值应为已验证并格式化的 E.164 格式手机号
+     */
+    private PhoneNumber(String value) {
+        this.value = value;
+    }
+
+    /**
+     * 工厂方法, 创建 {@link PhoneNumber} 实例
+     *
+     * @param raw 原始手机号
+     * @return {@link PhoneNumber} 实例
+     * @throws IllegalParamException 如果提供的手机号为空或格式不正确时抛出
+     */
+    public static PhoneNumber of(String raw) {
+        requireNotNull(raw, "手机号不能为空");
+        String val = raw.trim();
+        require(SIMPLE.matcher(val).matches(), "手机号格式不正确");
+        return new PhoneNumber(val);
+    }
+
+    /**
+     * 工厂方法, 创建可接受空值的 {@link PhoneNumber} 实例
+     *
+     * @param raw 原始手机号 可以为 null 或空字符串, 如果非空则需要符合 E.164 格式
+     * @return {@link PhoneNumber} 实例 如果 <code>raw</code> 为 null 或空字符串, 则返回包含 null 的实例; 否则返回包含格式化后的手机号的实例
+     * @throws IllegalParamException 如果提供的手机号不为空但格式不正确时抛出
+     */
+    public static PhoneNumber nullableOf(String raw) {
+        if (raw != null && !raw.trim().isEmpty())
+            require(SIMPLE.matcher(raw.trim()).matches(), "手机号格式不正确");
+        return new PhoneNumber(raw);
+    }
+}
+
+// shopping.international.domain.model.vo.user.Nickname
+package shopping.international.domain.model.vo.user;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 昵称值对象
+ */
+@Getter
+@EqualsAndHashCode
+@ToString
+public final class Nickname {
+    /**
+     * 昵称值
+     */
+    private final String value;
+
+    /**
+     * 构造方法, 私有化, 不允许外部直接创建实例
+     *
+     * @param value 昵称值 需要通过工厂方法 {@link Nickname#of(String)} 创建实例
+     */
+    private Nickname(String value) {
+        this.value = value;
+    }
+
+    /**
+     * 工厂方法, 创建 {@link Nickname} 实例
+     *
+     * @param raw 原始昵称
+     * @return {@link Nickname} 实例
+     */
+    public static Nickname of(String raw) {
+        requireNotNull(raw, "昵称不能为空");
+        String val = raw.trim();
+        require(!val.isEmpty() && val.length() <= 64, "昵称长度必须为 1~64 个字符");
+        return new Nickname(val);
+    }
+}
+
+// shopping.international.domain.model.vo.user.EmailAddress
+package shopping.international.domain.model.vo.user;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 邮箱值对象 (统一小写)
+ */
+@Getter
+@EqualsAndHashCode
+@ToString
+public final class EmailAddress {
+    /**
+     * 邮箱正则表达式
+     */
+    private static final Pattern PATTERN =
+            Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+
+    /**
+     * 邮箱值
+     */
+    private final String value;
+
+    /**
+     * 构造方法, 私有化, 不允许外部直接创建实例
+     *
+     * @param value 邮箱值 该值应为已验证并格式化的邮箱地址
+     */
+    private EmailAddress(String value) {
+        this.value = value;
+    }
+
+    /**
+     * 工厂方法, 创建 {@link EmailAddress} 实例
+     *
+     * @param raw 原始邮箱地址
+     * @return {@link EmailAddress} 实例
+     * @throws IllegalParamException 如果提供的邮箱为空或格式不正确时抛出
+     */
+    public static EmailAddress of(String raw) {
+        requireNotNull(raw, "邮箱不能为空");
+        String val = raw.trim().toLowerCase(Locale.ROOT);
+        require(PATTERN.matcher(val).matches(), "邮箱格式不正确");
+        return new EmailAddress(val);
+    }
+}
+
+// shopping.international.types.enums.ApiCode
+package shopping.international.types.enums;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+import java.util.EnumSet;
+
+/**
+ * 统一返回结构中的业务码
+ * <p>业务码并非 HTTP 状态码, 两者在语义上相关但不等价</p>
+ */
+@Getter
+@JsonFormat(shape = JsonFormat.Shape.STRING) // 序列化为字符串，如 "OK"
+public enum ApiCode {
+
+    // ===== 成功类 =====
+    /**
+     * 200 OK
+     */
+    OK(HttpStatus.OK, "OK"),
+    /**
+     * 201 Created
+     */
+    CREATED(HttpStatus.CREATED, "Created"),
+    /**
+     * 202 Accepted
+     */
+    ACCEPTED(HttpStatus.ACCEPTED, "Accepted"),
+    /**
+     * 302 Found / Redirect
+     */
+    FOUND(HttpStatus.FOUND, "Found / Redirect"),
+
+    // ===== 客户端错误类 =====
+    /**
+     * 400 Bad Request
+     */
+    BAD_REQUEST(HttpStatus.BAD_REQUEST, "Bad Request"),
+    /**
+     * 401 Unauthorized
+     */
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Unauthorized"),
+    /**
+     * 403 Forbidden
+     */
+    FORBIDDEN(HttpStatus.FORBIDDEN, "Forbidden"),
+    /**
+     * 404 Not Found
+     */
+    NOT_FOUND(HttpStatus.NOT_FOUND, "Not Found"),
+    /**
+     * 409 Conflict
+     */
+    CONFLICT(HttpStatus.CONFLICT, "Conflict"),
+    /**
+     * 422 Unprocessable Entity
+     */
+    UNPROCESSABLE_ENTITY(HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Entity"),
+
+    // ===== 客户端错误类 =====
+    /**
+     * 500 Internal Server Error
+     */
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error");
+
+    private final int httpStatus;
+    private final String defaultMessage;
+
+    ApiCode(HttpStatus httpStatus, String defaultMessage) {
+        this.httpStatus = httpStatus.value();
+        this.defaultMessage = defaultMessage;
+    }
+
+    /**
+     * 业务是否 成功
+     *
+     * @return true 业务成功, false 业务失败
+     */
+    public boolean isSuccess() {
+        return EnumSet.of(OK, CREATED, ACCEPTED, FOUND).contains(this);
+    }
+
+    /**
+     * 根据 Spring 的 HttpStatus 映射为业务码
+     *
+     * @param status Spring 的 HttpStatus
+     * @return 业务码
+     */
+    public static ApiCode fromHttpStatus(HttpStatus status) {
+        return switch (status) {
+            case OK -> OK;
+            case CREATED -> CREATED;
+            case ACCEPTED -> ACCEPTED;
+            case FOUND -> FOUND;
+            case BAD_REQUEST -> BAD_REQUEST;
+            case UNAUTHORIZED -> UNAUTHORIZED;
+            case NOT_FOUND -> NOT_FOUND;
+            case CONFLICT -> CONFLICT;
+            case UNPROCESSABLE_ENTITY -> UNPROCESSABLE_ENTITY;
+            default -> throw new IllegalArgumentException("Unsupported HttpStatus: " + status);
+        };
+    }
+
+    /**
+     * 将业务码转回 Spring 的 HttpStatus（便于 Controller 设定 HTTP 状态）
+     *
+     * @return Spring 的 HttpStatus
+     */
+    public HttpStatus toHttpStatus() {
+        return HttpStatus.valueOf(this.httpStatus);
+    }
+}
+
+
+你可以先按照 API 接口以文档以及上面提供的信息先开发 trigger 层的 Controller，类的命名格式为 xxxController，需要放置在 shopping.international.trigger.controller.user 包下，如果 Controller 中需要用到 DTO 来接收和传输数据，你可以以 xxxRequest 的命名格式创建相应的承接请求参数的类，放置在 shopping.international.api.req.user 包下，你还可以以 xxxRespond 的命名格式创建相应的响应参数的类，放置在 shopping.international.api.resp.user 包下，如果在 trigger 层中有需要用到领域服务，你可以先创建接口和接口中的方法，具体的领域服务实现交给后面再进行实现，领域服务的接口你可以以 IxxxService 的命名格式命名，并放置在 shopping.international.domain.service.user 包下
+对于放置在 shopping.international.api.req.user 包中用于承接请求参数的类，我希望每一个 xxxRequest 类中都包含一个 validate 方法，该方法用于校验请求参数的合法性，如果请求参数不合法，则抛出 IllegalParamException 异常，并附带相应的错误信息，在判空时你可以使用我下面提供的字段校验工具类（FieldValidateUtils）来简化字段校验操作
+所有类的开发都应该遵循 DDD 的充血模型原则，并且由于在 DDD 思想中，领域（domain）层应该不依赖其他的子模块（包括上层的 trigger 和 infrastructure），因此在 trigger 中调用领域服务（接口）时，应该先将所需的参数装配成领域中的聚合或实体或vo，再进行传参，或直接进行值传参，而不要直接将trigger层中的 request 或 http连接 等对象直接传入到领域层
+你写的每一个类，每一个方法，每一个属性和每一个接口，都需要添加上完整的 JavaDoc
+
+// shopping.international.types.utils.FieldValidateUtils
+package shopping.international.types.utils;
+
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.Nls;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import java.util.Objects;
+import java.util.regex.Pattern;
+
+/**
+ * 字段验证工具类, 当字段不符合要求时抛出 {@link IllegalParamException} 异常
+ */
+public final class FieldValidateUtils {
+    /**
+     * 确保给定的对象不为空, 如果对象为空则抛出 {@link IllegalParamException} 异常
+     *
+     * @param object 待检查的对象
+     * @param msg    当 <code>object</code> 为空时, 抛出异常的信息
+     * @throws IllegalParamException 如果 <code>object</code> 为 <code>null</code>
+     */
+    @Contract(value = "null, !null -> fail", pure = true)
+    public static void requireNotNull(Object object, @Nls String msg) {
+        if (Objects.isNull(object))
+            throw IllegalParamException.of(msg);
+    }
+
+    /**
+     * 确保给定的字符串既不为 <code>null</code> 也不为空白, 如果字符串不符合要求则抛出 {@link IllegalParamException} 异常
+     *
+     * @param string 待检查的字符串
+     * @param msg    当 <code>string</code> 为 <code>null</code> 或空白时, 抛出异常的信息
+     * @throws IllegalParamException 如果 <code>string</code> 为 <code>null</code> 或仅包含空白字符
+     */
+    @Contract(value = "null, !null -> fail", pure = true)
+    public static void requireNotBlank(String string, @Nls String msg) {
+        if (string == null || string.isBlank())
+            throw IllegalParamException.of(msg);
+    }
+
+    /**
+     * 确保给定的条件为 <code>true</code>, 如果条件不满足则抛出 {@link IllegalParamException} 异常
+     *
+     * @param ok  用于检查的布尔值, 应该是某个条件的结果
+     * @param msg 当 <code>ok</code> 为 <code>false</code> 时, 抛出异常的信息
+     * @throws IllegalParamException 如果 <code>ok</code> 为 <code>false</code>
+     */
+    @Contract(value = "false, !null -> fail", pure = true)
+    public static void require(boolean ok, @Nls String msg) {
+        if (!ok)
+            throw IllegalParamException.of(msg);
+    }
+
+    /**
+     * 确保给定的字符串是有效的电子邮件地址, 如果不是则抛出 {@link IllegalParamException} 异常
+     *
+     * @param email 待检查的电子邮件地址
+     * @param msg   当 <code>email</code> 不符合电子邮件格式时, 抛出异常的信息
+     * @throws IllegalParamException 如果 <code>email</code> 为 <code>null</code>, 空白或不符合电子邮件格式
+     */
+    @Contract("null,_->fail")
+    public static void requireIsEmail(String email, String msg) {
+        Pattern EMAIL_REGEX = Pattern.compile(
+                "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@" +
+                        "(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$"
+        );
+        requireNotBlank(email, "邮箱不能为空");
+        if (!EMAIL_REGEX.matcher(email).matches())
+            throw IllegalParamException.of(msg);
+    }
+}
+
