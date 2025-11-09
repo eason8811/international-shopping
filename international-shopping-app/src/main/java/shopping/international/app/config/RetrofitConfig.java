@@ -75,11 +75,6 @@ public class RetrofitConfig {
                         sslContext.getSocketFactory(),
                         SslUtil.systemDefaultTrustManager()
                 )
-                .hostnameVerifier((hostname, session) -> {
-                    // 使用默认主机名校验, 如需证书钉扎可在此扩展
-                    return javax.net.ssl.HttpsURLConnection.getDefaultHostnameVerifier()
-                            .verify(hostname, session);
-                })
                 .callTimeout(30, TimeUnit.SECONDS)
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)

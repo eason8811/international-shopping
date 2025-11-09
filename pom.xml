@@ -39,7 +39,7 @@
         <jwt.version>9.39.3</jwt.version>
         <retrofit2.version>2.11.0</retrofit2.version>
         <okhttp3.core.version>4.12.0</okhttp3.core.version>
-        <okhttp3.logging.intercepter.version>3.14.9</okhttp3.logging.intercepter.version>
+        <okhttp3.logging.intercepter.version>4.12.0</okhttp3.logging.intercepter.version>
         <mybatis-plus.version>3.5.9</mybatis-plus.version>
         <resend.version>4.6.0</resend.version>
     </properties>

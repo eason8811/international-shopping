@@ -117,11 +117,11 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
             ));
             ConfigurableJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
             // 配置资源检索器
-            var retriever = new DefaultResourceRetriever(3000, 3000, 512 * 1024);
+            DefaultResourceRetriever retriever = new DefaultResourceRetriever(3000, 3000, 512 * 1024);
             // 构建 JWKSource
             JWKSource<SecurityContext> jwkSource = JWKSourceBuilder
                     .create(new URL(spec.jwkSetUri()), retriever)
-                    .cache(15 * 60 * 1000, 60 * 60 * 1000)
+                    .cache(15 * 60 * 1000, 5 * 1000)
                     .retrying(true)
                     .build();
             // 允许集合：内部会基于 header.alg 选用匹配的 Key
