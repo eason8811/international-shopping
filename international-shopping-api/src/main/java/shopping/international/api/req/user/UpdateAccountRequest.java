@@ -3,10 +3,8 @@ package shopping.international.api.req.user;
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
-import shopping.international.types.utils.FieldValidateUtils;
 
 import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
  * 修改账户请求体
