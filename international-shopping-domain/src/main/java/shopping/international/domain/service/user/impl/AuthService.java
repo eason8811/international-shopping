@@ -208,8 +208,8 @@ public class AuthService implements IAuthService {
     @Override
     public String issueAccessToken(@NotNull Long userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalParamException("账户不存在"));
-        String scopeListString = user.getBindingsSnapshot().stream()
-                .map(AuthBinding::getScope)
+        String roleListString = user.getBindingsSnapshot().stream()
+                .map(AuthBinding::getRole)
                 .filter(Objects::nonNull)                 // 防空
                 .flatMap(string -> Arrays.stream(string.split(",")))
                 .map(String::trim)
@@ -218,7 +218,7 @@ public class AuthService implements IAuthService {
                 .collect(Collectors.joining(","));
         Instant now = Instant.now();
         Instant exp = now.plusSeconds(jwtSpec.accessTokenValiditySeconds());
-        return signJwt(userId, user.getUsername(), user.getEmail(), scopeListString, now, exp, false);
+        return signJwt(userId, user.getUsername(), user.getEmail(), roleListString, now, exp, false);
     }
 
     /**
@@ -230,8 +230,8 @@ public class AuthService implements IAuthService {
     @Override
     public String issueRefreshToken(@NotNull Long userId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalParamException("账户不存在"));
-        String scopeListString = user.getBindingsSnapshot().stream()
-                .map(AuthBinding::getScope)
+        String roleListString = user.getBindingsSnapshot().stream()
+                .map(AuthBinding::getRole)
                 .filter(Objects::nonNull)                 // 防空
                 .flatMap(string -> Arrays.stream(string.split(",")))
                 .map(String::trim)
@@ -240,7 +240,7 @@ public class AuthService implements IAuthService {
                 .collect(Collectors.joining(","));
         Instant now = Instant.now();
         Instant exp = now.plusSeconds(jwtSpec.refreshTokenValiditySeconds());
-        return signJwt(userId, user.getUsername(), user.getEmail(), scopeListString, now, exp, true);
+        return signJwt(userId, user.getUsername(), user.getEmail(), roleListString, now, exp, true);
     }
 
     /**
