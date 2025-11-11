@@ -45,12 +45,12 @@ public class AddressController {
      * 获取当前登录用户的收货地址列表, 分页显示
      *
      * @param page 页码, 默认值为 1
-     * @param size 每页显示的条目数, 默认值为 20
+     * @param size 每页显示的条目数, 默认值为 5
      * @return 包含分页信息和地址列表的结果集
      */
     @GetMapping
     public ResponseEntity<Result<List<AddressRespond>>> list(@RequestParam(defaultValue = "1") int page,
-                                                             @RequestParam(defaultValue = "20") int size) {
+                                                             @RequestParam(defaultValue = "5") int size) {
         Long uid = requireCurrentUserId();
         IAddressService.PageResult pageData = addressService.list(uid, page, size);
         List<AddressRespond> data = pageData.items().stream().map(AddressRespond::from).toList();
@@ -81,9 +81,11 @@ public class AddressController {
         Long uid = requireCurrentUserId();
 
         PhoneNumber phoneNumber = PhoneNumber.of(req.getPhone());
-        UserAddress created = addressService.create(uid, req.getReceiverName(), phoneNumber, req.getCountry(),
+        UserAddress newAddress = UserAddress.of(req.getReceiverName(), phoneNumber, req.getCountry(),
                 req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
-                req.getZipcode(), Boolean.TRUE.equals(req.getIsDefault()), idempotencyKey);
+                req.getZipcode(), Boolean.TRUE.equals(req.getIsDefault()));
+
+        UserAddress created = addressService.create(uid, newAddress, idempotencyKey);
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
                 .body(Result.created(AddressRespond.from(created)));
     }
@@ -112,8 +114,7 @@ public class AddressController {
      * @return 包含更新后的地址信息的结果集, 如果成功更新, 返回状态码为 200 OK
      */
     @PatchMapping("/{id}")
-    public ResponseEntity<Result<AddressRespond>> update(@PathVariable("id") Long id,
-                                                         @RequestBody UpdateAddressRequest req) {
+    public ResponseEntity<Result<AddressRespond>> update(@PathVariable("id") Long id, @RequestBody UpdateAddressRequest req) {
         req.validate();
         Long uid = requireCurrentUserId();
 
