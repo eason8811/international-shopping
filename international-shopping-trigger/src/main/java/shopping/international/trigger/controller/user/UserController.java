@@ -92,7 +92,7 @@ public class UserController {
      * @param req 新邮箱 + 验证码
      * @return 更新后的账户概要
      */
-    @PostMapping("/email/verify")
+    @PostMapping("/verify-email")
     public ResponseEntity<Result<UserAccountRespond>> verifyNewEmail(@RequestBody VerifyEmailRequest req) {
         req.validate();
         Long uid = requireCurrentUserId();

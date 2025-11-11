@@ -86,10 +86,10 @@ public class AuthController {
     }
 
     /**
-     * 轮询当前邮箱的邮件状态：通过 Redis 找到 messageId，再访问 Resend 查询状态。
+     * 轮询当前邮箱的邮件状态: 通过 Redis 找到 messageId, 再访问 Resend 查询状态
      *
-     * <p><b>入参：</b>请求参数 {@code email}</p>
-     * <p><b>返回：</b>{@link EmailStatusRespond}（包含 email、messageId、status）</p>
+     * <p><b>入参: </b>请求参数 {@code email}</p>
+     * <p><b>返回: </b>{@link EmailStatusRespond} (包含 email, messageId, status)</p>
      *
      * @param email 目标邮箱
      * @return 200 OK + 状态体；若未找到映射会抛出参数异常
