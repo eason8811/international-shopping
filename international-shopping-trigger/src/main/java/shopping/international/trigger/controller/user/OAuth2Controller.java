@@ -101,16 +101,15 @@ public class OAuth2Controller {
         // 应用服务完成 state 校验, 换 token, 绑定/注册用户并返回: 会话令牌, 前端重定向地址
         OAuth2CallbackResult result = oAuth2Service.handleCallback(provider, code, state, error, errorDescription);
 
-        if (!result.isSuccess()) {
+        if (!result.isSuccess())
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Result.of(
                             false,
                             shopping.international.types.enums.ApiCode.BAD_REQUEST,
-                            "非法的 state 或认证提供方",
+                            provider.name() + " 认证错误",
                             new RedirectUrlRespond(result.getRedirectUrl()),
                             null
                     ));
-        }
 
         // 下发会话 Cookie
         addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, result.getAccessToken(), true, jwtIssueSpec.accessTokenValiditySeconds());
