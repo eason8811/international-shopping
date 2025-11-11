@@ -14,6 +14,7 @@ import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.vo.user.Nickname;
 import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.user.IUserService;
+import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
 
@@ -32,7 +33,7 @@ import shopping.international.types.exceptions.AccountException;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/users/me")
+@RequestMapping(SecurityConstants.API_PREFIX + "/users/me")
 public class UserController {
 
     /**

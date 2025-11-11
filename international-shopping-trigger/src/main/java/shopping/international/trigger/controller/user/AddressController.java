@@ -13,6 +13,7 @@ import shopping.international.api.resp.user.AddressRespond;
 import shopping.international.domain.model.entity.user.UserAddress;
 import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.user.IAddressService;
+import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
 
@@ -31,7 +32,7 @@ import java.util.List;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/users/me/addresses")
+@RequestMapping(SecurityConstants.API_PREFIX + "/users/me/addresses")
 public class AddressController {
 
     /**

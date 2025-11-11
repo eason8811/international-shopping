@@ -12,10 +12,11 @@ import shopping.international.api.resp.user.UserProfileRespond;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.vo.user.UserProfile;
 import shopping.international.domain.service.user.IUserService;
+import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.exceptions.AccountException;
 
 /**
- * 用户资料接口（/users/me/profile）
+ * 用户资料接口 {@code /users/me/profile}
  *
  * <p>职责：
  * <ul>
@@ -26,7 +27,7 @@ import shopping.international.types.exceptions.AccountException;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/users/me/profile")
+@RequestMapping(SecurityConstants.API_PREFIX + "/users/me/profile")
 public class ProfileController {
 
     /**
