@@ -1,12 +1,11 @@
 package shopping.international.domain.adapter.repository.user;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.enums.user.AccountStatus;
 import shopping.international.domain.model.enums.user.AuthProvider;
-import shopping.international.domain.model.vo.user.EmailAddress;
-import shopping.international.domain.model.vo.user.PhoneNumber;
-import shopping.international.domain.model.vo.user.Username;
+import shopping.international.domain.model.vo.user.*;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -104,4 +103,41 @@ public interface IUserRepository {
      * @param loginTime 登录时间
      */
     void recordLogin(@NotNull Long userId, @NotNull AuthProvider provider, @NotNull LocalDateTime loginTime);
+
+    /**
+     * 检查是否存在手机号相同的其他用户, 排除指定的用户 ID
+     *
+     * @param userId 用户 ID 需要排除的用户 ID, 用于避免查询到当前用户自己
+     * @param phone  手机号 要检查的手机号, 必须是有效的 {@link PhoneNumber} 对象
+     * @return 是否存在 如果存在其他用户的手机号与给定的手机号相同, 返回 true; 否则返回 false
+     */
+    boolean existsByPhoneExceptUser(@NotNull Long userId, @NotNull PhoneNumber phone);
+
+    /**
+     * 更新指定用户ID的昵称和手机号
+     *
+     * @param userId   用户ID, 必须提供
+     * @param nickname 新的昵称, 可以是 {@code null}, 如果为 {@code null} 则不更新昵称
+     * @param phone    新的手机号, 可以是 {@code null}, 如果为 {@code null} 则不更新手机号
+     * @throws IllegalStateException 当尝试更新不存在或已删除的用户时抛出
+     */
+    void updateNicknameAndPhone(@NotNull Long userId, @Nullable Nickname nickname, @Nullable PhoneNumber phone);
+
+    /**
+     * 更新指定用户的邮箱地址
+     *
+     * @param userId   用户ID, 必须提供
+     * @param newEmail 新的邮箱地址, 必须提供
+     * @throws IllegalStateException 当尝试更新不存在或已删除的用户时抛出
+     */
+    void updateEmail(@NotNull Long userId, @NotNull EmailAddress newEmail);
+
+    /**
+     * 插入或更新用户资料信息. 如果指定的用户ID不存在, 则插入新的用户资料, 如果存在, 则更新现有资料
+     *
+     * @param userId  用户ID, 用于识别用户
+     * @param profile 用户资料对象, 包含了用户的显示名称, 头像URL, 性别, 生日, 国家, 省份, 城市, 地址行, 邮政编码以及额外信息等
+     * @throws IllegalArgumentException 如果传入的参数不符合要求 (例如, userId 为 null, 或者 profile 为 null)
+     */
+    void upsertProfile(@NotNull Long userId, @NotNull UserProfile profile);
 }

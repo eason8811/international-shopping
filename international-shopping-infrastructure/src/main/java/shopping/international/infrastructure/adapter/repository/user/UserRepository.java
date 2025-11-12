@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.user.IUserRepository;
@@ -25,9 +27,12 @@ import shopping.international.infrastructure.dao.user.po.UserAccountPO;
 import shopping.international.infrastructure.dao.user.po.UserAddressPO;
 import shopping.international.infrastructure.dao.user.po.UserAuthPO;
 import shopping.international.infrastructure.dao.user.po.UserProfilePO;
+import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
@@ -225,7 +230,7 @@ public class UserRepository implements IUserRepository {
                     .userId(userId)
                     .provider(binding.getProvider().name())
                     .issuer(binding.getIssuer())
-                    .providerUid(binding.getProvider() == AuthProvider.LOCAL ? userId.toString() :binding.getProviderUid())
+                    .providerUid(binding.getProvider() == AuthProvider.LOCAL ? userId.toString() : binding.getProviderUid())
                     .passwordHash(binding.getPasswordHash())
                     .accessToken(binding.getAccessToken() == null ? null : binding.getAccessToken().getBytes())   // EncryptedSecret → bytes()
                     .refreshToken(binding.getRefreshToken() == null ? null : binding.getRefreshToken().getBytes())
@@ -294,6 +299,131 @@ public class UserRepository implements IUserRepository {
                 .set(UserAuthPO::getLastLoginAt, loginTime));
     }
 
+    // ========================= 增量写入 (本次新增) =========================
+
+    /**
+     * 检查是否存在手机号相同的其他用户, 排除指定的用户 ID
+     *
+     * @param userId 用户 ID 需要排除的用户 ID, 用于避免查询到当前用户自己
+     * @param phone  手机号 要检查的手机号, 必须是有效的 {@link PhoneNumber} 对象
+     * @return 是否存在 如果存在其他用户的手机号与给定的手机号相同, 返回 true; 否则返回 false
+     */
+    @Override
+    public boolean existsByPhoneExceptUser(@NotNull Long userId, @NotNull PhoneNumber phone) {
+        Long count = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
+                .eq(UserAccountPO::getPhone, phone.getValue())
+                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
+                .ne(UserAccountPO::getId, userId));
+        return count != null && count > 0;
+    }
+
+
+    /**
+     * 更新指定用户ID的昵称和手机号
+     *
+     * @param userId   用户ID, 必须提供
+     * @param nickname 新的昵称, 可以是 {@code null}, 如果为 {@code null} 则不更新昵称
+     * @param phone    新的手机号, 可以是 {@code null}, 如果为 {@code null} 则不更新手机号
+     * @throws IllegalStateException 当尝试更新不存在或已删除的用户时抛出
+     */
+    @Override
+    public void updateNicknameAndPhone(@NotNull Long userId, @Nullable Nickname nickname, @Nullable PhoneNumber phone) {
+        LambdaUpdateWrapper<UserAccountPO> updateWrapper = new LambdaUpdateWrapper<UserAccountPO>()
+                .eq(UserAccountPO::getId, userId)
+                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE);
+
+        boolean needUpdate = false;
+        if (nickname != null) {
+            updateWrapper.set(UserAccountPO::getNickname, nickname.getValue());
+            needUpdate = true;
+        }
+        if (phone != null) {
+            updateWrapper.set(UserAccountPO::getPhone, phone.getValue());
+            needUpdate = true;
+        }
+        if (!needUpdate)
+            // 无字段需要更新, 直接返回
+            return;
+
+        int rows = accountMapper.update(null, updateWrapper);
+        if (rows == 0)
+            throw new IllegalStateException("更新失败, 用户不存在或已删除");
+    }
+
+
+    /**
+     * 更新指定用户的邮箱地址
+     *
+     * @param userId   用户ID, 必须提供
+     * @param newEmail 新的邮箱地址, 必须提供
+     * @throws IllegalStateException 当尝试更新不存在或已删除的用户时抛出
+     */
+    @Override
+    public void updateEmail(@NotNull Long userId, @NotNull EmailAddress newEmail) {
+        int rows;
+        try {
+            rows = accountMapper.update(null, new LambdaUpdateWrapper<UserAccountPO>()
+                    .eq(UserAccountPO::getId, userId)
+                    .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
+                    .set(UserAccountPO::getEmail, newEmail.getValue()));
+        } catch (DataIntegrityViolationException ex) {
+            // 与并发竞争或唯一约束冲突对齐
+            throw new IllegalParamException("邮箱已被使用");
+        }
+        if (rows == 0)
+            throw new IllegalStateException("更新失败: 用户不存在或已删除");
+    }
+
+
+    /**
+     * 插入或更新用户资料信息. 如果指定的用户ID不存在, 则插入新的用户资料, 如果存在, 则更新现有资料
+     *
+     * @param userId  用户ID, 用于识别用户
+     * @param profile 用户资料对象, 包含了用户的显示名称, 头像URL, 性别, 生日, 国家, 省份, 城市, 地址行, 邮政编码以及额外信息等
+     * @throws IllegalArgumentException 如果传入的参数不符合要求 (例如, userId 为 null, 或者 profile 为 null)
+     */
+    @Override
+    public void upsertProfile(@NotNull Long userId, @NotNull UserProfile profile) {
+        // 先取一次, 判断是否存在
+        UserProfilePO existed = profileMapper.selectById(userId);
+
+        String gender = profile.getGender().name();
+        if (existed == null) {
+            // 插入
+            UserProfilePO toInsert = new UserProfilePO(
+                    userId,
+                    profile.getDisplayName(),
+                    profile.getAvatarUrl(),
+                    gender,
+                    profile.getBirthday(),
+                    profile.getCountry(),
+                    profile.getProvince(),
+                    profile.getCity(),
+                    profile.getAddressLine(),
+                    profile.getZipcode(),
+                    toJsonOrNull(profile.getExtra()),
+                    null, // created_at 交由数据库默认
+                    null  // updated_at 交由数据库默认
+            );
+            profileMapper.insert(toInsert);
+        } else {
+            // 更新 (仅设置可变字段, created_at/updated_at 交由 DB 维护)
+            profileMapper.update(null, new LambdaUpdateWrapper<UserProfilePO>()
+                    .eq(UserProfilePO::userId, userId)
+                    .set(UserProfilePO::displayName, profile.getDisplayName())
+                    .set(UserProfilePO::avatarUrl, profile.getAvatarUrl())
+                    .set(UserProfilePO::gender, gender)
+                    .set(UserProfilePO::birthday, profile.getBirthday())
+                    .set(UserProfilePO::country, profile.getCountry())
+                    .set(UserProfilePO::province, profile.getProvince())
+                    .set(UserProfilePO::city, profile.getCity())
+                    .set(UserProfilePO::addressLine, profile.getAddressLine())
+                    .set(UserProfilePO::zipcode, profile.getZipcode())
+                    .set(UserProfilePO::extra, toJsonOrNull(profile.getExtra()))
+            );
+        }
+    }
+
     // ========================= 装配工具 =========================
 
     /**
@@ -319,7 +449,7 @@ public class UserRepository implements IUserRepository {
         List<AuthBinding> bindings = authList.stream().map(this::toDomainAuth).toList();
         List<UserAddress> addresses = addrList.stream().map(this::toDomainAddress).toList();
 
-        // Profile → 值对象 (你的 UserProfile API 若不同，可在此适配)
+        // Profile → 值对象 (你的 UserProfile API 若不同, 可在此适配)
         UserProfile profileVO = (profile == null) ? UserProfile.empty() : UserProfile.of(
                 profile.displayName(),
                 profile.avatarUrl(),
@@ -447,7 +577,7 @@ public class UserRepository implements IUserRepository {
         try {
             return mapper.writeValueAsString(map);
         } catch (Exception e) {
-            // 失败时可以选择返回 null 或抛出受检异常，这里回退为 null
+            // 失败时可以选择返回 null 或抛出受检异常, 这里回退为 null
             log.error("转换 JSON 字符串失败: {}", e.getMessage());
             return null;
         }
