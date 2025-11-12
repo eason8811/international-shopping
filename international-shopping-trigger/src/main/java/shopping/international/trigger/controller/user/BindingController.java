@@ -116,9 +116,7 @@ public class BindingController {
                                                                @RequestParam(value = "error_description", required = false) String errorDescription,
                                                                HttpServletRequest request,
                                                                HttpServletResponse response) {
-        Long userId = requireCurrentUserId();
-
-        OAuth2CallbackResult result = bindingService.handleBindCallback(userId, provider, code, state, error, errorDescription);
+        OAuth2CallbackResult result = bindingService.handleBindCallback(provider, code, state, error, errorDescription);
         if (!result.isSuccess())
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Result.of(

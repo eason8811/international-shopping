@@ -8,15 +8,10 @@ import org.springframework.stereotype.Service;
 import shopping.international.domain.adapter.port.user.IOAuth2RemotePort;
 import shopping.international.domain.adapter.port.user.IOAuth2StatePort;
 import shopping.international.domain.adapter.repository.user.IUserRepository;
-import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.entity.user.AuthBinding;
 import shopping.international.domain.model.enums.user.AuthProvider;
-import shopping.international.domain.model.enums.user.Gender;
 import shopping.international.domain.model.vo.user.*;
-import shopping.international.domain.service.user.IAuthService;
-import shopping.international.domain.service.user.IOAuth2Service;
-import shopping.international.types.exceptions.AccountException;
-import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.domain.service.user.IBindingService;
 import shopping.international.types.exceptions.OAuth2HandleException;
 
 import java.nio.charset.StandardCharsets;
@@ -25,27 +20,30 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import static java.util.Objects.requireNonNullElse;
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
- * OAuth2/OIDC 第三方登录领域服务实现
+ * 第三方账号绑定/解绑 应用服务实现
  *
+ * <p>职责：
  * <ul>
- *   <li>临时状态存取 (state/nonce/code_verifier)</li>
- *   <li>Token 置换, ID Token 验签, UserInfo 拉取 (经由 Port 调用外部提供方)</li>
- *   <li>本地用户聚合创建/读取/登录审计</li>
- *   <li>本地会话令牌签发 (委托 {@link IAuthService})</li>
+ *   <li>查询当前用户的绑定列表</li>
+ *   <li>生成绑定授权 URL (含 state / PKCE / nonce)</li>
+ *   <li>处理 OAuth2 回调并在仓储层执行绑定 (upsert)</li>
+ *   <li>解绑指定 provider (含最少绑定数与 LOCAL 保护)</li>
  * </ul>
  * </p>
+ *
+ * <p><b>事务边界：</b> 所有数据写操作均下沉至 {@link IUserRepository} 完成，必要处由仓储方法声明
+ * {@code @Transactional}，本服务仅做编排与校验。</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OAuth2Service implements IOAuth2Service {
+public class BindingService implements IBindingService {
 
     /**
-     * 用户聚合仓储
+     * 用户聚合仓储 (具体类)
      */
     private final IUserRepository userRepository;
     /**
@@ -53,35 +51,41 @@ public class OAuth2Service implements IOAuth2Service {
      */
     private final List<OAuth2ProviderSpec> oAuth2ProviderSpecList;
     /**
-     * 远端交互端口: 换 token, 验 id_token, 取 userinfo
+     * OAuth2 / OIDC 远程交互端口 (Token、ID Token 验签、UserInfo)
      */
     private final IOAuth2RemotePort remotePort;
     /**
-     * 临时 state/nonce/code_verifier 存取端口 (Redis)
+     * 一次性 state 存取端口 (Redis GETDEL 语义)
      */
     private final IOAuth2StatePort statePort;
-    /**
-     * 本地会话签发 (与本地 AuthService 对齐)
-     */
-    private final IAuthService authService;
-
     /**
      * 授权发起到回调允许的最大时延 (10 分钟)
      */
     private static final Duration STATE_TTL = Duration.ofMinutes(10);
 
+    /**
+     * 查询当前用户的绑定列表
+     *
+     * @param userId 当前登录用户ID
+     * @return 用户的认证绑定列表, 包含所有与该用户关联的第三方认证信息, 每个 {@link AuthBinding} 对象代表一个认证绑定
+     */
+    @Override
+    public @NotNull List<AuthBinding> listBindings(@NotNull Long userId) {
+        return userRepository.listBindingsByUserId(userId);
+    }
+
     // ======================== 授权地址构造 ========================
 
     /**
-     * 构造第三方授权地址, 并以一次性 {@code state} 关联缓存 {@code nonce}/{@code code_verifier}/{@code redirect} 等上下文
+     * 构建用于第三方账号绑定的授权 URL
      *
-     * @param provider 第三方提供方 (如 GOOGLE/APPLE/...)
-     * @param redirect 登录完成后的站内跳转地址 (可空)
-     * @return 第三方授权页的完整 URL (包含 {@code client_id}, {@code redirect_uri}, {@code scope}, {@code state}, {@code nonce}, {@code code_challenge} 等)
-     * @throws IllegalParamException 当提供方未配置或内部错误时抛出
+     * @param userId   用户ID, 用于标识当前用户
+     * @param provider 第三方认证提供方, 指定要绑定的第三方服务
+     * @param redirect 绑定成功后的重定向 URL, 可选参数, 如果为空则使用默认值
+     * @return 授权 URL 字符串, 用于引导用户前往第三方平台进行授权操作
      */
     @Override
-    public String buildAuthorizationUrl(@NotNull AuthProvider provider, @Nullable String redirect) {
+    public @NotNull String buildBindAuthorizationUrl(@NotNull Long userId, @NotNull AuthProvider provider, @Nullable String redirect) {
         OAuth2ProviderSpec providerSpec = selectConfigByProvider(provider);
 
         // 1. 生成一次性参数
@@ -91,7 +95,7 @@ public class OAuth2Service implements IOAuth2Service {
         String codeChallenge = s256(codeVerifier);                 // base64url(no padding) of SHA-256
 
         // 2. 缓存一次性上下文 (回调时 pop 掉)
-        statePort.storeEphemeral(new OAuth2EphemeralState(null, provider, state, nonce, codeVerifier, redirect), STATE_TTL);
+        statePort.storeEphemeral(new OAuth2EphemeralState(userId, provider, state, nonce, codeVerifier, redirect), STATE_TTL);
 
         // 3. 构造授权 URL (严格使用配置的 redirectUri, 前端落地页 redirect 仅存入缓存, 不传给第三方)
         StringBuilder url = new StringBuilder(providerSpec.authorizationEndpoint());
@@ -109,68 +113,20 @@ public class OAuth2Service implements IOAuth2Service {
         return url.toString();
     }
 
-    // ======================== 回调处理 ========================
-
     /**
-     * 处理第三方回调 (与 OAuth2/OIDC 授权码 + PKCE 时序一致)
+     * 处理第三方账号绑定回调, 根据提供的参数校验并完成与当前用户的绑定
      *
-     * <p><b>标准流程: </b></p>
-     * <ol>
-     *   <li><b>错误短路: </b>若 {@code error} 非空, 则仍需校验 {@code state} (一次性, 与发起时一致),
-     *       成立则清理缓存并返回失败结果 (用于前端展示), 不一致则拒绝 (防重放/伪造)</li>
-     *
-     *   <li><b>校验 state: </b>必须与发起授权时生成的一次性 {@code state} 完全一致且未被使用, 据此
-     *       <b>弹出 (并删除)</b>当时缓存的上下文: {@code nonce}, {@code code_verifier}, {@code redirect}</li>
-     *
-     *   <li><b>置换令牌: </b>向提供方的 token 端点发起 <code>application/x-www-form-urlencoded</code> 请求,
-     *       携带参数:
-     *       <ul>
-     *         <li>{@code grant_type=authorization_code}</li>
-     *         <li>{@code code}: 回调中的授权码</li>
-     *         <li>{@code redirect_uri}: 必须与授权请求阶段使用的完全一致</li>
-     *         <li>{@code client_id}: 客户端标识</li>
-     *         <li>{@code client_secret}: <i>机密客户端</i>必填, 公共客户端通常不需要</li>
-     *         <li>{@code code_verifier}: 与授权阶段配对的 PKCE 明文字段</li>
-     *       </ul>
-     *       期望返回 {@code access_token}, {@code expires_in}, {@code id_token}[OIDC], {@code refresh_token}[可选] 等</li>
-     *
-     *   <li><b>校验 ID Token (OIDC): </b>若返回了 {@code id_token}, 需使用提供方 JWK 验签, 并严格校验声明:
-     *       <ul>
-     *         <li>{@code iss}: 在允许发行者列表内</li>
-     *         <li>{@code aud}: 包含本服务的 {@code client_id}</li>
-     *         <li>{@code exp}/{@code iat}/{@code nbf}: 在允许时钟偏移内有效</li>
-     *         <li>{@code nonce}: 必须与 <b>缓存中取回的 nonce 完全一致</b> (防止重放)</li>
-     *       </ul>
-     *       任一校验失败 → 失败结果并清理一次性状态</li>
-     *
-     *   <li><b>获取用户信息 (可选): </b>若需要更详细资料且 scope 覆盖 (如 {@code openid email profile}),
-     *       使用 {@code access_token} 调用 <code>/userinfo</code>, 并要求 {@code sub} 与 {@code id_token.sub} 一致</li>
-     *
-     *   <li><b>本地账户处理: </b>依据 ({@code iss}, {@code sub})定位或创建本地用户及其绑定关系 (不存在则注册并绑定)</li>
-     *
-     *   <li><b>签发本地会话: </b>为该用户签发本地 {@code access_token} (以及必要时的 {@code refresh_token}),
-     *       并返回 {@code redirectUrl} (优先使用缓存中的 {@code redirect}, 否则给出默认落地页)</li>
-     * </ol>
-     *
-     * <p><b>安全要点: </b></p>
-     * <ul>
-     *   <li>{@code state}, {@code nonce}, {@code code_verifier} 必须与授权阶段一并生成并与会话/缓存关联, 回调时<b>一次性弹出并删除</b></li>
-     *   <li>{@code redirect_uri} 在 token 置换阶段必须与授权阶段完全一致, 否则会被判定为 {@code invalid_grant}</li>
-     *   <li>若提供方非 OIDC (不返回 {@code id_token}), 则跳过 nonce 比对, 仅依赖 {@code state}+token 机密性与 (可选) {@code userinfo}</li>
-     * </ul>
-     *
-     * @param provider         第三方提供方 (如 GOOGLE/APPLE/...)
-     * @param code             授权码 (成功场景)
-     * @param state            一次性状态码 (由授权阶段生成)
-     * @param error            失败场景错误码 (用户取消等, 可为空)
-     * @param errorDescription 失败场景错误描述 (可为空)
-     * @return 处理结果 (是否成功, 本地 access/refresh 令牌字符串, 跳转地址)
-     * @throws OAuth2HandleException 当 state 非法/失配, token 置换失败, id_token 验签失败等场景抛出
+     * @param provider         第三方认证提供方, 指定要绑定的第三方服务
+     * @param code             授权码, 由第三方平台在授权成功后返回
+     * @param state            状态标识, 用于防止跨站请求伪造攻击, 通常为生成授权URL时附带的一次性随机字符串
+     * @param error            错误信息, 如果有错误发生则由第三方平台返回
+     * @param errorDescription 错误描述, 提供更详细的错误信息
+     * @return OAuth2CallbackResult 对象, 包含处理结果及可能的令牌信息和重定向URL, 详情见 {@link OAuth2CallbackResult}
      */
     @Override
-    public OAuth2CallbackResult handleCallback(@NotNull AuthProvider provider, @Nullable String code, @Nullable String state,
-                                               @Nullable String error, @Nullable String errorDescription) {
-
+    public @NotNull OAuth2CallbackResult handleBindCallback(@NotNull AuthProvider provider, @Nullable String code,
+                                                            @Nullable String state, @Nullable String error,
+                                                            @Nullable String errorDescription) {
         requireNotBlank(state, "state 缺失");
         OAuth2EphemeralState ephemeralState = statePort.popByState(state)
                 .orElseThrow(() -> new OAuth2HandleException("非法或过期的 state"));
@@ -242,67 +198,55 @@ public class OAuth2Service implements IOAuth2Service {
             log.warn("获取更丰富的用户资料和 scope 覆盖失败, 但是忽略异常, 异常信息: {}", e.getMessage());
         }
 
-
-        // 4. 本地账户: 存在则登录, 不存在则注册并绑定
-        Optional<User> existedUser = userRepository.findByProviderUid(issuer, sub);
-        User user;
-        if (existedUser.isPresent()) {
-            user = existedUser.get();
-        } else {
-            // 生成唯一用户名 (如 google_xxxxx), 昵称与邮箱尽量填入
-            String baseUsername = (provider.name().toLowerCase() + "_" + sub).replaceAll("[^a-zA-Z0-9_\\-]", "");
-            String uniqueUsername = generateUniqueUsername(Username.of(baseUsername));
-
-            Username username = Username.of(uniqueUsername);
-            Nickname nickname = Nickname.of(requireNonNullElse(name, uniqueUsername));
-            EmailAddress emailAddress = EmailAddress.of(email);
-            PhoneNumber phone = PhoneNumber.nullableOf(null);
-
-            // 访问令牌过期时间
-            LocalDateTime expiresAt = (tokenResponse.expiresInSeconds() != null)
-                    ? LocalDateTime.now().plusSeconds(tokenResponse.expiresInSeconds())
-                    : null;
-
-            AuthBinding binding = AuthBinding.oauth(
-                    provider,
-                    issuer,
-                    sub,
-                    tokenResponse.accessToken(),
-                    tokenResponse.refreshToken(),
-                    expiresAt,
-                    tokenResponse.scope()
-            );
-
-            user = User.registerByOAuth(username, nickname, emailAddress, phone, binding);
-            user.updateProfile(UserProfile.of(
-                    name,
-                    avatar,
-                    Gender.UNKNOWN,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null));
-            user.activate(); // 第三方登录默认直接 ACTIVE
-            user = userRepository.saveNewUserWithBindings(user);
-        }
-
-        // 5. 登录审计 (第三方通道)
-        LocalDateTime now = LocalDateTime.now();
-        user.recordLogin(provider, now);
-        userRepository.recordLogin(user.getId(), provider, now);
-
-        // 6. 签发本地会话
-        String access = authService.issueAccessToken(user.getId());
-        String refresh = authService.issueRefreshToken(user.getId());
-
+        // 4) 并发/唯一性保护：同一个 (issuer, sub) 不得绑定至不同 user
+        boolean boundToOthers = userRepository.existsBindingByIssuerAndUidExcludingUser(issuer, sub, ephemeralState.userId());
         String redirect = resolveRedirect(ephemeralState, providerSpec);
-        return OAuth2CallbackResult.success(access, refresh, redirect);
+        if (boundToOthers)
+            return OAuth2CallbackResult.failure(redirect);
+
+        // 访问令牌过期时间
+        LocalDateTime expiresAt = (tokenResponse.expiresInSeconds() != null)
+                ? LocalDateTime.now().plusSeconds(tokenResponse.expiresInSeconds())
+                : null;
+        // 5) upsert 绑定
+        AuthBinding binding = AuthBinding.oauth(
+                provider,
+                issuer,
+                sub,
+                tokenResponse.accessToken(),
+                tokenResponse.refreshToken(),
+                expiresAt,
+                tokenResponse.scope()
+        );
+
+        userRepository.upsertAuthBinding(ephemeralState.userId(), binding);
+        userRepository.recordLogin(ephemeralState.userId(), provider, LocalDateTime.now());
+
+        // 6) 成功回跳
+        return OAuth2CallbackResult.success(null, null, redirect);
     }
 
-    // ======================== 私有工具 ========================
+    /**
+     * 解除指定用户与第三方认证提供方之间的绑定关系
+     *
+     * @param userId   用户ID, 指定要解绑的用户
+     * @param provider 第三方认证提供方, 指定要解除绑定的服务
+     */
+    @Override
+    public void unbind(@NotNull Long userId, @NotNull AuthProvider provider) {
+        // 1) 保护：不可解绑 LOCAL
+        if (provider == AuthProvider.LOCAL)
+            throw new IllegalArgumentException("本地登录不可解绑");
+
+        // 2) 至少保留一种登录方式
+        int total = userRepository.countBindings(userId);
+        if (total <= 1)
+            throw new IllegalArgumentException("至少保留一种登录方式");
+        // 3) 删除绑定
+        userRepository.deleteBinding(userId, provider);
+    }
+
+    // =================== 私有工具 ===================
 
     /**
      * 解析最终前端落地页: 优先缓存 redirect, 其次 provider 默认成功页, 最后 "/"
@@ -399,25 +343,6 @@ public class OAuth2Service implements IOAuth2Service {
      */
     private static String emptyToNull(String value) {
         return (value == null || value.isBlank()) ? null : value;
-    }
-
-    /**
-     * 生成一个基于给定基础用户名的唯一用户名 如果基础用户名已存在 则通过添加后缀数字来确保其唯一性
-     *
-     * @param baseUsername 基础用户名 用于生成最终唯一用户名的基础字符串
-     * @return 返回生成的唯一用户名
-     * @throws AccountException 当尝试超过 1000 次仍无法生成唯一用户名时抛出异常
-     */
-    private String generateUniqueUsername(Username baseUsername) {
-        String candidate = baseUsername.getValue();
-        int seq = 1;
-        while (userRepository.existsByUsername(Username.of(candidate))) {
-            seq++;
-            candidate = baseUsername.getValue() + "_" + seq;
-            if (seq > 1000)
-                throw new IllegalParamException("无法生成唯一用户名");
-        }
-        return candidate;
     }
 
     /**

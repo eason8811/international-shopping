@@ -42,7 +42,6 @@ public interface IBindingService {
     /**
      * 处理第三方账号绑定回调, 根据提供的参数校验并完成与当前用户的绑定
      *
-     * @param expectedUserId   预期的用户ID, 用于验证回调请求是否属于该用户
      * @param provider         第三方认证提供方, 指定要绑定的第三方服务
      * @param code             授权码, 由第三方平台在授权成功后返回
      * @param state            状态标识, 用于防止跨站请求伪造攻击, 通常为生成授权URL时附带的一次性随机字符串
@@ -51,9 +50,9 @@ public interface IBindingService {
      * @return OAuth2CallbackResult 对象, 包含处理结果及可能的令牌信息和重定向URL, 详情见 {@link OAuth2CallbackResult}
      */
     @NotNull
-    OAuth2CallbackResult handleBindCallback(@NotNull Long expectedUserId, @NotNull AuthProvider provider,
-                                            @Nullable String code, @Nullable String state,
-                                            @Nullable String error, @Nullable String errorDescription);
+    OAuth2CallbackResult handleBindCallback(@NotNull AuthProvider provider, @Nullable String code,
+                                            @Nullable String state, @Nullable String error,
+                                            @Nullable String errorDescription);
 
     /**
      * 解除指定用户与第三方认证提供方之间的绑定关系

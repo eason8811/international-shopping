@@ -299,7 +299,7 @@ public class UserRepository implements IUserRepository {
                 .set(UserAuthPO::getLastLoginAt, loginTime));
     }
 
-    // ========================= 增量写入 (本次新增) =========================
+    // ========================= 增量写入 =========================
 
     /**
      * 检查是否存在手机号相同的其他用户, 排除指定的用户 ID
@@ -422,6 +422,121 @@ public class UserRepository implements IUserRepository {
                     .set(UserProfilePO::extra, toJsonOrNull(profile.getExtra()))
             );
         }
+    }
+
+    // ========================= 授权绑定 =========================
+
+    /**
+     * 根据用户 ID 列出所有绑定的授权信息
+     *
+     * @param userId 用户 ID, 用于查询特定用户的授权绑定信息
+     * @return 返回一个包含 {@link AuthBinding} 对象的列表, 每个对象代表一条授权绑定记录
+     */
+    @Override
+    public @NotNull List<AuthBinding> listBindingsByUserId(@NotNull Long userId) {
+        List<UserAuthPO> list = authMapper.selectList(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId)
+                .orderByAsc(UserAuthPO::getId));
+        return list.stream().map(this::toDomainAuth).toList();
+    }
+
+    /**
+     * 检查是否存在由特定 issuer 和 providerUid 定义的身份验证绑定, 并且该绑定不属于指定的用户
+     *
+     * @param issuer        发行者标识符 不能为 null
+     * @param providerUid   提供者的唯一标识符 不能为 null
+     * @param excludeUserId 需要排除的用户 ID, 即检查时会忽略该用户的绑定 不能为 null
+     * @return 如果存在符合条件的绑定则返回 true, 否则返回 false
+     */
+    @Override
+    public boolean existsBindingByIssuerAndUidExcludingUser(@NotNull String issuer, @NotNull String providerUid,
+                                                            @NotNull Long excludeUserId) {
+        UserAuthPO po = authMapper.selectOne(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getIssuer, issuer)
+                .eq(UserAuthPO::getProviderUid, providerUid)
+                .last("limit 1"));
+        if (po == null)
+            return false;
+        return !excludeUserId.equals(po.getUserId());
+    }
+
+    /**
+     * 计算指定用户 <code>userId</code> 的绑定记录数量
+     *
+     * @param userId 用户的唯一标识符 不能为 null
+     * @return 绑定记录的数量 如果
+     */
+    @Override
+    public int countBindings(@NotNull Long userId) {
+        Long rows = authMapper.selectCount(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId));
+        return rows == null ? 0 : rows.intValue();
+    }
+
+    /**
+     * <p>插入或更新用户的授权绑定信息, 如果用户对于指定的提供商已经存在授权绑定, 则更新该绑定, 否则, 插入新的授权绑定</p>
+     *
+     * @param userId  用户ID 必填
+     * @param binding 授权绑定信息, 包含提供商(provider), 发行者(issuer), 提供商唯一标识(providerUid), 访问令牌(accessToken), 刷新令牌(refreshToken), 过期时间(expiresAt)和权限范围(scope)等 必填
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void upsertAuthBinding(@NotNull Long userId, @NotNull AuthBinding binding) {
+        AuthProvider provider = binding.getProvider();
+        String issuer = binding.getIssuer();
+        String providerUid = binding.getProviderUid();
+        EncryptedSecret accessToken = binding.getAccessToken();
+        EncryptedSecret refreshToken = binding.getRefreshToken();
+        LocalDateTime expiresAt = binding.getExpiresAt();
+        String scope = binding.getScope();
+
+        UserAuthPO existed = authMapper.selectOne(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId)
+                .eq(UserAuthPO::getProvider, provider.name())
+                .last("limit 1"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (existed == null) {
+            UserAuthPO toInsert = UserAuthPO.builder()
+                    .userId(userId)
+                    .provider(provider.name())
+                    .issuer(issuer)
+                    .providerUid(providerUid)
+                    .passwordHash(null)
+                    .accessToken(accessToken == null ? null : accessToken.getBytes())
+                    .refreshToken(refreshToken == null ? null : refreshToken.getBytes())
+                    .expiresAt(expiresAt)
+                    .scope(scope)
+                    .role(null)
+                    .lastLoginAt(now)
+                    .build();
+            authMapper.insert(toInsert);
+        } else {
+            authMapper.update(null, new LambdaUpdateWrapper<UserAuthPO>()
+                    .eq(UserAuthPO::getId, existed.getId())
+                    .set(UserAuthPO::getIssuer, issuer)
+                    .set(UserAuthPO::getProviderUid, providerUid)
+                    .set(UserAuthPO::getAccessToken, accessToken == null ? null : accessToken.getBytes())
+                    .set(UserAuthPO::getRefreshToken, refreshToken == null ? null : refreshToken.getBytes())
+                    .set(UserAuthPO::getExpiresAt, expiresAt)
+                    .set(UserAuthPO::getScope, scope)
+                    .set(UserAuthPO::getLastLoginAt, now));
+        }
+    }
+
+    /**
+     * 删除指定用户与特定身份验证提供者之间的绑定关系
+     *
+     * @param userId   用户的唯一标识符, 不能为空
+     * @param provider 身份验证提供者的枚举值, 不能为空
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteBinding(@NotNull Long userId, @NotNull AuthProvider provider) {
+        authMapper.delete(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId)
+                .eq(UserAuthPO::getProvider, provider.name()));
     }
 
     // ========================= 装配工具 =========================

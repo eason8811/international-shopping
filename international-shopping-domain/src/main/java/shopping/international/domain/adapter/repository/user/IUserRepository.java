@@ -3,11 +3,13 @@ package shopping.international.domain.adapter.repository.user;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.user.User;
+import shopping.international.domain.model.entity.user.AuthBinding;
 import shopping.international.domain.model.enums.user.AccountStatus;
 import shopping.international.domain.model.enums.user.AuthProvider;
 import shopping.international.domain.model.vo.user.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -140,4 +142,50 @@ public interface IUserRepository {
      * @throws IllegalArgumentException 如果传入的参数不符合要求 (例如, userId 为 null, 或者 profile 为 null)
      */
     void upsertProfile(@NotNull Long userId, @NotNull UserProfile profile);
+
+    // ========================= 授权绑定 =========================
+
+
+    /**
+     * 根据用户 ID 列出所有绑定的授权信息
+     *
+     * @param userId 用户 ID, 用于查询特定用户的授权绑定信息
+     * @return 返回一个包含 {@link AuthBinding} 对象的列表, 每个对象代表一条授权绑定记录
+     */
+    @NotNull List<AuthBinding> listBindingsByUserId(@NotNull Long userId);
+
+    /**
+     * 检查是否存在由特定 issuer 和 providerUid 定义的身份验证绑定, 并且该绑定不属于指定的用户
+     *
+     * @param issuer        发行者标识符 不能为 null
+     * @param providerUid   提供者的唯一标识符 不能为 null
+     * @param excludeUserId 需要排除的用户 ID, 即检查时会忽略该用户的绑定 不能为 null
+     * @return 如果存在符合条件的绑定则返回 true, 否则返回 false
+     */
+    boolean existsBindingByIssuerAndUidExcludingUser(@NotNull String issuer, @NotNull String providerUid,
+                                                     @NotNull Long excludeUserId);
+
+    /**
+     * 计算指定用户 <code>userId</code> 的绑定记录数量
+     *
+     * @param userId 用户的唯一标识符 不能为 null
+     * @return 绑定记录的数量 如果
+     */
+    int countBindings(@NotNull Long userId);
+
+    /**
+     * <p>插入或更新用户的授权绑定信息, 如果用户对于指定的提供商已经存在授权绑定, 则更新该绑定, 否则, 插入新的授权绑定</p>
+     *
+     * @param userId 用户ID 必填
+     * @param binding 授权绑定信息, 包含提供商(provider), 发行者(issuer), 提供商唯一标识(providerUid), 访问令牌(accessToken), 刷新令牌(refreshToken), 过期时间(expiresAt)和权限范围(scope)等 必填
+     */
+    void upsertAuthBinding(@NotNull Long userId, @NotNull AuthBinding binding);
+
+    /**
+     * 删除指定用户与特定身份验证提供者之间的绑定关系
+     *
+     * @param userId   用户的唯一标识符, 不能为空
+     * @param provider 身份验证提供者的枚举值, 不能为空
+     */
+    void deleteBinding(@NotNull Long userId, @NotNull AuthProvider provider);
 }
