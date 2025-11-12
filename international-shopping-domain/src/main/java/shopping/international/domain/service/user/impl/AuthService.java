@@ -73,6 +73,10 @@ public class AuthService implements IAuthService {
      * 激活验证码有效期 (建议 10 分钟)
      */
     private final Duration activationCodeTtl = Duration.ofMinutes(10);
+    /**
+     * 邮箱验证码长度 (默认 6 位数字)
+     */
+    private static final int EMAIL_CODE_LENGTH = 6;
 
     // ========= 注册 / 激活 =========
 
@@ -115,7 +119,7 @@ public class AuthService implements IAuthService {
         userRepository.saveNewUserWithBindings(toSave);
 
         // 4. 下发邮箱验证码 (覆盖式存储, 最后一次生效)
-        String code = generateNumericCode(6);
+        String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);
         emailPort.sendActivationEmail(email, code);
     }
@@ -158,7 +162,7 @@ public class AuthService implements IAuthService {
         if (user.getStatus() == AccountStatus.ACTIVE)
             throw new IllegalParamException("账户已激活, 无需重发");
 
-        String code = generateNumericCode(6);
+        String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);
         emailPort.sendActivationEmail(email, code);
     }
