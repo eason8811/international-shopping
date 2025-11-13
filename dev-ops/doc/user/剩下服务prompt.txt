@@ -1,167 +1,169 @@
-现在我需要实现用户（user）领域的shopping.international.domain.service.user.IBindingService服务接口，实现类命名应该为BindingService，我将为你提供我们之前一起编写的shopping.international.trigger.controller.user.BindingController，以及其相关的领域服务接口，以及我们之前已经实现过的关于用户的Repository的实现和OAuth2认证相关的实现，请你根据实际情况，告知我哪些部分需要新增，哪些部分需要修改，并给出相应的代码，如果你需要新增对用户仓储数据的操作，请直接修改shopping.international.infrastructure.adapter.repository.user.UserRepository类，在类中新增你所需要的方法，由于我们之前开发用户登录注册以及第三方鉴权接口时，已经构建好了用户（user）领域中相关四张表的PO，他们分别是user_account ，user_auth ，user_profile ，user_address，分别对应UserAccountPO，UserAuthPO，UserProfilePO，UserAddressPO（我在下方会给出），你可以继续沿用，请你继续按照我提供的代码的编码风格以及命名格式为我实现这个服务，并且，与infrastructure相关的操作请下沉到infrastructure层（如使用@Transactional开启事务等）同样的，你需要为你编写的所有类，所有方法，所有属性，都加上完整的JavaDoc
+现在我需要实现用户（user）领域的shopping.international.domain.service.user.IAddressService服务接口，实现类命名应该为AddressService服务接口，我将为你提供我们之前一起编写的shopping.international.trigger.controller.user.AddressController，以及其相关的领域服务接口，以及我们之前已经实现过的关于用户的Repository的实现，请你根据实际情况，告知我哪些部分需要新增，哪些部分需要修改，并给出相应的代码，如果你需要新增对用户仓储数据的操作，请直接修改shopping.international.infrastructure.adapter.repository.user.UserRepository类，在类中新增你所需要的方法，由于我们之前开发用户登录注册以及第三方鉴权接口时，已经构建好了用户（user）领域中相关四张表的PO，他们分别是user_account ，user_auth ，user_profile ，user_address，分别对应UserAccountPO，UserAuthPO，UserProfilePO，UserAddressPO（我在下方会给出），你可以继续沿用，请你继续按照我提供的代码的编码风格以及命名格式为我实现这个服务，并且，与infrastructure相关的操作请下沉到infrastructure层（如使用@Transactional开启事务等）同样的，你需要为你编写的所有类，所有方法，所有属性，都加上完整的JavaDoc
 
-// shopping.international.trigger.controller.user.BindingController
+// shopping.international.trigger.controller.user.AddressController
 package shopping.international.trigger.controller.user;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.csrf.CsrfToken;
-import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.*;
+import shopping.international.api.req.user.CreateAddressRequest;
+import shopping.international.api.req.user.UpdateAddressRequest;
 import shopping.international.api.resp.Result;
-import shopping.international.api.resp.user.RedirectUrlRespond;
-import shopping.international.api.resp.user.UserAuthBindingRespond;
-import shopping.international.domain.model.entity.user.AuthBinding;
-import shopping.international.domain.model.enums.user.AuthProvider;
-import shopping.international.domain.model.vo.user.OAuth2CallbackResult;
-import shopping.international.domain.service.user.IBindingService;
+import shopping.international.api.resp.user.AddressRespond;
+import shopping.international.domain.model.entity.user.UserAddress;
+import shopping.international.domain.model.vo.user.PhoneNumber;
+import shopping.international.domain.service.user.IAddressService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
 
 import java.util.List;
-import java.util.regex.Pattern;
-
-import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
- * 第三方账号绑定/解绑 控制器
- * <p>
- * 约定:
+ * 收货地址接口 {@code /users/me/addresses}
+ *
+ * <p>职责：
  * <ul>
- *     <li>
- *         发起绑定: {@code GET /user/bindings/{provider}/authorize?redirectUrl=...}<br/>
- *         返回 data.url (前端跳转至第三方授权页)
- *     </li>
- *     <li>
- *         回调完成绑定: {@code GET /user/bindings/oauth2/{provider}/callback?code=...&state=...}<br/>
- *         内部完成绑定并 302 到前端 redirectUrl
- *     </li>
- *     <li>解绑: {@code DELETE /user/bindings/{provider}}</li>
- *     <li>列表: {@code GET /user/bindings}</li>
+ *   <li>列表, 详情</li>
+ *   <li>新增, 修改, 删除</li>
+ *   <li>设置默认地址 (同用户仅一个)</li>
  * </ul>
+ * </p>
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(SecurityConstants.API_PREFIX + "/user/bindings")
-public class BindingController {
+@RequestMapping(SecurityConstants.API_PREFIX + "/users/me/addresses")
+public class AddressController {
 
     /**
-     * 认证绑定服务
+     * 地址领域服务
      */
-    private final IBindingService bindingService;
-    /**
-     * CSRF 令牌存储器
-     */
-    private final CsrfTokenRepository csrfTokenRepository;
+    private final IAddressService addressService;
+
 
     /**
-     * 查询当前用户的第三方绑定列表
+     * 获取当前登录用户的收货地址列表, 分页显示
+     *
+     * @param page 页码, 默认值为 1
+     * @param size 每页显示的条目数, 默认值为 5
+     * @return 包含分页信息和地址列表的结果集
      */
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
-    public Result<List<UserAuthBindingRespond>> list() {
-        Long userId = requireCurrentUserId();
-        List<AuthBinding> authBindingList = bindingService.listBindings(userId);
-        List<UserAuthBindingRespond> userAuthBindingRespondList = authBindingList.stream()
-                .map(UserAuthBindingRespond::from)
-                .toList();
-        return Result.ok(userAuthBindingRespondList);
+    public ResponseEntity<Result<List<AddressRespond>>> list(@RequestParam(defaultValue = "1") int page,
+                                                             @RequestParam(defaultValue = "5") int size) {
+        Long uid = requireCurrentUserId();
+        IAddressService.PageResult pageData = addressService.list(uid, page, size);
+        List<AddressRespond> data = pageData.items().stream().map(AddressRespond::from).toList();
+        return ResponseEntity.ok(Result.ok(
+                data,
+                Result.Meta.builder()
+                        .page(page)
+                        .size(size)
+                        .total(pageData.total())
+                        .build()
+        ));
     }
 
     /**
-     * 发起 绑定意图 的第三方授权 (前端仅需拿到URL并跳转, 无需提交authCode)
+     * 创建新的收货地址
      *
-     * @param provider    第三方提供方
-     * @param redirectUrl 绑定完成后的前端落地页
+     * <p>该方法用于用户创建一个新的收货地址, 需要提供接收者姓名, 电话号码, 国家, 省份, 城市, 区县等信息, 可以设置此地址是否为默认地址,
+     * 通过 {@code Idempotency-Key} 请求头保证操作的幂等性</p>
+     *
+     * @param idempotencyKey 幂等键, 用于确保客户端多次发送相同的请求时服务器只处理一次, 防止重复创建
+     * @param req            包含新地址详细信息的请求对象
+     * @return 包含刚创建的地址信息的结果集, 如果成功创建, 返回状态码为 201 Created
      */
-    @GetMapping("/{provider}/authorize")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Result<RedirectUrlRespond>> authorize(@PathVariable("provider") AuthProvider provider,
-                                                                @RequestParam(value = "redirectUrl") String redirectUrl) {
-        requireNotNull(provider, "认证提供者不能为空");
-        requireNotBlank(redirectUrl, "跳转地址不能为空");
-        Pattern URL_REGEX = Pattern.compile("^https?://.*$");
-        require(URL_REGEX.matcher(redirectUrl).matches(), "跳转地址格式错误");
+    @PostMapping
+    public ResponseEntity<Result<AddressRespond>> create(@RequestHeader(value = "Idempotency-Key") String idempotencyKey,
+                                                         @RequestBody @Valid CreateAddressRequest req) {
+        req.validate();
+        Long uid = requireCurrentUserId();
 
-        Long userId = requireCurrentUserId();
-        String url = bindingService.buildBindAuthorizationUrl(userId, provider, redirectUrl);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .body(Result.found(new RedirectUrlRespond(url)));
+        PhoneNumber phoneNumber = PhoneNumber.of(req.getPhone());
+        UserAddress newAddress = UserAddress.of(req.getReceiverName(), phoneNumber, req.getCountry(),
+                req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
+                req.getZipcode(), Boolean.TRUE.equals(req.getIsDefault()));
+
+        UserAddress created = addressService.create(uid, newAddress, idempotencyKey);
+        return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
+                .body(Result.created(AddressRespond.from(created)));
     }
 
     /**
-     * 处理 OAuth2 回调请求, 用于完成第三方登录或绑定流程
+     * 根据指定的 ID 获取当前登录用户的单个收货地址信息
      *
-     * @param provider         第三方提供商的标识, 例如 "google", "facebook" 等
-     * @param code             从第三方服务获取的授权码
-     * @param state            用于防止 CSRF 攻击的状态参数
-     * @param error            如果有错误发生, 该参数将包含错误代码
-     * @param errorDescription 错误描述信息, 当 {@code error} 参数存在时可能附带此信息
-     * @param request          HTTP 请求对象, 用于处理 CSRF 令牌
-     * @param response         HTTP 响应对象, 用于更新客户端的 CSRF 令牌
-     * @return 包含重定向 URL 的响应实体, 根据操作结果返回不同的 HTTP 状态码
-     * <p>
-     * 如果绑定成功, 将返回状态码为 {@code 302 Found} 的响应, 并提供一个重定向 URL.
-     * 若绑定失败, 则返回状态码为 {@code 400 Bad Request} 的响应, 同样包含一个重定向 URL 及错误信息.
+     * @param id 收货地址的唯一标识符
+     * @return 包含请求地址详细信息的结果集, 如果成功找到, 返回状态码为 200 OK
      */
-    @GetMapping("/oauth2/{provider}/callback")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Result<RedirectUrlRespond>> callback(@PathVariable("provider") AuthProvider provider,
-                                                               @RequestParam(value = "code", required = false) String code,
-                                                               @RequestParam(value = "state", required = false) String state,
-                                                               @RequestParam(value = "error", required = false) String error,
-                                                               @RequestParam(value = "error_description", required = false) String errorDescription,
-                                                               HttpServletRequest request,
-                                                               HttpServletResponse response) {
-        Long userId = requireCurrentUserId();
-
-        OAuth2CallbackResult result = bindingService.handleBindCallback(userId, provider, code, state, error, errorDescription);
-        if (!result.isSuccess())
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Result.of(
-                            false,
-                            shopping.international.types.enums.ApiCode.BAD_REQUEST,
-                            provider.name() + " 绑定错误",
-                            new RedirectUrlRespond(result.getRedirectUrl()),
-                            null
-                    ));
-
-        // 轮换 CSRF (与登录回调保持一致的安全姿势)
-        CsrfToken token = csrfTokenRepository.generateToken(request);
-        csrfTokenRepository.saveToken(token, request, response);
-
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .body(Result.found(new RedirectUrlRespond(result.getRedirectUrl())));
+    @GetMapping("/{id}")
+    public ResponseEntity<Result<AddressRespond>> get(@PathVariable("id") Long id) {
+        Long uid = requireCurrentUserId();
+        UserAddress address = addressService.get(uid, id);
+        return ResponseEntity.ok(Result.ok(AddressRespond.from(address)));
     }
 
     /**
-     * 解绑指定 provider 的第三方账号
+     * 更新指定ID的收货地址信息
      *
-     * @param provider 认证提供者, 例如 "google", "facebook" 等
-     * @return 返回一个 {@link Result} 对象, 包含解绑操作的结果信息. 如果解绑成功, 则返回状态为成功的 {@code Result} 对象, 并携带消息 "解绑成功"
+     * <p>该方法允许用户更新已存在的收货地址, 包括接收者姓名, 电话号码, 国家, 省份, 城市, 区县等信息, 同时可以设置此地址是否为默认地址
+     * 请求体中需包含 {@link UpdateAddressRequest} 对象, 用于传递新的地址详情</p>
+     *
+     * @param id  地址的唯一标识符
+     * @param req 包含要更新的地址详细信息的请求对象
+     * @return 包含更新后的地址信息的结果集, 如果成功更新, 返回状态码为 200 OK
      */
-    @DeleteMapping("/{provider}")
-    @PreAuthorize("isAuthenticated()")
-    public Result<Void> unbind(@PathVariable("provider") AuthProvider provider) {
-        requireNotNull(provider, "认证提供者不能为空");
-        Long userId = requireCurrentUserId();
-        bindingService.unbind(userId, provider);
-        return Result.ok("解绑成功");
+    @PatchMapping("/{id}")
+    public ResponseEntity<Result<AddressRespond>> update(@PathVariable("id") Long id, @RequestBody UpdateAddressRequest req) {
+        req.validate();
+        Long uid = requireCurrentUserId();
+
+        PhoneNumber phone = req.getPhone() == null ? null : PhoneNumber.nullableOf(req.getPhone());
+        UserAddress updated = addressService.update(uid, id, req.getReceiverName(), phone, req.getCountry(),
+                req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
+                req.getZipcode(), req.getIsDefault());
+        return ResponseEntity.ok(Result.ok(AddressRespond.from(updated), "地址已更新"));
     }
 
-    // ========================= 内部工具方法 =========================
+    /**
+     * 删除指定ID的收货地址
+     *
+     * <p>此方法允许用户删除一个已存在的收货地址, 通过提供地址的唯一标识符 {@code id} 来执行删除操作, 删除后, 返回一个确认消息表示该地址已被成功删除</p>
+     *
+     * @param id 地址的唯一标识符, 用于定位要删除的具体地址
+     * @return 包含删除结果的消息, 如果删除成功, 将返回状态码为 200 OK 的响应, 并携带确认消息 "地址已删除"
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Result<Void>> delete(@PathVariable("id") Long id) {
+        Long uid = requireCurrentUserId();
+        addressService.delete(uid, id);
+        return ResponseEntity.ok(Result.ok("地址已删除"));
+    }
 
     /**
-     * 获取当前登录用户的ID 如果用户未登录或无法解析用户信息, 则抛出异常
+     * 设置指定ID的地址为默认收货地址
      *
-     * @return 当前登录用户的ID, 类型为 {@code Long}
-     * @throws AccountException 如果用户未登录或用户信息无法被解析成Long类型
+     * <p>此方法允许用户将一个已存在的收货地址设置为默认地址, 通过提供地址的唯一标识符 {@code id} 来执行设置操作,
+     * 同一用户只能有一个默认地址, 如果之前已经存在默认地址, 则新的设置会覆盖旧的默认地址, </p>
+     *
+     * @param id 地址的唯一标识符, 用于定位要设置为默认的具体地址
+     * @return 包含设置结果的消息, 如果成功设置, 将返回状态码为 200 OK 的响应, 并携带确认消息 "默认地址已设置"
+     */
+    @PostMapping("/{id}/set-default")
+    public ResponseEntity<Result<Void>> setDefault(@PathVariable("id") Long id) {
+        Long uid = requireCurrentUserId();
+        addressService.setDefault(uid, id);
+        return ResponseEntity.ok(Result.ok("默认地址已设置"));
+    }
+
+    /**
+     * 从安全上下文中解析当前用户ID, 解析失败则抛出未登录异常
+     *
+     * @return 当前登录用户ID
+     * @throws AccountException 如果用户未登录或无法解析当前用户信息时抛出
      */
     private Long requireCurrentUserId() {
         Authentication authentication = null;
@@ -170,6 +172,7 @@ public class BindingController {
         if (authentication == null || !authentication.isAuthenticated())
             throw new AccountException("未登录");
         Object principal = authentication.getPrincipal();
+        // 典型实现: principal 可为自定义对象, 需从中提取 id, 此处兼容 Long 和 Map-like 的简单示例
         if (principal instanceof Long longUserId)
             return longUserId;
         if (principal instanceof String stringUserId)
@@ -178,217 +181,134 @@ public class BindingController {
     }
 }
 
-// shopping.international.domain.service.user.IBindingService
+
+// shopping.international.domain.service.user.IAddressService
 package shopping.international.domain.service.user;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import shopping.international.domain.model.entity.user.AuthBinding;
-import shopping.international.domain.model.enums.user.AuthProvider;
-import shopping.international.domain.model.vo.user.OAuth2CallbackResult;
+import shopping.international.domain.model.entity.user.UserAddress;
+import shopping.international.domain.model.vo.user.PhoneNumber;
+import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.List;
 
 /**
- * 第三方账号绑定/解绑 应用服务
- * <p>
- * 说明:
- * - 绑定发起阶段: 生成第三方授权URL并记录一次性state (携带BIND意图与userId)
- * - 回调阶段: 校验state并完成与当前用户的绑定 (不需要前端传authCode)
- * - 解绑阶段: 按provider (或你需要时可扩展为按bindingId)解除绑定
+ * 收货地址领域服务接口
  */
-public interface IBindingService {
+public interface IAddressService {
 
     /**
-     * 查询当前用户的绑定列表
+     * 简单分页返回
+     */
+    record PageResult(List<UserAddress> items, long total) {
+    }
+
+    /**
+     * 获取用户的收货地址列表, 使用默认分页参数
      *
-     * @param userId 当前登录用户ID
-     * @return 用户的认证绑定列表, 包含所有与该用户关联的第三方认证信息, 每个 {@link AuthBinding} 对象代表一个认证绑定
+     * @param userId 用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @return 返回一个 {@link PageResult} 对象, 包含了当前页的地址列表以及符合条件的地址总数, 默认情况下展示第一页, 每页5条记录
      */
     @NotNull
-    List<AuthBinding> listBindings(@NotNull Long userId);
+    default PageResult list(@NotNull Long userId) {
+        return list(userId, 1, 5);
+    }
 
     /**
-     * 构建用于第三方账号绑定的授权 URL
+     * 获取用户的收货地址列表, 使用默认分页参数, 每页展示5条记录
      *
-     * @param userId      用户ID, 用于标识当前用户
-     * @param provider    第三方认证提供方, 指定要绑定的第三方服务
-     * @param redirectUrl 绑定成功后的重定向 URL, 可选参数, 如果为空则使用默认值
-     * @return 授权 URL 字符串, 用于引导用户前往第三方平台进行授权操作
+     * @param userId 用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @param page   请求的页码, 从1开始计数, 用于分页逻辑中定位具体的页
+     * @return 返回一个 {@link PageResult} 对象, 包含了当前页的地址列表以及符合条件的地址总数
      */
     @NotNull
-    String buildBindAuthorizationUrl(@NotNull Long userId, @NotNull AuthProvider provider, @Nullable String redirectUrl);
-
+    default PageResult list(@NotNull Long userId, int page) {
+        return list(userId, page, 5);
+    }
 
     /**
-     * 处理第三方账号绑定回调, 根据提供的参数校验并完成与当前用户的绑定
+     * 获取用户的收货地址列表, 支持分页查询
      *
-     * @param expectedUserId   预期的用户ID, 用于验证回调请求是否属于该用户
-     * @param provider         第三方认证提供方, 指定要绑定的第三方服务
-     * @param code             授权码, 由第三方平台在授权成功后返回
-     * @param state            状态标识, 用于防止跨站请求伪造攻击, 通常为生成授权URL时附带的一次性随机字符串
-     * @param error            错误信息, 如果有错误发生则由第三方平台返回
-     * @param errorDescription 错误描述, 提供更详细的错误信息
-     * @return OAuth2CallbackResult 对象, 包含处理结果及可能的令牌信息和重定向URL, 详情见 {@link OAuth2CallbackResult}
+     * @param userId 用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @param page   请求的页码, 从1开始计数, 用于分页逻辑中定位具体的页
+     * @param size   每页展示的地址条目数量, 用于控制单次请求返回的数据量
+     * @return 返回一个 {@link PageResult} 对象, 包含了当前页的地址列表以及符合条件的地址总数
      */
     @NotNull
-    OAuth2CallbackResult handleBindCallback(@NotNull Long expectedUserId, @NotNull AuthProvider provider,
-                                            @Nullable String code, @Nullable String state,
-                                            @Nullable String error, @Nullable String errorDescription);
+    PageResult list(@NotNull Long userId, int page, int size);
+
 
     /**
-     * 解除指定用户与第三方认证提供方之间的绑定关系
+     * 根据用户ID和地址ID获取指定用户的特定收货地址信息
      *
-     * @param userId   用户ID, 指定要解绑的用户
-     * @param provider 第三方认证提供方, 指定要解除绑定的服务
+     * @param userId    用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @param addressId 地址的唯一标识符, 用于定位具体的收货地址, 必须提供且非空
+     * @return 返回一个 {@link UserAddress} 对象, 包含了指定地址的所有详细信息
      */
-    void unbind(@NotNull Long userId, @NotNull AuthProvider provider);
+    @NotNull
+    UserAddress get(@NotNull Long userId, @NotNull Long addressId);
+
+    /**
+     * 为指定用户创建一个新的收货地址
+     *
+     * @param userId         用户的唯一标识符, 用于关联新创建的地址到该用户, 必须提供且非空
+     * @param address        包含了新地址详细信息的 {@link UserAddress} 对象, 必须提供且非空
+     * @param idempotencyKey 用于确保请求幂等性的唯一键, 在重复请求时保证操作的一致性, 必须提供且非空
+     * @return 返回一个新创建的 {@link UserAddress} 对象, 包括了系统生成的ID和其他详细信息
+     */
+    @NotNull
+    UserAddress create(@NotNull Long userId, @NotNull UserAddress address, @NotNull String idempotencyKey);
+
+    /**
+     * 修改指定用户的收货地址信息
+     *
+     * @param userId       用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @param addressId    地址的唯一标识符, 用于定位具体的收货地址, 必须提供且非空
+     * @param receiverName 收货人姓名, 可为空, 若不为空则更新该字段
+     * @param phone        联系电话, 值对象, 可为空, 若不为空则更新该字段
+     * @param country      国家, 可为空, 若不为空则更新该字段
+     * @param province     省份, 可为空, 若不为空则更新该字段
+     * @param city         城市, 可为空, 若不为空则更新该字段
+     * @param district     区县, 可为空, 若不为空则更新该字段
+     * @param addressLine1 地址行1, 可为空, 若不为空则更新该字段
+     * @param addressLine2 地址行2, 可为空, 若不为空则更新该字段
+     * @param zipcode      邮编, 可为空, 若不为空则更新该字段
+     * @param makeDefault  是否设为默认地址, 可为空, 若不为空则根据其值设置当前地址是否为默认
+     * @return 返回一个 {@link UserAddress} 对象, 包含了更新后的地址详细信息
+     * @throws IllegalParamException 如果提供的 <code>receiverName</code> 或 <code>addressLine1</code> 为空白但不为 null 时抛出
+     */
+    @NotNull
+    UserAddress update(@NotNull Long userId,
+                       @NotNull Long addressId,
+                       @Nullable String receiverName,
+                       @Nullable PhoneNumber phone,
+                       @Nullable String country,
+                       @Nullable String province,
+                       @Nullable String city,
+                       @Nullable String district,
+                       @Nullable String addressLine1,
+                       @Nullable String addressLine2,
+                       @Nullable String zipcode,
+                       @Nullable Boolean makeDefault);
+
+    /**
+     * 删除指定用户的特定收货地址
+     *
+     * @param userId    用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @param addressId 地址的唯一标识符, 用于定位具体的收货地址, 必须提供且非空
+     */
+    void delete(@NotNull Long userId, @NotNull Long addressId);
+
+    /**
+     * 将指定用户的某个地址设为默认收货地址
+     *
+     * @param userId    用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @param addressId 地址的唯一标识符, 用于定位具体的收货地址, 必须提供且非空
+     */
+    void setDefault(@NotNull Long userId, @NotNull Long addressId);
 }
 
-// shopping.international.domain.adapter.repository.user.IUserRepository
-package shopping.international.domain.adapter.repository.user;
-
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import shopping.international.domain.model.aggregate.user.User;
-import shopping.international.domain.model.enums.user.AccountStatus;
-import shopping.international.domain.model.enums.user.AuthProvider;
-import shopping.international.domain.model.vo.user.*;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-/**
- * 用户聚合的仓储接口 (面向领域层), 负责对 {@code user_account / user_auth / user_profile / user_address} 等
- * 多表的组合装配与持久化, 具体 ORM/SQL 由基础设施层实现
- *
- * <p><b>注意: </b>该接口设计为“一站式”聚合仓储, 屏蔽聚合内多实体 (含绑定) 的物理落地细节</p>
- */
-public interface IUserRepository {
-
-    /**
-     * 按登录账号查询用户 (账号为用户名 / 邮箱 / 手机号), 返回完整聚合快照 (含绑定)
-     *
-     * @param account 用户名 / 邮箱 / 手机号
-     * @return 用户聚合, 可为空
-     */
-    Optional<User> findByLoginAccount(@NotNull String account);
-
-    /**
-     * 按邮箱精确查询用户 (用于激活等流程), 返回完整聚合快照
-     *
-     * @param email 邮箱
-     * @return 用户聚合, 可为空
-     */
-    Optional<User> findByEmail(@NotNull EmailAddress email);
-
-    /**
-     * 按主键查询用户
-     *
-     * @param userId 用户 ID
-     * @return 用户聚合, 可为空
-     */
-    Optional<User> findById(@NotNull Long userId);
-
-    /**
-     * 检查用户名是否已存在 (幂等注册前置唯一性校验)
-     *
-     * @param username 用户名
-     * @return 是否存在
-     */
-    boolean existsByUsername(@NotNull Username username);
-
-    /**
-     * 检查邮箱是否已存在 (幂等注册前置唯一性校验)
-     *
-     * @param email 邮箱
-     * @return 是否存在 (忽略 null)
-     */
-    boolean existsByEmail(@NotNull EmailAddress email);
-
-    /**
-     * 检查手机号是否已存在 (幂等注册前置唯一性校验)
-     *
-     * @param phone 手机号
-     * @return 是否存在 (忽略 null)
-     */
-    boolean existsByPhone(@NotNull PhoneNumber phone);
-
-    /**
-     * 按第三方身份 (issuer + provider_uid/sub) 查询用户
-     *
-     * @param issuer      OIDC iss (或等价发行方标识)
-     * @param providerUid OIDC sub (发行方内用户唯一 ID)
-     * @return 用户聚合
-     */
-    @NotNull Optional<User> findByProviderUid(@NotNull String issuer, @NotNull String providerUid);
-
-    /**
-     * 持久化一个全新的用户聚合 (账户 + 绑定 + 资料 + 地址)
-     *
-     * <p>要求 {@code user.id == null}, 至少存在一种登录方式
-     * 若存在 LOCAL 绑定, 则其 passwordHash 必须非空
-     * 成功后返回带持久化主键的快照 (含各子实体主键)</p>
-     *
-     * @param user 待保存的新用户对象, 包含用户账户、绑定信息、资料及地址等
-     * @return 保存后的用户对象, 包括由数据库生成的主键和其他相关字段
-     */
-    @NotNull User saveNewUserWithBindings(User user);
-
-    /**
-     * 更新账户状态 (如 DISABLED → ACTIVE)
-     *
-     * @param userId 用户 ID
-     * @param status 新状态
-     */
-    void updateStatus(@NotNull Long userId, @NotNull AccountStatus status);
-
-    /**
-     * 记录登录时间戳与通道最近登录时间 (如 provider=LOCAL)
-     *
-     * @param userId    用户 ID
-     * @param provider  认证提供方
-     * @param loginTime 登录时间
-     */
-    void recordLogin(@NotNull Long userId, @NotNull AuthProvider provider, @NotNull LocalDateTime loginTime);
-
-    /**
-     * 检查是否存在手机号相同的其他用户, 排除指定的用户 ID
-     *
-     * @param userId 用户 ID 需要排除的用户 ID, 用于避免查询到当前用户自己
-     * @param phone  手机号 要检查的手机号, 必须是有效的 {@link PhoneNumber} 对象
-     * @return 是否存在 如果存在其他用户的手机号与给定的手机号相同, 返回 true; 否则返回 false
-     */
-    boolean existsByPhoneExceptUser(@NotNull Long userId, @NotNull PhoneNumber phone);
-
-    /**
-     * 更新指定用户ID的昵称和手机号
-     *
-     * @param userId   用户ID, 必须提供
-     * @param nickname 新的昵称, 可以是 {@code null}, 如果为 {@code null} 则不更新昵称
-     * @param phone    新的手机号, 可以是 {@code null}, 如果为 {@code null} 则不更新手机号
-     * @throws IllegalStateException 当尝试更新不存在或已删除的用户时抛出
-     */
-    void updateNicknameAndPhone(@NotNull Long userId, @Nullable Nickname nickname, @Nullable PhoneNumber phone);
-
-    /**
-     * 更新指定用户的邮箱地址
-     *
-     * @param userId   用户ID, 必须提供
-     * @param newEmail 新的邮箱地址, 必须提供
-     * @throws IllegalStateException 当尝试更新不存在或已删除的用户时抛出
-     */
-    void updateEmail(@NotNull Long userId, @NotNull EmailAddress newEmail);
-
-    /**
-     * 插入或更新用户资料信息. 如果指定的用户ID不存在, 则插入新的用户资料, 如果存在, 则更新现有资料
-     *
-     * @param userId  用户ID, 用于识别用户
-     * @param profile 用户资料对象, 包含了用户的显示名称, 头像URL, 性别, 生日, 国家, 省份, 城市, 地址行, 邮政编码以及额外信息等
-     * @throws IllegalArgumentException 如果传入的参数不符合要求 (例如, userId 为 null, 或者 profile 为 null)
-     */
-    void upsertProfile(@NotNull Long userId, @NotNull UserProfile profile);
-}
 
 // shopping.international.infrastructure.adapter.repository.user.UserRepository
 package shopping.international.infrastructure.adapter.repository.user;
@@ -692,7 +612,7 @@ public class UserRepository implements IUserRepository {
                 .set(UserAuthPO::getLastLoginAt, loginTime));
     }
 
-    // ========================= 增量写入 (本次新增) =========================
+    // ========================= 增量写入 =========================
 
     /**
      * 检查是否存在手机号相同的其他用户, 排除指定的用户 ID
@@ -815,6 +735,121 @@ public class UserRepository implements IUserRepository {
                     .set(UserProfilePO::extra, toJsonOrNull(profile.getExtra()))
             );
         }
+    }
+
+    // ========================= 授权绑定 =========================
+
+    /**
+     * 根据用户 ID 列出所有绑定的授权信息
+     *
+     * @param userId 用户 ID, 用于查询特定用户的授权绑定信息
+     * @return 返回一个包含 {@link AuthBinding} 对象的列表, 每个对象代表一条授权绑定记录
+     */
+    @Override
+    public @NotNull List<AuthBinding> listBindingsByUserId(@NotNull Long userId) {
+        List<UserAuthPO> list = authMapper.selectList(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId)
+                .orderByAsc(UserAuthPO::getId));
+        return list.stream().map(this::toDomainAuth).toList();
+    }
+
+    /**
+     * 检查是否存在由特定 issuer 和 providerUid 定义的身份验证绑定, 并且该绑定不属于指定的用户
+     *
+     * @param issuer        发行者标识符 不能为 null
+     * @param providerUid   提供者的唯一标识符 不能为 null
+     * @param excludeUserId 需要排除的用户 ID, 即检查时会忽略该用户的绑定 不能为 null
+     * @return 如果存在符合条件的绑定则返回 true, 否则返回 false
+     */
+    @Override
+    public boolean existsBindingByIssuerAndUidExcludingUser(@NotNull String issuer, @NotNull String providerUid,
+                                                            @NotNull Long excludeUserId) {
+        UserAuthPO po = authMapper.selectOne(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getIssuer, issuer)
+                .eq(UserAuthPO::getProviderUid, providerUid)
+                .last("limit 1"));
+        if (po == null)
+            return false;
+        return !excludeUserId.equals(po.getUserId());
+    }
+
+    /**
+     * 计算指定用户 <code>userId</code> 的绑定记录数量
+     *
+     * @param userId 用户的唯一标识符 不能为 null
+     * @return 绑定记录的数量 如果
+     */
+    @Override
+    public int countBindings(@NotNull Long userId) {
+        Long rows = authMapper.selectCount(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId));
+        return rows == null ? 0 : rows.intValue();
+    }
+
+    /**
+     * <p>插入或更新用户的授权绑定信息, 如果用户对于指定的提供商已经存在授权绑定, 则更新该绑定, 否则, 插入新的授权绑定</p>
+     *
+     * @param userId  用户ID 必填
+     * @param binding 授权绑定信息, 包含提供商(provider), 发行者(issuer), 提供商唯一标识(providerUid), 访问令牌(accessToken), 刷新令牌(refreshToken), 过期时间(expiresAt)和权限范围(scope)等 必填
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void upsertAuthBinding(@NotNull Long userId, @NotNull AuthBinding binding) {
+        AuthProvider provider = binding.getProvider();
+        String issuer = binding.getIssuer();
+        String providerUid = binding.getProviderUid();
+        EncryptedSecret accessToken = binding.getAccessToken();
+        EncryptedSecret refreshToken = binding.getRefreshToken();
+        LocalDateTime expiresAt = binding.getExpiresAt();
+        String scope = binding.getScope();
+
+        UserAuthPO existed = authMapper.selectOne(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId)
+                .eq(UserAuthPO::getProvider, provider.name())
+                .last("limit 1"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (existed == null) {
+            UserAuthPO toInsert = UserAuthPO.builder()
+                    .userId(userId)
+                    .provider(provider.name())
+                    .issuer(issuer)
+                    .providerUid(providerUid)
+                    .passwordHash(null)
+                    .accessToken(accessToken == null ? null : accessToken.getBytes())
+                    .refreshToken(refreshToken == null ? null : refreshToken.getBytes())
+                    .expiresAt(expiresAt)
+                    .scope(scope)
+                    .role(null)
+                    .lastLoginAt(now)
+                    .build();
+            authMapper.insert(toInsert);
+        } else {
+            authMapper.update(null, new LambdaUpdateWrapper<UserAuthPO>()
+                    .eq(UserAuthPO::getId, existed.getId())
+                    .set(UserAuthPO::getIssuer, issuer)
+                    .set(UserAuthPO::getProviderUid, providerUid)
+                    .set(UserAuthPO::getAccessToken, accessToken == null ? null : accessToken.getBytes())
+                    .set(UserAuthPO::getRefreshToken, refreshToken == null ? null : refreshToken.getBytes())
+                    .set(UserAuthPO::getExpiresAt, expiresAt)
+                    .set(UserAuthPO::getScope, scope)
+                    .set(UserAuthPO::getLastLoginAt, now));
+        }
+    }
+
+    /**
+     * 删除指定用户与特定身份验证提供者之间的绑定关系
+     *
+     * @param userId   用户的唯一标识符, 不能为空
+     * @param provider 身份验证提供者的枚举值, 不能为空
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteBinding(@NotNull Long userId, @NotNull AuthProvider provider) {
+        authMapper.delete(new LambdaQueryWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId)
+                .eq(UserAuthPO::getProvider, provider.name()));
     }
 
     // ========================= 装配工具 =========================
@@ -977,450 +1012,6 @@ public class UserRepository implements IUserRepository {
     }
 }
 
-// shopping.international.domain.adapter.port.user.IOAuth2RemotePort
-package shopping.international.domain.adapter.port.user;
-
-import org.jetbrains.annotations.NotNull;
-import shopping.international.domain.model.vo.user.*;
-
-/**
- * OAuth2/OIDC 远程交互端口
- * <p>职责: 与第三方授权服务器交互: 置换 Token, 验签并解析 ID Token, 获取 UserInfo</p>
- */
-public interface IOAuth2RemotePort {
-
-    /**
-     * 授权码置换 Token (支持 PKCE)
-     *
-     * @param spec          提供方配置
-     * @param code          授权码
-     * @param redirectUri   授权阶段使用的 redirect_uri (必须完全一致)
-     * @param codeVerifier  授权阶段生成的 code_verifier
-     * @return Token 响应体
-     */
-    @NotNull OAuth2TokenResponse exchangeAuthorizationCode(@NotNull OAuth2ProviderSpec spec, @NotNull String code,
-                                                           @NotNull String redirectUri, @NotNull String codeVerifier);
-
-    /**
-     * 验签并解析 ID Token (OIDC)
-     *
-     * @param spec    提供方配置 (包含 issuer, aud/clientId, jwkSetUri 等)
-     * @param idToken 原始 id_token 字符串
-     * @return 解析后的声明集
-     */
-    @NotNull OidcIdTokenClaims verifyAndParseIdToken(@NotNull OAuth2ProviderSpec spec, @NotNull String idToken);
-
-    /**
-     * 使用 access_token 获取用户信息 (如果配置了 userinfo 端点)
-     *
-     * @param spec         提供方配置
-     * @param accessToken  访问令牌
-     * @return 用户信息 (可能为空)
-     */
-    @NotNull OidcUserInfo fetchUserInfo(@NotNull OAuth2ProviderSpec spec, @NotNull String accessToken);
-}
-
-// shopping.international.infrastructure.adapter.port.user.OAuth2RemotePort
-package shopping.international.infrastructure.adapter.port.user;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
-import com.nimbusds.jose.proc.*;
-import com.nimbusds.jose.util.DefaultResourceRetriever;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
-import com.nimbusds.jwt.proc.DefaultJWTProcessor;
-import lombok.RequiredArgsConstructor;
-import okhttp3.ResponseBody;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.stereotype.Component;
-import retrofit2.Response;
-import shopping.international.domain.adapter.port.user.IOAuth2RemotePort;
-import shopping.international.domain.model.vo.user.*;
-import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
-import shopping.international.infrastructure.gateway.user.IOidcUserInfoApi;
-import shopping.international.infrastructure.gateway.user.dto.TokenRequest;
-import shopping.international.infrastructure.gateway.user.dto.TokenRespond;
-import shopping.international.infrastructure.gateway.user.dto.UserInfoRespond;
-import shopping.international.types.exceptions.IllegalParamException;
-
-import java.net.URL;
-import java.time.Instant;
-import java.util.*;
-
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
-
-/**
- * IOAuth2RemotePort 的 Retrofit + Nimbus 实现
- *
- * <p>职责: </p>
- * <ul>
- *   <li>调用第三方 Token 端点（x-www-form-urlencoded）</li>
- *   <li>使用 Remote JWK Set 验证并解析 ID Token</li>
- *   <li>调用 UserInfo 端点获取用户信息</li>
- * </ul>
- */
-@Component
-@RequiredArgsConstructor
-public class OAuth2RemotePort implements IOAuth2RemotePort {
-    /**
-     * JSON 处理器
-     */
-    private final ObjectMapper mapper;
-    /**
-     * @see IOAuth2TokenApi
-     */
-    private final IOAuth2TokenApi oauth2TokenApi;
-    /**
-     * @see IOidcUserInfoApi
-     */
-    private final IOidcUserInfoApi oidcUserInfoApi;
-
-    /**
-     * 授权码置换 Token (支持 PKCE)
-     *
-     * @param providerSpec 提供方配置
-     * @param code         授权码
-     * @param redirectUri  授权阶段使用的 redirect_uri (必须完全一致)
-     * @param codeVerifier 授权阶段生成的 code_verifier
-     * @return Token 响应体
-     */
-    @Override
-    public @NotNull OAuth2TokenResponse exchangeAuthorizationCode(@NotNull OAuth2ProviderSpec providerSpec, @NotNull String code,
-                                                                  @NotNull String redirectUri, @NotNull String codeVerifier) {
-        try {
-            TokenRequest request = TokenRequest.builder()
-                    .code(code)
-                    .redirectUri(redirectUri)
-                    .clientId(providerSpec.clientId())
-                    .clientSecret(providerSpec.clientSecret())
-                    .codeVerifier(codeVerifier)
-                    .build();
-
-            Response<ResponseBody> resp = oauth2TokenApi.exchangeCode(providerSpec.tokenEndpoint(), request.toFieldMap()).execute();
-            try (ResponseBody body = resp.body(); ResponseBody errorBody = resp.errorBody()) {
-                if (!resp.isSuccessful() || body == null)
-                    throw new IllegalParamException("Token 置换失败, HTTP " + resp.code() + " 错误体: " + errorBody);
-
-                TokenRespond respond = mapper.readValue(body.bytes(), TokenRespond.class);
-
-                return new OAuth2TokenResponse(
-                        respond.getAccessToken(),
-                        respond.getExpiresIn(),
-                        respond.getIdToken(),
-                        respond.getRefreshToken(),
-                        normalizeScope(respond.getScope()),
-                        respond.getTokenType()
-                );
-            }
-        } catch (Exception e) {
-            throw new IllegalParamException("Token 置换异常: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 验签并解析 ID Token (OIDC)
-     *
-     * @param spec    提供方配置 (包含 issuer, aud/clientId, jwkSetUri 等)
-     * @param idToken 原始 id_token 字符串
-     * @return 解析后的声明集
-     */
-    @Override
-    public @NotNull OidcIdTokenClaims verifyAndParseIdToken(@NotNull OAuth2ProviderSpec spec, @NotNull String idToken) {
-        requireNotBlank(spec.issuer(), "缺少 issuer 配置以校验 id_token");
-        requireNotBlank(spec.jwkSetUri(), "缺少 jwkSetUri 配置以校验 id_token");
-
-        try {
-
-            // 1. Nimbus JWT 处理器 + 远程 JWK
-            HashSet<JWSAlgorithm> allowed = new HashSet<>(Arrays.asList(
-                    JWSAlgorithm.RS256, JWSAlgorithm.PS256, JWSAlgorithm.ES256
-            ));
-            ConfigurableJWTProcessor<SecurityContext> processor = new DefaultJWTProcessor<>();
-            // 配置资源检索器
-            DefaultResourceRetriever retriever = new DefaultResourceRetriever(3000, 3000, 512 * 1024);
-            // 构建 JWKSource
-            JWKSource<SecurityContext> jwkSource = JWKSourceBuilder
-                    .create(new URL(spec.jwkSetUri()), retriever)
-                    .cache(15 * 60 * 1000, 5 * 1000)
-                    .retrying(true)
-                    .build();
-            // 允许集合：内部会基于 header.alg 选用匹配的 Key
-            JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(allowed, jwkSource);
-            processor.setJWSKeySelector(keySelector);
-
-            // 2 处理并得到 claims
-            JWTClaimsSet claims = processor.process(idToken, null);
-
-            // 3 手工做严格校验: iss/aud/time window
-            String iss = String.valueOf(claims.getIssuer());
-            if (!Objects.equals(iss, spec.issuer()))
-                throw new IllegalParamException("id_token.iss 不匹配");
-
-            List<String> aud = claims.getAudience();
-            if (aud == null || aud.isEmpty() || !aud.contains(spec.clientId()))
-                throw new IllegalParamException("id_token.aud 不包含本 client_id");
-
-            Instant now = Instant.now();
-            long skew = Math.max(0, spec.clockSkewSeconds());
-            Date exp = claims.getExpirationTime();
-            if (exp == null || now.isAfter(exp.toInstant().plusSeconds(skew)))
-                throw new IllegalParamException("id_token 已过期");
-
-            Date nbf = claims.getNotBeforeTime();
-            if (nbf != null && now.isBefore(nbf.toInstant().minusSeconds(skew)))
-                throw new IllegalParamException("id_token 尚未生效");
-
-            // 4) 映射到领域 VO
-            return new OidcIdTokenClaims(
-                    iss,
-                    aud,
-                    claims.getSubject(),
-                    toInstant(claims.getExpirationTime()),
-                    toInstant(claims.getIssueTime()),
-                    toInstant(claims.getNotBeforeTime()),
-                    stringOrNull(claims.getClaim("nonce")),
-                    stringOrNull(claims.getClaim("email")),
-                    boolOrNull(claims.getClaim("email_verified")),
-                    stringOrNull(claims.getClaim("name")),
-                    stringOrNull(claims.getClaim("picture"))
-            );
-        } catch (IllegalParamException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalParamException("id_token 验签/解析失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 使用 access_token 获取用户信息 (如果配置了 userinfo 端点)
-     *
-     * @param spec        提供方配置
-     * @param accessToken 访问令牌
-     * @return 用户信息 (可能为空)
-     */
-    @Override
-    public @NotNull OidcUserInfo fetchUserInfo(@NotNull OAuth2ProviderSpec spec, @NotNull String accessToken) {
-        requireNotBlank(spec.userinfoEndpoint(), "未配置 userinfoEndpoint, 无法获取用户信息");
-        try {
-            Response<ResponseBody> resp = oidcUserInfoApi.userInfo(spec.userinfoEndpoint(), "Bearer " + accessToken).execute();
-            try (ResponseBody body = resp.body(); ResponseBody errorBody = resp.errorBody()) {
-                if (!resp.isSuccessful() || body == null) {
-                    throw new IllegalParamException("获取 UserInfo 失败, HTTP " + resp.code() + " 错误体: " + errorBody);
-                }
-                UserInfoRespond dto = mapper.readValue(body.bytes(), UserInfoRespond.class);
-                return new OidcUserInfo(dto.getSub(), dto.getEmail(), dto.getEmailVerified(), dto.getName(), dto.getPicture());
-            }
-        } catch (Exception e) {
-            throw new IllegalParamException("UserInfo 调用异常: " + e.getMessage());
-        }
-    }
-
-    // ===== 工具 =====
-
-    /**
-     * 将给定的 scope 字符串进行规范化处理
-     * 该方法会将空格分隔的多个 scope 转换为逗号分隔的形式, 并去除重复项和空白字符
-     *
-     * @param scope 待处理的原始 scope 字符串, 可以包含一个或多个由空格分隔的 scope 值
-     * @return 处理后的 scope 字符串, 如果输入为空或只包含空白字符, 则返回 null
-     */
-    private static String normalizeScope(String scope) {
-        if (scope == null || scope.isBlank())
-            return null;
-        // 将空格分隔的 scope 统一转为逗号分隔, 便于与领域聚合合并
-        return String.join(",", Arrays.stream(scope.split("[\\s,]+"))
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .distinct()
-                .toList());
-    }
-
-    /**
-     * 将给定的 <code>Date</code> 对象转换为 <code>Instant</code> 对象 如果输入为 null, 则返回 null
-     *
-     * @param date 输入的 <code>Date</code>
-     * @return 转换后的 <code>Instant</code>
-     */
-    private static Instant toInstant(Date date) {
-        return date == null ? null : date.toInstant();
-    }
-
-    /**
-     * 将给定的对象转换为字符串, 如果对象为 <code>null</code>, 则返回 <code>null</code>
-     *
-     * @param object 输入的对象
-     * @return 转换后的字符串
-     */
-    private static String stringOrNull(Object object) {
-        return object == null ? null : String.valueOf(object);
-    }
-
-    /**
-     * 将给定的对象转换为 <code>Boolean</code> 类型, 如果对象是 <code>null</code>, 则返回 <code>null</code>
-     *
-     * @param object 输入的对象, 可以是任何类型, 但只有当它是 <code>Boolean</code> 的实例时, 才会直接返回该布尔值, 否则, 会尝试将其转换为字符串再解析为布尔值
-     * @return 如果输入对象是 <code>Boolean</code> 实例, 则直接返回该布尔值；如果对象可以被转换成表示真假的字符串, 返回对应的布尔值；如果对象为 <code>null</code> 或无法转换, 返回 <code>null</code>
-     */
-    private static Boolean boolOrNull(Object object) {
-        if (object instanceof Boolean bool)
-            return bool;
-        return object == null ? null : Boolean.valueOf(String.valueOf(object));
-    }
-}
-
-// shopping.international.domain.adapter.port.user.IOAuth2StatePort
-package shopping.international.domain.adapter.port.user;
-
-import org.jetbrains.annotations.NotNull;
-import shopping.international.domain.model.vo.user.OAuth2EphemeralState;
-
-import java.time.Duration;
-import java.util.Optional;
-
-/**
- * OAuth2 授权一次性状态存取端口
- * <p>职责: 存储并一次性弹出 state 对应的 {@code nonce, code_verifier, redirect, provider}</p>
- * <p>一般由 Redis 等 KV 存储实现，并设置合理 TTL</p>
- */
-public interface IOAuth2StatePort {
-
-    /**
-     * 保存一次性授权上下文 (state → nonce/code_verifier/redirect/provider)
-     *
-     * @param state  上下文
-     * @param ttl    过期时间
-     */
-    void storeEphemeral(@NotNull OAuth2EphemeralState state, @NotNull Duration ttl);
-
-    /**
-     * 根据 state 一次性弹出上下文 (读取即删除)
-     *
-     * @param state  state 字符串
-     * @return 上下文, 不存在或过期返回空
-     */
-    @NotNull Optional<OAuth2EphemeralState> popByState(@NotNull String state);
-}
-
-// shopping.international.infrastructure.adapter.port.user.RedisOAuth2StatePort
-package shopping.international.infrastructure.adapter.port.user;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.data.redis.connection.RedisStringCommands;
-import org.springframework.data.redis.connection.ReturnType;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.types.Expiration;
-import org.springframework.stereotype.Component;
-import shopping.international.domain.adapter.port.user.IOAuth2StatePort;
-import shopping.international.domain.model.vo.user.OAuth2EphemeralState;
-
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Optional;
-
-/**
- * 基于 Redis 的一次性 OAuth2 授权状态存取实现
- *
- * <p>键模式: {@code oauth2:state:{state}}, 值为 {@link OAuth2EphemeralState} 的 JSON 序列化
- * 存储时设置 TTL, 读取时采用“一次性弹出”的语义 (读到即删除), 优先使用 Redis 6+ 的
- * {@code GETDEL}, 若不支持则降级为原子 Lua 脚本 (GET+DEL)</p>
- *
- * <p><b>线程安全/并发语义: </b> 使用底层连接的原子命令或单条 EVAL, 确保多并发下只有一个消费者能成功弹出</p>
- */
-@Component
-@RequiredArgsConstructor
-public class RedisOAuth2StatePort implements IOAuth2StatePort {
-
-    /**
-     * Key 前缀: oauth2:state:
-     */
-    private static final String KEY_PREFIX = "oauth2:state:";
-
-    /**
-     * Redis KV 客户端 (String 友好 API)
-     */
-    private final StringRedisTemplate redis;
-
-    /**
-     * JSON 序列化/反序列化器
-     */
-    private final ObjectMapper mapper;
-
-    /**
-     * 保存一次性授权上下文 (state → nonce/code_verifier/redirect/provider), 并设置 TTL
-     *
-     * <p>使用底层 {@code SET key value EX ttl} 语义, 重复写同一 state 将覆盖之前的值 (UPSERT)</p>
-     *
-     * @param state 上下文
-     * @param ttl   过期时间 (必须为正)
-     * @throws IllegalStateException 当 JSON 序列化失败时抛出
-     */
-    @Override
-    public void storeEphemeral(@NotNull OAuth2EphemeralState state, @NotNull Duration ttl) {
-        try {
-            final String key = KEY_PREFIX + state.state();
-            final String json = mapper.writeValueAsString(state);
-            // 显式标注为 RedisCallback 以避免与 SessionCallback 重载二义性
-            redis.execute((RedisCallback<Void>) connection -> {
-                byte[] k = key.getBytes(StandardCharsets.UTF_8);
-                byte[] v = json.getBytes(StandardCharsets.UTF_8);
-                // SET key value EX ttl (UPSERT)
-                connection.stringCommands().set(k, v, Expiration.from(ttl), RedisStringCommands.SetOption.UPSERT);
-                return null;
-            });
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("序列化 OAuth2EphemeralState 失败", e);
-        }
-    }
-
-    /**
-     * 根据 state 一次性弹出上下文 (读取即删除)
-     *
-     * <p>优先尝试 Redis 6+ 的 {@code GETDEL}, 若底层驱动/服务端不支持, 则回退到 Lua 脚本实现
-     * {@code local v=GET key; if v then DEL key; end; return v}, 确保原子性</p>
-     *
-     * @param state state 字符串
-     * @return 上下文, 不存在或过期返回空
-     */
-    @Override
-    public @NotNull Optional<OAuth2EphemeralState> popByState(@NotNull String state) {
-        final String key = KEY_PREFIX + state;
-
-        OAuth2EphemeralState result = redis.execute((RedisCallback<OAuth2EphemeralState>) connection -> {
-            byte[] k = key.getBytes(StandardCharsets.UTF_8);
-            byte[] raw;
-
-            try {
-                // 优先尝试 Redis 6+ GETDEL
-                raw = connection.stringCommands().getDel(k);
-            } catch (Throwable unsupported) {
-                // 回退到原子 Lua: GET 然后 DEL, 并返回旧值
-                // KEYS[1] = key; 返回值为 VALUE
-                final byte[] script = "local v=redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]); end; return v"
-                        .getBytes(StandardCharsets.UTF_8);
-                raw = connection.scriptingCommands()
-                        .eval(script, ReturnType.VALUE, 1, k);
-            }
-
-            if (raw == null)
-                return null;
-            try {
-                return mapper.readValue(raw, OAuth2EphemeralState.class);
-            } catch (Exception e) {
-                // 反序列化失败：作废该状态, 返回 null
-                return null;
-            }
-        });
-
-        return Optional.ofNullable(result);
-    }
-}
 
 // shopping.international.infrastructure.dao.user.po.UserAccountPO
 package shopping.international.infrastructure.dao.user.po;
