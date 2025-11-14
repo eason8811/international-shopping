@@ -173,7 +173,7 @@ public class AddressController {
      */
     private Long requireCurrentUserId() {
         Authentication authentication = null;
-        if (SecurityContextHolder.getContext() == null)
+        if (SecurityContextHolder.getContext() != null)
             authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated())
             throw new AccountException("未登录");
