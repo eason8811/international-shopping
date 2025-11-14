@@ -1,4 +1,4 @@
-现在我需要实现用户（user）领域的shopping.international.domain.service.user.IAddressService服务接口，实现类命名应该为AddressService服务接口，我将为你提供我们之前一起编写的shopping.international.trigger.controller.user.AddressController，以及其相关的领域服务接口，以及我们之前已经实现过的关于用户的Repository的实现，请你根据实际情况，告知我哪些部分需要新增，哪些部分需要修改，并给出相应的代码，如果你需要新增对用户仓储数据的操作，请直接修改shopping.international.infrastructure.adapter.repository.user.UserRepository类，在类中新增你所需要的方法，由于我们之前开发用户登录注册以及第三方鉴权接口时，已经构建好了用户（user）领域中相关四张表的PO，他们分别是user_account ，user_auth ，user_profile ，user_address，分别对应UserAccountPO，UserAuthPO，UserProfilePO，UserAddressPO（我在下方会给出），你可以继续沿用，请你继续按照我提供的代码的编码风格以及命名格式为我实现这个服务，并且，与infrastructure相关的操作请下沉到infrastructure层（如使用@Transactional开启事务等）同样的，你需要为你编写的所有类，所有方法，所有属性，都加上完整的JavaDoc
+现在我需要实现用户（user）领域的shopping.international.domain.service.user.IAddressService服务接口，实现类命名应该为AddressService服务接口，我将为你提供我们之前一起编写的shopping.international.trigger.controller.user.AddressController，以及其相关的领域服务接口，以及我们之前已经实现过的关于用户的Repository的实现，还有充血模型的实体类和聚合根，请你根据实际情况，告知我哪些部分需要新增，哪些部分需要修改，并给出相应的代码，如果你需要新增对用户仓储数据的操作，请直接修改shopping.international.infrastructure.adapter.repository.user.UserRepository类，在类中新增你所需要的方法，由于我们之前开发用户登录注册以及第三方鉴权接口时，已经构建好了用户（user）领域中相关四张表的PO，他们分别是user_account ，user_auth ，user_profile ，user_address，分别对应UserAccountPO，UserAuthPO，UserProfilePO，UserAddressPO（我在下方会给出），你可以继续沿用，请你继续按照我提供的代码的编码风格以及命名格式为我实现这个服务，并且，与infrastructure相关的操作请下沉到infrastructure层（如使用@Transactional开启事务等）同样的，你需要为你编写的所有类，所有方法，所有属性，都加上完整的JavaDoc
 
 // shopping.international.trigger.controller.user.AddressController
 package shopping.international.trigger.controller.user;
@@ -1325,4 +1325,843 @@ public record UserProfilePO(
         LocalDateTime updatedAt
 ) {
 }
+
+// shopping.international.domain.model.aggregate.user.User
+package shopping.international.domain.model.aggregate.user;
+
+import lombok.Getter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
+import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.domain.model.entity.user.AuthBinding;
+import shopping.international.domain.model.entity.user.UserAddress;
+import shopping.international.domain.model.enums.user.AccountStatus;
+import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.vo.user.*;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 用户聚合根, 对应 {@code user_account} 为主表, 并聚合:
+ * <ul>
+ *     <li>认证映射 {@code user_auth, 1:N}</li>
+ *     <li>资料 {@code user_profile, 1:1, 建模为值对象}</li>
+ *     <li>收货地址 {@code user_address, 1:N}</li>
+ * </ul>
+ *
+ * <p>聚合职责: </p>
+ * <ul>
+ *     <li>维护账户不变式: 用户名、昵称、邮箱/手机格式, 状态切换 (激活/禁用)</li>
+ *     <li>维护绑定不变式: 同一用户至少有一种登录方式；同 provider 唯一；issuer+providerUid 唯一</li>
+ *     <li>维护地址不变式: 同一用户仅允许一个默认地址</li>
+ * </ul>
+ */
+@Getter
+@ToString
+@Accessors(chain = true)
+public class User {
+    // ========== 标识与账户主信息 ==========
+    /**
+     * 主键ID (可为 null 表示未持久化)
+     */
+    private Long id;
+    /**
+     * 用户名 (登录名, 唯一)
+     */
+    private Username username;
+    /**
+     * 昵称/显示名
+     */
+    private Nickname nickname;
+    /**
+     * 邮箱 (可空)
+     */
+    private EmailAddress email;
+    /**
+     * 手机号 (可空)
+     */
+    private PhoneNumber phone;
+    /**
+     * 账户状态 (默认 {@link AccountStatus#DISABLED DISABLED})
+     */
+    private AccountStatus status;
+    /**
+     * 最近登录时间 (可空)
+     */
+    private LocalDateTime lastLoginAt;
+    /**
+     * 软删除标记
+     */
+    private boolean deleted;
+    /**
+     * 创建时间 (快照)
+     */
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间 (快照)
+     */
+    private LocalDateTime updatedAt;
+
+    // ========== 聚合内对象 ==========
+    /**
+     * 认证映射列表 (LOCAL/OAuth2)
+     */
+    private final List<AuthBinding> bindingList = new ArrayList<>();
+    /**
+     * 用户资料 (值对象, 1:1)
+     */
+    private UserProfile profile;
+    /**
+     * 收货地址 (1:N)
+     */
+    private final List<UserAddress> addressList = new ArrayList<>();
+
+    // ========== 构造与工厂 ==========
+
+    /**
+     * 用户实体的私有构造方法, 用于防止外部直接实例化
+     * <p>用户实体应当通过工厂方法或静态方法创建</p>
+     */
+    private User() {
+    }
+
+    /**
+     * 用户实体的私有构造方法, 用于防止外部直接实例化
+     * <p>用户实体应当通过工厂方法或静态方法创建</p>
+     *
+     * @param id          用户唯一标识符
+     * @param username    用户名, 必须非空
+     * @param nickname    昵称, 必须非空
+     * @param email       邮箱地址, 可为空
+     * @param phone       手机号码, 可为空
+     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#DISABLED DISABLED}
+     * @param lastLoginAt 上次登录时间, 可为空
+     * @param deleted     是否已删除 (软删除标记), 默认为 false
+     * @param createdAt   创建时间, 可为空
+     * @param updatedAt   更新时间, 可为空
+     * @param profile     用户资料, 如果为 null, 默认设置为 UserProfile.empty()
+     */
+    private User(Long id, Username username, Nickname nickname, EmailAddress email, PhoneNumber phone,
+                 AccountStatus status, LocalDateTime lastLoginAt, boolean deleted, LocalDateTime createdAt,
+                 LocalDateTime updatedAt, UserProfile profile) {
+        requireNotNull(username, "用户名不能为空");
+        requireNotNull(nickname, "昵称不能为空");
+        this.id = id;
+        this.username = username;
+        this.nickname = nickname;
+        this.email = email;
+        this.phone = phone;
+        this.status = status == null ? AccountStatus.DISABLED : status;
+        this.lastLoginAt = lastLoginAt;
+        this.deleted = deleted;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.profile = profile == null ? UserProfile.empty() : profile;
+    }
+
+    /**
+     * 注册工厂, 创建一个新用户 (DISABLED), 并附带本地账号绑定
+     *
+     * @param username          用户名
+     * @param nickname          昵称
+     * @param email             邮箱 (可空)
+     * @param phone             手机 (可空)
+     * @param localPasswordHash 本地登录密码哈希
+     * @return 新的聚合根实例
+     */
+    public static User register(Username username, Nickname nickname, EmailAddress email, PhoneNumber phone, String localPasswordHash) {
+        // 创建新用户
+        User user = new User(null, username, nickname, email, phone, AccountStatus.DISABLED, null,
+                false, LocalDateTime.now(), LocalDateTime.now(), UserProfile.empty());
+        // 绑定 LOCAL 登录方式
+        user.addBinding(AuthBinding.local(localPasswordHash));
+        return user;
+    }
+
+    /**
+     * 使用OAuth认证信息注册新用户
+     *
+     * @param username 用户名
+     * @param nickname 昵称
+     * @param email 电子邮件地址
+     * @param phone 手机号码
+     * @param oauthBinding OAuth绑定信息, 包括了第三方平台的用户标识等数据
+     * @return 注册成功后的用户对象, 包含了通过OAuth获得的基本信息及状态
+     */
+    public static User registerByOAuth(Username username, Nickname nickname, EmailAddress email, PhoneNumber phone, AuthBinding oauthBinding) {
+        User user = new User(null, username, nickname, email, phone, AccountStatus.ACTIVE, null,
+                false, LocalDateTime.now(), LocalDateTime.now(), UserProfile.empty());
+        user.addBinding(oauthBinding);
+        return user;
+    }
+
+    /**
+     * 从持久化层重建 {@link  User} 聚合 (供仓储使用)
+     *
+     * @param id          用户唯一标识符
+     * @param username    用户名, 必须非空
+     * @param nickname    昵称, 必须非空
+     * @param email       邮箱地址, 可为空
+     * @param phone       手机号码, 可为空
+     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#DISABLED DISABLED}
+     * @param lastLoginAt 上次登录时间, 可为空
+     * @param deleted     是否已删除 (软删除标记), 默认为 false
+     * @param createdAt   创建时间, 可为空
+     * @param updatedAt   更新时间, 可为空
+     * @param profile     用户资料, 如果为 null, 默认设置为空资料 {@link UserProfile#empty()}
+     * @param bindings    认证绑定列表, 可为空
+     * @param addresses   用户地址列表, 可为空
+     * @return 重建后的 User 对象
+     */
+    public static User reconstitute(Long id, Username username, Nickname nickname, EmailAddress email, PhoneNumber phone,
+                                    AccountStatus status, LocalDateTime lastLoginAt, boolean deleted,
+                                    LocalDateTime createdAt, LocalDateTime updatedAt, UserProfile profile,
+                                    List<AuthBinding> bindings, List<UserAddress> addresses) {
+        User user = new User(id, username, nickname, email, phone, status, lastLoginAt, deleted, createdAt, updatedAt, profile);
+        if (bindings != null)
+            user.bindingList.addAll(bindings);
+        if (addresses != null) {
+            user.addressList.addAll(addresses);
+            user.ensureSingleDefaultAddress();
+        }
+        user.ensureHasAtLeastOneLoginMethod();
+        return user;
+    }
+
+    // ========== 账户行为 ==========
+
+    /**
+     * 幂等激活账户 (从 DISABLED → ACTIVE)
+     */
+    public void activate() {
+        if (this.status == AccountStatus.ACTIVE)
+            return;
+        this.status = AccountStatus.ACTIVE;
+    }
+
+    /**
+     * 幂等禁用账户 (从 ACTIVE → DISABLED)
+     */
+    public void disable() {
+        if (this.status == AccountStatus.DISABLED)
+            return;
+        this.status = AccountStatus.DISABLED;
+    }
+
+    /**
+     * 修改用户的昵称
+     *
+     * @param newNickname 新的昵称, 必须非空
+     * @throws IllegalParamException 如果 <code>newNickname</code> 为 <code>null</code>
+     */
+    public void changeNickname(Nickname newNickname) {
+        requireNotNull(newNickname, "昵称不能为空");
+        this.nickname = newNickname;
+    }
+
+    /**
+     * 修改用户的邮箱地址 (需由应用层完成验证码校验后再调用)
+     *
+     * <p>允许将邮箱设置为 <code>null</code>, 以清空邮箱信息</p>
+     *
+     * @param newEmail 新的邮箱地址, 可以为 <code>null</code>
+     */
+    public void changeEmail(EmailAddress newEmail) {
+        this.email = newEmail; // 可 null → 允许清空
+    }
+
+    /**
+     * 修改用户的手机号码 (需由应用层完成验证码校验后再调用)
+     *
+     * @param newPhone 新的 {@link PhoneNumber} 实例, 用于更新用户当前的手机号码
+     */
+    public void changePhone(PhoneNumber newPhone) {
+        this.phone = newPhone;
+    }
+
+    /**
+     * 记录用户的登录信息, 更新最后一次登录时间, 并根据认证提供者更新相应的认证绑定的登录时间
+     *
+     * @param authProvider 用于此次登录的认证提供者, 可以为 null
+     * @param loginTime    用户登录的具体时间, 如果为 null 则使用当前时间
+     */
+    public void recordLogin(AuthProvider authProvider, LocalDateTime loginTime) {
+        LocalDateTime ts = loginTime == null ? LocalDateTime.now() : loginTime;
+        this.lastLoginAt = ts;
+        if (authProvider != null) {
+            this.bindingList.stream()
+                    .filter(binding -> binding.getProvider() == authProvider)
+                    .findFirst()
+                    .ifPresent(binding -> binding.recordLogin(ts));
+        }
+    }
+
+    // ========== 绑定行为 ==========
+
+    /**
+     * 增加一个认证绑定
+     * <ul>
+     *     <li>同 provider 不得重复 (LOCAL 唯一)</li>
+     *     <li>OAuth2: issuer + providerUid 在本聚合内唯一</li>
+     * </ul>
+     */
+    public void addBinding(AuthBinding binding) {
+        requireNotNull(binding, "绑定信息不能为空");
+        // 从认证绑定列表中查找同 provider 的绑定
+        boolean providerExists = bindingList.stream()
+                .anyMatch(b -> b.getProvider() == binding.getProvider());
+        // 如果需要添加的认证绑定为 LOCAL, 且已存在 LOCAL 绑定, 则抛出异常
+        if (providerExists && binding.getProvider() == AuthProvider.LOCAL)
+            throw new IllegalParamException("LOCAL 认证绑定已经存在");
+
+        // 如果需要添加的认证绑定为 OAuth2, 且已存在相同 issuer+providerUid 绑定, 则抛出异常
+        if (binding.getProvider() != AuthProvider.LOCAL) {
+            boolean isDuplicate = bindingList.stream()
+                    .anyMatch(b -> Objects.equals(b.getIssuer(), binding.getIssuer()) && Objects.equals(b.getProviderUid(), binding.getProviderUid()));
+            if (isDuplicate)
+                throw new IllegalParamException("OAuth2 认证绑定已存在, (issuer, providerUid) 重复");
+        }
+        this.bindingList.add(binding);
+        ensureHasAtLeastOneLoginMethod();
+    }
+
+    /**
+     * 从用户认证绑定列表中移除指定的认证提供者绑定
+     *
+     * <p>不允许解绑唯一的登录方式</p>
+     *
+     * @param provider 要移除的认证提供者的类型, 如 {@code LOCAL, GOOGLE} 等
+     * @throws IllegalParamException 如果移除所有给定类型的认证绑定之后, 用户没有任何可用的登录方式
+     */
+    public void removeBinding(AuthProvider provider) {
+        long remainIfRemoved = bindingList.stream()
+                .filter(binding -> binding.getProvider() != provider)
+                .count();
+        if (remainIfRemoved == 0)
+            throw new IllegalParamException("不允许解绑最后一个登录方式");
+        bindingList.removeIf(binding -> binding.getProvider() == provider);
+    }
+
+
+    /**
+     * 修改用户的本地密码哈希
+     *
+     * @param newPasswordHash 新的密码哈希, 必须非空
+     * @throws IllegalParamException 如果找不到 LOCAL 绑定
+     */
+    public void changeLocalPassword(String newPasswordHash) {
+        AuthBinding localBinding = bindingList.stream()
+                .filter(b -> b.getProvider() == AuthProvider.LOCAL)
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("不存在 LOCAL 绑定"));
+        localBinding.changeLocalPassword(newPasswordHash);
+    }
+
+    // ========== 地址行为 ==========
+
+    /**
+     * 向用户的地址列表中添加一个新的地址
+     *
+     * @param address 待添加的 {@link UserAddress} 实例, 必须非空 如果该地址被设置为默认地址, 则会将用户现有的所有其他默认地址取消
+     */
+    public void addAddress(UserAddress address) {
+        requireNotNull(address, "地址信息不能为空");
+        if (address.isDefaultAddress())
+            // 置为唯一默认
+            addressList.forEach(a -> a.setDefault(false));
+        addressList.add(address);
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 更新用户的指定地址信息 (按 id 定位), 包括收件人姓名、电话号码、国家、省份、城市、区县、详细地址以及邮政编码
+     * 如果设置了 <code>makeDefault</code> 为 <code>true</code>, 则会将该地址设为默认地址, 并取消其他所有地址的默认状态
+     *
+     * @param addressId    地址的唯一标识符
+     * @param receiverName 收件人姓名
+     * @param phone        手机号, 必须符合 E.164 格式
+     * @param country      国家名称
+     * @param province     省份或州名
+     * @param city         城市名
+     * @param district     区县名
+     * @param addressLine1 第一行地址
+     * @param addressLine2 第二行地址 (可选)
+     * @param zipcode      邮政编码
+     * @param makeDefault  是否将此地址设为默认地址
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 或手机号格式不正确时抛出
+     */
+    public void updateAddress(Long addressId, String receiverName, PhoneNumber phone, String country, String province,
+                              String city, String district, String addressLine1, String addressLine2, String zipcode,
+                              Boolean makeDefault) {
+        UserAddress address = findAddress(addressId);
+        address.update(receiverName, phone, country, province, city, district, addressLine1, addressLine2, zipcode);
+        if (Boolean.TRUE.equals(makeDefault)) {
+            addressList.forEach(a -> a.setDefault(false));
+            address.setDefault(true);
+        }
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 从用户的地址列表中移除指定的地址 (按 id 定位)
+     *
+     * @param addressId 待移除地址的唯一标识符
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 则抛出此异常
+     */
+    public void removeAddress(Long addressId) {
+        boolean removed = addressList.removeIf(address -> Objects.equals(address.getId(), addressId));
+        if (!removed)
+            throw new IllegalParamException("ID 为: " + addressId + " 的地址不存在");
+        // 默认地址唯一性仍成立
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 将指定的地址设置为用户的默认地址
+     *
+     * <p>该方法首先查找给定ID对应的地址, 然后将用户的所有其他地址的默认状态取消, 最后将查找到的地址设为默认</p>
+     *
+     * @param addressId 待设置为默认地址的唯一标识符
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 则抛出此异常
+     */
+    public void setDefaultAddress(Long addressId) {
+        UserAddress address = findAddress(addressId);
+        addressList.forEach(a -> a.setDefault(false));
+        address.setDefault(true);
+        ensureSingleDefaultAddress();
+    }
+
+    /**
+     * 获取用户的默认地址
+     *
+     * @return 返回找到的默认 {@link UserAddress} 对象, 如果没有默认地址则返回 null
+     */
+    public UserAddress getDefaultAddress() {
+        return addressList.stream().filter(UserAddress::isDefaultAddress).findFirst().orElse(null);
+    }
+
+    /**
+     * 获取用户地址列表的只读快照
+     *
+     * @return 返回一个不可修改的 {@link UserAddress} 列表, 代表当前用户的地址信息快照
+     */
+    public List<UserAddress> getAddressesSnapshot() {
+        return Collections.unmodifiableList(addressList);
+    }
+
+    /**
+     * 获取用户认证绑定列表的只读快照
+     *
+     * @return 返回一个不可修改的 {@link AuthBinding} 列表, 代表当前用户的认证绑定信息快照
+     */
+    public List<AuthBinding> getBindingsSnapshot() {
+        return Collections.unmodifiableList(bindingList);
+    }
+
+    // ========== 资料行为 ==========
+
+    /**
+     * 更新用户资料信息
+     *
+     * <p>此方法允许更新用户的个人资料, 包括但不限于头像、简介等. 如果传入的 {@code newProfile} 为 {@code null},
+     * 则会将用户的资料设置为空资料 ({@link UserProfile#empty()})</p>
+     *
+     * @param newProfile 新的用户资料实例, 可以为 {@code null}
+     */
+    public void updateProfile(UserProfile newProfile) {
+        this.profile = Objects.requireNonNullElseGet(newProfile, UserProfile::empty);
+    }
+
+    /**
+     * 修改用户的显示名称
+     *
+     * <p>此方法允许用户更新其个人资料中的显示名称, 如果新的显示名称为空字符串, 则会抛出 {@link IllegalParamException} 异常</p>
+     *
+     * @param name 新的显示名称
+     * @throws IllegalParamException 如果新的显示名称为空字符串
+     */
+    public void changeDisplayName(String name) {
+        this.profile = this.profile.withDisplayName(name);
+    }
+
+    // ========== 内部工具 ==========
+
+    /**
+     * 根据给定的地址ID查找用户的特定地址信息
+     *
+     * @param id 地址的唯一标识符, 用于定位用户地址列表中的特定地址
+     * @return 返回找到的 {@link UserAddress} 对象 如果没有找到对应的地址, 则抛出异常
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 则抛出此异常
+     */
+    private UserAddress findAddress(Long id) {
+        return addressList.stream()
+                .filter(address -> Objects.equals(address.getId(), id))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("ID 为: " + id + " 的地址不存在"));
+    }
+
+    /**
+     * 确保存在至少一种登录方式
+     */
+    private void ensureHasAtLeastOneLoginMethod() {
+        if (bindingList.isEmpty())
+            throw new IllegalParamException("用户必须绑定至少一种登录方式");
+    }
+
+    /**
+     * 确保用户地址列表中只有一个默认地址
+     * <p>
+     * 如果发现存在多个默认地址, 则保留第一个默认地址, 并将其他地址的默认状态取消
+     * 若没有或只有一个默认地址, 则直接返回不做任何修改
+     */
+    private void ensureSingleDefaultAddress() {
+        List<UserAddress> defaultAddressList = addressList.stream()
+                .filter(UserAddress::isDefaultAddress)
+                .toList();
+        if (defaultAddressList.size() <= 1)
+            return;
+        // 保留最早的那个默认, 其他置为非默认
+        boolean first = true;
+        for (UserAddress address : defaultAddressList) {
+            if (first) {
+                first = false;
+                continue;
+            }
+            address.setDefault(false);
+        }
+    }
+
+    // ========== 便捷方法 (可供仓储等调用) ==========
+
+    /**
+     * 禁止删除: 使用软删除标记
+     */
+    public void softDelete() {
+        this.deleted = true;
+        this.status = AccountStatus.DISABLED;
+    }
+
+    /**
+     * 恢复软删除
+     */
+    public void restore() {
+        this.deleted = false;
+    }
+}
+
+// shopping.international.domain.model.entity.user.AuthBinding
+package shopping.international.domain.model.entity.user;
+
+import jakarta.annotation.Nullable;
+import lombok.*;
+import lombok.experimental.Accessors;
+import shopping.international.domain.model.aggregate.user.User;
+import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.vo.user.EncryptedSecret;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import java.time.LocalDateTime;
+
+import static shopping.international.types.utils.FieldValidateUtils.*;
+
+/**
+ * 认证映射实体 (对应表 {@code user_auth}), 用户的身份验证绑定信息, 归属 {@link User} 聚合
+ *
+ * @apiNote 在实体内不保存 {@code userId} 字段, 避免与聚合根重复, 持久化层映射时由聚合根的 {@code id} 参与
+ */
+@Getter
+@ToString(exclude = {"accessToken", "refreshToken", "passwordHash"})
+@EqualsAndHashCode(of = "id")
+@NoArgsConstructor
+@AllArgsConstructor
+@Accessors(chain = true)
+public class AuthBinding {
+    /**
+     * 主键ID (可为 null, 表示尚未持久化)
+     */
+    private Long id;
+    /**
+     * 提供方
+     *
+     * @see AuthProvider
+     */
+    private AuthProvider provider;
+    /**
+     * 发行方 (OIDC iss), LOCAL 可为 null
+     */
+    private String issuer;
+    /**
+     * 提供方用户唯一ID (OIDC sub/openid), LOCAL 可为 null
+     */
+    private String providerUid;
+    /**
+     * 本地密码哈希 (仅 provider=LOCAL 有值)
+     */
+    private String passwordHash;
+    /**
+     * 访问令牌 (密文/加密后使用对象保存)
+     *
+     * @see EncryptedSecret
+     */
+    private EncryptedSecret accessToken;
+    /**
+     * 刷新令牌 (密文/加密后使用对象保存)
+     *
+     * @see EncryptedSecret
+     */
+    private EncryptedSecret refreshToken;
+    /**
+     * 访问令牌过期时间
+     */
+    private LocalDateTime expiresAt;
+    /**
+     * 授权范围
+     */
+    private String scope;
+    /**
+     * 角色
+     */
+    private String role;
+    /**
+     * 该通道最近登录时间
+     */
+    private LocalDateTime lastLoginAt;
+    /**
+     * 创建时间 (快照)
+     */
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间 (快照)
+     */
+    private LocalDateTime updatedAt;
+
+    /**
+     * 创建一个基于本地认证的 {@link AuthBinding} 实例
+     *
+     * @param passwordHash 用户的密码哈希值, 不能为空或空白
+     * @return 新创建的 {@link AuthBinding} 实例, 使用本地认证方式
+     * @throws IllegalParamException 如果提供的 <code>passwordHash</code> 参数为空或仅包含空白字符
+     */
+    public static AuthBinding local(String passwordHash) {
+        requireNotBlank(passwordHash, "密码哈希不能为空");
+        return new AuthBinding(null, AuthProvider.LOCAL, null, null, passwordHash,
+                null, null, null, null, "USER", null,
+                null, null);
+    }
+
+    /**
+     * 创建一个基于 OAuth 2.0 认证的 {@link AuthBinding} 实例
+     *
+     * @param provider     OAuth 2.0 提供方, 必须为有效的第三方认证提供方, 不能为 <code>null</code> 或 <code>AuthProvider.LOCAL</code>
+     * @param issuer       发行者标识, 不能为空或空白
+     * @param providerUid  提供方用户唯一标识, 不能为空或空白
+     * @param accessToken  访问令牌 (基础设施层加密落库)
+     * @param refreshToken 刷新令牌 (基础设施层加密落库)
+     * @param expiresAt    访问令牌过期时间 (可空)
+     * @param scope        授权范围 (逗号或空格分隔，存储前可归一化)
+     * @return 新创建的 {@link AuthBinding} 实例, 使用指定的 OAuth 2.0 认证方式
+     * @throws IllegalParamException 如果提供的参数不符合要求
+     */
+    public static AuthBinding oauth(AuthProvider provider, String issuer, String providerUid, String accessToken,
+                                    @Nullable String refreshToken, LocalDateTime expiresAt, String scope) {
+        require(provider != null && provider != AuthProvider.LOCAL, "提供方必须为 OAuth 2.0 提供方");
+        requireNotBlank(issuer, "Issuer不能为空");
+        requireNotBlank(providerUid, "ProviderUid不能为空");
+        return new AuthBinding(
+                null, provider, issuer, providerUid, null, EncryptedSecret.of(accessToken.getBytes()),
+                refreshToken == null? null : EncryptedSecret.of(refreshToken.getBytes()),
+                expiresAt, scope, "USER", null, null, null
+        );
+    }
+
+    /**
+     * 更新当前认证绑定的访问令牌、刷新令牌及其有效期和作用域
+     *
+     * @param accessToken  新的加密访问令牌, 不能为空
+     * @param refreshToken 新的加密刷新令牌, 不能为空
+     * @param expiresAt    访问令牌的有效期, 不能为空
+     * @param scope        令牌的作用域, 不能为空或空白
+     * @throws IllegalParamException 如果当前认证提供方为 LOCAL 或者提供的参数为空或不合法
+     */
+    public void updateTokens(EncryptedSecret accessToken, EncryptedSecret refreshToken, LocalDateTime expiresAt, String scope) {
+        requireNotNull(accessToken, "访问令牌不能为空");
+        requireNotNull(refreshToken, "刷新令牌不能为空");
+        requireNotNull(expiresAt, "有效期不能为空");
+        requireNotBlank(scope, "令牌作用域不能为空");
+        require(provider != AuthProvider.LOCAL, "LOCAL 绑定无需更新令牌");
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.expiresAt = expiresAt;
+        this.scope = scope;
+    }
+
+    /**
+     * 记录用户的最后一次登录时间 (使用当前时间)
+     */
+    public void recordLogin() {
+        recordLogin(null);
+    }
+
+    /**
+     * 记录用户的最后一次登录时间
+     *
+     * @param now 用户登录的具体时间, 如果为 null 则使用当前时间
+     */
+    public void recordLogin(LocalDateTime now) {
+        this.lastLoginAt = now == null ? LocalDateTime.now() : now;
+    }
+
+    /**
+     * 修改当前认证绑定的本地密码哈希值。
+     *
+     * @param newPasswordHash 新的密码哈希值, 不能为空
+     * @throws IllegalParamException 如果提供的 <code>newPasswordHash</code> 参数为空或仅包含空白字符,
+     *                               或者当前认证提供方不是 <code>AuthProvider.LOCAL</code>
+     */
+    public void changeLocalPassword(String newPasswordHash) {
+        requireNotNull(newPasswordHash, "密码哈希不能为空");
+        require(provider == AuthProvider.LOCAL, "只有 LOCAL 绑定才有密码哈希");
+        this.passwordHash = newPasswordHash;
+    }
+}
+
+// shopping.international.domain.model.entity.user.UserAddress
+package shopping.international.domain.model.entity.user;
+
+import lombok.*;
+import lombok.experimental.Accessors;
+import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.domain.model.vo.user.PhoneNumber;
+
+import java.time.LocalDateTime;
+
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+
+/**
+ * 用户收货地址实体 (对应表 user_address), 归属 User 聚合
+ * <p>负责维护自身可修改字段与基本校验；默认地址唯一性的约束由聚合根 User 负责</p>
+ */
+@Getter
+@ToString
+@EqualsAndHashCode(of = "id")
+@NoArgsConstructor
+@AllArgsConstructor
+@Accessors(chain = true)
+public class UserAddress {
+    /**
+     * 主键ID (可为 null, 表示尚未持久化)
+     */
+    private Long id;
+    /**
+     * 收货人
+     */
+    private String receiverName;
+    /**
+     * 联系电话 (值对象)
+     */
+    private PhoneNumber phone;
+    /**
+     * 国家/省/市/区县/地址行1/行2/邮编
+     */
+    private String country;
+    private String province;
+    private String city;
+    private String district;
+    private String addressLine1;
+    private String addressLine2;
+    private String zipcode;
+    /**
+     * 是否默认地址 (聚合根保证唯一)
+     */
+    private boolean defaultAddress;
+    /**
+     * 创建与更新时间 (快照)
+     */
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    /**
+     * 快速构建一个地址 (新增)
+     *
+     * @param receiverName 收货人姓名 不能为空
+     * @param phone        联系电话 值对象, 不可为空
+     * @param country      国家
+     * @param province     省份
+     * @param city         城市
+     * @param district     区县
+     * @param addressLine1 地址行1 不能为空
+     * @param addressLine2 地址行2 可选
+     * @param zipcode      邮编 可选
+     * @param isDefault    是否设为默认地址
+     * @return 新建的 {@link UserAddress} 对象, 其 id 为 null 表示尚未持久化到数据库
+     * @throws IllegalParamException 如果收货人姓名或地址行1为空白时抛出
+     */
+    public static UserAddress of(String receiverName, PhoneNumber phone,
+                                 String country, String province, String city, String district,
+                                 String addressLine1, String addressLine2, String zipcode,
+                                 boolean isDefault) {
+        requireNotBlank(receiverName, "收货人不能为空");
+        requireNotBlank(addressLine1, "地址行1 不能为空");
+        requireNotNull(phone, "联系电话不能为空");
+        return new UserAddress(null, receiverName, phone, country, province, city, district,
+                addressLine1, addressLine2, zipcode, isDefault, null, null);
+    }
+
+    /**
+     * 更新用户地址信息。此方法允许更新收货人姓名、联系电话及详细的地址信息等字段<br/>
+     * 注意, 如果提供的 <code>receiverName</code> 或 <code>addressLine1</code> 为空白, 则会抛出异常
+     *
+     * @param receiverName 收货人姓名 不得为空白
+     * @param phone        联系电话 值对象, 需要符合 E.164 标准格式
+     * @param country      国家
+     * @param province     省份
+     * @param city         城市
+     * @param district     区县
+     * @param addressLine1 地址行1 不得为空白
+     * @param addressLine2 地址行2 可选
+     * @param zipcode      邮编 可选
+     * @throws IllegalParamException 当 <code>receiverName</code> 或 <code>addressLine1</code> 为空白时抛出
+     */
+    public void update(String receiverName, PhoneNumber phone,
+                       String country, String province, String city, String district,
+                       String addressLine1, String addressLine2, String zipcode) {
+        if (receiverName != null && receiverName.isBlank())
+            throw new IllegalParamException("收货人不能为空");
+        if (addressLine1 != null && addressLine1.isBlank())
+            throw new IllegalParamException("地址行1 不能为空");
+
+        if (receiverName != null)
+            this.receiverName = receiverName;
+        if (phone != null)
+            this.phone = phone;
+        if (country != null)
+            this.country = country;
+        if (province != null)
+            this.province = province;
+        if (city != null)
+            this.city = city;
+        if (district != null)
+            this.district = district;
+        if (addressLine1 != null)
+            this.addressLine1 = addressLine1;
+        if (addressLine2 != null)
+            this.addressLine2 = addressLine2;
+        if (zipcode != null)
+            this.zipcode = zipcode;
+    }
+
+    /**
+     * 设置当前地址是否为默认地址。
+     *
+     * @param isDefault 如果设置为 <code>true</code>, 则将此地址设为用户的默认收货地址; 否则, 不作为默认地址使用
+     */
+    public void setDefault(boolean isDefault) {
+        this.defaultAddress = isDefault;
+    }
+}
+
 
