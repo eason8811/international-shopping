@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CookieSpec {
+public final class CookieSpec {
     /**
      * 标识 Cookie 是否只能通过 HTTPS 协议发送, 以增强安全性
      * <p>当设置为 {@code true} 时, 浏览器将仅在安全连接 (HTTPS) 下发送该 Cookie

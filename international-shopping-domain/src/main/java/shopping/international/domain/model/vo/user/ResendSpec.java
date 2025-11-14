@@ -8,7 +8,7 @@ import lombok.Data;
  */
 @Data
 @Builder
-public class ResendSpec {
+public final class ResendSpec {
     /**
      * 形如 <a href="https://api.resend.com">https://api.resend.com</a>
      */
