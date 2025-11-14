@@ -92,6 +92,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests(registry ->
                         // 匿名接口允许访问
                 {
+                    registry.requestMatchers(API_PREFIX + "/users/me").authenticated();
                     registry.requestMatchers(HttpMethod.GET).permitAll();
                     registry.requestMatchers(HttpMethod.HEAD).permitAll();
                     registry.requestMatchers(HttpMethod.TRACE).permitAll();
