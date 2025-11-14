@@ -49,7 +49,31 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public static final String TRACE_ID_HEADER = "X-Trace-Id";
 
     /**
-     * 处理用户账号异常异常: 返回 401
+     * 处理邮件发送过多异常: 返回 429
+     *
+     * @param ex      抛出的 {@link TooManyEmailSentException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 429
+     */
+    @ExceptionHandler(TooManyEmailSentException.class)
+    public ResponseEntity<Result<Void>> handleIllegalParam(final TooManyEmailSentException ex,
+                                                           final HttpServletRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.TOO_MANY_REQUESTS,
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request));
+
+        return respond(HttpStatus.TOO_MANY_REQUESTS, ApiCode.TOO_MANY_REQUESTS, ex.getMessage(), request);
+    }
+
+    /**
+     * 处理用户账号异常: 返回 401
      *
      * @param ex      抛出的 {@link AccountException}
      * @param request 当前请求

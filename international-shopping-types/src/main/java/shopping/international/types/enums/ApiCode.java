@@ -57,6 +57,10 @@ public enum ApiCode {
      * 422 Unprocessable Entity
      */
     UNPROCESSABLE_ENTITY(HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Entity"),
+    /**
+     * 429 Too Many Requests
+     */
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests"),
 
     // ===== 客户端错误类 =====
     /**
