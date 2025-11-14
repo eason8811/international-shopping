@@ -2,6 +2,7 @@ package shopping.international.trigger.controller.user;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,6 +17,7 @@ import shopping.international.domain.service.user.IAddressService;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
+import shopping.international.types.exceptions.IdempotencyException;
 
 import java.util.List;
 
@@ -30,6 +32,7 @@ import java.util.List;
  * </ul>
  * </p>
  */
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(SecurityConstants.API_PREFIX + "/users/me/addresses")
@@ -85,9 +88,15 @@ public class AddressController {
                 req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
                 req.getZipcode(), Boolean.TRUE.equals(req.getIsDefault()));
 
-        UserAddress created = addressService.create(uid, newAddress, idempotencyKey);
-        return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
-                .body(Result.created(AddressRespond.from(created)));
+        try {
+            UserAddress created = addressService.create(uid, newAddress, idempotencyKey);
+            return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
+                    .body(Result.created(AddressRespond.from(created)));
+        } catch (IdempotencyException ignore) {
+            log.warn("参数为 uid={}, newAddress={}, idempotencyKey={} 的请求已处理过, 忽略本次请求", uid, newAddress, idempotencyKey);
+            return ResponseEntity.status(ApiCode.ACCEPTED.toHttpStatus())
+                    .body(Result.accepted("该地址已提交"));
+        }
     }
 
     /**

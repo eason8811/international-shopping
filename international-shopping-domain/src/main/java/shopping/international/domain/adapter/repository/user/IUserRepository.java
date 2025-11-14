@@ -4,9 +4,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.entity.user.AuthBinding;
+import shopping.international.domain.model.entity.user.UserAddress;
 import shopping.international.domain.model.enums.user.AccountStatus;
 import shopping.international.domain.model.enums.user.AuthProvider;
 import shopping.international.domain.model.vo.user.*;
+import shopping.international.types.exceptions.AppException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -188,4 +190,70 @@ public interface IUserRepository {
      * @param provider 身份验证提供者的枚举值, 不能为空
      */
     void deleteBinding(@NotNull Long userId, @NotNull AuthProvider provider);
+
+    /**
+     * 按用户分页查询收货地址列表
+     *
+     * @param userId 用户 ID
+     * @param offset 偏移量, 从 0 开始
+     * @param limit  单页数量
+     * @return 当前页的地址列表
+     */
+    @NotNull
+    List<UserAddress> listAddresses(@NotNull Long userId, int offset, int limit);
+
+    /**
+     * 统计指定用户的收货地址数量
+     *
+     * @param userId 用户 ID
+     * @return 地址总数
+     */
+    long countAddresses(@NotNull Long userId);
+
+    /**
+     * 按用户 + 地址 ID 查询收货地址
+     *
+     * @param userId    用户 ID
+     * @param addressId 地址 ID
+     * @return 若存在则返回 Optional, 否则为 empty
+     */
+    @NotNull
+    Optional<UserAddress> findAddressById(@NotNull Long userId, @NotNull Long addressId);
+
+    /**
+     * 插入一个新的用户地址 如果该地址被设置为默认地址, 则会先清除该用户所有其他地址的默认标记
+     *
+     * @param userId 用户的 ID 必须非空
+     * @param address 待插入的地址信息 必须非空
+     * @return 返回新插入的用户地址对象 保证非空
+     * @throws AppException 当插入地址后无法通过 ID 回读时抛出异常
+     */
+    @NotNull
+    UserAddress insertAddress(@NotNull Long userId, @NotNull UserAddress address);
+
+    /**
+     * 更新指定用户的某个收货地址字段
+     *
+     * @param userId  用户 ID
+     * @param address 已完成领域层校验/变更的地址实体, 必须包含 ID
+     * @return 从数据库重新装配的实体
+     */
+    @NotNull
+    UserAddress updateAddress(@NotNull Long userId, @NotNull UserAddress address);
+
+    /**
+     * 删除指定用户的某个收货地址
+     *
+     * @param userId    用户 ID
+     * @param addressId 地址 ID
+     */
+    void deleteAddress(@NotNull Long userId, @NotNull Long addressId);
+
+    /**
+     * 将指定地址设置为默认收货地址
+     *
+     * @param userId    用户 ID
+     * @param addressId 地址 ID
+     */
+    void setDefaultAddress(@NotNull Long userId, @NotNull Long addressId);
 }
