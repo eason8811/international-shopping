@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import shopping.international.domain.adapter.port.user.IOAuth2RemotePort;
 import shopping.international.domain.adapter.port.user.IOAuth2StatePort;
 import shopping.international.domain.adapter.repository.user.IUserRepository;
+import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.entity.user.AuthBinding;
 import shopping.international.domain.model.enums.user.AuthProvider;
 import shopping.international.domain.model.vo.user.*;
@@ -34,8 +35,8 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * </ul>
  * </p>
  *
- * <p><b>事务边界：</b> 所有数据写操作均下沉至 {@link IUserRepository} 完成，必要处由仓储方法声明
- * {@code @Transactional}，本服务仅做编排与校验。</p>
+ * <p><b>事务边界：</b> 所有数据写操作均下沉至 {@link IUserRepository} 完成, 必要处由仓储方法声明
+ * {@code @Transactional}, 本服务仅做编排与校验。</p>
  */
 @Slf4j
 @Service
@@ -51,7 +52,7 @@ public class BindingService implements IBindingService {
      */
     private final List<OAuth2ProviderSpec> oAuth2ProviderSpecList;
     /**
-     * OAuth2 / OIDC 远程交互端口 (Token、ID Token 验签、UserInfo)
+     * OAuth2 / OIDC 远程交互端口 (Token, ID Token 验签, UserInfo)
      */
     private final IOAuth2RemotePort remotePort;
     /**
@@ -109,7 +110,6 @@ public class BindingService implements IBindingService {
                 .append("&code_challenge=").append(urlEncode(codeChallenge))
                 .append("&code_challenge_method=S256");
 
-        // provider 特定的额外参数 (如 prompt/login_hint 等) 由 infra 层在 MetaPort 中统一返回或此处追加
         return url.toString();
     }
 
@@ -204,11 +204,17 @@ public class BindingService implements IBindingService {
         if (boundToOthers)
             return OAuth2CallbackResult.failure(redirect);
 
-        // 访问令牌过期时间
+        // 4.1 装载当前用户聚合
+        User user = userRepository.findById(ephemeralState.userId())
+                .orElseThrow(() -> new OAuth2HandleException("用户不存在"));
+
+        // 4.2 访问令牌过期时间 (使用同一个 now, 避免多次调用 LocalDateTime.now())
+        LocalDateTime now = LocalDateTime.now();
         LocalDateTime expiresAt = (tokenResponse.expiresInSeconds() != null)
-                ? LocalDateTime.now().plusSeconds(tokenResponse.expiresInSeconds())
+                ? now.plusSeconds(tokenResponse.expiresInSeconds())
                 : null;
-        // 5) upsert 绑定
+
+        // 4.3 构建绑定实体
         AuthBinding binding = AuthBinding.oauth(
                 provider,
                 issuer,
@@ -219,8 +225,13 @@ public class BindingService implements IBindingService {
                 tokenResponse.scope()
         );
 
+        // 4.4 先由聚合检查 provider 唯一性, issuer+providerUid 唯一性, 至少一种登录方式等不变式
+        user.addBinding(binding);
+        user.recordLogin(provider, now);
+
+        // 5) 再由仓储将增量写入持久化层
         userRepository.upsertAuthBinding(ephemeralState.userId(), binding);
-        userRepository.recordLogin(ephemeralState.userId(), provider, LocalDateTime.now());
+        userRepository.recordLogin(ephemeralState.userId(), provider, user.getLastLoginAt());
 
         // 6) 成功回跳
         return OAuth2CallbackResult.success(null, null, redirect);
@@ -238,11 +249,14 @@ public class BindingService implements IBindingService {
         if (provider == AuthProvider.LOCAL)
             throw new IllegalArgumentException("本地登录不可解绑");
 
-        // 2) 至少保留一种登录方式
-        int total = userRepository.countBindings(userId);
-        if (total <= 1)
-            throw new IllegalArgumentException("至少保留一种登录方式");
-        // 3) 删除绑定
+        // 2) 装载聚合, 应用 "至少保留一种登录方式" 等不变式
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+
+        // 若解绑后没有任何登录方式, 将在这里抛异常
+        user.removeBinding(provider);
+
+        // 3) 仓储删除持久化记录
         userRepository.deleteBinding(userId, provider);
     }
 

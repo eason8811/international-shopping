@@ -131,4 +131,16 @@ public class UserAddress {
     public void setDefault(boolean isDefault) {
         this.defaultAddress = isDefault;
     }
+
+    /**
+     * 为用户地址分配一个 ID, 如果该用户地址已存在一个非空的 ID, 则不允许重新赋值
+     *
+     * @param id 要分配给用户地址的新 ID, 类型为 Long
+     * @throws IllegalStateException 如果尝试给已经拥有非空 ID 的 UserAddress 对象重新赋值 ID
+     */
+    public void assignId(Long id) {
+        if (this.id != null && !this.id.equals(id))
+            throw new IllegalStateException("UserAddress 实体已存在 ID, 不允许重新赋值, current: " + this.id + ", new: " + id);
+        this.id = id;
+    }
 }

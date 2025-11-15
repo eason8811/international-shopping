@@ -107,8 +107,8 @@ public class AddressService implements IAddressService {
      */
     @Override
     public @NotNull UserAddress create(@NotNull Long userId, @NotNull UserAddress address, @NotNull String idempotencyKey) {
-        // 1) 确认用户存在, 防止为不存在/已删除用户创建地址
-        userRepository.findById(userId)
+        // 1) 装载用户聚合, 防止为不存在/已删除用户创建地址
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalParamException("用户不存在"));
 
         // 2) 基于 Redis 注册幂等 Token 或获取已绑定结果
@@ -129,13 +129,18 @@ public class AddressService implements IAddressService {
         if (tokenStatus.status() == IAddressIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
             throw new IdempotencyException("相同幂等键的地址创建请求正在处理中, 请稍后重试");
 
-        // 2.3 NEW: 当前请求获得创建权, 执行真正的创建逻辑
-        UserAddress created = userRepository.insertAddress(userId, address);
+        // 2.3 NEW: 当前请求获得创建权, 先在聚合中应用“新增地址”的领域规则 (含默认地址唯一性) ==
+        user.addAddress(address);
 
-        // 3) 在 DB 操作成功后, 将地址 ID 绑定到幂等键
-        addressIdempotencyPort.markSucceeded(userId, idempotencyKey, created.getId(), IDEMPOTENCY_SUCCESS_TTL);
+        // 按聚合快照同步 DB (仓储不懂业务, 只执行同步)
+        userRepository.saveAddresses(userId, user.getAddressesSnapshot());
+        Long createdId = address.getId();
+        if (createdId == null)
+            throw new AppException("地址已创建但未获得ID, 请检查 saveAddresses 实现");
+        addressIdempotencyPort.markSucceeded(userId, idempotencyKey, createdId, IDEMPOTENCY_SUCCESS_TTL);
 
-        return created;
+        List<UserAddress> snapshot = user.getAddressesSnapshot();
+        return snapshot.get(snapshot.size() - 1);
     }
 
     /**
@@ -183,18 +188,10 @@ public class AddressService implements IAddressService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("更新后的地址在聚合中不存在, id=" + addressId));
 
-        // 4) 先持久化字段变更 (包括当前 default 标记)
-        UserAddress persisted = userRepository.updateAddress(userId, updatedAddressInAggregate);
+        // 按聚合快照同步 DB (仓储不懂业务, 只执行同步)
+        userRepository.saveAddresses(userId, user.getAddressesSnapshot());
 
-        // 5) 若调用方明确要求"设为默认", 再由仓储在事务中切换默认地址, 保证唯一性
-        if (Boolean.TRUE.equals(makeDefault)) {
-            userRepository.setDefaultAddress(userId, addressId);
-            // 回读一次, 拿到最终的 isDefault 与时间戳
-            persisted = userRepository.findAddressById(userId, addressId)
-                    .orElseThrow(() -> new IllegalStateException("更新后的地址在数据库中不存在, id=" + addressId));
-        }
-
-        return persisted;
+        return updatedAddressInAggregate;
     }
 
     /**
@@ -228,7 +225,7 @@ public class AddressService implements IAddressService {
                 .orElseThrow(() -> new IllegalParamException("用户不存在"));
         user.setDefaultAddress(addressId);
 
-        // 2) 仓储在事务中清空原默认并设置新的默认地址
-        userRepository.setDefaultAddress(userId, addressId);
+        // 按聚合快照同步 DB (仓储不懂业务, 只执行同步)
+        userRepository.saveAddresses(userId, user.getAddressesSnapshot());
     }
 }

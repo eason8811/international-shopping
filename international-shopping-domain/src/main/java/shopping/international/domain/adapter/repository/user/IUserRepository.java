@@ -8,7 +8,6 @@ import shopping.international.domain.model.entity.user.UserAddress;
 import shopping.international.domain.model.enums.user.AccountStatus;
 import shopping.international.domain.model.enums.user.AuthProvider;
 import shopping.international.domain.model.vo.user.*;
-import shopping.international.types.exceptions.AppException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -168,17 +167,9 @@ public interface IUserRepository {
                                                      @NotNull Long excludeUserId);
 
     /**
-     * 计算指定用户 <code>userId</code> 的绑定记录数量
-     *
-     * @param userId 用户的唯一标识符 不能为 null
-     * @return 绑定记录的数量 如果
-     */
-    int countBindings(@NotNull Long userId);
-
-    /**
      * <p>插入或更新用户的授权绑定信息, 如果用户对于指定的提供商已经存在授权绑定, 则更新该绑定, 否则, 插入新的授权绑定</p>
      *
-     * @param userId 用户ID 必填
+     * @param userId  用户ID 必填
      * @param binding 授权绑定信息, 包含提供商(provider), 发行者(issuer), 提供商唯一标识(providerUid), 访问令牌(accessToken), 刷新令牌(refreshToken), 过期时间(expiresAt)和权限范围(scope)等 必填
      */
     void upsertAuthBinding(@NotNull Long userId, @NotNull AuthBinding binding);
@@ -221,25 +212,16 @@ public interface IUserRepository {
     Optional<UserAddress> findAddressById(@NotNull Long userId, @NotNull Long addressId);
 
     /**
-     * 插入一个新的用户地址 如果该地址被设置为默认地址, 则会先清除该用户所有其他地址的默认标记
+     * 保存用户的地址信息, 包括新增 地址 更新 地址 以及 删除 不再需要的地址
+     * 此方法会根据传入的用户 ID 和地址列表来更新数据库中的记录, 确保数据库中的地址信息与传入的地址列表一致
      *
-     * @param userId 用户的 ID 必须非空
-     * @param address 待插入的地址信息 必须非空
-     * @return 返回新插入的用户地址对象 保证非空
-     * @throws AppException 当插入地址后无法通过 ID 回读时抛出异常
+     * @param userId    用户的唯一标识符 必须非空
+     * @param addressList 用户地址列表 每个元素都是 {@link UserAddress} 类型的对象 必须非空
+     *                  列表中的每个 <code>UserAddress</code> 对象可以包含或不包含 id 字段 如果包含 id 字段 则尝试更新该 id 对应的已有记录
+     *                  如果 id 字段为空或不存在于数据库中 则创建新记录
+     * @throws IllegalArgumentException 如果 userId 或 addressList 为 null
      */
-    @NotNull
-    UserAddress insertAddress(@NotNull Long userId, @NotNull UserAddress address);
-
-    /**
-     * 更新指定用户的某个收货地址字段
-     *
-     * @param userId  用户 ID
-     * @param address 已完成领域层校验/变更的地址实体, 必须包含 ID
-     * @return 从数据库重新装配的实体
-     */
-    @NotNull
-    UserAddress updateAddress(@NotNull Long userId, @NotNull UserAddress address);
+    void saveAddresses(@NotNull Long userId, @NotNull List<UserAddress> addressList);
 
     /**
      * 删除指定用户的某个收货地址
@@ -248,12 +230,4 @@ public interface IUserRepository {
      * @param addressId 地址 ID
      */
     void deleteAddress(@NotNull Long userId, @NotNull Long addressId);
-
-    /**
-     * 将指定地址设置为默认收货地址
-     *
-     * @param userId    用户 ID
-     * @param addressId 地址 ID
-     */
-    void setDefaultAddress(@NotNull Long userId, @NotNull Long addressId);
 }

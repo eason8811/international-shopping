@@ -27,13 +27,14 @@ import shopping.international.infrastructure.dao.user.po.UserAccountPO;
 import shopping.international.infrastructure.dao.user.po.UserAddressPO;
 import shopping.international.infrastructure.dao.user.po.UserAuthPO;
 import shopping.international.infrastructure.dao.user.po.UserProfilePO;
-import shopping.international.types.exceptions.AppException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
@@ -462,19 +463,6 @@ public class UserRepository implements IUserRepository {
     }
 
     /**
-     * 计算指定用户 <code>userId</code> 的绑定记录数量
-     *
-     * @param userId 用户的唯一标识符 不能为 null
-     * @return 绑定记录的数量 如果
-     */
-    @Override
-    public int countBindings(@NotNull Long userId) {
-        Long rows = authMapper.selectCount(new LambdaQueryWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getUserId, userId));
-        return rows == null ? 0 : rows.intValue();
-    }
-
-    /**
      * <p>插入或更新用户的授权绑定信息, 如果用户对于指定的提供商已经存在授权绑定, 则更新该绑定, 否则, 插入新的授权绑定</p>
      *
      * @param userId  用户ID 必填
@@ -589,82 +577,57 @@ public class UserRepository implements IUserRepository {
     }
 
     /**
-     * 插入一个新的用户地址 如果该地址被设置为默认地址, 则会先清除该用户所有其他地址的默认标记
+     * 保存用户的地址信息, 包括新增 地址 更新 地址 以及 删除 不再需要的地址
+     * 此方法会根据传入的用户 ID 和地址列表来更新数据库中的记录, 确保数据库中的地址信息与传入的地址列表一致
      *
-     * @param userId 用户的 ID 必须非空
-     * @param address 待插入的地址信息 必须非空
-     * @return 返回新插入的用户地址对象 保证非空
-     * @throws AppException 当插入地址后无法通过 ID 回读时抛出异常
+     * @param userId      用户的唯一标识符 必须非空
+     * @param addressList 用户地址列表 每个元素都是 {@link UserAddress} 类型的对象 必须非空
+     *                    列表中的每个 <code>UserAddress</code> 对象可以包含或不包含 id 字段 如果包含 id 字段 则尝试更新该 id 对应的已有记录
+     *                    如果 id 字段为空或不存在于数据库中 则创建新记录
+     * @throws IllegalArgumentException 如果 userId 或 addressList 为 null
      */
-    @Transactional(rollbackFor = Exception.class)
-    public @NotNull UserAddress insertAddress(@NotNull Long userId, @NotNull UserAddress address) {
-        // 若为默认地址, 先清空该用户所有地址的默认标记
-        if (address.isDefaultAddress()) {
-            addressMapper.update(null, new LambdaUpdateWrapper<UserAddressPO>()
-                    .eq(UserAddressPO::getUserId, userId)
-                    .set(UserAddressPO::getIsDefault, Boolean.FALSE));
+    @Transactional
+    public void saveAddresses(@NotNull Long userId, @NotNull List<UserAddress> addressList) {
+        // 1. 查当前 DB 中的地址
+        List<UserAddressPO> existing = addressMapper.selectList(
+                new LambdaQueryWrapper<UserAddressPO>()
+                        .eq(UserAddressPO::getUserId, userId)
+        );
+
+        // 2. 以 ID 为 key 做 diff, 决定 insert / update / delete
+        Map<Long, UserAddressPO> existingMap = existing.stream()
+                .collect(Collectors.toMap(UserAddressPO::getId, Function.identity()));
+
+        for (UserAddress address : addressList) {
+            if (address.getId() == null) {
+                // 新增
+                UserAddressPO addressPO = toAddressPO(userId, address);
+                addressMapper.insert(addressPO);
+                address.assignId(addressPO.getId());
+                continue;
+            }
+
+            UserAddressPO addressPO = existingMap.remove(address.getId());
+            if (addressPO != null) {
+                // 更新
+                UserAddressPO updatedAddressPO = toAddressPO(userId, address);
+                updatedAddressPO.setId(addressPO.getId());
+                addressMapper.updateById(updatedAddressPO);
+                continue;
+            }
+            // 理论上不该出现, 防御性处理
+            addressMapper.insert(toAddressPO(userId, address));
         }
 
-        UserAddressPO po = UserAddressPO.builder()
-                .userId(userId)
-                .receiverName(address.getReceiverName())
-                .phone(address.getPhone() == null ? null : address.getPhone().getValue())
-                .country(address.getCountry())
-                .province(address.getProvince())
-                .city(address.getCity())
-                .district(address.getDistrict())
-                .addressLine1(address.getAddressLine1())
-                .addressLine2(address.getAddressLine2())
-                .zipcode(address.getZipcode())
-                .isDefault(address.isDefaultAddress())
-                .build();
-        addressMapper.insert(po);
-
-        UserAddressPO inserted = addressMapper.selectById(po.getId());
-        if (inserted == null)
-            throw new AppException("插入地址后无法回读, id=" + po.getId());
-        return toDomainAddress(inserted);
-    }
-
-    /**
-     * 更新用户的收货地址信息
-     *
-     * @param userId 用户ID, 用于定位要更新哪个用户的地址信息
-     * @param address 包含了需要被更新的地址详细信息的 {@code UserAddress} 对象. 注意, 此对象中的 id 字段必须不为空, 否则将抛出异常
-     * @return 返回一个更新后的 {@code UserAddress} 对象, 表示数据库中最新的用户地址信息
-     * @throws IllegalParamException 如果提供的地址ID为空, 或者根据给定的ID没有找到对应的地址记录, 则会抛出此异常
-     * @throws AppException 如果在更新地址后尝试从数据库回读该地址时失败, 则会抛出此异常
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public @NotNull UserAddress updateAddress(@NotNull Long userId, @NotNull UserAddress address) {
-        if (address.getId() == null)
-            throw new IllegalParamException("地址ID不能为空");
-        int rows = addressMapper.update(null, new LambdaUpdateWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, userId)
-                .eq(UserAddressPO::getId, address.getId())
-                .set(UserAddressPO::getReceiverName, address.getReceiverName())
-                .set(UserAddressPO::getPhone, address.getPhone() == null ? null : address.getPhone().getValue())
-                .set(UserAddressPO::getCountry, address.getCountry())
-                .set(UserAddressPO::getProvince, address.getProvince())
-                .set(UserAddressPO::getCity, address.getCity())
-                .set(UserAddressPO::getDistrict, address.getDistrict())
-                .set(UserAddressPO::getAddressLine1, address.getAddressLine1())
-                .set(UserAddressPO::getAddressLine2, address.getAddressLine2())
-                .set(UserAddressPO::getZipcode, address.getZipcode())
-                .set(UserAddressPO::getIsDefault, address.isDefaultAddress()));
-        if (rows == 0)
-            throw new IllegalParamException("ID 为: " + address.getId() + " 的地址不存在");
-
-        UserAddressPO po = addressMapper.selectById(address.getId());
-        if (po == null)
-            throw new AppException("更新地址后无法回读, id=" + address.getId());
-        return toDomainAddress(po);
+        // 3. 余下 existingMap 中的是 domain 里已删除而 DB 里还存在的, 按需 delete
+        for (UserAddressPO toDelete : existingMap.values())
+            addressMapper.deleteById(toDelete.getId());
     }
 
     /**
      * 删除指定用户的某个地址信息
      *
-     * @param userId 用户的唯一标识符, 不能为空
+     * @param userId    用户的唯一标识符, 不能为空
      * @param addressId 地址的唯一标识符, 不能为空
      * @throws IllegalParamException 如果根据提供的用户ID和地址ID未找到对应的地址记录, 则抛出此异常
      */
@@ -673,31 +636,6 @@ public class UserRepository implements IUserRepository {
         int rows = addressMapper.delete(new LambdaQueryWrapper<UserAddressPO>()
                 .eq(UserAddressPO::getUserId, userId)
                 .eq(UserAddressPO::getId, addressId));
-        if (rows == 0)
-            throw new IllegalParamException("ID 为: " + addressId + " 的地址不存在");
-    }
-
-    /**
-     * 将指定用户的某个地址设置为默认地址
-     *
-     * <p>此方法首先会取消用户所有已存在的默认地址, 然后将给定的地址标识为默认地址。如果提供的地址 ID 不存在, 则抛出异常
-     *
-     * @param userId 用户的唯一标识符 必须提供且不能为 null
-     * @param addressId 要设为默认的地址ID 必须提供且不能为 null
-     * @throws IllegalParamException 如果根据提供的 addressId 找不到对应的地址记录, 则抛出此异常
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public void setDefaultAddress(@NotNull Long userId, @NotNull Long addressId) {
-        // 1) 清空原默认
-        addressMapper.update(null, new LambdaUpdateWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, userId)
-                .set(UserAddressPO::getIsDefault, Boolean.FALSE));
-
-        // 2) 设置当前地址为默认
-        int rows = addressMapper.update(null, new LambdaUpdateWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, userId)
-                .eq(UserAddressPO::getId, addressId)
-                .set(UserAddressPO::getIsDefault, Boolean.TRUE));
         if (rows == 0)
             throw new IllegalParamException("ID 为: " + addressId + " 的地址不存在");
     }
@@ -807,6 +745,31 @@ public class UserRepository implements IUserRepository {
                 addressPO.getCreatedAt(),
                 addressPO.getUpdatedAt()
         );
+    }
+
+    /**
+     * 将 <code>UserAddress</code> 对象转换为 <code>UserAddressPO</code> 对象
+     *
+     * @param userId  用户的唯一标识符
+     * @param address 需要被转换的 <code>UserAddress</code> 对象
+     * @return 转换后的 <code>UserAddressPO</code> 对象
+     */
+    private UserAddressPO toAddressPO(Long userId, UserAddress address) {
+        return UserAddressPO.builder()
+                .userId(userId)
+                .receiverName(address.getReceiverName())
+                .phone(address.getPhone() == null ? null : address.getPhone().getValue())
+                .country(address.getCountry())
+                .province(address.getProvince())
+                .city(address.getCity())
+                .district(address.getDistrict())
+                .addressLine1(address.getAddressLine1())
+                .addressLine2(address.getAddressLine2())
+                .zipcode(address.getZipcode())
+                .isDefault(address.isDefaultAddress())
+                .createdAt(address.getCreatedAt())
+                .updatedAt(address.getUpdatedAt())
+                .build();
     }
 
     /**

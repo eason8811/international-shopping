@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 public class UserService implements IUserService {
 
     /**
-     * 用户聚合仓储，用于读写 user_account / user_auth / user_profile / user_address
+     * 用户聚合仓储, 用于读写 user_account / user_auth / user_profile / user_address
      */
     private final IUserRepository userRepository;
     /**
@@ -86,22 +86,24 @@ public class UserService implements IUserService {
      */
     @Override
     public @NotNull User updateAccount(@NotNull Long userId, @Nullable Nickname nickname, @Nullable PhoneNumber phone) {
-        // 1) 读取当前聚合 (用于比较)
-        User currentUser = getById(userId);
+        // 1) 读取当前聚合
+        User user = getById(userId);
 
         // 2) 校验手机号唯一 (仅当传入且与当前不同)
         if (phone != null) {
-            PhoneNumber old = currentUser.getPhone();
-            boolean changed = (old == null && phone.getValue() != null)
-                    || (old != null && !old.getValue().equals(phone.getValue()));
+            PhoneNumber oldPhone = user.getPhone();
+            boolean changed = (oldPhone == null && phone.getValue() != null)
+                    || (oldPhone != null && !oldPhone.getValue().equals(phone.getValue()));
             if (changed && userRepository.existsByPhoneExceptUser(userId, phone))
                 throw new IllegalParamException("手机号已被使用");
+            user.changePhone(phone);
         }
-
+        if (nickname != null)
+            user.changeNickname(nickname);
         // 3) Patch 更新昵称与手机号 (仅设置非空字段)
         userRepository.updateNicknameAndPhone(userId, nickname, phone);
 
-        // 4) 回读最新聚合
+        // 4) 回读最新聚合 (带上最新时间戳等快照)
         return getById(userId);
     }
 
@@ -119,7 +121,7 @@ public class UserService implements IUserService {
         User current = getById(userId);
         if (current.getEmail() != null && current.getEmail().getValue().equalsIgnoreCase(newEmail.getValue()))
             throw new IllegalParamException("新邮箱不能与当前邮箱相同");
-        // 2) 唯一性 (预检，最终仍以唯一约束兜底)
+        // 2) 唯一性 (预检, 最终仍以唯一约束兜底)
         if (userRepository.existsByEmail(newEmail))
             throw new IllegalParamException("邮箱已被使用");
 
@@ -127,7 +129,7 @@ public class UserService implements IUserService {
         String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(newEmail, code, EMAIL_CODE_TTL);
 
-        // 4) 发信 (异步端口内部处理失败会记录日志，不影响主流程)
+        // 4) 发信 (异步端口内部处理失败会记录日志, 不影响主流程)
         emailPort.sendActivationEmail(newEmail, code);
     }
 
@@ -150,9 +152,14 @@ public class UserService implements IUserService {
         if (!pass)
             throw new IllegalParamException("验证码错误或已过期");
 
-        // 2) 更新邮箱 (由唯一索引兜底)
+        // 2) 聚合内先应用 "变更邮箱" 的领域语义
+        User user = getById(userId);
+        user.changeEmail(newEmail);
+
+        // 3) 再由仓储做持久化 (仍由唯一索引兜底)
         userRepository.updateEmail(userId, newEmail);
-        // 3) 回读聚合
+
+        // 4) 回读聚合
         return getById(userId);
     }
 
@@ -167,8 +174,12 @@ public class UserService implements IUserService {
      */
     @Override
     public @NotNull User updateProfile(@NotNull Long userId, @NotNull UserProfile newProfile) {
-        // upsert user_profile
-        userRepository.upsertProfile(userId, newProfile);
+        // == 聚合负责 "资料更新" 语义 (空 -> UserProfile.empty()) ==
+        User user = getById(userId);
+        user.updateProfile(newProfile);
+
+        // upsert user_profile, 以聚合中的 profile 为准
+        userRepository.upsertProfile(userId, user.getProfile());
         return getById(userId);
     }
 
