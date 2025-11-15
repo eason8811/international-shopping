@@ -122,7 +122,7 @@ public class BindingController {
                     .body(Result.of(
                             false,
                             shopping.international.types.enums.ApiCode.BAD_REQUEST,
-                            provider.name() + " 绑定错误",
+                            provider.name() + " 绑定失败",
                             new RedirectUrlRespond(result.getRedirectUrl()),
                             null
                     ));
