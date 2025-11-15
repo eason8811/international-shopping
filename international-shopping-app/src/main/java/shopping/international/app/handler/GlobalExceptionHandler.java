@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import shopping.international.api.resp.Result;
 import shopping.international.types.exceptions.*;
 import shopping.international.types.enums.ApiCode;
@@ -218,6 +219,67 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return respond(HttpStatus.INTERNAL_SERVER_ERROR, ApiCode.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
     }
 
+
+
+    /**
+     * 处理缺少 Servlet 请求参数的异常, 返回 400 错误
+     *
+     * @param ex 抛出的 {@link MissingServletRequestParameterException} 异常
+     * @param headers 响应头, 通常用于设置额外的 HTTP 头信息
+     * @param status HTTP 状态码, 对于此类异常固定为 400 (Bad Request)
+     * @param request 当前 Web 请求, 用于获取请求相关信息如 HTTP 方法等
+     * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 400 状态码
+     */
+    @Override
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+                                                                          @NotNull HttpHeaders headers,
+                                                                          @NotNull HttpStatusCode status,
+                                                                          @NotNull WebRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.BAD_REQUEST,
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                null,
+                ((ServletWebRequest) request).getHttpMethod(),
+                null,
+                resolveTraceId(null));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Result.<Void>error(ApiCode.BAD_REQUEST, ex.getMessage()));
+    }
+
+    /**
+     * 处理资源未找到异常, 返回 404 错误
+     *
+     * <p>此方法用于统一处理 {@link NoResourceFoundException}, 当请求的资源不存在时触发。该方法首先记录一条警告级别的日志,
+     * 随后返回一个包含错误信息的统一响应结构, HTTP 状态码为 404 (Not Found)</p>
+     *
+     * @param ex 抛出的 {@link NoResourceFoundException} 异常, 包含了关于未能找到资源的具体信息
+     * @param headers 响应头, 通常用于设置额外的 HTTP 头信息
+     * @param status HTTP 状态码, 对于此类异常固定为 404 (Not Found)
+     * @param request 当前 Web 请求, 用于获取请求相关信息如 HTTP 方法等
+     * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 404 状态码
+     */
+    @Override
+    protected ResponseEntity<Object> handleNoResourceFoundException(NoResourceFoundException ex,
+                                                                    @NotNull HttpHeaders headers,
+                                                                    @NotNull HttpStatusCode status,
+                                                                    @NotNull WebRequest request) {
+        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.NOT_FOUND,
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                null,
+                ((ServletWebRequest) request).getHttpMethod(),
+                null,
+                resolveTraceId(null));
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.<Void>error(ApiCode.NOT_FOUND, ex.getMessage()));
+    }
+
     // ===================== 私有工具方法 =====================
 
     /**
@@ -263,33 +325,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         Object attr = request.getAttribute("traceId");
         return attr == null ? null : String.valueOf(attr);
-    }
-
-    /**
-     * 处理缺少 Servlet 请求参数的异常, 返回 400 错误
-     *
-     * @param ex 抛出的 {@link MissingServletRequestParameterException} 异常
-     * @param headers 响应头, 通常用于设置额外的 HTTP 头信息
-     * @param status HTTP 状态码, 对于此类异常固定为 400 (Bad Request)
-     * @param request 当前 Web 请求, 用于获取请求相关信息如 HTTP 方法等
-     * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 400 状态码
-     */
-    @Override
-    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
-                                                                          @NotNull HttpHeaders headers,
-                                                                          @NotNull HttpStatusCode status,
-                                                                          @NotNull WebRequest request) {
-        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
-        log.warn(buildLogFormat(),
-                ex.getClass().getSimpleName(),
-                ApiCode.BAD_REQUEST,
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
-                null,
-                ((ServletWebRequest) request).getHttpMethod(),
-                null,
-                resolveTraceId(null));
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Result.<Void>error(ApiCode.BAD_REQUEST, ex.getMessage()));
     }
 }
