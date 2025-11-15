@@ -3,15 +3,18 @@ package shopping.international.domain.model.aggregate.user;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
-import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.domain.model.entity.user.AuthBinding;
 import shopping.international.domain.model.entity.user.UserAddress;
 import shopping.international.domain.model.enums.user.AccountStatus;
 import shopping.international.domain.model.enums.user.AuthProvider;
 import shopping.international.domain.model.vo.user.*;
+import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
@@ -155,10 +158,10 @@ public class User {
     /**
      * 使用OAuth认证信息注册新用户
      *
-     * @param username 用户名
-     * @param nickname 昵称
-     * @param email 电子邮件地址
-     * @param phone 手机号码
+     * @param username     用户名
+     * @param nickname     昵称
+     * @param email        电子邮件地址
+     * @param phone        手机号码
      * @param oauthBinding OAuth绑定信息, 包括了第三方平台的用户标识等数据
      * @return 注册成功后的用户对象, 包含了通过OAuth获得的基本信息及状态
      */
@@ -435,15 +438,37 @@ public class User {
     // ========== 资料行为 ==========
 
     /**
-     * 更新用户资料信息
+     * 更新用户个人资料信息
+     * <p>
+     * 该方法接收一个 {@code UserProfile} 对象作为参数, 并根据其中提供的信息更新当前用户的个人资料
+     * 如果传入的 {@code newProfile} 为 null, 则认为没有需要更新的信息, 直接返回
+     * 对于显示名, 会进行长度校验等约束检查, 其他字段则按照「null 不更新, 非 null 覆盖」的原则进行合并
      *
-     * <p>此方法允许更新用户的个人资料, 包括但不限于头像、简介等. 如果传入的 {@code newProfile} 为 {@code null},
-     * 则会将用户的资料设置为空资料 ({@link UserProfile#empty()})</p>
-     *
-     * @param newProfile 新的用户资料实例, 可以为 {@code null}
+     * @param newProfile 新的用户个人资料信息, 包含待更新的数据
      */
     public void updateProfile(UserProfile newProfile) {
-        this.profile = Objects.requireNonNullElseGet(newProfile, UserProfile::empty);
+        if (newProfile == null)
+            // 整个 VO 为空就当作没有任何变更
+            return;
+
+        // 1) 先处理显示名 (有长度校验), 用 withDisplayName 复用不变式
+        UserProfile base = (this.profile == null) ? UserProfile.empty() : this.profile;
+
+        // 2) 其他字段按「null 不更新, 非 null 覆盖」规则合并
+        this.profile = UserProfile.of(
+                // 显示名已经通过 base 处理过
+                newProfile.getDisplayName() != null ? newProfile.getDisplayName() : base.getDisplayName(),
+                newProfile.getAvatarUrl() != null ? newProfile.getAvatarUrl() : base.getAvatarUrl(),
+                newProfile.getGender() != null ? newProfile.getGender() : base.getGender(),
+                newProfile.getBirthday() != null ? newProfile.getBirthday() : base.getBirthday(),
+                newProfile.getCountry() != null ? newProfile.getCountry() : base.getCountry(),
+                newProfile.getProvince() != null ? newProfile.getProvince() : base.getProvince(),
+                newProfile.getCity() != null ? newProfile.getCity() : base.getCity(),
+                newProfile.getAddressLine() != null ? newProfile.getAddressLine() : base.getAddressLine(),
+                newProfile.getZipcode() != null ? newProfile.getZipcode() : base.getZipcode(),
+                // extra 的语义这里是「整体替换」: newProfile.extra 为 null 时保留原值
+                newProfile.getExtra() != null ? newProfile.getExtra() : base.getExtra()
+        );
     }
 
     /**

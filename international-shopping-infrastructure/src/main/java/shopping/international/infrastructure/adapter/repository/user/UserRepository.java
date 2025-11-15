@@ -411,17 +411,17 @@ public class UserRepository implements IUserRepository {
         } else {
             // 更新 (仅设置可变字段, created_at/updated_at 交由 DB 维护)
             profileMapper.update(null, new LambdaUpdateWrapper<UserProfilePO>()
-                    .eq(UserProfilePO::userId, userId)
-                    .set(UserProfilePO::displayName, profile.getDisplayName())
-                    .set(UserProfilePO::avatarUrl, profile.getAvatarUrl())
-                    .set(UserProfilePO::gender, gender)
-                    .set(UserProfilePO::birthday, profile.getBirthday())
-                    .set(UserProfilePO::country, profile.getCountry())
-                    .set(UserProfilePO::province, profile.getProvince())
-                    .set(UserProfilePO::city, profile.getCity())
-                    .set(UserProfilePO::addressLine, profile.getAddressLine())
-                    .set(UserProfilePO::zipcode, profile.getZipcode())
-                    .set(UserProfilePO::extra, toJsonOrNull(profile.getExtra()))
+                    .eq(UserProfilePO::getUserId, userId)
+                    .set(UserProfilePO::getDisplayName, profile.getDisplayName())
+                    .set(UserProfilePO::getAvatarUrl, profile.getAvatarUrl())
+                    .set(UserProfilePO::getGender, gender)
+                    .set(UserProfilePO::getBirthday, profile.getBirthday())
+                    .set(UserProfilePO::getCountry, profile.getCountry())
+                    .set(UserProfilePO::getProvince, profile.getProvince())
+                    .set(UserProfilePO::getCity, profile.getCity())
+                    .set(UserProfilePO::getAddressLine, profile.getAddressLine())
+                    .set(UserProfilePO::getZipcode, profile.getZipcode())
+                    .set(UserProfilePO::getExtra, toJsonOrNull(profile.getExtra()))
             );
         }
     }
@@ -667,16 +667,16 @@ public class UserRepository implements IUserRepository {
 
         // Profile → 值对象 (你的 UserProfile API 若不同, 可在此适配)
         UserProfile profileVO = (profile == null) ? UserProfile.empty() : UserProfile.of(
-                profile.displayName(),
-                profile.avatarUrl(),
-                parseGender(profile.gender()),
-                profile.birthday(),
-                profile.country(),
-                profile.province(),
-                profile.city(),
-                profile.addressLine(),
-                profile.zipcode(),
-                parseJsonToMap(profile.extra())
+                profile.getDisplayName(),
+                profile.getAvatarUrl(),
+                parseGender(profile.getGender()),
+                profile.getBirthday(),
+                profile.getCountry(),
+                profile.getProvince(),
+                profile.getCity(),
+                profile.getAddressLine(),
+                profile.getZipcode(),
+                parseJsonToMap(profile.getExtra())
         );
 
         requireNotBlank(account.getEmail(), "用户邮箱不能为空");
