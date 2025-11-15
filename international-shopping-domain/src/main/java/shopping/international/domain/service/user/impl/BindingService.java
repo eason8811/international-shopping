@@ -103,7 +103,7 @@ public class BindingService implements IBindingService {
         url.append(url.indexOf("?") >= 0 ? "&" : "?")
                 .append("response_type=code")
                 .append("&client_id=").append(urlEncode(providerSpec.clientId()))
-                .append("&redirect_uri=").append(urlEncode(providerSpec.redirectUri()))
+                .append("&redirect_uri=").append(urlEncode(providerSpec.bindRedirectUri()))
                 .append("&scope=").append(urlEncode(providerSpec.scope()))
                 .append("&state=").append(urlEncode(state))
                 .append("&nonce=").append(urlEncode(nonce))
@@ -146,7 +146,7 @@ public class BindingService implements IBindingService {
 
         // 1. 换取 Token (带上 redirect_uri 与 code_verifier)
         OAuth2TokenResponse tokenResponse = remotePort.exchangeAuthorizationCode(
-                providerSpec, code, providerSpec.redirectUri(), ephemeralState.codeVerifier());
+                providerSpec, code, providerSpec.bindRedirectUri(), ephemeralState.codeVerifier());
 
         // 2. 验证 id_token (如果提供) 与 nonce 一致性 (OIDC)
         String sub;

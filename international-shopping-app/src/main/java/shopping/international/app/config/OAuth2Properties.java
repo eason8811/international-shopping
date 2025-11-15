@@ -54,9 +54,13 @@ public class OAuth2Properties {
          */
         private String jwkSetUri;
         /**
-         * 重定向地址
+         * 登录时重定向地址
          */
-        private String redirectUri;
+        private String loginRedirectUri;
+        /**
+         * 绑定时重定向地址
+         */
+        private String bindRedirectUri;
         /**
          * 授权范围
          */

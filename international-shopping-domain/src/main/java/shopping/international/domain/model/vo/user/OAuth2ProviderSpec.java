@@ -15,7 +15,8 @@ import shopping.international.domain.model.enums.user.AuthProvider;
  * @param tokenEndpoint          置换 token 端点
  * @param userinfoEndpoint       用户信息端点 (可空)
  * @param jwkSetUri              JWK 集合地址 (验签使用；若 remotePort 内部缓存/信任库也可空)
- * @param redirectUri            授权阶段与回调阶段使用的 redirect_uri (必须一致)
+ * @param loginRedirectUri       登录时授权阶段与回调阶段使用的 redirect_uri (必须一致)
+ * @param bindRedirectUri        绑定时授权阶段与回调阶段使用的 redirect_uri (必须一致)
  * @param scope                  授权范围 (空格分隔, 例如 "openid email profile")
  * @param defaultSuccessRedirect 本地登录完成默认前端落地页 (当未携带 redirect 时使用)
  * @param clockSkewSeconds       允许的时钟偏移 (验签时间窗口)
@@ -30,7 +31,8 @@ public record OAuth2ProviderSpec(
         String tokenEndpoint,
         @Nullable String userinfoEndpoint,
         @Nullable String jwkSetUri,
-        String redirectUri,
+        String loginRedirectUri,
+        String bindRedirectUri,
         String scope,
         @Nullable String defaultSuccessRedirect,
         long clockSkewSeconds
