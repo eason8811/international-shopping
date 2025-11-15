@@ -201,8 +201,10 @@ public class BindingService implements IBindingService {
         // 4) 并发/唯一性保护：同一个 (issuer, sub) 不得绑定至不同 user
         boolean boundToOthers = userRepository.existsBindingByIssuerAndUidExcludingUser(issuer, sub, ephemeralState.userId());
         String redirect = resolveRedirect(ephemeralState, providerSpec);
-        if (boundToOthers)
+        if (boundToOthers) {
+            log.warn("ID 为: {} 的用户, 已经绑定过 issuer 为: {}({}) 的第三方账号, providerUid 为: {}", ephemeralState.userId(), issuer, provider, sub);
             return OAuth2CallbackResult.failure(redirect);
+        }
 
         // 4.1 装载当前用户聚合
         User user = userRepository.findById(ephemeralState.userId())
