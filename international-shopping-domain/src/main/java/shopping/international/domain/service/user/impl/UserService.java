@@ -14,6 +14,7 @@ import shopping.international.domain.model.vo.user.Nickname;
 import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.model.vo.user.UserProfile;
 import shopping.international.domain.service.user.IUserService;
+import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.Duration;
@@ -123,7 +124,7 @@ public class UserService implements IUserService {
             throw new IllegalParamException("新邮箱不能与当前邮箱相同");
         // 2) 唯一性 (预检, 最终仍以唯一约束兜底)
         if (userRepository.existsByEmail(newEmail))
-            throw new IllegalParamException("邮箱已被使用");
+            throw new ConflictException("邮箱已被使用");
 
         // 3) 生成验证码 & 保存 (Redis)
         String code = generateNumericCode(EMAIL_CODE_LENGTH);
