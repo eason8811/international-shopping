@@ -83,7 +83,7 @@ public class BindingController {
                                                                 @RequestParam(value = "redirectUrl") String redirectUrl) {
         requireNotNull(provider, "认证提供者不能为空");
         requireNotBlank(redirectUrl, "跳转地址不能为空");
-        Pattern URL_REGEX = Pattern.compile("^https?://.*$");
+        Pattern URL_REGEX = Pattern.compile("^https?://[^/].*$");
         require(URL_REGEX.matcher(redirectUrl).matches(), "跳转地址格式错误");
 
         Long userId = requireCurrentUserId();

@@ -70,7 +70,7 @@ public class UpdateProfileRequest {
                 throw IllegalParamException.of("显示名称长度不能超过 64 个字符");
         }
 
-        Pattern URL_REGEX = Pattern.compile("^https?://.*$");
+        Pattern URL_REGEX = Pattern.compile("^https?://[^/].*$");
         if (avatarUrl != null) {
             avatarUrl = avatarUrl.strip();
             require(URL_REGEX.matcher(avatarUrl).matches(), "头像地址格式错误");
