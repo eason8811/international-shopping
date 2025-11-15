@@ -1,5 +1,6 @@
 package shopping.international.api.resp.user;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,6 +31,7 @@ public class UserProfileRespond {
     /**
      * 生日
      */
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthday;
     /**
      * 国家/省/市/详细地址/邮编
