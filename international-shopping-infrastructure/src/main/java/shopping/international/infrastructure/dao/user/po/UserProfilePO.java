@@ -4,6 +4,10 @@ import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,22 +35,37 @@ import java.time.LocalDateTime;
  * <p>注意：record 字段不可回填主键, 自增不适用；本表符合 record 的不可变场景</p>
  *
  */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @TableName("user_profile")
-public record UserProfilePO(
-        @TableId("user_id") Long userId,
-        @TableField("display_name") String displayName,
-        @TableField("avatar_url") String avatarUrl,
-        @TableField("gender") String gender,
-        @TableField("birthday") LocalDate birthday,
-        @TableField("country") String country,
-        @TableField("province") String province,
-        @TableField("city") String city,
-        @TableField("address_line") String addressLine,
-        @TableField("zipcode") String zipcode,
-        @TableField("extra") String extra,
-        @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
-        LocalDateTime createdAt,
-        @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
-        LocalDateTime updatedAt
-) {
+public final class UserProfilePO {
+    @TableId("user_id")
+    private Long userId;
+    @TableField("display_name")
+    private String displayName;
+    @TableField("avatar_url")
+    private String avatarUrl;
+    @TableField("gender")
+    private String gender;
+    @TableField("birthday")
+    private LocalDate birthday;
+    @TableField("country")
+    private String country;
+    @TableField("province")
+    private String province;
+    @TableField("city")
+    private String city;
+    @TableField("address_line")
+    private String addressLine;
+    @TableField("zipcode")
+    private String zipcode;
+    @TableField("extra")
+    private String extra;
+    @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    private LocalDateTime createdAt;
+    @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    private LocalDateTime updatedAt;
+
 }
