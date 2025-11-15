@@ -63,8 +63,12 @@ public class UpdateProfileRequest {
      * 入参校验 (长度与基本格式)
      */
     public void validate() {
-        if (displayName != null && displayName.length() > 64)
-            throw IllegalParamException.of("显示名称长度不能超过 64 个字符");
+        if (displayName != null) {
+            displayName = displayName.strip();
+            requireNotBlank(displayName, "显示名称不能为空");
+            if (displayName.length() > 64)
+                throw IllegalParamException.of("显示名称长度不能超过 64 个字符");
+        }
 
         Pattern URL_REGEX = Pattern.compile("^https?://.*$");
         if (avatarUrl != null) {
