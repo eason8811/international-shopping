@@ -39,6 +39,7 @@ public class UserAuthBindingRespond {
     /**
      * 该通道最近登录时间 (可空)
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastLoginAt;
     /**
      * 创建/更新
