@@ -45,7 +45,7 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(SecurityConstants.API_PREFIX + "/user/bindings")
+@RequestMapping(SecurityConstants.API_PREFIX + "/user/me/bindings")
 public class BindingController {
 
     /**
