@@ -54,6 +54,8 @@ public class AddressController {
     @GetMapping
     public ResponseEntity<Result<List<AddressRespond>>> list(@RequestParam(defaultValue = "1") int page,
                                                              @RequestParam(defaultValue = "5") int size) {
+        if (size > 50)
+            size = 50;
         Long uid = requireCurrentUserId();
         IAddressService.PageResult pageData = addressService.list(uid, page, size);
         List<AddressRespond> data = pageData.items().stream().map(AddressRespond::from).toList();
