@@ -30,6 +30,7 @@ import shopping.international.infrastructure.dao.user.po.UserProfilePO;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -598,12 +599,14 @@ public class UserRepository implements IUserRepository {
         Map<Long, UserAddressPO> existingMap = existing.stream()
                 .collect(Collectors.toMap(UserAddressPO::getId, Function.identity()));
 
+        // 创建映射 (key: UserAddress 实体的 HashCode, value: UserAddress)
+        Map<Integer, UserAddressPO> toInsertMap = new HashMap<>();
+        Map<Integer, UserAddressPO> toUpdateMap = new HashMap<>();
+        Map<Integer, Long> toDeleteMap = new HashMap<>();
         for (UserAddress address : addressList) {
             if (address.getId() == null) {
                 // 新增
-                UserAddressPO addressPO = toAddressPO(userId, address);
-                addressMapper.insert(addressPO);
-                address.assignId(addressPO.getId());
+                toInsertMap.put(address.hashCode(), toAddressPO(userId, address));
                 continue;
             }
 
@@ -612,16 +615,26 @@ public class UserRepository implements IUserRepository {
                 // 更新
                 UserAddressPO updatedAddressPO = toAddressPO(userId, address);
                 updatedAddressPO.setId(addressPO.getId());
-                addressMapper.updateById(updatedAddressPO);
+                toUpdateMap.put(address.hashCode(), updatedAddressPO);
                 continue;
             }
             // 理论上不该出现, 防御性处理
-            addressMapper.insert(toAddressPO(userId, address));
+            toInsertMap.put(address.hashCode(), toAddressPO(userId, address));
         }
+
+
 
         // 3. 余下 existingMap 中的是 domain 里已删除而 DB 里还存在的, 按需 delete
         for (UserAddressPO toDelete : existingMap.values())
-            addressMapper.deleteById(toDelete.getId());
+            toDeleteMap.put(toDelete.hashCode(), toDelete.getId());
+
+        addressMapper.insert(toInsertMap.values());
+        addressMapper.updateById(toUpdateMap.values());
+        addressMapper.deleteByIds(toDeleteMap.values());
+
+        for (UserAddress userAddress : addressList)
+            if (userAddress.getId() == null)
+                userAddress.assignId(toInsertMap.get(userAddress.hashCode()).getId());
     }
 
     /**
