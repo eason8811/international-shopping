@@ -74,6 +74,19 @@ oauth2:
       scope: openid email profile
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
+    - provider: INSTAGRAM
+      issuer: https://api.instagram.com
+      client-id: '${INSTAGRAM_CLIENT_ID}'
+      client-secret: '${INSTAGRAM_CLIENT_SECRET}'
+      authorization-endpoint: https://api.instagram.com/oauth/authorize
+      token-endpoint: https://api.instagram.com/oauth/access_token
+      userinfo-endpoint: https://graph.instagram.com/me
+      jwk-set-uri: ''
+      login-redirect-uri: https://shopping.mynatapp.cc/api/v1/oauth2/INSTAGRAM/callback
+      bind-redirect-uri: https://shopping.mynatapp.cc/api/v1/users/me/bindings/oauth2/INSTAGRAM/callback
+      scope: instagram_basic
+      default-success-redirect: http://localhost:8080
+      clock-skew-seconds: 120
 
 # Resend 配置
 resend:
