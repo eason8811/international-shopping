@@ -48,32 +48,24 @@ public class CreateAddressRequest {
      */
     public void validate() {
         requireNotBlank(receiverName, "收货人不能为空");
+        receiverName = receiverName.strip();
         requireNotBlank(phone, "联系电话不能为空");
+        phone = phone.strip();
         requireNotBlank(addressLine1, "地址行1不能为空");
-
-        if (country != null) {
-            requireNotBlank(country, "国家不能为空");
-            country = country.strip();
-        }
-        if (province != null) {
-            requireNotBlank(province, "省份不能为空");
-            province = province.strip();
-        }
-        if (city != null) {
-            requireNotBlank(city, "城市不能为空");
-            city = city.strip();
-        }
-        if (district != null) {
-            requireNotBlank(district, "区县不能为空");
-            district = district.strip();
-        }
+        addressLine1 = addressLine1.strip();
+        requireNotBlank(country, "国家不能为空");
+        country = country.strip();
+        requireNotBlank(province, "省份不能为空");
+        province = province.strip();
+        requireNotBlank(city, "城市不能为空");
+        city = city.strip();
+        requireNotBlank(district, "区县不能为空");
+        district = district.strip();
         if (addressLine2 != null) {
             requireNotBlank(addressLine2, "地址行2不能为空");
             addressLine2 = addressLine2.strip();
         }
-        if (zipcode != null) {
-            requireNotBlank(zipcode, "邮编不能为空");
-            zipcode = zipcode.strip();
-        }
+        requireNotBlank(zipcode, "邮编不能为空");
+        zipcode = zipcode.strip();
     }
 }

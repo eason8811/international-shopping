@@ -78,6 +78,10 @@ public class UpdateAddressRequest {
             requireNotBlank(addressLine1, "地址行1不能为空");
             addressLine1 = addressLine1.strip();
         }
+        if (addressLine2 != null) {
+            requireNotBlank(addressLine2, "地址行2不能为空");
+            addressLine2 = addressLine2.strip();
+        }
         if (zipcode != null) {
             requireNotBlank(zipcode, "邮编不能为空");
             zipcode = zipcode.strip();
