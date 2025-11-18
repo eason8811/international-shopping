@@ -46,7 +46,7 @@ CREATE TABLE user_auth
 (
     id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     user_id       BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
-    provider      ENUM ('LOCAL','GOOGLE', 'FACEBOOK', 'APPLE', 'INSTAGRAM', 'TIKTOK')
+    provider      ENUM ('LOCAL','GOOGLE', 'TIKTOK', 'X')
                                   NOT NULL COMMENT '认证提供方',
     issuer        VARCHAR(255)    NULL COMMENT '发行方(如 OIDC iss: https://accounts.google.com)',
     provider_uid  VARCHAR(191)    NOT NULL COMMENT '发行方内用户唯一ID(如 OIDC sub / openid)',

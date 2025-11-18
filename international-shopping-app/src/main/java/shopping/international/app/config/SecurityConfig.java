@@ -71,7 +71,7 @@ public class SecurityConfig {
                 // OAuth2: 匿名入口
                 API_PREFIX + "/oauth2/*/authorize",
                 API_PREFIX + "/oauth2/*/callback",
-                // 刷新端点 (可按策略决定是否忽略) 
+                // 刷新端点 (可按策略决定是否忽略)
                 API_PREFIX + "/auth/refresh-token"
         };
 
@@ -92,22 +92,24 @@ public class SecurityConfig {
         http.authorizeHttpRequests(registry ->
                         // 匿名接口允许访问
                 {
+                    registry.requestMatchers(
+                            API_PREFIX + "/auth/register",
+                            API_PREFIX + "/auth/email-status",
+                            API_PREFIX + "/auth/verify-email",
+                            API_PREFIX + "/auth/resend-activation",
+                            API_PREFIX + "/auth/login",
+                            API_PREFIX + "/oauth2/*/authorize",
+                            API_PREFIX + "/oauth2/*/callback",
+                            API_PREFIX + "/users/me/bindings/oauth2/*/callback"
+                    ).permitAll();
+
                     registry.requestMatchers(API_PREFIX + "/users/me/**").authenticated();
-                    registry.requestMatchers(HttpMethod.GET).permitAll();
+
                     registry.requestMatchers(HttpMethod.HEAD).permitAll();
                     registry.requestMatchers(HttpMethod.TRACE).permitAll();
                     registry.requestMatchers(HttpMethod.OPTIONS).permitAll();
-                    registry.requestMatchers(
-                                    API_PREFIX + "/auth/register",
-                                    API_PREFIX + "/auth/email-status",
-                                    API_PREFIX + "/auth/verify-email",
-                                    API_PREFIX + "/auth/resend-activation",
-                                    API_PREFIX + "/auth/login",
-                                    API_PREFIX + "/oauth2/*/authorize",
-                                    API_PREFIX + "/oauth2/*/callback"
-                            ).permitAll()
-                            // 其余默认需要认证
-                            .anyRequest().authenticated();
+                    // registry.requestMatchers(HttpMethod.GET).permitAll();
+                    registry.anyRequest().authenticated();
                 }
         );
 

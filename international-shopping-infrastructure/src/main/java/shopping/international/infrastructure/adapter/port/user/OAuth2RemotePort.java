@@ -31,6 +31,7 @@ import shopping.international.infrastructure.gateway.user.dto.UserInfoRespond;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 
@@ -84,10 +85,20 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
                     .codeVerifier(codeVerifier)
                     .build();
 
-            Response<ResponseBody> resp = oauth2TokenApi.exchangeCode(providerSpec.tokenEndpoint(), request.toFieldMap()).execute();
+            // 为 X 构造 Authorization: Basic 头
+            String authHeader = null;
+            if (providerSpec.provider() == AuthProvider.X) {
+                // 注意必须是 OAuth2 Client ID / Client Secret，而不是 API key / API secret
+                String raw = providerSpec.clientId() + ":" + providerSpec.clientSecret();
+                String base64 = Base64.getEncoder()
+                        .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+                authHeader = "Basic " + base64;
+            }
+
+            Response<ResponseBody> resp = oauth2TokenApi.exchangeCode(providerSpec.tokenEndpoint(), authHeader, request.toFieldMap()).execute();
             try (ResponseBody body = resp.body(); ResponseBody errorBody = resp.errorBody()) {
                 if (!resp.isSuccessful() || body == null)
-                    throw new IllegalParamException("Token 置换失败, HTTP " + resp.code() + " 错误体: " + errorBody);
+                    throw new IllegalParamException("Token 置换失败, HTTP code: " + resp.code() + ", 错误体: " + (errorBody == null ? null : errorBody.string()));
 
                 TokenRespond respond = mapper.readValue(body.bytes(), TokenRespond.class);
 
@@ -194,7 +205,7 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
 
             try (ResponseBody body = resp.body(); ResponseBody errorBody = resp.errorBody()) {
                 if (!resp.isSuccessful() || body == null)
-                    throw new IllegalParamException("获取 UserInfo 失败, HTTP " + resp.code() + " 错误体: " + errorBody);
+                    throw new IllegalParamException("获取 UserInfo 失败, HTTP code: " + resp.code() + ", 错误体: " + (errorBody == null ? null : errorBody.string()));
 
                 String json = body.string();
                 AuthProvider provider = spec.provider();

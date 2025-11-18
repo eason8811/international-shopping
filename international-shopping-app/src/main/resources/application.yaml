@@ -103,7 +103,7 @@ oauth2:
       jwk-set-uri: https://api.x.com/2/oauth2/jwks
       login-redirect-uri: https://shopping.mynatapp.cc/api/v1/oauth2/X/callback
       bind-redirect-uri: https://shopping.mynatapp.cc/api/v1/users/me/bindings/oauth2/X/callback
-      scope: users.read users.email
+      scope: users.read tweet.read users.email
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
 

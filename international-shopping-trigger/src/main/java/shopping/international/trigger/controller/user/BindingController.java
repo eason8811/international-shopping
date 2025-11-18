@@ -108,7 +108,6 @@ public class BindingController {
      * 若绑定失败, 则返回状态码为 {@code 400 Bad Request} 的响应, 同样包含一个重定向 URL 及错误信息.
      */
     @GetMapping("/oauth2/{provider}/callback")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Result<RedirectUrlRespond>> callback(@PathVariable("provider") AuthProvider provider,
                                                                @RequestParam(value = "code", required = false) String code,
                                                                @RequestParam(value = "state", required = false) String state,
