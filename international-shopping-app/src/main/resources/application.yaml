@@ -61,6 +61,7 @@ security:
 
 oauth2:
   auth-provider-properties-list:
+    # 1. Google
     - provider: GOOGLE
       issuer: https://accounts.google.com
       client-id: '${GOOGLE_CLIENT_ID}'
@@ -74,17 +75,35 @@ oauth2:
       scope: openid email profile
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
-    - provider: INSTAGRAM
-      issuer: https://api.instagram.com
-      client-id: '${INSTAGRAM_CLIENT_ID}'
-      client-secret: '${INSTAGRAM_CLIENT_SECRET}'
-      authorization-endpoint: https://api.instagram.com/oauth/authorize
-      token-endpoint: https://api.instagram.com/oauth/access_token
-      userinfo-endpoint: https://graph.instagram.com/me
-      jwk-set-uri: ''
-      login-redirect-uri: https://shopping.mynatapp.cc/api/v1/oauth2/INSTAGRAM/callback
-      bind-redirect-uri: https://shopping.mynatapp.cc/api/v1/users/me/bindings/oauth2/INSTAGRAM/callback
-      scope: instagram_basic
+
+    # 2. TikTok - OAuth2 + Login Kit, 标准授权码 + PKCE, 无 id_token
+    - provider: TIKTOK
+      issuer: https://open.tiktokapis.com
+      client-id: '${TIKTOK_CLIENT_KEY}'         # 在代码里仍用 clientId 字段, 真正发请求时用 client_key
+      client-secret: '${TIKTOK_CLIENT_SECRET}'
+      authorization-endpoint: https://www.tiktok.com/v2/auth/authorize/
+      token-endpoint: https://open.tiktokapis.com/v2/oauth/token/
+      # 直接把 fields 固定写死在 url 上, 避免 Retrofit 再拼 query
+      userinfo-endpoint: https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url
+      jwk-set-uri: ''                           # 非 OIDC
+      login-redirect-uri: https://shopping.mynatapp.cc/api/v1/oauth2/TIKTOK/callback
+      bind-redirect-uri: https://shopping.mynatapp.cc/api/v1/users/me/bindings/oauth2/TIKTOK/callback
+      scope: user.info.basic
+      default-success-redirect: http://localhost:8080
+      clock-skew-seconds: 120
+
+    # 3. X - OAuth2 + PKCE, 无 id_token, userinfo 用 /2/users/me
+    - provider: X
+      issuer: https://api.x.com
+      client-id: '${X_CLIENT_ID}'
+      client-secret: '${X_CLIENT_SECRET}'
+      authorization-endpoint: https://x.com/i/oauth2/authorize
+      token-endpoint: https://api.x.com/2/oauth2/token
+      userinfo-endpoint: https://api.x.com/2/users/me?user.fields=confirmed_email,profile_image_url,name,username,verified,verified_type
+      jwk-set-uri: https://api.x.com/2/oauth2/jwks
+      login-redirect-uri: https://shopping.mynatapp.cc/api/v1/oauth2/X/callback
+      bind-redirect-uri: https://shopping.mynatapp.cc/api/v1/users/me/bindings/oauth2/X/callback
+      scope: users.read users.email
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
 

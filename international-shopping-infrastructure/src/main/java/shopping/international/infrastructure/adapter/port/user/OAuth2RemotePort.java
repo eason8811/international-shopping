@@ -1,12 +1,15 @@
 package shopping.international.infrastructure.adapter.port.user;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
-import com.nimbusds.jose.proc.*;
+import com.nimbusds.jose.proc.JWSKeySelector;
+import com.nimbusds.jose.proc.JWSVerificationKeySelector;
+import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jose.util.DefaultResourceRetriever;
 import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +18,11 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import retrofit2.Response;
 import shopping.international.domain.adapter.port.user.IOAuth2RemotePort;
-import shopping.international.domain.model.vo.user.*;
+import shopping.international.domain.model.enums.user.AuthProvider;
+import shopping.international.domain.model.vo.user.OAuth2ProviderSpec;
+import shopping.international.domain.model.vo.user.OAuth2TokenResponse;
+import shopping.international.domain.model.vo.user.OidcIdTokenClaims;
+import shopping.international.domain.model.vo.user.OidcUserInfo;
 import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
 import shopping.international.infrastructure.gateway.user.IOidcUserInfoApi;
 import shopping.international.infrastructure.gateway.user.dto.TokenRequest;
@@ -69,6 +76,7 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
                                                                   @NotNull String redirectUri, @NotNull String codeVerifier) {
         try {
             TokenRequest request = TokenRequest.builder()
+                    .provider(providerSpec.provider())
                     .code(code)
                     .redirectUri(redirectUri)
                     .clientId(providerSpec.clientId())
@@ -183,15 +191,47 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
         requireNotBlank(spec.userinfoEndpoint(), "未配置 userinfoEndpoint, 无法获取用户信息");
         try {
             Response<ResponseBody> resp = oidcUserInfoApi.userInfo(spec.userinfoEndpoint(), "Bearer " + accessToken).execute();
+
             try (ResponseBody body = resp.body(); ResponseBody errorBody = resp.errorBody()) {
-                if (!resp.isSuccessful() || body == null) {
+                if (!resp.isSuccessful() || body == null)
                     throw new IllegalParamException("获取 UserInfo 失败, HTTP " + resp.code() + " 错误体: " + errorBody);
+
+                String json = body.string();
+                AuthProvider provider = spec.provider();
+
+                if (provider == AuthProvider.TIKTOK) {
+                    // TikTok: data.user.open_id / display_name / avatar_url
+                    JsonNode root = mapper.readTree(json);
+                    JsonNode user = root.path("data").path("user");
+                    String sub = getJsonTextOrNull(user, "open_id");
+                    String name = getJsonTextOrNull(user, "display_name");
+                    String avatar = getJsonTextOrNull(user, "avatar_url");
+                    return new OidcUserInfo(sub, null, null, name, avatar);
                 }
-                UserInfoRespond dto = mapper.readValue(body.bytes(), UserInfoRespond.class);
-                return new OidcUserInfo(dto.getSub(), dto.getEmail(), dto.getEmailVerified(), dto.getName(), dto.getPicture());
+                if (provider == AuthProvider.X) {
+                    // X: data.id / name / username
+                    JsonNode root = mapper.readTree(json);
+                    JsonNode data = root.path("data");
+                    String sub = getJsonTextOrNull(data, "id");
+                    String nameProperty = getJsonTextOrNull(data, "name");
+                    String usernameProperty = getJsonTextOrNull(data, "username");
+                    String name = nameProperty == null ? usernameProperty : nameProperty;
+                    String avatar = getJsonTextOrNull(data, "profile_image_url");
+                    String email = getJsonTextOrNull(data, "confirmed_email");
+                    return new OidcUserInfo(sub, email, true, name, avatar);
+                }
+                // 默认走标准 OIDC userinfo
+                UserInfoRespond dto = mapper.readValue(json, UserInfoRespond.class);
+                return new OidcUserInfo(
+                        dto.getSub(),
+                        dto.getEmail(),
+                        dto.getEmailVerified(),
+                        dto.getName(),
+                        dto.getPicture()
+                );
             }
         } catch (Exception e) {
-            throw new IllegalParamException("UserInfo 调用异常: " + e.getMessage());
+            throw new IllegalParamException("UserInfo 获取异常: " + e.getMessage());
         }
     }
 
@@ -245,5 +285,19 @@ public class OAuth2RemotePort implements IOAuth2RemotePort {
         if (object instanceof Boolean bool)
             return bool;
         return object == null ? null : Boolean.valueOf(String.valueOf(object));
+    }
+
+    /**
+     * 从给定的 <code>JsonNode</code> 中根据字段名获取文本值 如果节点或指定字段不存在 或者是 null, 则返回 null
+     *
+     * @param node  给定的 JSON 节点
+     * @param field 字段名
+     * @return 如果找到且不是 null 的文本值, 则返回该值；否则返回 null
+     */
+    private static String getJsonTextOrNull(JsonNode node, String field) {
+        if (node == null || node.isMissingNode())
+            return null;
+        JsonNode childNode = node.get(field);
+        return (childNode == null || childNode.isNull()) ? null : childNode.asText();
     }
 }

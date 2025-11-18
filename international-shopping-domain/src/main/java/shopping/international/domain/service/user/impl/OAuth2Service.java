@@ -84,9 +84,12 @@ public class OAuth2Service implements IOAuth2Service {
     public String buildAuthorizationUrl(@NotNull AuthProvider provider, @Nullable String redirect) {
         OAuth2ProviderSpec providerSpec = selectConfigByProvider(provider);
 
+        // 有 jwkSetUri 视为 OIDC (Google) → 需要 nonce 用于 id_token 校验
+        boolean oidc = providerSpec.jwkSetUri() != null && !providerSpec.jwkSetUri().isBlank();
+
         // 1. 生成一次性参数
         String state = randomUrlSafe(32);
-        String nonce = randomUrlSafe(32);
+        String nonce = oidc ? randomUrlSafe(32) : null;
         String codeVerifier = randomPkceVerifier();               // 43~128 URL-safe
         String codeChallenge = s256(codeVerifier);                 // base64url(no padding) of SHA-256
 
@@ -96,14 +99,19 @@ public class OAuth2Service implements IOAuth2Service {
         // 3. 构造授权 URL (严格使用配置的 redirectUri, 前端落地页 redirect 仅存入缓存, 不传给第三方)
         StringBuilder url = new StringBuilder(providerSpec.authorizationEndpoint());
         url.append(url.indexOf("?") >= 0 ? "&" : "?")
-                .append("response_type=code")
-                .append("&client_id=").append(urlEncode(providerSpec.clientId()))
+                .append("response_type=code");
+
+        // TikTok 使用 client_key, 其它 Provider 使用 client_id
+        String clientParam = (provider == AuthProvider.TIKTOK) ? "client_key" : "client_id";
+
+        url.append("&").append(clientParam).append("=").append(urlEncode(providerSpec.clientId()))
                 .append("&redirect_uri=").append(urlEncode(providerSpec.loginRedirectUri()))
                 .append("&scope=").append(urlEncode(providerSpec.scope()))
                 .append("&state=").append(urlEncode(state))
-                .append("&nonce=").append(urlEncode(nonce))
                 .append("&code_challenge=").append(urlEncode(codeChallenge))
                 .append("&code_challenge_method=S256");
+        if (nonce != null)
+            url.append("&nonce=").append(urlEncode(nonce));
 
         // provider 特定的额外参数 (如 prompt/login_hint 等) 由 infra 层在 MetaPort 中统一返回或此处追加
         return url.toString();
@@ -255,7 +263,7 @@ public class OAuth2Service implements IOAuth2Service {
 
             Username username = Username.of(uniqueUsername);
             Nickname nickname = Nickname.of(requireNonNullElse(name, uniqueUsername));
-            EmailAddress emailAddress = EmailAddress.of(email);
+            EmailAddress emailAddress = EmailAddress.ofNullable(email);
             PhoneNumber phone = PhoneNumber.nullableOf(null);
 
             // 访问令牌过期时间

@@ -51,4 +51,16 @@ public final class EmailAddress {
         require(PATTERN.matcher(val).matches(), "邮箱格式不正确");
         return new EmailAddress(val);
     }
+
+    /**
+     * 工厂方法, 创建 {@link EmailAddress} 实例, 允许传入的邮箱地址为 <code>null</code>
+     *
+     * @param raw 原始邮箱地址 可以为 null
+     * @return 如果提供的原始邮箱地址不为 null, 则返回一个经过验证并格式化的 {@link EmailAddress} 实例; 否则返回一个值为 null 的 {@link EmailAddress} 实例
+     */
+    public static EmailAddress ofNullable(String raw) {
+        if (raw != null)
+            return of(raw);
+        return new EmailAddress(null);
+    }
 }

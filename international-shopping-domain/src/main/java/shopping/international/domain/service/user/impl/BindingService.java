@@ -89,9 +89,12 @@ public class BindingService implements IBindingService {
     public @NotNull String buildBindAuthorizationUrl(@NotNull Long userId, @NotNull AuthProvider provider, @Nullable String redirect) {
         OAuth2ProviderSpec providerSpec = selectConfigByProvider(provider);
 
+        // 有 jwkSetUri 视为 OIDC (Google) → 需要 nonce 用于 id_token 校验
+        boolean oidc = providerSpec.jwkSetUri() != null && !providerSpec.jwkSetUri().isBlank();
+
         // 1. 生成一次性参数
         String state = randomUrlSafe(32);
-        String nonce = randomUrlSafe(32);
+        String nonce = oidc ? randomUrlSafe(32) : null;
         String codeVerifier = randomPkceVerifier();               // 43~128 URL-safe
         String codeChallenge = s256(codeVerifier);                 // base64url(no padding) of SHA-256
 
@@ -101,14 +104,20 @@ public class BindingService implements IBindingService {
         // 3. 构造授权 URL (严格使用配置的 redirectUri, 前端落地页 redirect 仅存入缓存, 不传给第三方)
         StringBuilder url = new StringBuilder(providerSpec.authorizationEndpoint());
         url.append(url.indexOf("?") >= 0 ? "&" : "?")
-                .append("response_type=code")
-                .append("&client_id=").append(urlEncode(providerSpec.clientId()))
+                .append("response_type=code");
+
+        // TikTok 使用 client_key, 其它 Provider 使用 client_id
+        String clientParam = (provider == AuthProvider.TIKTOK) ? "client_key" : "client_id";
+
+        url.append("&").append(clientParam).append("=").append(urlEncode(providerSpec.clientId()))
                 .append("&redirect_uri=").append(urlEncode(providerSpec.bindRedirectUri()))
                 .append("&scope=").append(urlEncode(providerSpec.scope()))
                 .append("&state=").append(urlEncode(state))
-                .append("&nonce=").append(urlEncode(nonce))
                 .append("&code_challenge=").append(urlEncode(codeChallenge))
                 .append("&code_challenge_method=S256");
+        if (nonce != null)
+            url.append("&nonce=").append(urlEncode(nonce));
+
 
         return url.toString();
     }
@@ -230,6 +239,11 @@ public class BindingService implements IBindingService {
         // 4.4 先由聚合检查 provider 唯一性, issuer+providerUid 唯一性, 至少一种登录方式等不变式
         user.addBinding(binding);
         user.recordLogin(provider, now);
+        // 如果之前登陆的时候没有登记 email, 且这次绑定有 email, 则更新 email
+        if (user.getEmail().getValue() == null && email != null) {
+            user.changeEmail(EmailAddress.of(email));
+            userRepository.updateEmail(ephemeralState.userId(), EmailAddress.of(email));
+        }
 
         // 5) 再由仓储将增量写入持久化层
         userRepository.upsertAuthBinding(ephemeralState.userId(), binding);
