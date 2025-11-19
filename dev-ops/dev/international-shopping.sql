@@ -21,7 +21,7 @@ CREATE TABLE user_account
     id            BIGINT UNSIGNED            NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     username      VARCHAR(64)                NOT NULL COMMENT '用户名(登录名)',
     nickname      VARCHAR(64)                NOT NULL COMMENT '昵称/显示名',
-    email         VARCHAR(255)               NOT NULL COMMENT '邮箱(可空)',
+    email         VARCHAR(255)               NULL COMMENT '邮箱(可空)',
     phone         VARCHAR(32)                NULL COMMENT '手机号(可空, 含区号需要统一格式)',
     status        ENUM ('ACTIVE','DISABLED') NOT NULL DEFAULT 'DISABLED' COMMENT '账户状态',
     last_login_at DATETIME(3)                NULL COMMENT '最近登录时间',

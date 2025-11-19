@@ -37,8 +37,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
-
 /**
  * 基于 MyBatis-Plus 的用户聚合仓储实现
  * <p>职责: 按聚合粒度对 {@code user_account / user_auth / user_profile / user_address} 进行组合读写</p>
@@ -196,7 +194,6 @@ public class UserRepository implements IUserRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull User saveNewUserWithBindings(User user) {
         // 1. 入库 user_account
-        requireNotBlank(user.getEmail().getValue(), "用户邮箱不能为空");
         UserAccountPO acc = UserAccountPO.builder()
                 .username(user.getUsername().getValue())
                 .nickname(user.getNickname().getValue())
@@ -623,7 +620,6 @@ public class UserRepository implements IUserRepository {
         }
 
 
-
         // 3. 余下 existingMap 中的是 domain 里已删除而 DB 里还存在的, 按需 delete
         for (UserAddressPO toDelete : existingMap.values())
             toDeleteMap.put(toDelete.hashCode(), toDelete.getId());
@@ -692,14 +688,13 @@ public class UserRepository implements IUserRepository {
                 parseJsonToMap(profile.getExtra())
         );
 
-        requireNotBlank(account.getEmail(), "用户邮箱不能为空");
         // 还原聚合
         User user = User.reconstitute(
                 account.getId(),
                 Username.of(account.getUsername()),
                 Nickname.of(account.getNickname()),
-                EmailAddress.of(account.getEmail()),
-                account.getPhone() == null ? null : PhoneNumber.nullableOf(account.getPhone()),
+                EmailAddress.ofNullable(account.getEmail()),
+                PhoneNumber.nullableOf(account.getPhone()),
                 AccountStatus.valueOf(account.getStatus()),
                 account.getLastLoginAt(),
                 Boolean.TRUE.equals(account.getIsDeleted()),
