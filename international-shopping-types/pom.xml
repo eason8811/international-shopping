@@ -44,6 +44,13 @@
             <artifactId>annotations</artifactId>
             <scope>compile</scope>
         </dependency>
+
+        <!-- 单元测试依赖 (Junit5 + AssertJ 等) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>

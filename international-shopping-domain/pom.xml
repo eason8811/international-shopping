@@ -35,6 +35,13 @@
             <artifactId>international-shopping-types</artifactId>
             <version>1.0.0</version>
         </dependency>
+
+        <!-- 单元测试依赖 (Junit5 + AssertJ 等) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>
