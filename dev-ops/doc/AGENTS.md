@@ -260,22 +260,65 @@
 
 ### 3.2 编译 / 格式校验
 
+> 顶层目录：`international-shopping/`  
+> Maven Wrapper：使用仓库自带的 `./mvnw`，不要自己发明 `mvn` 命令。
+
 ```bash
-# 编译所有模块（推荐先跑一遍）
+# 1) 编译所有模块（推荐在大改动后执行一次）
+# 模块包含：
+# - international-shopping-types
+# - international-shopping-domain
+# - international-shopping-infrastructure
+# - international-shopping-app
+# - international-shopping-api
+# - international-shopping-trigger
 ./mvnw clean compile
 
-# 只编译 international-shopping 相关模块（示例）
-./mvnw -pl shopping.international-trigger -am compile
+# 2) 打包所有模块（跳过测试，快速检查是否有编译/打包错误）
+./mvnw clean package -DskipTests
+
+# 3) 常用的只编译某些模块的命令，可以根据修改范围进行选择
+# 只编译领域层 + 通用 types
+./mvnw -pl international-shopping-domain,international-shopping-types compile
+
+# 只编译基础设施层（会自动带上 domain/types）
+./mvnw -pl international-shopping-infrastructure -am compile
+
+# 只编译触发层（Controller）及其依赖（App/Domain/Infra/API/Types）
+./mvnw -pl international-shopping-trigger -am compile
 ```
+> 如需自动格式化请使用 IDE 配置；不要自行引入新的格式化插件。
 
 ### 3.3 运行服务（开发模式）
 
-Spring Boot 启动类在的位置是 `shopping.international.InternationalShoppingApplication`
+Spring Boot 启动类为：
+
+* shopping.international.InternationalShoppingApplication
+
+* 所在模块：international-shopping-app
+
+该模块作为应用壳，依赖 trigger / domain / infrastructure / api / types 等模块，把它们一起拉起来运行。
 
 ```bash
-# 运行后端服务（使用 dev 配置）
-./mvnw -pl shopping.international -am spring-boot:run \
+# 在 dev Profile 下运行后端服务
+./mvnw -pl international-shopping-app -am spring-boot:run \
   -Dspring-boot.run.profiles=dev
+```
+
+> 如需其他配置文件（例如 application-local.yml），可调整 -Dspring-boot.run.profiles=xxx。
+
+开发时如只改了少量代码，不必每次都 clean，可以直接：
+```bash
+# 已经编译过的前提下，快速重新运行
+./mvnw -pl international-shopping-app spring-boot:run \
+  -Dspring-boot.run.profiles=dev
+```
+
+依赖服务（MySQL / Redis）通常在 dev-ops/ops 目录下通过 Docker Compose 启动，
+例如（具体文件名以仓库为准）：
+```bash
+cd dev-ops/ops
+docker compose -f docker-compose-dev.yaml up -d
 ```
 
 ### 3.4 测试命令
@@ -287,7 +330,37 @@ Spring Boot 启动类在的位置是 `shopping.international.InternationalShoppi
 ./mvnw test
 ```
 
-#### 其他单测或集成测试命令可以自行补充
+#### 按模块测试（建议根据修改范围选择）
+```bash
+# 1) 领域层单元测试（聚合、值对象、领域服务）
+./mvnw -pl international-shopping-domain test
+
+# 2) 基础设施 + 领域一并测试（包含 DB/Redis 相关实现）
+./mvnw -pl international-shopping-infrastructure -am test
+
+# 3) 触发层（Controller / Security）集成测试
+#    会自动带上 app/domain/infra/api/types
+./mvnw -pl international-shopping-trigger -am test
+```
+
+#### 精准测试（单类 / 单方法）
+```bash
+# 只跑某个测试类（例如 User 聚合的单测）
+./mvnw -pl international-shopping-domain -Dtest=UserAggregateTest test
+
+# 只跑某个测试方法
+./mvnw -pl international-shopping-domain -Dtest=UserAggregateTest#updateProfile_shouldIgnoreNullFields test
+```
+
+建议：
+修改 领域模型 / 领域服务 时，至少跑：
+`./mvnw -pl international-shopping-domain test`
+修改 仓储实现 / Redis / 外部网关 时，至少跑：
+`./mvnw -pl international-shopping-infrastructure -am test`
+修改 Controller / 安全过滤器 / 触发层行为 时，至少跑：
+`./mvnw -pl international-shopping-trigger -am test`
+如果改动涉及登录流程、安全上下文解析等跨层逻辑，建议再补一次全量：
+`./mvnw test`
 
 ---
 
