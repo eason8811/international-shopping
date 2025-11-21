@@ -76,8 +76,11 @@ public class ResendEmailPort implements IEmailPort {
     @Override
     public void sendActivationEmail(@NotNull EmailAddress email, @NotNull String code) throws EmailSendException {
         try {
-            String repeatSendCount = redisTemplate.opsForValue().get(REPEAT_SEND_COUNT_KEY_PREFIX + email.getValue());
-            if (repeatSendCount != null && Integer.parseInt(repeatSendCount) >= MAX_REPEAT_SEND_COUNT)
+            String repeatSendKey = REPEAT_SEND_COUNT_KEY_PREFIX + email.getValue();
+            Long sendCount = redisTemplate.opsForValue().increment(repeatSendKey, 1L);
+            if (sendCount != null && sendCount == 1L)
+                redisTemplate.expire(repeatSendKey, MAX_REPEAT_SEND_TTL);
+            if (sendCount != null && sendCount > MAX_REPEAT_SEND_COUNT)
                 throw new TooManyEmailSentException("尝试次数过多, 请过段时间再试");
             // 立即构造请求数据, 异步执行真正发送
             String from;
@@ -129,15 +132,6 @@ public class ResendEmailPort implements IEmailPort {
                         // 写入 Redis 映射
                         bindActivationMessageId(email, messageId, MSG_ID_TTL);
                         log.info("邮件已通过 Resend 发送给 {} id={}", email, messageId);
-                        if (repeatSendCount == null) {
-                            redisTemplate.opsForValue().set(REPEAT_SEND_COUNT_KEY_PREFIX + email.getValue(), "1", MAX_REPEAT_SEND_TTL);
-                            return;
-                        }
-                        redisTemplate.opsForValue().set(
-                                REPEAT_SEND_COUNT_KEY_PREFIX + email.getValue(),
-                                String.valueOf(Integer.parseInt(repeatSendCount) + 1),
-                                MAX_REPEAT_SEND_TTL
-                        );
                     });
 
             // 立即返回, 不阻塞

@@ -27,4 +27,12 @@ public interface IVerificationCodePort {
      * @return 校验是否通过 (通过则同时消费掉) 
      */
     boolean verifyAndConsumeEmailActivationCode(@NotNull EmailAddress email, @NotNull String code);
+
+    /**
+     * 获取当前邮箱对应的验证码, 不消费
+     *
+     * @param email 邮箱
+     * @return 当前存储的验证码, 若不存在或已过期则返回 null
+     */
+    String getEmailActivationCode(@NotNull EmailAddress email);
 }

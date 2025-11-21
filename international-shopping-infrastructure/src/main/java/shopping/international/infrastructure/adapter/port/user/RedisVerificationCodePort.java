@@ -69,6 +69,17 @@ public class RedisVerificationCodePort implements IVerificationCodePort {
     }
 
     /**
+     * 读取当前邮箱的验证码 (不消费)
+     *
+     * @param email 邮箱
+     * @return 验证码, 如果不存在或已过期则返回 null
+     */
+    @Override
+    public String getEmailActivationCode(@NotNull EmailAddress email) {
+        return stringRedisTemplate.opsForValue().get(keyOf(email));
+    }
+
+    /**
      * 计算验证码 Redis Key
      *
      * @param email 邮箱

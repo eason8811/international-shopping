@@ -7,6 +7,7 @@ import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -40,6 +41,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
  * <p><b>分层约束: </b>不引入任何 Servlet/Web 类型, 密码哈希 (BCrypt) 与 JWT (Nimbus HS256)
  * 在本类内实现, 仅通过 Repository 与 Port 与外部世界交互</p>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService implements IAuthService {
@@ -134,18 +136,23 @@ public class AuthService implements IAuthService {
      */
     @Override
     public User verifyEmailAndActivate(@NotNull EmailAddress email, @NotNull String code) {
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null && user.getStatus() == AccountStatus.ACTIVE)
+            return user; // 已激活视为幂等
+
         boolean pass = verificationCodePort.verifyAndConsumeEmailActivationCode(email, code);
         if (!pass)
             throw new VerificationCodeInvalidException("验证码错误或已过期");
 
-        User user = userRepository.findByEmail(email)
+        // 竟态保证, 防止无异议的并发激活
+        User target = user != null ? user : userRepository.findByEmail(email)
                 .orElseThrow(() -> new VerificationCodeInvalidException("账户不存在或邮箱未绑定"));
-        if (user.getStatus() == AccountStatus.ACTIVE)
-            return user; // 幂等
+        if (target.getStatus() == AccountStatus.ACTIVE)
+            return target; // 防止并发重复激活
 
-        user.activate();
-        userRepository.updateStatus(user.getId(), AccountStatus.ACTIVE);
-        return user;
+        target.activate();
+        userRepository.updateStatus(target.getId(), AccountStatus.ACTIVE);
+        return target;
     }
 
     /**
@@ -161,6 +168,12 @@ public class AuthService implements IAuthService {
                 .orElseThrow(() -> new IllegalParamException("账户不存在"));
         if (user.getStatus() == AccountStatus.ACTIVE)
             throw new IllegalParamException("账户已激活, 无需重发");
+
+        String existingCode = verificationCodePort.getEmailActivationCode(email);
+        if (existingCode != null && !existingCode.isBlank()) {
+            log.info("邮箱 {} 在验证码 TTL 内已有待验证的激活码, 跳过重复发送", email.getValue());
+            return;
+        }
 
         String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);

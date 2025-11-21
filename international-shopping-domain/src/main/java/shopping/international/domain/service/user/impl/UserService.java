@@ -126,6 +126,13 @@ public class UserService implements IUserService {
         if (userRepository.existsByEmail(newEmail))
             throw new ConflictException("邮箱已被使用");
 
+        // 3) 若该邮箱的验证码尚在有效期内, 直接复用, 避免重复发送
+        String existingCode = verificationCodePort.getEmailActivationCode(newEmail);
+        if (existingCode != null && !existingCode.isBlank()) {
+            log.info("邮箱 {} 在验证码 TTL 内已有待验证的激活码, 跳过重复发送", newEmail.getValue());
+            return;
+        }
+
         // 3) 生成验证码 & 保存 (Redis)
         String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(newEmail, code, EMAIL_CODE_TTL);
@@ -148,13 +155,16 @@ public class UserService implements IUserService {
     public @NotNull User verifyAndApplyNewEmail(@NotNull Long userId, @NotNull EmailAddress newEmail, @NotNull String code) {
         requireNonNull(code, "验证码不能为空");
 
+        User user = getById(userId);
+        if (user.getEmail() != null && user.getEmail().getValue().equalsIgnoreCase(newEmail.getValue()))
+            return user; // 幂等: 邮箱更改已生效
+
         // 1) 原子校验并消费验证码
         boolean pass = verificationCodePort.verifyAndConsumeEmailActivationCode(newEmail, code);
         if (!pass)
             throw new IllegalParamException("验证码错误或已过期");
 
         // 2) 聚合内先应用 "变更邮箱" 的领域语义
-        User user = getById(userId);
         user.changeEmail(newEmail);
 
         // 3) 再由仓储做持久化 (仍由唯一索引兜底)
