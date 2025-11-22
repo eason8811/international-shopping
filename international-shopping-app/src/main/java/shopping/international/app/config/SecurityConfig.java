@@ -68,6 +68,8 @@ public class SecurityConfig {
                 API_PREFIX + "/auth/verify-email",
                 API_PREFIX + "/auth/resend-activation",
                 API_PREFIX + "/auth/login",
+                API_PREFIX + "/auth/password/forgot",
+                API_PREFIX + "/auth/password/reset",
                 // OAuth2: 匿名入口
                 API_PREFIX + "/oauth2/*/authorize",
                 API_PREFIX + "/oauth2/*/callback",
@@ -97,6 +99,8 @@ public class SecurityConfig {
                             API_PREFIX + "/auth/email-status",
                             API_PREFIX + "/auth/verify-email",
                             API_PREFIX + "/auth/resend-activation",
+                            API_PREFIX + "/auth/password/forgot",
+                            API_PREFIX + "/auth/password/reset",
                             API_PREFIX + "/auth/login",
                             API_PREFIX + "/oauth2/*/authorize",
                             API_PREFIX + "/oauth2/*/callback",

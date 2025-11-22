@@ -23,7 +23,11 @@ public class ResendProperties {
      */
     private String fromName;
     /**
-     * 主题
+     * 激活邮件主题
      */
     private String activationSubject = "Your verification code";
+    /**
+     * 重置密码邮件主题
+     */
+    private String passwordResetSubject = "Your password reset code";
 }

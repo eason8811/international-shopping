@@ -374,6 +374,21 @@ public class UserRepository implements IUserRepository {
             throw new IllegalStateException("更新失败: 用户不存在或已删除");
     }
 
+    /**
+     * 更新本地密码哈希
+     *
+     * @param userId          用户ID
+     * @param newPasswordHash 新的密码哈希
+     */
+    @Override
+    public void updateLocalPassword(@NotNull Long userId, @NotNull String newPasswordHash) {
+        int rows = authMapper.update(null, new LambdaUpdateWrapper<UserAuthPO>()
+                .eq(UserAuthPO::getUserId, userId)
+                .eq(UserAuthPO::getProvider, AuthProvider.LOCAL.name())
+                .set(UserAuthPO::getPasswordHash, newPasswordHash));
+        if (rows == 0)
+            throw new IllegalStateException("更新失败: 不存在 LOCAL 绑定或用户不存在");
+    }
 
     /**
      * 插入或更新用户资料信息. 如果指定的用户ID不存在, 则插入新的用户资料, 如果存在, 则更新现有资料

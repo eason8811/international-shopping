@@ -11,8 +11,10 @@ import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.req.user.LoginRequest;
+import shopping.international.api.req.user.ForgotPasswordRequest;
 import shopping.international.api.req.user.RegisterRequest;
 import shopping.international.api.req.user.ResendActivationRequest;
+import shopping.international.api.req.user.ResetPasswordRequest;
 import shopping.international.api.req.user.VerifyEmailRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.user.CsrfTokenRespond;
@@ -123,14 +125,7 @@ public class AuthController {
         User user = authService.verifyEmailAndActivate(EmailAddress.of(req.getEmail()), req.getCode());
 
         // 下发会话 token (由应用/领域服务生成原始字符串, 控制器仅负责下发 Cookie)
-        String accessToken = authService.issueAccessToken(user.getId());
-        String refreshToken = authService.issueRefreshToken(user.getId());
-
-        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, accessToken, true, jwtIssueSpec.accessTokenValiditySeconds());
-        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, refreshToken, true, jwtIssueSpec.refreshTokenValiditySeconds());
-
-        // 生成并保存 CSRF Token (与会话绑定)
-        rotateAndSetCsrfCookie(request, response);
+        loadAccessAndRefreshToken(request, response, user);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -169,15 +164,43 @@ public class AuthController {
         req.validate();
         User user = authService.login(req.getAccount(), req.getPassword());
 
-        String accessToken = authService.issueAccessToken(user.getId());
-        String refreshToken = authService.issueRefreshToken(user.getId());
-
-        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, accessToken, true, jwtIssueSpec.accessTokenValiditySeconds());
-        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, refreshToken, true, jwtIssueSpec.refreshTokenValiditySeconds());
-
-        rotateAndSetCsrfCookie(request, response);
+        loadAccessAndRefreshToken(request, response, user);
 
         return ResponseEntity.ok(Result.ok(UserAccountRespond.from(user), "登陆成功"));
+    }
+
+    /**
+     * 找回密码: 发送重置验证码到绑定邮箱
+     *
+     * @param req 请求体 (账号)
+     * @return 202 Accepted
+     */
+    @PostMapping("/password/forgot")
+    public ResponseEntity<Result<Void>> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+        req.validate();
+        authService.forgotPassword(req.getAccount());
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(Result.accepted("若账号存在，重置验证码已发送"));
+    }
+
+    /**
+     * 验证验证码并重置密码: 成功后下发会话与 CSRF Cookie
+     *
+     * @param req      请求体 (账号 + 验证码 + 新密码)
+     * @param request  当前请求 (用于 CSRF 生成)
+     * @param response 当前响应 (用于写 Set-Cookie)
+     * @return 200 OK 的统一返回体, 携带用户账户概要
+     */
+    @PostMapping("/password/reset")
+    public ResponseEntity<Result<UserAccountRespond>> resetPassword(@RequestBody ResetPasswordRequest req,
+                                                                    HttpServletRequest request,
+                                                                    HttpServletResponse response) {
+        req.validate();
+        User user = authService.resetPassword(req.getAccount(), req.getCode(), req.getNewPassword());
+
+        loadAccessAndRefreshToken(request, response, user);
+
+        return ResponseEntity.ok(Result.ok(UserAccountRespond.from(user), "密码已重置"));
     }
 
     /**
@@ -230,6 +253,23 @@ public class AuthController {
         CsrfToken token = csrfTokenRepository.generateToken(request);
         csrfTokenRepository.saveToken(token, request, response);
         return token;
+    }
+
+    /**
+     * 加载并设置访问令牌和刷新令牌到响应中, 并旋转CSRF令牌
+     *
+     * @param request  用户请求对象, 用于处理CSRF令牌的旋转
+     * @param response 响应对象, 用于向客户端发送新的令牌信息
+     * @param user     用户对象, 从中获取用户ID以生成特定于用户的令牌
+     */
+    private void loadAccessAndRefreshToken(HttpServletRequest request, HttpServletResponse response, User user) {
+        String accessToken = authService.issueAccessToken(user.getId());
+        String refreshToken = authService.issueRefreshToken(user.getId());
+
+        addCookie(response, SecurityConstants.ACCESS_TOKEN_COOKIE, accessToken, true, jwtIssueSpec.accessTokenValiditySeconds());
+        addCookie(response, SecurityConstants.REFRESH_TOKEN_COOKIE, refreshToken, true, jwtIssueSpec.refreshTokenValiditySeconds());
+
+        rotateAndSetCsrfCookie(request, response);
     }
 
     /**

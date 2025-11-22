@@ -136,6 +136,14 @@ public interface IUserRepository {
     void updateEmail(@NotNull Long userId, @NotNull EmailAddress newEmail);
 
     /**
+     * 更新本地密码哈希
+     *
+     * @param userId         用户ID
+     * @param newPasswordHash 新的密码哈希
+     */
+    void updateLocalPassword(@NotNull Long userId, @NotNull String newPasswordHash);
+
+    /**
      * 插入或更新用户资料信息. 如果指定的用户ID不存在, 则插入新的用户资料, 如果存在, 则更新现有资料
      *
      * @param userId  用户ID, 用于识别用户

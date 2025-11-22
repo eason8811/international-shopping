@@ -23,6 +23,11 @@ import java.util.Collections;
 @Component
 @RequiredArgsConstructor
 public class RedisVerificationCodePort implements IVerificationCodePort {
+    /**
+     * Redis 键前缀, 用于区分不同用途的验证码, 如激活邮件或密码重置
+     */
+    private static final String ACTIVATION_KEY_PREFIX = "auth:email:activation:";
+    private static final String PASSWORD_RESET_KEY_PREFIX = "auth:email:password-reset:";
 
     /**
      * 用于与 Redis 进行交互的模板对象，专门处理字符串类型的数据。此字段在类中作为操作 Redis 的主要工具，支持设置键值对以及执行 Lua 脚本等高级功能
@@ -38,8 +43,7 @@ public class RedisVerificationCodePort implements IVerificationCodePort {
      */
     @Override
     public void storeEmailActivationCode(@NotNull EmailAddress email, @NotNull String code, @NotNull Duration ttl) {
-        String key = keyOf(email);
-        stringRedisTemplate.opsForValue().set(key, code, ttl);
+        storeCode(ACTIVATION_KEY_PREFIX, email, code, ttl);
     }
 
     /**
@@ -53,8 +57,66 @@ public class RedisVerificationCodePort implements IVerificationCodePort {
      */
     @Override
     public boolean verifyAndConsumeEmailActivationCode(@NotNull EmailAddress email, @NotNull String code) {
-        String key = keyOf(email);
+        return verifyAndConsumeCode(ACTIVATION_KEY_PREFIX, email, code);
+    }
 
+    /**
+     * 读取当前邮箱的验证码 (不消费)
+     *
+     * @param email 邮箱
+     * @return 验证码, 如果不存在或已过期则返回 null
+     */
+    @Override
+    public String getEmailActivationCode(@NotNull EmailAddress email) {
+        return getCode(ACTIVATION_KEY_PREFIX, email);
+    }
+
+    /**
+     * 存储找回密码验证码并设置有效期
+     */
+    @Override
+    public void storePasswordResetCode(@NotNull EmailAddress email, @NotNull String code, @NotNull Duration ttl) {
+        storeCode(PASSWORD_RESET_KEY_PREFIX, email, code, ttl);
+    }
+
+    /**
+     * 校验并消费找回密码验证码
+     */
+    @Override
+    public boolean verifyAndConsumePasswordResetCode(@NotNull EmailAddress email, @NotNull String code) {
+        return verifyAndConsumeCode(PASSWORD_RESET_KEY_PREFIX, email, code);
+    }
+
+    /**
+     * 读取找回密码验证码 (不消费)
+     */
+    @Override
+    public String getPasswordResetCode(@NotNull EmailAddress email) {
+        return getCode(PASSWORD_RESET_KEY_PREFIX, email);
+    }
+
+    /**
+     * 计算验证码 Redis Key
+     *
+     * @param email 邮箱
+     */
+    private void storeCode(String prefix, EmailAddress email, String code, Duration ttl) {
+        stringRedisTemplate.opsForValue().set(prefix + email.getValue(), code, ttl);
+    }
+
+    /**
+     * 校验并消费 (删除) 指定类型的验证码
+     *
+     * <p>此方法通过 Redis 中存储的键值对来验证传入的验证码是否正确, 如果正确则立即从 Redis 中移除该验证码以防止重复使用。
+     * 为了保证操作的原子性, 使用了 Lua 脚本来实现比较和删除操作。</p>
+     *
+     * @param prefix 验证码类型前缀, 用于区分不同用途的验证码, 如激活邮件或密码重置
+     * @param email 用户邮箱, 作为查找验证码的依据
+     * @param code 待校验的验证码
+     * @return 如果验证码存在且与提供的 code 匹配, 则返回 true 并删除该验证码; 否则返回 false 表示验证码无效或不存在
+     */
+    private boolean verifyAndConsumeCode(String prefix, EmailAddress email, String code) {
+        String key = prefix + email.getValue();
         String lua = """
                 if redis.call('get', KEYS[1]) == ARGV[1] then
                     redis.call('del', KEYS[1])
@@ -68,24 +130,7 @@ public class RedisVerificationCodePort implements IVerificationCodePort {
         return ret == 1L;
     }
 
-    /**
-     * 读取当前邮箱的验证码 (不消费)
-     *
-     * @param email 邮箱
-     * @return 验证码, 如果不存在或已过期则返回 null
-     */
-    @Override
-    public String getEmailActivationCode(@NotNull EmailAddress email) {
-        return stringRedisTemplate.opsForValue().get(keyOf(email));
-    }
-
-    /**
-     * 计算验证码 Redis Key
-     *
-     * @param email 邮箱
-     * @return key，如 auth:email:activation:{email}
-     */
-    private static String keyOf(EmailAddress email) {
-        return "auth:email:activation:" + email.getValue();
+    private String getCode(String prefix, EmailAddress email) {
+        return stringRedisTemplate.opsForValue().get(prefix + email.getValue());
     }
 }

@@ -62,6 +62,24 @@ public interface IAuthService {
     void resendActivationEmail(EmailAddress email);
 
     /**
+     * 发起忘记密码流程: 生成并发送重置验证码 (若账号不存在则幂等忽略)
+     *
+     * @param account 账号 (用户名/邮箱/手机号)
+     */
+    void forgotPassword(@NotNull String account);
+
+    /**
+     * 校验验证码并重置密码, 返回更新后的用户聚合
+     *
+     * @param account     账号 (用户名/邮箱/手机号)
+     * @param code        验证码
+     * @param newPassword 新密码 (明文)
+     * @return 更新后的用户聚合
+     */
+    @NotNull
+    User resetPassword(@NotNull String account, @NotNull String code, @NotNull String newPassword);
+
+    /**
      * 本地登录: 支持 {@code 用户名 / 邮箱 / 手机号其一} + 明文密码, 校验成功返回用户聚合快照
      *
      * @param account    用户名 / 邮箱 / 手机号

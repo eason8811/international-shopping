@@ -28,6 +28,7 @@ public class ResendConfig {
                 .fromEmail(properties.getFromEmail())
                 .fromName(properties.getFromName())
                 .activationSubject(properties.getActivationSubject())
+                .passwordResetSubject(properties.getPasswordResetSubject())
                 .build();
     }
 }

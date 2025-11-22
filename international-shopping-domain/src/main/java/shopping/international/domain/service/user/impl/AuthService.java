@@ -76,6 +76,10 @@ public class AuthService implements IAuthService {
      */
     private final Duration activationCodeTtl = Duration.ofMinutes(10);
     /**
+     * 找回密码验证码有效期 (与激活码一致)
+     */
+    private final Duration passwordResetCodeTtl = Duration.ofMinutes(10);
+    /**
      * 邮箱验证码长度 (默认 6 位数字)
      */
     private static final int EMAIL_CODE_LENGTH = 6;
@@ -178,6 +182,67 @@ public class AuthService implements IAuthService {
         String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);
         emailPort.sendActivationEmail(email, code);
+    }
+
+    /**
+     * 发起找回密码流程: 生成并发送重置验证码
+     *
+     * @param account 账号 (用户名/邮箱/手机号)
+     */
+    @Override
+    public void forgotPassword(@NotNull String account) {
+        requireNotBlank(account, "账号不能为空");
+        Optional<User> optionalUser = userRepository.findByLoginAccount(account);
+        if (optionalUser.isEmpty()) {
+            log.warn("找回密码请求的账号不存在, account={}", account);
+            return;
+        }
+        User user = optionalUser.get();
+        EmailAddress email = user.getEmail();
+        if (email.getValue() == null) {
+            log.warn("找回密码请求的账号未绑定邮箱, account={}", account);
+            return;
+        }
+
+        String existingCode = verificationCodePort.getPasswordResetCode(email);
+        if (existingCode != null && !existingCode.isBlank()) {
+            log.info("邮箱 {} 已有有效的找回密码验证码, 跳过重新发送", email.getValue());
+            return;
+        }
+
+        String code = generateNumericCode(EMAIL_CODE_LENGTH);
+        verificationCodePort.storePasswordResetCode(email, code, passwordResetCodeTtl);
+        emailPort.sendPasswordResetEmail(email, code);
+    }
+
+    /**
+     * 校验验证码并重置密码
+     *
+     * @param account     账号 (用户名/邮箱/手机号)
+     * @param code        邮件验证码
+     * @param newPassword 新密码
+     * @return 更新后的用户聚合
+     */
+    @Override
+    public @NotNull User resetPassword(@NotNull String account, @NotNull String code, @NotNull String newPassword) {
+        requireNotBlank(account, "账号不能为空");
+        requireNotBlank(code, "验证码不能为空");
+        requireNotBlank(newPassword, "新密码不能为空");
+
+        User user = userRepository.findByLoginAccount(account)
+                .orElseThrow(() -> new IllegalParamException("账户不存在"));
+        EmailAddress email = user.getEmail();
+        if (email == null)
+            throw new IllegalParamException("账户未绑定邮箱");
+        if (!verificationCodePort.verifyAndConsumePasswordResetCode(email, code))
+            throw new VerificationCodeInvalidException("验证码错误或已过期");
+        if (user.getStatus() != AccountStatus.ACTIVE)
+            throw new AccountException("账户未激活或已禁用");
+
+        String newPasswordHash = bcrypt.encode(newPassword);
+        user.changeLocalPassword(newPasswordHash);
+        userRepository.updateLocalPassword(user.getId(), newPasswordHash);
+        return user;
     }
 
     // ========= 登录 / 审计 =========

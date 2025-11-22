@@ -113,3 +113,4 @@ resend:
   from-email: leila@eason.xin
   from-name: international-shopping
   activation-subject: Your verification code
+  password-reset-subject: Your password reset code

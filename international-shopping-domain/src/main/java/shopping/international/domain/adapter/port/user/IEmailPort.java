@@ -22,6 +22,15 @@ public interface IEmailPort {
     void sendActivationEmail(@NotNull EmailAddress email, @NotNull String code) throws EmailSendException;
 
     /**
+     * 发送找回密码验证码邮件
+     *
+     * @param email 收件人邮箱
+     * @param code  验证码
+     * @throws EmailSendException 邮件系统异常或发送失败时抛出
+     */
+    void sendPasswordResetEmail(@NotNull EmailAddress email, @NotNull String code) throws EmailSendException;
+
+    /**
      * 绑定指定邮箱与激活邮件的消息 ID, 并可设置该绑定的有效期
      *
      * @param email     目标邮箱, 用于存储与其关联的激活邮件消息 ID

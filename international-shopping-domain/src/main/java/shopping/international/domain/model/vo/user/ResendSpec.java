@@ -26,7 +26,11 @@ public final class ResendSpec {
      */
     private String fromName;
     /**
-     * 主题
+     * 激活邮件主题主题
      */
     private String activationSubject;
+    /**
+     * 重置密码邮件主题
+     */
+    private String passwordResetSubject;
 }

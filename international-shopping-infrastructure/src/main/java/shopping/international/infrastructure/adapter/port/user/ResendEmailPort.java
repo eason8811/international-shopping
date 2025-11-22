@@ -45,6 +45,24 @@ public class ResendEmailPort implements IEmailPort {
      */
     private static final String REPEAT_SEND_COUNT_KEY_PREFIX = "auth:email:repeat-send-count:";
     /**
+     * TXT 版邮件模板, 包含验证码
+     */
+    private static final String TEXT_TEMPLATE = """
+            Your verification code is: %s
+            
+            If you did not request this, please ignore this email.
+            """;
+    /**
+     * HTML 版邮件模版, 包含验证码
+     */
+    private static final String HTML_TEMPLATE = """
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;line-height:1.6">
+              <p>Your verification code is:</p>
+              <p style="font-size:24px;font-weight:700;letter-spacing:2px;margin:12px 0">%s</p>
+              <p>If you did not request this, please ignore this email.</p>
+            </div>
+            """;
+    /**
      * <p>用于存储 {@link ResendSpec} 实例, 该实例封装了与 Resend 邮件服务相关的配置信息</p>
      *
      * @see ResendSpec
@@ -73,10 +91,43 @@ public class ResendEmailPort implements IEmailPort {
         this.mailExecutor = mailExecutor;
     }
 
+    /**
+     * 发送激活验证码邮件
+     *
+     * @param email 收件人邮箱
+     * @param code  激活验证码
+     * @throws EmailSendException 邮件系统异常或发送失败时抛出
+     */
     @Override
     public void sendActivationEmail(@NotNull EmailAddress email, @NotNull String code) throws EmailSendException {
+        sendEmailWithRateLimit(email, code, resendSpec.getActivationSubject());
+    }
+
+    /**
+     * 发送找回密码验证码邮件
+     *
+     * @param email 收件人邮箱
+     * @param code  验证码
+     * @throws EmailSendException 邮件系统异常或发送失败时抛出
+     */
+    @Override
+    public void sendPasswordResetEmail(@NotNull EmailAddress email, @NotNull String code) throws EmailSendException {
+        sendEmailWithRateLimit(email, code, resendSpec.getPasswordResetSubject());
+    }
+
+    /**
+     * 发送带有速率限制的电子邮件, 该方法会检查给定邮箱在指定时间内的发送次数, 如果超过最大允许的发送次数, 则抛出异常
+     * 否则, 将构造邮件内容并通过异步方式发送邮件
+     *
+     * @param email         邮件接收者的邮箱地址
+     * @param code          需要在邮件中包含的验证码
+     * @param subject       邮件主题
+     * @throws TooManyEmailSentException 当尝试发送邮件超过系统设定的最大次数时抛出
+     * @throws EmailSendException        当邮件发送过程中遇到问题时抛出
+     */
+    private void sendEmailWithRateLimit(EmailAddress email, String code, String subject) {
         try {
-            String repeatSendKey = REPEAT_SEND_COUNT_KEY_PREFIX + email.getValue();
+            String repeatSendKey = ResendEmailPort.REPEAT_SEND_COUNT_KEY_PREFIX + email.getValue();
             Long sendCount = redisTemplate.opsForValue().increment(repeatSendKey, 1L);
             if (sendCount != null && sendCount == 1L)
                 redisTemplate.expire(repeatSendKey, MAX_REPEAT_SEND_TTL);
@@ -89,16 +140,8 @@ public class ResendEmailPort implements IEmailPort {
             else
                 from = resendSpec.getFromName() + " <" + resendSpec.getFromEmail() + ">";
 
-            final String subject = resendSpec.getActivationSubject();
-            final String text = "Your verification code is: " + code + "\n\n"
-                    + "If you did not request this, please ignore this email.";
-            final String html = """
-                    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;line-height:1.6">
-                      <p>Your verification code is:</p>
-                      <p style="font-size:24px;font-weight:700;letter-spacing:2px;margin:12px 0">%s</p>
-                      <p>If you did not request this, please ignore this email.</p>
-                    </div>
-                    """.formatted(code);
+            final String text = TEXT_TEMPLATE.formatted(code);
+            final String html = HTML_TEMPLATE.formatted(code);
 
             // 构造发件请求
             CreateEmailOptions request = CreateEmailOptions.builder()
@@ -122,11 +165,11 @@ public class ResendEmailPort implements IEmailPort {
                     }, mailExecutor)
                     .whenComplete((messageId, throwable) -> {
                         if (throwable != null) {
-                            log.error("异步发送激活邮件失败, email={}, requeat={}, err={}", email, request.toString(), throwable.getMessage());
+                            log.error("异步发送邮件失败, email={}, request={}, err={}", email, request.toString(), throwable.getMessage());
                             return;
                         }
                         if (messageId == null || messageId.isBlank()) {
-                            log.error("Resend 响应为空或缺少 ID, email={}, requeat={}", email, request.toString());
+                            log.error("Resend 响应为空或缺少 ID, email={}, request={}", email, request.toString());
                             return;
                         }
                         // 写入 Redis 映射
