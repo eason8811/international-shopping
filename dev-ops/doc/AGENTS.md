@@ -442,6 +442,10 @@ docker compose -f docker-compose-dev.yaml up -d
       * `xxxRequest`, `xxxxRespond` 等。
     * 包名全部小写，无下划线：`shopping.international.domain.model.vo.user`。
 
+7. **代码效率**：
+    * 避免过多的 `if-else` 嵌套，使用优先考虑提早失败策略，其次是策略模式或状态模式等，最后才是嵌套 if-else。
+    * 避免过多的 `try-catch`，使用 `Optional` 或自定义异常。
+
 ### 4.2 安全 / 鉴权规则
 
 1. **JWT 与安全上下文**：
