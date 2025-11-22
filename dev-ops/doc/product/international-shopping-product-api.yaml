@@ -1,0 +1,1760 @@
+openapi: 3.1.0
+info:
+  title: 默认模块
+  description: >
+    - 统一鉴权：Cookie 会话（HttpOnly `access_token`）<br/> - 统一返回包裹结构（所有 HTTP
+    状态码均使用相同结构）<br/> - CSRF 防护：双提交（Header: `X-CSRF-Token` 与 Cookie: `csrf_token`
+    必须相等）<br/> - 匿名接口：显式 `security: []`<br/>
+  version: 1.3.0
+tags:
+  - name: Categories
+  - name: Products
+  - name: Likes
+paths:
+  /products/categories/tree:
+    get:
+      summary: 列出商品分类树（含本地化）
+      deprecated: false
+      description: |
+        返回 ENABLED 分类的树形结构；当指定 `locale` 时优先返回分类的本地化名称/slug/品牌文案。
+      tags:
+        - Categories
+      parameters:
+        - name: locale
+          in: query
+          description: 语言代码（如 en-US），用于读取 product_category_i18n
+          required: false
+          example: en-US
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          format: int64
+                        parent_id:
+                          type:
+                            - integer
+                            - 'null'
+                          format: int64
+                        name:
+                          type: string
+                        slug:
+                          type: string
+                        level:
+                          type: integer
+                        path:
+                          type:
+                            - string
+                            - 'null'
+                        sort_order:
+                          type: integer
+                        brand:
+                          type:
+                            - string
+                            - 'null'
+                        locale:
+                          type:
+                            - string
+                            - 'null'
+                          description: 当前返回内容的语言
+                        i18n:
+                          type:
+                            - object
+                            - 'null'
+                          description: 本地化覆盖（来自 product_category_i18n）
+                          properties:
+                            name:
+                              type: string
+                            slug:
+                              type: string
+                            brand:
+                              type:
+                                - string
+                                - 'null'
+                        children:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/CategoryNode'
+                    description: 业务数据（随具体接口定义）
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              example:
+                success: true
+                code: OK
+                message: OK
+                timestamp: '2025-10-26T06:30:00.123Z'
+                traceId: af9c5b1f0e2a4c1b
+                data:
+                  - id: 6
+                    parent_id: 88
+                    name: 马雪
+                    slug: id irure eu dolore
+                    level: 99
+                    path: /usr/libdata
+                    sort_order: 13
+                    brand: null
+                    locale: velit esse pariatur aute
+                    i18n:
+                      name: 衷秀珍
+                      slug: in irure dolor
+                      brand: null
+                    children:
+                      - id: 50
+                        parent_id: 53
+                        name: 务浩然
+                        slug: laborum dolore
+                        level: 29
+                        path: /lost+found
+                        sort_order: 38
+                        brand: null
+                        locale: null
+                        i18n: null
+                        children:
+                          - id: 50
+                            parent_id: 32
+                            name: 养丽芳
+                            slug: fugiat ad
+                            level: 87
+                            path: /opt/include
+                            sort_order: 4
+                            brand: null
+                            locale: incididunt veniam labore eu
+                            i18n: null
+                            children: []
+                          - id: 61
+                            parent_id: 86
+                            name: 暴熙瑶
+                            slug: deserunt esse quis laboris
+                            level: 78
+                            path: /etc/mail
+                            sort_order: 98
+                            brand: null
+                            locale: null
+                            i18n:
+                              name: 洪语汐
+                              slug: Lorem deserunt
+                              brand: et ea Ut
+                            children: []
+                          - id: 64
+                            parent_id: 6
+                            name: 司马哲新
+                            slug: enim ex consectetur
+                            level: 32
+                            path: /tmp
+                            sort_order: 53
+                            brand: null
+                            locale: null
+                            i18n:
+                              name: 无伟
+                              slug: adipisicing irure id Lorem cillum
+                              brand: dolore
+                            children: []
+                  - id: 63
+                    parent_id: 2
+                    name: 晋一全
+                    slug: culpa
+                    level: 59
+                    path: /mnt
+                    sort_order: 4
+                    brand: veniam adipisicing non
+                    locale: id non cillum sint
+                    i18n: null
+                    children:
+                      - id: 14
+                        parent_id: 80
+                        name: 宿波
+                        slug: cupidatat reprehenderit
+                        level: 82
+                        path: /dev
+                        sort_order: 86
+                        brand: null
+                        locale: null
+                        i18n: null
+                        children:
+                          - id: 28
+                            parent_id: 29
+                            name: 伍浩然
+                            slug: sed mollit aliqua
+                            level: 84
+                            path: /sys
+                            sort_order: 43
+                            brand: amet mollit Ut
+                            locale: null
+                            i18n: null
+                            children: []
+                      - id: 54
+                        parent_id: 77
+                        name: 诸葛安琪
+                        slug: dolore anim velit
+                        level: 26
+                        path: /bin
+                        sort_order: 12
+                        brand: null
+                        locale: eu et occaecat do exercitation
+                        i18n:
+                          name: 及阳
+                          slug: in ipsum ullamco quis est
+                          brand: ipsum laboris Lorem consequat aute
+                        children:
+                          - id: 72
+                            parent_id: 63
+                            name: 尾若汐
+                            slug: aliqua eiusmod nisi
+                            level: 62
+                            path: /opt
+                            sort_order: 46
+                            brand: null
+                            locale: aute fugiat
+                            i18n:
+                              name: 魏天娇
+                              slug: non
+                              brand: eu sint occaecat labore
+                            children: []
+                          - id: 48
+                            parent_id: 18
+                            name: 侍万佳
+                            slug: et cupidatat sint
+                            level: 55
+                            path: /var
+                            sort_order: 67
+                            brand: minim
+                            locale: null
+                            i18n: null
+                            children: []
+                          - id: 23
+                            parent_id: 26
+                            name: 宗政宇泽
+                            slug: cillum
+                            level: 52
+                            path: /usr/obj
+                            sort_order: 28
+                            brand: null
+                            locale: null
+                            i18n:
+                              name: 姓文昊
+                              slug: ullamco id sunt exercitation
+                              brand: qui
+                            children: []
+                meta:
+                  page: 1
+                  size: 20
+                  total: 135
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+  /products:
+    get:
+      summary: 搜索/筛选商品列表
+      deprecated: false
+      description: |
+        仅返回 status=ON_SALE 且 SKU 可售的商品；支持按类目、关键词、价格区间、排序筛选，并可指定语言与结算币种。
+      tags:
+        - Products
+      parameters:
+        - name: page
+          in: query
+          description: 页码（从 1 开始）
+          required: false
+          example: '1'
+          schema:
+            type: string
+        - name: size
+          in: query
+          description: 每页个数
+          required: false
+          example: '20'
+          schema:
+            type: string
+        - name: locale
+          in: query
+          description: 语言代码，用于读取 product_i18n / product_category_i18n
+          required: false
+          example: en-US
+          schema:
+            type: string
+        - name: currency
+          in: query
+          description: 价格币种（ISO 4217），用于匹配 product_price
+          required: false
+          example: USD
+          schema:
+            type: string
+        - name: category_slug
+          in: query
+          description: 分类 slug（默认匹配指定语言的 slug）
+          required: false
+          example: phones
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: 关键词，匹配 title/subtitle（全文索引 ftx_prod_text 或 ftx_prod_i18n_text）
+          required: false
+          example: iphone 16
+          schema:
+            type: string
+        - name: tags
+          in: query
+          description: 标签（JSON 数组或逗号分隔的标签，匹配 product.tags / product_i18n.tags）
+          required: false
+          example: '[\"5g\",\"flagship\"]'
+          schema:
+            type: string
+        - name: price_min
+          in: query
+          description: 价格下限（与 `currency` 同币种）
+          required: false
+          example: '100'
+          schema:
+            type: string
+        - name: price_max
+          in: query
+          description: 价格上限（与 `currency` 同币种）
+          required: false
+          example: '2000'
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          description: 排序字段（最新/销量/价格）
+          required: false
+          example: LATEST
+          schema:
+            type: string
+            enum:
+              - LATEST
+              - SALES_DESC
+              - PRICE_ASC
+              - PRICE_DESC
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/ProductSpu'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              example:
+                success: true
+                code: OK
+                message: OK
+                timestamp: '2025-10-26T06:30:00.123Z'
+                traceId: af9c5b1f0e2a4c1b
+                data:
+                  id: 77
+                  slug: velit tempor
+                  title: 嘘从大哦热实际上幸亏油门因为拆
+                  subtitle: 净索性对于以免直到嘘
+                  description: 音值员没飞员每要。料王专。发置文亲行克两小管列。广治路世往家。已品们领点处议养重。
+                  category_id: 65
+                  category_slug: exercitation aliqua consectetur pariatur adipisicing
+                  brand: sed ut
+                  cover_image_url: https://loremflickr.com/400/400?lock=6903119249553753
+                  stock_total: 34
+                  sale_count: 8
+                  sku_type: VARIANT
+                  status: ON_SALE
+                  tags:
+                    - in consequat tempor labore
+                  price_range:
+                    currency: Duis ex dolor
+                    list_price_min: 861.2
+                    list_price_max: 237.45
+                    sale_price_min: 749.75
+                    sale_price_max: 710.9
+                  liked_at: '1981-09-07T03:37:35.197Z'
+                meta: null
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+  /products/{slug}:
+    get:
+      summary: 获取商品详情（含 SKU / 规格 / 多语言）
+      deprecated: false
+      description: |
+        根据 slug（默认匹配指定语言的 slug）返回商品详情；仅可访问 status=ON_SALE 且 SKU 启用的商品。
+      tags:
+        - Products
+      parameters:
+        - name: slug
+          in: path
+          description: 商品路由别名（可为多语言 slug）
+          required: true
+          example: iphone-16
+          schema:
+            type: string
+        - name: locale
+          in: query
+          description: 语言代码，用于读取 product_i18n / product_spec_i18n / product_spec_value_i18n
+          required: false
+          example: en-US
+          schema:
+            type: string
+        - name: currency
+          in: query
+          description: 价格币种（ISO 4217），用于匹配 product_price
+          required: false
+          example: USD
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/ProductDetail'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              example:
+                success: true
+                code: OK
+                message: OK
+                timestamp: '2025-11-06T12:12:00.000Z'
+                data:
+                  id: 101
+                  slug: iphone-16
+                  title: iPhone 16
+                  subtitle: A18 仿生旗舰
+                  description: 6.3 英寸旗舰，120Hz ProMotion，钛合金边框。
+                  category_id: 2
+                  category_slug: phones
+                  brand: Apple
+                  cover_image_url: https://cdn.example.com/p/iphone16/main.jpg
+                  stock_total: 520
+                  sale_count: 13450
+                  sku_type: VARIANT
+                  status: ON_SALE
+                  tags:
+                    - 5g
+                    - flagship
+                  default_sku_id: 10001
+                  gallery:
+                    - url: https://cdn.example.com/p/iphone16/1.jpg
+                      is_main: true
+                      sort_order: 0
+                    - url: https://cdn.example.com/p/iphone16/2.jpg
+                      is_main: false
+                      sort_order: 1
+                  specs:
+                    - spec_id: 5001
+                      spec_code: color
+                      spec_name: 颜色
+                      spec_type: COLOR
+                      is_required: true
+                      values:
+                        - value_id: 6001
+                          value_code: black
+                          value_name: 黑色
+                          attributes:
+                            hex: '#000000'
+                        - value_id: 6002
+                          value_code: silver
+                          value_name: 银色
+                          attributes:
+                            hex: '#d9d9d9'
+                    - spec_id: 5002
+                      spec_code: capacity
+                      spec_name: 容量
+                      spec_type: CAPACITY
+                      is_required: true
+                      values:
+                        - value_id: 6003
+                          value_code: 256gb
+                          value_name: 256GB
+                        - value_id: 6004
+                          value_code: 512gb
+                          value_name: 512GB
+                  skus:
+                    - id: 10001
+                      sku_code: IP16-BLK-256
+                      stock: 120
+                      weight: 0.19
+                      status: ENABLED
+                      is_default: true
+                      barcode: 6901443432332
+                      price:
+                        currency: USD
+                        list_price: 1099
+                        sale_price: 999
+                        is_active: true
+                      specs:
+                        - spec_id: 5001
+                          spec_code: color
+                          spec_name: 颜色
+                          value_id: 6001
+                          value_code: black
+                          value_name: 黑色
+                        - spec_id: 5002
+                          spec_code: capacity
+                          spec_name: 容量
+                          value_id: 6003
+                          value_code: 256gb
+                          value_name: 256GB
+                      images:
+                        - url: >-
+                            https://cdn.example.com/p/iphone16/sku-black-256-1.jpg
+                          is_main: true
+                          sort_order: 0
+                    - id: 10002
+                      sku_code: IP16-SIL-512
+                      stock: 80
+                      weight: 0.19
+                      status: ENABLED
+                      is_default: false
+                      barcode: 6901443432333
+                      price:
+                        currency: USD
+                        list_price: 1299
+                        sale_price: 1199
+                        is_active: true
+                      specs:
+                        - spec_id: 5001
+                          spec_code: color
+                          spec_name: 颜色
+                          value_id: 6002
+                          value_code: silver
+                          value_name: 银色
+                        - spec_id: 5002
+                          spec_code: capacity
+                          spec_name: 容量
+                          value_id: 6004
+                          value_code: 512gb
+                          value_name: 512GB
+                      images:
+                        - url: >-
+                            https://cdn.example.com/p/iphone16/sku-silver-512-1.jpg
+                          is_main: true
+                          sort_order: 0
+                  i18n:
+                    locale: en-US
+                    title: iPhone 16
+                    subtitle: A18 Bionic Flagship
+                    description: Pro camera, titanium frame, 120Hz display.
+                    slug: iphone-16
+                    tags:
+                      - flagship
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+  /products/{product_id}/like:
+    put:
+      summary: 点赞商品（幂等，重复点赞不会报错）
+      deprecated: false
+      description: |
+        创建 product_like 记录，主键 (user_id, product_id) 天然保证幂等；要求登录且通过 CSRF 校验。
+      tags:
+        - Likes
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: 商品 ID
+          required: true
+          example: '101'
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/LikeState'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              example:
+                success: true
+                code: OK
+                message: OK
+                timestamp: '2025-11-06T12:20:00.000Z'
+                data:
+                  liked: true
+                  liked_at: '2025-11-06T12:20:00.000Z'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+    delete:
+      summary: 取消点赞商品（幂等，未点赞也视为成功）
+      deprecated: false
+      description: |
+        删除 product_like 记录；多次调用保持幂等，若不存在记录也返回成功。
+      tags:
+        - Likes
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: 商品 ID
+          required: true
+          example: '101'
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: OK
+                message: OK
+                timestamp: '2025-11-06T12:22:00.000Z'
+                data:
+                  liked: false
+                  liked_at: null
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+  /users/me/likes/products:
+    get:
+      summary: 获取我点赞的商品列表
+      deprecated: false
+      description: |
+        基于 product_like 反查用户点赞的商品；幂等查询，结果按点赞时间倒序。
+      tags:
+        - Likes
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          example: '1'
+          schema:
+            type: string
+        - name: size
+          in: query
+          description: 每页个数
+          required: false
+          example: '10'
+          schema:
+            type: string
+        - name: locale
+          in: query
+          description: 语言代码，用于本地化商品信息
+          required: false
+          example: en-US
+          schema:
+            type: string
+        - name: currency
+          in: query
+          description: 价格币种
+          required: false
+          example: USD
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductSpu'
+                    description: 业务数据（随具体接口定义）
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              example:
+                success: true
+                code: OK
+                message: OK
+                timestamp: '2025-11-06T12:25:00.000Z'
+                data:
+                  items:
+                    - id: 101
+                      slug: iphone-16
+                      title: iPhone 16
+                      subtitle: A18 仿生旗舰
+                      description: null
+                      category_id: 2
+                      category_slug: phones
+                      brand: Apple
+                      cover_image_url: https://cdn.example.com/p/iphone16/main.jpg
+                      stock_total: 520
+                      sale_count: 13450
+                      sku_type: VARIANT
+                      status: ON_SALE
+                      tags:
+                        - 5g
+                        - flagship
+                      price_range:
+                        currency: USD
+                        list_price_min: 1099
+                        list_price_max: 1399
+                        sale_price_min: 999
+                        sale_price_max: 1299
+                      liked_at: '2025-11-06T12:20:00.000Z'
+                meta:
+                  page: 1
+                  size: 10
+                  total: 37
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+webhooks: {}
+components:
+  schemas:
+    Result:
+      type: object
+      required:
+        - success
+        - code
+        - message
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: 业务是否成功（非 HTTP 含义）
+          examples:
+            - true
+        code:
+          type: string
+          description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+          examples:
+            - OK
+          enum:
+            - OK
+            - CREATED
+            - ACCEPTED
+            - FOUND
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - UNPROCESSABLE_ENTITY
+            - TOO_MANY_REQUESTS
+            - INTERNAL_SERVER_ERROR
+        message:
+          type: string
+          description: 人类可读的简短信息
+          examples:
+            - OK
+        timestamp:
+          type: string
+          format: date-time
+          description: 服务器时间
+          examples:
+            - '2025-10-26T06:30:00.123Z'
+        traceId:
+          type:
+            - string
+            - 'null'
+          description: 请求追踪ID
+          examples:
+            - af9c5b1f0e2a4c1b
+        data:
+          type: object
+          properties: {}
+          description: 业务数据（随具体接口定义）
+        meta:
+          description: 附加元信息（分页等，可选）
+          type:
+            - object
+            - 'null'
+          properties:
+            page:
+              type: integer
+              examples:
+                - 1
+            size:
+              type: integer
+              examples:
+                - 20
+            total:
+              type: integer
+              examples:
+                - 135
+    CategoryNode:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        parent_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        level:
+          type: integer
+        path:
+          type:
+            - string
+            - 'null'
+        sort_order:
+          type: integer
+        brand:
+          type:
+            - string
+            - 'null'
+        locale:
+          type:
+            - string
+            - 'null'
+          description: 当前返回内容的语言
+        i18n:
+          type:
+            - object
+            - 'null'
+          description: 本地化覆盖（来自 product_category_i18n）
+          properties:
+            name:
+              type: string
+            slug:
+              type: string
+            brand:
+              type:
+                - string
+                - 'null'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryNode'
+    ProductStatus:
+      type: string
+      enum:
+        - DRAFT
+        - ON_SALE
+        - OFF_SHELF
+        - DELETED
+    SkuStatus:
+      type: string
+      enum:
+        - ENABLED
+        - DISABLED
+    SkuType:
+      type: string
+      enum:
+        - SINGLE
+        - VARIANT
+    SpecType:
+      type: string
+      enum:
+        - COLOR
+        - SIZE
+        - CAPACITY
+        - MATERIAL
+        - OTHER
+    ProductPriceRange:
+      type: object
+      properties:
+        currency:
+          type: string
+        list_price_min:
+          type: number
+          format: double
+        list_price_max:
+          type: number
+          format: double
+        sale_price_min:
+          type:
+            - number
+            - 'null'
+          format: double
+        sale_price_max:
+          type:
+            - number
+            - 'null'
+          format: double
+    ProductPrice:
+      type: object
+      properties:
+        currency:
+          type: string
+        list_price:
+          type: number
+          format: double
+        sale_price:
+          type:
+            - number
+            - 'null'
+          format: double
+        is_active:
+          type: boolean
+    ProductImage:
+      type: object
+      properties:
+        url:
+          type: string
+        is_main:
+          type: boolean
+        sort_order:
+          type: integer
+    ProductSpecValue:
+      type: object
+      properties:
+        value_id:
+          type: integer
+          format: int64
+        value_code:
+          type: string
+        value_name:
+          type: string
+        attributes:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          properties: {}
+    ProductSpec:
+      type: object
+      properties:
+        spec_id:
+          type: integer
+          format: int64
+        spec_code:
+          type: string
+        spec_name:
+          type: string
+        spec_type:
+          $ref: '#/components/schemas/SpecType'
+        is_required:
+          type: boolean
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSpecValue'
+    ProductSkuSpec:
+      type: object
+      properties:
+        spec_id:
+          type: integer
+          format: int64
+        spec_code:
+          type: string
+        spec_name:
+          type: string
+        value_id:
+          type: integer
+          format: int64
+        value_code:
+          type: string
+        value_name:
+          type: string
+    ProductSku:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        sku_code:
+          type:
+            - string
+            - 'null'
+        stock:
+          type: integer
+        weight:
+          type:
+            - number
+            - 'null'
+          format: double
+        status:
+          $ref: '#/components/schemas/SkuStatus'
+        is_default:
+          type: boolean
+        barcode:
+          type:
+            - string
+            - 'null'
+        price:
+          $ref: '#/components/schemas/ProductPrice'
+        specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSkuSpec'
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+    ProductSpu:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        slug:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type:
+            - string
+            - 'null'
+        description:
+          type:
+            - string
+            - 'null'
+        category_id:
+          type: integer
+          format: int64
+        category_slug:
+          type: string
+        brand:
+          type:
+            - string
+            - 'null'
+        cover_image_url:
+          type:
+            - string
+            - 'null'
+        stock_total:
+          type: integer
+        sale_count:
+          type: integer
+        sku_type:
+          $ref: '#/components/schemas/SkuType'
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        tags:
+          type: array
+          items:
+            type: string
+        price_range:
+          $ref: '#/components/schemas/ProductPriceRange'
+        liked_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    ProductDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        slug:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type:
+            - string
+            - 'null'
+        description:
+          type:
+            - string
+            - 'null'
+        category_id:
+          type: integer
+          format: int64
+        category_slug:
+          type: string
+        brand:
+          type:
+            - string
+            - 'null'
+        cover_image_url:
+          type:
+            - string
+            - 'null'
+        stock_total:
+          type: integer
+        sale_count:
+          type: integer
+        sku_type:
+          $ref: '#/components/schemas/SkuType'
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        tags:
+          type: array
+          items:
+            type: string
+        default_sku_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        gallery:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSpec'
+        skus:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSku'
+        i18n:
+          type:
+            - object
+            - 'null'
+          description: 来自 product_i18n 的多语言覆盖
+          properties:
+            locale:
+              type: string
+            title:
+              type: string
+            subtitle:
+              type:
+                - string
+                - 'null'
+            description:
+              type:
+                - string
+                - 'null'
+            slug:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
+    LikeState:
+      type: object
+      properties:
+        liked:
+          type: boolean
+        liked_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    Result1:
+      type: object
+      required:
+        - success
+        - code
+        - message
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: 业务是否成功（非 HTTP 含义）
+          examples:
+            - true
+        code:
+          type: string
+          description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+          examples:
+            - OK
+          enum:
+            - OK
+            - CREATED
+            - ACCEPTED
+            - FOUND
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - UNPROCESSABLE_ENTITY
+            - TOO_MANY_REQUESTS
+            - INTERNAL_SERVER_ERROR
+        message:
+          type: string
+          description: 人类可读的简短信息
+          examples:
+            - OK
+        timestamp:
+          type: string
+          format: date-time
+          description: 服务器时间
+          examples:
+            - '2025-10-26T06:30:00.123Z'
+        traceId:
+          type:
+            - string
+            - 'null'
+          description: 请求追踪ID
+          examples:
+            - af9c5b1f0e2a4c1b
+        data:
+          type: object
+          properties: {}
+          description: 业务数据（随具体接口定义）
+        meta:
+          description: 附加元信息（分页等，可选）
+          type:
+            - object
+            - 'null'
+          properties:
+            page:
+              type: integer
+              examples:
+                - 1
+            size:
+              type: integer
+              examples:
+                - 20
+            total:
+              type: integer
+              examples:
+                - 135
+  responses:
+    已创建:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+    参数错误:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+          examples:
+            空值或格式错误:
+              summary: 空值或格式错误
+              value:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+    已接受:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+    重定向:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+    未鉴权:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+    权限不足:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+    未找到:
+      description: ''
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: {}
+    冲突:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+    无法处理的实体:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: UNPROCESSABLE_ENTITY
+                message: 验证码错误或已过期
+                timestamp: '2025-11-06 15:28:11'
+    服务器内部错误:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+    请求过多:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result1'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+  securitySchemes: {}
+servers: []
+security: []
