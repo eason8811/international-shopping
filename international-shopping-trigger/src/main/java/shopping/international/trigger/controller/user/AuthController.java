@@ -78,7 +78,7 @@ public class AuthController {
         // 领域服务处理注册与发送激活邮件 (基础设施层后续用 SendGrid 实现)
         authService.register(
                 Username.of(req.getUsername()),
-                req.getPassword(),
+                Password.of(req.getPassword()),
                 Nickname.of(req.getNickname()),
                 EmailAddress.of(req.getEmail()),
                 PhoneNumber.nullableOf(req.getPhone()));
@@ -162,7 +162,7 @@ public class AuthController {
                                                             HttpServletRequest request,
                                                             HttpServletResponse response) {
         req.validate();
-        User user = authService.login(req.getAccount(), req.getPassword());
+        User user = authService.login(req.getAccount(), Password.of(req.getPassword()));
 
         loadAccessAndRefreshToken(request, response, user);
 
@@ -196,7 +196,7 @@ public class AuthController {
                                                                     HttpServletRequest request,
                                                                     HttpServletResponse response) {
         req.validate();
-        User user = authService.resetPassword(req.getAccount(), req.getCode(), req.getNewPassword());
+        User user = authService.resetPassword(req.getAccount(), req.getCode(), Password.of(req.getNewPassword()));
 
         loadAccessAndRefreshToken(request, response, user);
 

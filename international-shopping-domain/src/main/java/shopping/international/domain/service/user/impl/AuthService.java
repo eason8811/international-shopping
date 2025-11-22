@@ -32,8 +32,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 本地认证与令牌发放领域服务实现 (内聚密码哈希与 JWT 签发能力)
@@ -98,7 +97,7 @@ public class AuthService implements IAuthService {
      * @throws EmailSendException    如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
     @Override
-    public void register(@NotNull Username username, @NotNull String rawPassword, @NotNull Nickname nickname,
+    public void register(@NotNull Username username, @NotNull Password rawPassword, @NotNull Nickname nickname,
                          @NotNull EmailAddress email, @Nullable PhoneNumber phone) {
 
         // 1. 幂等唯一性前置校验 (DB 层仍需唯一索引兜底)
@@ -112,7 +111,7 @@ public class AuthService implements IAuthService {
         }
 
         // 2. 领域聚合构造 (User.register 内部会附带 LOCAL 绑定)
-        String passwordHash = bcrypt.encode(rawPassword);
+        String passwordHash = bcrypt.encode(rawPassword.getValue());
         User toSave = User.register(
                 username,
                 nickname,
@@ -224,10 +223,10 @@ public class AuthService implements IAuthService {
      * @return 更新后的用户聚合
      */
     @Override
-    public @NotNull User resetPassword(@NotNull String account, @NotNull String code, @NotNull String newPassword) {
+    public @NotNull User resetPassword(@NotNull String account, @NotNull String code, @NotNull Password newPassword) {
         requireNotBlank(account, "账号不能为空");
         requireNotBlank(code, "验证码不能为空");
-        requireNotBlank(newPassword, "新密码不能为空");
+        requireNotNull(newPassword, "新密码不能为空");
 
         User user = userRepository.findByLoginAccount(account)
                 .orElseThrow(() -> new IllegalParamException("账户不存在"));
@@ -239,7 +238,7 @@ public class AuthService implements IAuthService {
         if (user.getStatus() != AccountStatus.ACTIVE)
             throw new AccountException("账户未激活或已禁用");
 
-        String newPasswordHash = bcrypt.encode(newPassword);
+        String newPasswordHash = bcrypt.encode(newPassword.getValue());
         user.changeLocalPassword(newPasswordHash);
         userRepository.updateLocalPassword(user.getId(), newPasswordHash);
         return user;
@@ -256,7 +255,7 @@ public class AuthService implements IAuthService {
      * @throws AccountException 当账户未激活或被禁用时抛出
      */
     @Override
-    public User login(@NotNull String account, @NotNull String rawPassword) {
+    public User login(@NotNull String account, @NotNull Password rawPassword) {
         User user = userRepository.findByLoginAccount(account)
                 .orElseThrow(() -> new IllegalParamException("账户不存在"));
 
@@ -266,7 +265,7 @@ public class AuthService implements IAuthService {
                 .map(AuthBinding::getPasswordHash)
                 .findFirst()
                 .orElse(null);
-        if (localPasswordHash == null || !bcrypt.matches(rawPassword, localPasswordHash))
+        if (localPasswordHash == null || !bcrypt.matches(rawPassword.getValue(), localPasswordHash))
             throw new IllegalParamException("用户名或密码错误");
 
         if (user.getStatus() != AccountStatus.ACTIVE)

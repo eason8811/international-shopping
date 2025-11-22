@@ -3,10 +3,7 @@ package shopping.international.domain.service.user;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.user.User;
-import shopping.international.domain.model.vo.user.EmailAddress;
-import shopping.international.domain.model.vo.user.Nickname;
-import shopping.international.domain.model.vo.user.PhoneNumber;
-import shopping.international.domain.model.vo.user.Username;
+import shopping.international.domain.model.vo.user.*;
 import shopping.international.types.enums.EmailDeliveryStatus;
 import shopping.international.types.exceptions.*;
 
@@ -39,7 +36,7 @@ public interface IAuthService {
      * @throws IllegalParamException 当用户名/邮箱/手机存在唯一性冲突, 或参数非法时抛出
      * @throws EmailSendException       如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
-    void register(@NotNull Username username, @NotNull String rawPassword, @NotNull Nickname nickname,
+    void register(@NotNull Username username, @NotNull Password rawPassword, @NotNull Nickname nickname,
                   @NotNull EmailAddress email, @Nullable PhoneNumber phone);
 
     /**
@@ -77,7 +74,7 @@ public interface IAuthService {
      * @return 更新后的用户聚合
      */
     @NotNull
-    User resetPassword(@NotNull String account, @NotNull String code, @NotNull String newPassword);
+    User resetPassword(@NotNull String account, @NotNull String code, @NotNull Password newPassword);
 
     /**
      * 本地登录: 支持 {@code 用户名 / 邮箱 / 手机号其一} + 明文密码, 校验成功返回用户聚合快照
@@ -87,7 +84,7 @@ public interface IAuthService {
      * @return 登录成功的用户聚合快照
      * @throws AccountException 当凭证无效, 账户未激活或被禁用时抛出
      */
-    User login(String account, String rawPassword);
+    User login(String account, Password rawPassword);
 
     /**
      * 为指定用户签发新的访问令牌 (Access Token)
