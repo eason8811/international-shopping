@@ -1,1396 +1,3331 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  title: User Service API (CookieAuth + CSRF Double-Submit + Unified Envelope)
-  version: 1.3.0
+  title: 默认模块
   description: >
-    - 统一鉴权：Cookie 会话（HttpOnly `access_token`）<br/>
-    - 统一返回包裹结构（所有 HTTP 状态码均使用相同结构）<br/>
-    - CSRF 防护：双提交（Header: `X-CSRF-Token` 与 Cookie: `csrf_token` 必须相等）<br/>
-    - 匿名接口：显式 `security: []`<br/>
-servers:
-  - url: https://api.example.com/api/v1
-    description: Production
-  - url: http://localhost:8080/api/v1
-    description: Local Dev
-
-# 全局需要会话 Cookie；匿名接口在各 path 下显式 security: []
-security:
-  - cookieAuth: []
-
+    - 统一鉴权：Cookie 会话（HttpOnly `access_token`）<br/> - 统一返回包裹结构（所有 HTTP
+    状态码均使用相同结构）<br/> - CSRF 防护：双提交（Header: `X-CSRF-Token` 与 Cookie: `csrf_token`
+    必须相等）<br/> - 匿名接口：显式 `security: []`<br/>
+  version: 1.3.0
 tags:
   - name: Auth
-    description: 本地注册/登录/激活/密码找回/令牌刷新/CSRF
   - name: OAuth2
-    description: 第三方登录授权与回调
   - name: Users
-    description: 当前用户账户信息（user_account）
   - name: Profile
-    description: 用户资料（user_profile）
-  - name: Addresses
-    description: 用户收货地址（user_address）
   - name: Bindings
-    description: 第三方/本地认证映射（user_auth）
-
-components:
-  securitySchemes:
-    cookieAuth:       # 会话：access_token
-      type: apiKey
-      in: cookie
-      name: access_token
-    refreshAuth:      # 刷新：refresh_token
-      type: apiKey
-      in: cookie
-      name: refresh_token
-    csrfHeader:       # 双提交之一：Header
-      type: apiKey
-      in: header
-      name: X-CSRF-Token
-      description: 与 csrf_token Cookie 等值
-    csrfCookie:       # 双提交之二：Cookie
-      type: apiKey
-      in: cookie
-      name: csrf_token
-      description: 与 X-CSRF-Token Header 等值
-
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: false
-      description: 幂等键（建议对创建类接口提供，格式 UUID）
-      schema: { type: string, example: "8c1f7f5a-9c91-4a40-8d9d-7e1c1b4b0b7d" }
-
-    CsrfHeader:
-      name: X-CSRF-Token
-      in: header
-      required: true
-      description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-      schema: { type: string, example: "1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0" }
-
-    CsrfCookie:
-      name: csrf_token
-      in: cookie
-      required: true
-      description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
-      schema: { type: string, example: "1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0" }
-
-    ProviderPath:
-      name: provider
-      in: path
-      required: true
-      description: 第三方登录提供方
-      schema:
-        $ref: '#/components/schemas/Provider'
-      example: GOOGLE
-
-    AddressId:
-      name: id
-      in: path
-      required: true
-      schema: { type: integer, format: int64, minimum: 1 }
-      description: 收货地址ID
-      example: 123
-
-    RedirectQuery:
-      name: redirect
-      in: query
-      required: false
-      description: 登录完成后跳回的站内地址
-      schema: { type: string, example: "/dashboard" }
-
-    CodeQuery:
-      name: code
-      in: query
-      required: false
-      schema: { type: string }
-      description: 授权码
-      example: "4/0AfJohXn...abc"
-
-    StateQuery:
-      name: state
-      in: query
-      required: false
-      schema: { type: string }
-      description: 回传的 state
-      example: "d9e2b7b4f9c84b109a2a7c2f8f0c2c2d"
-
-    ErrorQuery:
-      name: error
-      in: query
-      required: false
-      schema: { type: string }
-      description: 第三方回调错误码
-      example: "access_denied"
-
-    ErrorDescQuery:
-      name: error_description
-      in: query
-      required: false
-      schema: { type: string }
-      description: 第三方回调错误描述
-      example: "The user denied the request"
-
-  schemas:
-    # ========== 统一返回结构 ==========
-    ApiResponseBase:
-      type: object
-      required: [success, code, message, timestamp]
-      properties:
-        success:
-          type: boolean
-          description: 业务是否成功（非 HTTP 含义）
-          example: true
-        code:
-          type: string
-          description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
-          example: "OK"
-        message:
-          type: string
-          description: 人类可读的简短信息
-          example: "OK"
-        timestamp:
-          type: string
-          format: date-time
-          description: 服务器时间
-          example: "2025-10-26T06:30:00.123Z"
-        traceId:
-          type: string
-          nullable: true
-          description: 请求追踪ID
-          example: "af9c5b1f0e2a4c1b"
-        data:
-          description: 业务数据（随具体接口定义）
-          nullable: true
-        meta:
-          description: 附加元信息（分页等，可选）
-          nullable: true
-          type: object
-          properties:
-            page: { type: integer, example: 1 }
-            size: { type: integer, example: 20 }
-            total: { type: integer, example: 135 }
-
-    # ========== 领域枚举/模型 ==========
-    AccountStatus:
-      type: string
-      enum: [ACTIVE, DISABLED]
-    Gender:
-      type: string
-      enum: [UNKNOWN, MALE, FEMALE]
-    Provider:
-      type: string
-      enum: [LOCAL, GOOGLE, FACEBOOK, APPLE, INSTAGRAM, TIKTOK]
-
-    UserAccount:
-      type: object
-      properties:
-        id: { type: integer, format: int64, example: 1001 }
-        username: { type: string, example: "eason" }
-        nickname: { type: string, example: "Eason" }
-        email:
-          type: string
-          format: email
-          nullable: true
-          example: "eason@example.com"
-        phone:
-          type: string
-          nullable: true
-          example: "+86-13800138000"
-        status: { $ref: '#/components/schemas/AccountStatus' }
-        lastLoginAt:
-          type: string
-          format: date-time
-          nullable: true
-          example: "2025-10-25T09:10:00.000Z"
-        createdAt: { type: string, format: date-time, example: "2025-10-20T10:00:00.000Z" }
-        updatedAt: { type: string, format: date-time, example: "2025-10-25T09:10:00.000Z" }
-      required: [id, username, nickname, status, createdAt, updatedAt]
-
-    UserProfile:
-      type: object
-      properties:
-        displayName: { type: string, nullable: true, example: "Eason" }
-        avatarUrl: { type: string, nullable: true, example: "https://cdn.example.com/avatar/1001.png" }
-        gender: { $ref: '#/components/schemas/Gender' }
-        birthday: { type: string, format: date, nullable: true, example: "1990-01-01" }
-        country: { type: string, nullable: true, example: "CN" }
-        province: { type: string, nullable: true, example: "Guangdong" }
-        city: { type: string, nullable: true, example: "Guangzhou" }
-        addressLine: { type: string, nullable: true, example: "Tianhe CBD" }
-        zipcode: { type: string, nullable: true, example: "510000" }
-        extra:
-          type: object
-          additionalProperties: true
-          example: { marketingOptIn: true }
-      required: [gender]
-
-    UserAuthBinding:
-      type: object
-      properties:
-        id: { type: integer, format: int64, example: 11 }
-        provider: { $ref: '#/components/schemas/Provider' }
-        issuer: { type: string, nullable: true, example: "https://accounts.google.com" }
-        providerUid: { type: string, example: "1132244556677889900" }
-        scope: { type: string, nullable: true, example: "openid email profile" }
-        lastLoginAt: { type: string, format: date-time, nullable: true, example: "2025-10-25T08:00:00.000Z" }
-        createdAt: { type: string, format: date-time, example: "2025-10-20T10:00:00.000Z" }
-        updatedAt: { type: string, format: date-time, example: "2025-10-25T08:00:00.000Z" }
-
-    Address:
-      type: object
-      properties:
-        id: { type: integer, format: int64, example: 123 }
-        userId: { type: integer, format: int64, example: 1001 }
-        receiverName: { type: string, example: "张三" }
-        phone: { type: string, example: "+81-90-1234-5678" }
-        country: { type: string, nullable: true, example: "JP" }
-        province: { type: string, nullable: true, example: "Tokyo" }
-        city: { type: string, nullable: true, example: "Shinjuku" }
-        district: { type: string, nullable: true, example: "Nishi-Shinjuku" }
-        addressLine1: { type: string, example: "1-1-1" }
-        addressLine2: { type: string, nullable: true, example: "Room 901" }
-        zipcode: { type: string, nullable: true, example: "160-0023" }
-        isDefault: { type: boolean, example: true }
-        createdAt: { type: string, format: date-time, example: "2025-10-20T10:00:00.000Z" }
-        updatedAt: { type: string, format: date-time, example: "2025-10-25T09:10:00.000Z" }
-      required: [id, userId, receiverName, phone, addressLine1, isDefault, createdAt, updatedAt]
-
-    # ======== Requests（附示例） ========
-    RegisterRequest:
-      type: object
-      required: [username, password, nickname]
-      properties:
-        username: { type: string, example: "eason" }
-        password: { type: string, format: password, minLength: 6, example: "Passw0rd!" }
-        nickname: { type: string, example: "Eason" }
-        email: { type: string, format: email, nullable: true, example: "eason@example.com" }
-        phone: { type: string, nullable: true, example: "+86-13800138000" }
-
-    VerifyEmailRequest:
-      type: object
-      required: [email, code]
-      properties:
-        email: { type: string, format: email, example: "eason@example.com" }
-        code: { type: string, example: "893642" }
-
-    ResendActivationRequest:
-      type: object
-      required: [email]
-      properties:
-        email: { type: string, format: email, example: "eason@example.com" }
-
-    LoginRequest:
-      type: object
-      required: [account, password]
-      properties:
-        account: { type: string, description: "用户名 / 邮箱 / 手机号其一", example: "eason" }
-        password: { type: string, format: password, example: "Passw0rd!" }
-
-    ForgotPasswordRequest:
-      type: object
-      required: [account]
-      properties:
-        account: { type: string, example: "eason@example.com" }
-
-    ResetPasswordRequest:
-      type: object
-      required: [account, code, newPassword]
-      properties:
-        account: { type: string, example: "eason@example.com" }
-        code: { type: string, description: "找回密码验证码", example: "317955" }
-        newPassword: { type: string, format: password, minLength: 6, example: "NewPassw0rd!" }
-
-    UpdateAccountRequest:
-      type: object
-      properties:
-        nickname: { type: string, example: "Eason Chen" }
-        phone: { type: string, nullable: true, example: "+81-80-0000-0000" }
-
-    ChangeEmailRequest:
-      type: object
-      required: [newEmail]
-      properties:
-        newEmail: { type: string, format: email, example: "new.eason@example.com" }
-
-    VerifyNewEmailRequest:
-      type: object
-      required: [newEmail, code]
-      properties:
-        newEmail: { type: string, format: email, example: "new.eason@example.com" }
-        code: { type: string, example: "556677" }
-
-    UpdateProfileRequest:
-      type: object
-      properties:
-        displayName: { type: string, nullable: true, example: "Eason C." }
-        avatarUrl: { type: string, nullable: true, example: "https://cdn.example.com/avatar/1001.png" }
-        gender: { $ref: '#/components/schemas/Gender' }
-        birthday: { type: string, format: date, nullable: true, example: "1992-10-01" }
-        country: { type: string, nullable: true, example: "JP" }
-        province: { type: string, nullable: true, example: "Tokyo" }
-        city: { type: string, nullable: true, example: "Shinjuku" }
-        addressLine: { type: string, nullable: true, example: "1-1-1 Nishi-Shinjuku" }
-        zipcode: { type: string, nullable: true, example: "160-0023" }
-        extra:
-          type: object
-          additionalProperties: true
-          example: { language: "ja-JP" }
-
-    CreateAddressRequest:
-      type: object
-      required: [receiverName, phone, addressLine1]
-      properties:
-        receiverName: { type: string, example: "张三" }
-        phone: { type: string, example: "+81-90-1234-5678" }
-        country: { type: string, nullable: true, example: "JP" }
-        province: { type: string, nullable: true, example: "Tokyo" }
-        city: { type: string, nullable: true, example: "Shinjuku" }
-        district: { type: string, nullable: true, example: "Nishi-Shinjuku" }
-        addressLine1: { type: string, example: "1-1-1" }
-        addressLine2: { type: string, nullable: true, example: "Room 901" }
-        zipcode: { type: string, nullable: true, example: "160-0023" }
-        isDefault: { type: boolean, default: false, example: true }
-
-    UpdateAddressRequest:
-      type: object
-      properties:
-        receiverName: { type: string, example: "张三" }
-        phone: { type: string, example: "+81-90-1234-5678" }
-        country: { type: string, nullable: true, example: "JP" }
-        province: { type: string, nullable: true, example: "Tokyo" }
-        city: { type: string, nullable: true, example: "Shinjuku" }
-        district: { type: string, nullable: true, example: "Nishi-Shinjuku" }
-        addressLine1: { type: string, example: "1-1-1" }
-        addressLine2: { type: string, nullable: true, example: "Room 901" }
-        zipcode: { type: string, nullable: true, example: "160-0023" }
-        isDefault: { type: boolean, example: true }
-
+  - name: Addresses
 paths:
-  # =========================
-  # Auth（匿名入口 + CSRF 发放）
-  # =========================
   /auth/register:
     post:
-      security: []
-      tags: [Auth]
       summary: 本地注册（创建 DISABLED 并发送邮箱验证码）
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+      deprecated: false
+      description: ''
+      tags:
+        - Auth
+      parameters: []
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RegisterRequest' }
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
             example:
-              username: "eason"
-              password: "Passw0rd!"
-              nickname: "Eason"
-              email: "eason@example.com"
+              username: leila-user_01
+              password: Passw0rd!
+              nickname: Leila
+              email: leila9468555@gmail.com
+              phone: +86-13800135767
+        required: true
       responses:
-        "202":
+        '202':
           description: 已发送激活邮件
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        nullable: true
-                        example: null
+                $ref: '#/components/schemas/Result'
               examples:
-                accepted:
+                '1':
                   summary: 发送成功
                   value:
                     success: true
-                    code: "ACCEPTED"
-                    message: "Verification email sent"
-                    timestamp: "2025-10-26T06:30:00.123Z"
-                    traceId: "c2f1c1b7f9a34c9e"
-                    data: null
-        "409":
+                    code: ACCEPTED
+                    message: 激活邮件已发送
+                    timestamp: '2025-11-06 11:38:36'
+                '2':
+                  summary: 冲突
+                  value:
+                    success: false
+                    code: CONFLICT
+                    message: 邮箱已存在
+                    timestamp: '2025-11-06 11:38:40'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '409':
           description: 用户名/邮箱/手机号已存在
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "CONFLICT"
-                message: "Email already registered"
-                timestamp: "2025-10-26T06:30:00.123Z"
-                traceId: "f1a2b3c4d5"
-                data: null
-
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers: {}
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
   /auth/email-status:
     get:
-      security: [ ]
-      tags: [ Auth ]
       summary: 轮询邮件发送状态
+      deprecated: false
       description: |
         传入邮箱地址，后端从 Redis 查找 {email → messageId} 映射，
         再调用 Resend 查询该邮件的当前状态并返回。
+      tags:
+        - Auth
       parameters:
         - name: email
           in: query
+          description: 目标邮箱地址
           required: true
+          example: leila9468555@gmail.com
           schema:
             type: string
-          description: 目标邮箱地址
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
-                    properties:
-                      success:
-                        type: boolean
-                        description: 业务是否成功（非 HTTP 含义）
-                        example: true
-                      code:
-                        type: string
-                        description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
-                        example: "OK"
-                      message:
-                        type: string
-                        description: 人类可读的简短信息
-                        example: "查询成功"
-                      timestamp:
-                        type: string
-                        format: date-time
-                        description: 服务器时间
-                        example: "2025-10-26T06:30:00.123Z"
-                      traceId:
-                        type: string
-                        nullable: true
-                        description: 请求追踪ID
-                        example: "af9c5b1f0e2a4c1b"
-                      data:
-                        description: 业务数据（随具体接口定义）
-                        nullable: true
-                        type: object
-                        properties:
-                          email:
-                            type: string
-                            example: user@example.com
-                          messageId:
-                            type: string
-                            example: "7cce5f49-0d6f-4e09-bb7f-2a1b7a2d2a6e"
-                          status:
-                            type: string
-                            enum: [ BOUNCED, CANCELED, CLICKED, COMPLAINED, DELIVERED, DELIVERY_DELAYED, FAILED, OPENED, QUEUED, SCHEDULED, SENT, UNKNOWN ]
-                      meta:
-                        description: 附加元信息（分页等，可选）
-                        nullable: true
-                        type: object
-                        properties:
-                          page: { type: integer, example: 1 }
-                          size: { type: integer, example: 20 }
-                          total: { type: integer, example: 135 }
-        "400":
-          description: 参数错误
-        "500":
-          description: 服务器内部错误
-
+                $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: OK
+                message: 查询成功
+                timestamp: '2025-11-06 12:39:11'
+                data:
+                  email: leila9468555@gmail.com
+                  message_id: af4cae0f-b38d-4be8-891c-0807c5e28d3a
+                  status: DELIVERED
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+      security: []
   /auth/verify-email:
     post:
-      security: []
-      tags: [Auth]
       summary: 验证邮箱验证码并激活账户（status=ACTIVE）
+      deprecated: false
+      description: ''
+      tags:
+        - Auth
+      parameters: []
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/VerifyEmailRequest' }
-            example: { email: "eason@example.com", code: "893642" }
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+            example:
+              email: leila9468555@gmail.com
+              code: '255068'
+        required: true
       responses:
-        "201":
+        '201':
           description: 注册激活成功（下发会话与 CSRF 令牌）
-          headers:
-            Set-Cookie:
-              schema: { type: string }
-              description: >
-                Set-Cookie: access_token=...; HttpOnly; Secure;  
-                Set-Cookie: csrf_token=...; Secure; SameSite=Lax
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserAccountRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/UserAccount' }
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
               example:
                 success: true
-                code: "CREATED"
-                message: "Account activated"
-                timestamp: "2025-10-26T06:30:10.000Z"
-                traceId: "act-123"
+                code: CREATED
+                message: Created
+                timestamp: '2025-11-06 14:43:51'
                 data:
-                  id: 1001
-                  username: "eason"
-                  nickname: "Eason"
-                  email: "eason@example.com"
-                  status: "ACTIVE"
-                  createdAt: "2025-10-20T10:00:00.000Z"
-                  updatedAt: "2025-10-26T06:30:10.000Z"
-        "422":
-          description: 验证码错误或过期
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "UNPROCESSABLE_ENTITY"
-                message: "Invalid or expired code"
-                timestamp: "2025-10-26T06:30:10.000Z"
-                traceId: "bad-code"
-                data: null
-
+                  id: 95
+                  username: leila-user_01
+                  nickname: Leila
+                  email: leila9468555@gmail.com
+                  phone: +86-13800135767
+                  status: ACTIVE
+                  created_at: '2025-11-06 06:36:53'
+                  updated_at: '2025-11-06 06:36:53'
+          headers:
+            Set-Cookie:
+              required: false
+              description: >
+                Set-Cookie: access_token=...; HttpOnly; Secure;   Set-Cookie:
+                csrf_token=...; Secure; SameSite=Lax
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '422':
+          $ref: '#/components/responses/无法处理的实体'
+          description: ''
+      security: []
   /auth/resend-activation:
     post:
-      security: []
-      tags: [Auth]
       summary: 重新发送激活邮件
+      deprecated: false
+      description: ''
+      tags:
+        - Auth
+      parameters: []
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ResendActivationRequest' }
-            example: { email: "eason@example.com" }
+            schema:
+              $ref: '#/components/schemas/ResendActivationRequest'
+            example:
+              email: abc@example.com
+        required: true
       responses:
-        "202":
+        '202':
           description: 已重新发送
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: true
-                code: "ACCEPTED"
-                message: "Verification email re-sent"
-                timestamp: "2025-10-26T06:30:20.000Z"
-                data: null
-        "404":
-          description: 账户不存在或已激活
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "NOT_FOUND"
-                message: "Account not found or already active"
-                timestamp: "2025-10-26T06:30:20.000Z"
-                data: null
-
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
   /auth/login:
     post:
-      security: []
-      tags: [Auth]
       summary: 本地登录（用户名/邮箱/手机号 + 密码）
+      deprecated: false
+      description: ''
+      tags:
+        - Auth
+      parameters: []
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LoginRequest' }
-            example: { account: "eason", password: "Passw0rd!" }
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              account: leila9468555@gmail.com
+              password: Passw0rd!
+        required: true
       responses:
-        "200":
+        '200':
           description: 登录成功（Set-Cookie 会话 + CSRF）
-          headers:
-            Set-Cookie:
-              schema: { type: string }
-              description: >
-                Set-Cookie: access_token=...; HttpOnly; Secure;  
-                Set-Cookie: csrf_token=...; Secure; SameSite=Lax
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserAccountRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/UserAccount' }
-              example:
-                success: true
-                code: "OK"
-                message: "Login success"
-                timestamp: "2025-10-26T06:31:00.000Z"
-                data:
-                  id: 1001
-                  username: "eason"
-                  nickname: "Eason"
-                  email: "eason@example.com"
-                  status: "ACTIVE"
-        "401":
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              examples:
+                '1':
+                  summary: 成功示例
+                  value:
+                    success: true
+                    code: OK
+                    message: 登陆成功
+                    timestamp: '2025-11-06 17:23:16'
+                    data:
+                      id: 96
+                      username: leila-user_01
+                      nickname: Leila
+                      email: leila9468555@gmail.com
+                      phone: +86-13800135767
+                      status: ACTIVE
+                      last_login_at: '2025-11-06 17:23:13'
+                      created_at: '2025-11-06 06:51:00'
+                      updated_at: '2025-11-06 09:23:01'
+                '2':
+                  summary: 账户未激活或已被禁用
+                  value:
+                    success: false
+                    code: UNAUTHORIZED
+                    message: 账户未激活或已禁用
+                    timestamp: '2025-11-06 17:23:16'
+          headers:
+            Set-Cookie:
+              required: false
+              description: >
+                Set-Cookie: access_token=...; HttpOnly; Secure;   Set-Cookie:
+                csrf_token=...; Secure; SameSite=Lax
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
           description: 认证失败（密码错误或账户未激活）
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "UNAUTHORIZED"
-                message: "Bad credentials or inactive user"
-                timestamp: "2025-10-26T06:31:00.000Z"
-                data: null
-
-  /auth/logout:
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers: {}
+      security: []
+  /auth/password/forgot:
     post:
-      tags: [Auth]
-      summary: 退出登录（清除 Cookie 或使其失效）
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+      summary: 发起重置密码（发送验证码至绑定邮箱）
+      deprecated: false
+      description: |
+        输入用户名/邮箱/手机号触发一次密码重置验证码邮件。即使账号不存在也返回 202，避免暴露用户存在性。
+      tags:
+        - Auth
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+            example:
+              account: leila-user_01
+        required: true
       responses:
-        "200":
-          description: 已退出
-          headers:
-            Set-Cookie:
-              schema: { type: string }
-              description: 清除 access_token/csrf_token
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: true
-                code: "OK"
-                message: "Logged out"
-                timestamp: "2025-10-26T06:31:20.000Z"
-                data: null
-
-  /auth/refresh-token:
-    post:
-      tags: [Auth]
-      summary: 刷新访问令牌（依赖 refresh_token Cookie + CSRF）
-      security:
-        - refreshAuth: []
-          csrfHeader: []
-          csrfCookie: []
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
-      responses:
-        "200":
-          description: 已刷新
-          headers:
-            Set-Cookie:
-              schema: { type: string }
-              description: 更新 access_token（以及可选轮换 csrf_token）
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: true
-                code: "OK"
-                message: "Token refreshed"
-                timestamp: "2025-10-26T06:31:40.000Z"
-                data: null
-        "401":
-          description: 刷新令牌无效或过期
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "UNAUTHORIZED"
-                message: "Invalid refresh token"
-                timestamp: "2025-10-26T06:31:40.000Z"
-                data: null
-
-  /auth/csrf:
-    get:
-      tags: [Auth]
-      summary: 获取/轮换 CSRF 令牌（返回并 Set-Cookie）
-      description: >
-        已登录后调用。服务端生成随机 `csrf_token`，与会话绑定并下发：
-        - Set-Cookie: csrf_token=...（非 HttpOnly）
-        - Body 回显 { csrfToken }
-      responses:
-        "200":
-          description: OK
-          headers:
-            Set-Cookie:
-              schema: { type: string }
-              description: 'Set-Cookie: csrf_token=...; Secure; SameSite=Strict|Lax'
+        '202':
+          description: 验证码已发送（或已受理）
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          csrfToken: { type: string, example: "1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0" }
+                $ref: '#/components/schemas/Result'
               example:
                 success: true
-                code: "OK"
-                message: "CSRF token issued"
-                timestamp: "2025-10-26T06:32:00.000Z"
+                code: ACCEPTED
+                message: 若账号存在，重置验证码已发送
+                timestamp: '2025-11-06 15:20:00'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+  /auth/password/reset:
+    post:
+      summary: 验证验证码并重置密码（找回密码）
+      deprecated: false
+      description: ''
+      tags:
+        - Auth
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+            example:
+              account: leila-user_01
+              code: '893642'
+              new_password: NewPassw0rd!
+        required: true
+      responses:
+        '200':
+          description: 密码已重置（Set-Cookie 会话 + CSRF）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserAccountRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              example:
+                success: true
+                code: OK
+                message: 密码已重置
+                timestamp: '2025-11-06 15:28:11'
                 data:
-                  csrfToken: "1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0"
-
-  # =========================
-  # OAuth2（匿名入口）
-  # =========================
+                  id: 95
+                  username: leila-user_01
+                  nickname: Leila
+                  email: leila9468555@gmail.com
+                  phone: +86-13800135767
+                  status: ACTIVE
+                  created_at: '2025-11-06 06:36:53'
+                  updated_at: '2025-11-06 06:36:53'
+          headers:
+            Set-Cookie:
+              required: false
+              description: >
+                成功时 Set-Cookie: access_token=...; HttpOnly; Secure;
+                refresh_token=...; HttpOnly; Secure; csrf_token=...; Secure;
+                SameSite=Lax
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '422':
+          $ref: '#/components/responses/无法处理的实体'
+          description: ''
+      security: []
+  /auth/logout:
+    post:
+      summary: 退出登录（清除 Cookie 或使其失效）
+      deprecated: false
+      description: ''
+      tags:
+        - Auth
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: ''
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: ''
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+      responses:
+        '200':
+          description: 已退出
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers:
+            Set-Cookie:
+              required: false
+              description: 清除 access_token/csrf_token
+              schema:
+                type: string
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
+  /auth/refresh-token:
+    post:
+      summary: 刷新访问令牌（依赖 refresh_token Cookie + CSRF）
+      deprecated: false
+      description: ''
+      tags:
+        - Auth
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: ''
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: ''
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+      responses:
+        '200':
+          description: 已刷新
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers:
+            Set-Cookie:
+              required: false
+              description: 更新 access_token（以及可选轮换 csrf_token）
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+      security: []
+  /auth/csrf:
+    get:
+      summary: 获取/轮换 CSRF 令牌（返回并 Set-Cookie）
+      deprecated: false
+      description: >
+        已登录后调用。服务端生成随机 `csrf_token`，与会话绑定并下发： - Set-Cookie: csrf_token=...（非
+        HttpOnly） - Body 回显 { csrfToken }
+      tags:
+        - Auth
+      parameters: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: OK
+                message: CSRF token issued
+                timestamp: '2025-10-26T06:32:00.000Z'
+                data:
+                  csrfToken: 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+          headers:
+            Set-Cookie:
+              required: false
+              description: 'Set-Cookie: csrf_token=...; Secure; SameSite=Strict|Lax'
+              schema:
+                type: string
+      security: []
   /oauth2/{provider}/authorize:
     get:
-      security: []
-      tags: [OAuth2]
       summary: 跳转至第三方授权页（生成并缓存 state/nonce/code_verifier）
+      deprecated: false
+      description: ''
+      tags:
+        - OAuth2
       parameters:
-        - $ref: '#/components/parameters/ProviderPath'
-        - $ref: '#/components/parameters/RedirectQuery'
+        - name: provider
+          in: path
+          description: 第三方登录提供方
+          required: true
+          example: GOOGLE
+          schema:
+            type: string
+            enum:
+              - GOOGLE
+              - TIKTOK
+              - X
+        - name: redirectUrl
+          in: query
+          description: 登录完成后跳回的站内地址
+          required: false
+          example: http://shopping.mynatapp.cc/api/v1/users/me/bindings
+          schema:
+            type: string
+            examples:
+              - /dashboard
       responses:
-        "302":
+        '302':
           description: 重定向到第三方授权页面
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
+              schema:
+                $ref: '#/components/schemas/Result'
               example:
                 success: true
-                code: "FOUND"
-                message: "Redirecting to provider"
-                timestamp: "2025-10-26T06:33:00.000Z"
-                data: { url: "https://accounts.google.com/o/oauth2/v2/auth?..." }
-
+                code: FOUND
+                message: Redirecting to provider
+                timestamp: '2025-10-26T06:33:00.000Z'
+                data:
+                  url: https://accounts.google.com/o/oauth2/v2/auth?...
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+      security: []
   /oauth2/{provider}/callback:
     get:
-      security: []
-      tags: [OAuth2]
       summary: 第三方回调（处理 code/state 或 error）
+      deprecated: false
+      description: ''
+      tags:
+        - OAuth2
       parameters:
-        - $ref: '#/components/parameters/ProviderPath'
-        - $ref: '#/components/parameters/CodeQuery'
-        - $ref: '#/components/parameters/StateQuery'
-        - $ref: '#/components/parameters/ErrorQuery'
-        - $ref: '#/components/parameters/ErrorDescQuery'
+        - name: provider
+          in: path
+          description: 第三方登录提供方
+          required: true
+          example: GOOGLE
+          schema:
+            type: string
+            enum:
+              - GOOGLE
+              - TIKTOK
+              - X
+        - name: code
+          in: query
+          description: 授权码
+          required: false
+          example: 4/0AfJohXn...abc
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: 回传的 state
+          required: false
+          example: d9e2b7b4f9c84b109a2a7c2f8f0c2c2d
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: 第三方回调错误码
+          required: false
+          example: access_denied
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: 第三方回调错误描述
+          required: false
+          example: The user denied the request
+          schema:
+            type: string
       responses:
-        "302":
+        '302':
           description: 登录成功或失败后重定向至前端页面
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
           headers:
             Set-Cookie:
-              schema: { type: string }
+              required: false
               description: 成功时 Set-Cookie `access_token` 与 `csrf_token`
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: true
-                code: "FOUND"
-                message: "Redirect to app"
-                timestamp: "2025-10-26T06:33:20.000Z"
-                data: { url: "/dashboard" }
-        "400":
-          description: state/nonce 校验失败或第三方返回 error
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "BAD_REQUEST"
-                message: "Invalid state"
-                timestamp: "2025-10-26T06:33:20.000Z"
-                data: null
-
-  # =========================
-  # Users（仅读不需 CSRF；修改需 CSRF）
-  # =========================
+              schema:
+                type: string
+      security: []
   /users/me:
     get:
-      tags: [Users]
       summary: 获取当前用户账户信息
+      deprecated: false
+      description: ''
+      tags:
+        - Users
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: 7e8bcdee-6881-401a-9971-7ca708c98ad
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzEwNjQ3Niwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzM2NTY3NiwiaWF0IjoxNzYzMTA2NDc2LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.6BFtB4yqxifPEHnXpGmOyivAeIwI-jYioQcSwG46q-Y
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: 7e8bcdee-6881-401a-9971-7ca708c98ad
+          schema:
+            type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserAccountRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/UserAccount' }
-              example:
-                success: true
-                code: "OK"
-                message: "OK"
-                timestamp: "2025-10-26T06:34:00.000Z"
-                data:
-                  id: 1001
-                  username: "eason"
-                  nickname: "Eason"
-                  email: "eason@example.com"
-                  status: "ACTIVE"
-        "401":
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              examples:
+                '1':
+                  summary: 成功示例
+                  value:
+                    success: true
+                    code: OK
+                    message: OK
+                    timestamp: '2025-11-14 16:13:05'
+                    data:
+                      id: 96
+                      username: leila-user_01
+                      nickname: Leila
+                      email: leila9468555@gmail.com
+                      phone: +86-13800135767
+                      status: ACTIVE
+                      last_login_at: '2025-11-14 15:47:55'
+                      created_at: '2025-11-06 06:51:00'
+                      updated_at: '2025-11-14 07:47:55'
+                '2':
+                  summary: 未登录
+                  value:
+                    success: false
+                    code: UNAUTHORIZED
+                    message: Unauthorized
+                    timestamp: '2025-11-14 16:36:15'
+          headers: {}
+        '401':
           description: 未登录
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "UNAUTHORIZED"
-                message: "Unauthorized"
-                timestamp: "2025-10-26T06:34:00.000Z"
-                data: null
-
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers: {}
+      security: []
     patch:
-      tags: [Users]
       summary: 修改当前用户账户信息（昵称、手机号等）
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Users
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: 7e8bcdee-6881-401a-9971-7ca708c98ad5
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzEwNjQ3Niwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzM2NTY3NiwiaWF0IjoxNzYzMTA2NDc2LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.6BFtB4yqxifPEHnXpGmOyivAeIwI-jYioQcSwG46q-Y
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: 7e8bcdee-6881-401a-9971-7ca708c98ad5
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/UpdateAccountRequest' }
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
             example:
-              nickname: "Eason Chen"
-              phone: "+81-80-0000-0000"
+              nickname: leila-user_02
+              phone: +81-80-0000-0000
+        required: true
       responses:
-        "200":
+        '200':
           description: 修改成功
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserAccountRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/UserAccount' }
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
               example:
                 success: true
-                code: "OK"
-                message: "Profile updated"
-                timestamp: "2025-10-26T06:34:30.000Z"
+                code: OK
+                message: Profile updated
+                timestamp: '2025-10-26T06:34:30.000Z'
                 data:
                   id: 1001
-                  username: "eason"
-                  nickname: "Eason Chen"
-                  email: "eason@example.com"
-                  status: "ACTIVE"
-
+                  username: eason
+                  nickname: Eason Chen
+                  email: eason@example.com
+                  status: ACTIVE
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
   /users/me/email/change:
     post:
-      tags: [Users]
       summary: 申请变更邮箱（向新邮箱发送验证码）
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Users
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: b5db5f58-11c7-48e5-92cc-3a37d0322b66
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzEzMDgyMSwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzM5MDAyMSwiaWF0IjoxNzYzMTMwODIxLCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.6XhbpzXUd8ab51yqL-v08SiOZbQXNj_SvLcfoudyYfg
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: b5db5f58-11c7-48e5-92cc-3a37d0322b66
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ChangeEmailRequest' }
-            example: { newEmail: "new.eason@example.com" }
+            schema:
+              $ref: '#/components/schemas/ChangeEmailRequest'
+            example:
+              new_email: eason888111@gmail.com
+        required: true
       responses:
-        "202":
+        '202':
           description: 已发送验证码
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: true
-                code: "ACCEPTED"
-                message: "Verification code sent to new email"
-                timestamp: "2025-10-26T06:35:00.000Z"
-                data: null
-        "409":
-          description: 新邮箱已被占用
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "CONFLICT"
-                message: "Email already in use"
-                timestamp: "2025-10-26T06:35:00.000Z"
-                data: null
-
-  /users/me/email/verify:
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+        '409':
+          $ref: '#/components/responses/冲突'
+          description: ''
+        '429':
+          $ref: '#/components/responses/请求过多'
+          description: ''
+      security: []
+  /users/me/verify-email:
     post:
-      tags: [Users]
       summary: 验证新邮箱验证码并生效
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Users
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/VerifyNewEmailRequest' }
-            example: { newEmail: "new.eason@example.com", code: "556677" }
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+            example:
+              email: eason888111@gmail.com
+              code: '153403'
+        required: true
       responses:
-        "200":
+        '200':
           description: 已更新邮箱
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserAccountRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/UserAccount' }
-              example:
-                success: true
-                code: "OK"
-                message: "Email updated"
-                timestamp: "2025-10-26T06:35:20.000Z"
-                data:
-                  id: 1001
-                  username: "eason"
-                  nickname: "Eason"
-                  email: "new.eason@example.com"
-                  status: "ACTIVE"
-        "422":
-          description: 验证码错误或过期
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "UNPROCESSABLE_ENTITY"
-                message: "Invalid or expired code"
-                timestamp: "2025-10-26T06:35:20.000Z"
-                data: null
-
-  # =========================
-  # Profile
-  # =========================
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+              examples:
+                '1':
+                  summary: 成功示例
+                  value:
+                    success: true
+                    code: OK
+                    message: 邮箱地址已更新
+                    timestamp: '2025-11-15 14:42:19'
+                    data:
+                      id: 96
+                      username: leila-user_01
+                      nickname: Eason He
+                      email: eason888111@gmail.com
+                      phone: '+8110086881'
+                      status: ACTIVE
+                      last_login_at: '2025-11-15 14:29:57'
+                      created_at: '2025-11-06 06:51:00'
+                      updated_at: '2025-11-15 06:42:18'
+                '2':
+                  summary: 成功示例
+                  value:
+                    success: false
+                    code: UNPROCESSABLE_ENTITY
+                    message: Invalid or expired code
+                    timestamp: '2025-10-26T06:35:20.000Z'
+                    data: null
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
   /users/me/profile:
     get:
-      tags: [Profile]
       summary: 获取当前用户资料
+      deprecated: false
+      description: ''
+      tags:
+        - Profile
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserProfileRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/UserProfile' }
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
               example:
                 success: true
-                code: "OK"
-                message: "OK"
-                timestamp: "2025-10-26T06:36:00.000Z"
+                code: OK
+                message: OK
+                timestamp: '2025-11-15 17:12:20'
                 data:
-                  displayName: "Eason C."
-                  avatarUrl: "https://cdn.example.com/avatar/1001.png"
-                  gender: "UNKNOWN"
-                  country: "JP"
-
+                  display_name: Eason C.
+                  avatar_url: https://cdn.example.com/avatar/1001.png
+                  gender: FEMALE
+                  birthday: '1992-10-01'
+                  country: JP
+                  province: Tokyo
+                  city: Shinjuku
+                  address_line: 1-1-1 Nishi-Shinjuku
+                  zipcode: 160-0023
+          headers: {}
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+      security: []
     patch:
-      tags: [Profile]
       summary: 更新当前用户资料
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Profile
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/UpdateProfileRequest' }
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
             example:
-              displayName: "Eason C."
-              avatarUrl: "https://cdn.example.com/avatar/1001.png"
-              gender: "MALE"
-              country: "JP"
+              display_name: Eason C.
+              avatar_url: https://cdn.example.com/avatar/1001.png
+              gender: FEMALE
+              birthday: '1992-10-01'
+              country: JP
+              province: Tokyo
+              city: Shinjuku
+              address_line: 1-1-1 Nishi-Shinjuku
+              zipcode: 160-0023
+              extra:
+                language: ja-JP
+        required: true
       responses:
-        "200":
+        '200':
           description: 已更新
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/UserProfileRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/UserProfile' }
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
               example:
                 success: true
-                code: "OK"
-                message: "Profile updated"
-                timestamp: "2025-10-26T06:36:30.000Z"
+                code: OK
+                message: 个人资料更新成功
+                timestamp: '2025-11-15 21:37:04'
                 data:
-                  displayName: "Eason C."
-                  avatarUrl: "https://cdn.example.com/avatar/1001.png"
-                  gender: "MALE"
-                  country: "JP"
-
-  # =========================
-  # Bindings（第三方映射）
-  # =========================
+                  display_name: Eason C.
+                  avatar_url: https://cdn.example.com/avatar/1001.png
+                  gender: FEMALE
+                  birthday: '1992-10-01'
+                  country: JP
+                  province: Tokyo
+                  city: Shinjuku
+                  address_line: 1-1-1 Nishi-Shinjuku
+                  zipcode: 160-0023
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
   /users/me/bindings:
     get:
-      tags: [Bindings]
       summary: 查看当前用户的认证绑定列表
+      deprecated: false
+      description: ''
+      tags:
+        - Bindings
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
+          schema:
+            type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserAuthBindingRespond'
+                    description: 业务数据（随具体接口定义）
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/UserAuthBinding' }
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
               example:
                 success: true
-                code: "OK"
-                message: "OK"
-                timestamp: "2025-10-26T06:37:00.000Z"
+                code: OK
+                message: OK
+                timestamp: '2025-10-26T06:37:00.000Z'
                 data:
                   - id: 11
-                    provider: "GOOGLE"
-                    issuer: "https://accounts.google.com"
-                    providerUid: "1132..."
-                    scope: "openid email profile"
-
-  /users/me/bindings/{provider}/link:
-    post:
-      tags: [Bindings]
+                    provider: GOOGLE
+                    issuer: https://accounts.google.com
+                    providerUid: 1132...
+                    scope: openid email profile
+          headers: {}
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+      security: []
+  /users/me/bindings/{provider}/authorize:
+    get:
       summary: 绑定第三方账号
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Bindings
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
-        - $ref: '#/components/parameters/ProviderPath'
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                authCode:
-                  type: string
-                  description: 当采用 code 交换的直连绑定流程时使用
-                  example: "4/0AfJohXn...abc"
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
+          schema:
+            type: string
+        - name: provider
+          in: path
+          description: 第三方登录提供方
+          required: true
+          example: GOOGLE
+          schema:
+            type: string
+            enum:
+              - GOOGLE
+              - TIKTOK
+              - X
+        - name: redirectUrl
+          in: query
+          description: ''
+          required: false
+          example: https://shopping.mynatapp.cc/api/v1/users/me
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       responses:
-        "201":
-          description: 绑定成功
+        '302':
+          description: ''
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
-                    properties:
-                      data: { $ref: '#/components/schemas/UserAuthBinding' }
+                $ref: '#/components/schemas/Result'
               example:
                 success: true
-                code: "CREATED"
-                message: "Binding created"
-                timestamp: "2025-10-26T06:37:30.000Z"
+                code: FOUND
+                message: Redirecting to provider
+                timestamp: '2025-10-26T06:33:00.000Z'
                 data:
-                  id: 12
-                  provider: "GOOGLE"
-                  issuer: "https://accounts.google.com"
-                  providerUid: "1132..."
-        "409":
-          description: 该第三方账号已绑定其他用户
+                  url: https://accounts.google.com/o/oauth2/v2/auth?...
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+      security: []
+  /users/me/bindings/oauth2/{provider}/callback:
+    get:
+      summary: 第三方绑定回调（处理 code/state 或 error）
+      deprecated: false
+      description: >
+        第三方完成绑定后回跳，成功时轮换 CSRF Cookie 并 302 重定向到前端 redirectUrl；失败也会附带 redirectUrl
+        与错误信息。
+      tags:
+        - Bindings
+      parameters:
+        - name: provider
+          in: path
+          description: 第三方登录提供方
+          required: true
+          example: GOOGLE
+          schema:
+            type: string
+            enum:
+              - GOOGLE
+              - TIKTOK
+              - X
+        - name: code
+          in: query
+          description: 授权码
+          required: false
+          example: 4/0AfJohXn...abc
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: 回传的 state
+          required: false
+          example: d9e2b7b4f9c84b109a2a7c2f8f0c2c2d
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: 第三方回调错误码
+          required: false
+          example: access_denied
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: 第三方回调错误描述
+          required: false
+          example: The user denied the request
+          schema:
+            type: string
+      responses:
+        '302':
+          description: 绑定成功后重定向至前端页面
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
+              schema:
+                $ref: '#/components/schemas/Result'
               example:
-                success: false
-                code: "CONFLICT"
-                message: "Provider account already bound"
-                timestamp: "2025-10-26T06:37:30.000Z"
-                data: null
-
+                success: true
+                code: FOUND
+                message: Redirect to app
+                timestamp: '2025-10-26T06:33:20.000Z'
+                data:
+                  url: /dashboard
+          headers:
+            Set-Cookie:
+              required: false
+              description: 成功时 Set-Cookie/轮换 `csrf_token`
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+      security: []
   /users/me/bindings/{provider}:
     delete:
-      tags: [Bindings]
       summary: 解绑第三方账号
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Bindings
       parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
-        - $ref: '#/components/parameters/ProviderPath'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: 0a6f708d-30d9-4acf-bfda-d2f5adcbb3c3
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NyIsInVpZCI6OTcsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzQ4MDE3Mywicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzczOTM3MywiaWF0IjoxNzYzNDgwMTczLCJlbWFpbCI6ImVhc29uODg4MTFAZ21haWwuY29tIiwidXNlcm5hbWUiOiJnb29nbGVfMTE4MTQ4NTU2MDk0MTE1NTk0ODI4In0.cwVNYBgiCjsD0jPIXFI7FImy2cGgo0lDWzsclaEs3c0
+          schema:
+            type: string
+        - name: provider
+          in: path
+          description: 第三方登录提供方
+          required: true
+          example: GOOGLE
+          schema:
+            type: string
+            enum:
+              - GOOGLE
+              - TIKTOK
+              - X
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: 0a6f708d-30d9-4acf-bfda-d2f5adcbb3c3
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       responses:
-        "200":
+        '200':
           description: 已解绑
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: true
-                code: "OK"
-                message: "Binding removed"
-                timestamp: "2025-10-26T06:38:00.000Z"
-                data: null
-        "400":
-          description: 不允许解绑仅有的登录方式
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "BAD_REQUEST"
-                message: "Cannot remove the only login method"
-                timestamp: "2025-10-26T06:38:00.000Z"
-                data: null
-
-  # =========================
-  # Addresses（地址）
-  # =========================
+              schema:
+                $ref: '#/components/schemas/Result'
+              examples:
+                '1':
+                  summary: 成功示例
+                  value:
+                    success: true
+                    code: OK
+                    message: Binding removed
+                    timestamp: '2025-10-26T06:38:00.000Z'
+                    data: null
+                '2':
+                  summary: 成功示例
+                  value:
+                    success: false
+                    code: BAD_REQUEST
+                    message: Cannot remove the only login method
+                    timestamp: '2025-10-26T06:38:00.000Z'
+                    data: null
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+      security: []
   /users/me/addresses:
     get:
-      tags: [Addresses]
       summary: 列出当前用户的收货地址
+      deprecated: false
+      description: ''
+      tags:
+        - Addresses
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          example: '1'
+          schema:
+            type: string
+        - name: size
+          in: query
+          description: 每页个数
+          required: false
+          example: '5'
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AddressRespond'
+                    description: 业务数据（随具体接口定义）
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data:
-                        type: array
-                        items: { $ref: '#/components/schemas/Address' }
-                      meta:
-                        type: object
-                        properties:
-                          page: { type: integer, example: 1 }
-                          size: { type: integer, example: 20 }
-                          total: { type: integer, example: 2 }
-              example:
-                success: true
-                code: "OK"
-                message: "OK"
-                timestamp: "2025-10-26T06:39:00.000Z"
-                data:
-                  - id: 123
-                    receiverName: "张三"
-                    phone: "+81-90-1234-5678"
-                    addressLine1: "1-1-1"
-                    isDefault: true
-                  - id: 124
-                    receiverName: "李四"
-                    phone: "+81-90-9876-5432"
-                    addressLine1: "2-2-2"
-                    isDefault: false
-                meta:
-                  page: 1
-                  size: 20
-                  total: 2
-
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+      security: []
     post:
-      tags: [Addresses]
       summary: 新增收货地址
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Addresses
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: false
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: 幂等键（建议对创建类接口提供，格式 UUID）
+          required: false
+          example: '{{$string.uuid}}'
+          schema:
+            type: string
+            examples:
+              - 8c1f7f5a-9c91-4a40-8d9d-7e1c1b4b0b7d
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: 580eb99d-6460-4698-b737-534b6471c54c
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/CreateAddressRequest' }
+            schema:
+              $ref: '#/components/schemas/CreateAddressRequest'
             example:
-              receiverName: "张三"
-              phone: "+81-90-1234-5678"
-              addressLine1: "1-1-1"
-              zipcode: "160-0023"
-              isDefault: true
+              receiver_name: 张三
+              phone: +81-90-1234-5678
+              country: JP
+              province: Tokyo
+              city: Shinjuku
+              district: Nishi-Shinjuku
+              address_line1: 1-1-1
+              address_line2: Room 901
+              zipcode: 160-0023
+              is_default: true
+        required: true
       responses:
-        "201":
+        '201':
           description: 已创建
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/AddressRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/Address' }
-              example:
-                success: true
-                code: "CREATED"
-                message: "Address created"
-                timestamp: "2025-10-26T06:39:30.000Z"
-                data:
-                  id: 125
-                  receiverName: "张三"
-                  phone: "+81-90-1234-5678"
-                  addressLine1: "1-1-1"
-                  isDefault: true
-
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+          headers: {}
+        '202':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
   /users/me/addresses/{id}:
     get:
-      tags: [Addresses]
       summary: 获取收货地址详情
+      deprecated: false
+      description: ''
+      tags:
+        - Addresses
       parameters:
-        - $ref: '#/components/parameters/AddressId'
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: 收货地址ID
+          required: true
+          example: 1
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/AddressRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/Address' }
-              example:
-                success: true
-                code: "OK"
-                message: "OK"
-                timestamp: "2025-10-26T06:40:00.000Z"
-                data:
-                  id: 123
-                  receiverName: "张三"
-                  phone: "+81-90-1234-5678"
-                  addressLine1: "1-1-1"
-                  isDefault: true
-        "404":
-          description: 未找到或不属于当前用户
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
-              example:
-                success: false
-                code: "NOT_FOUND"
-                message: "Address not found"
-                timestamp: "2025-10-26T06:40:00.000Z"
-                data: null
-
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+      security: []
     patch:
-      tags: [Addresses]
       summary: 修改收货地址
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Addresses
       parameters:
-        - $ref: '#/components/parameters/AddressId'
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: false
+          example: c3c30828-0116-44d0-a5b5-72bef425b973
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzMwMTQyNCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzU2MDYyNCwiaWF0IjoxNzYzMzAxNDI0LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.rjWq0GVyuwFQaZ90M3gYEywvO6chu709ZaArpdOxOwI
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: 收货地址ID
+          required: true
+          example: 1
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: false
+          example: c3c30828-0116-44d0-a5b5-72bef425b973
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       requestBody:
-        required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/UpdateAddressRequest' }
+            schema:
+              $ref: '#/components/schemas/UpdateAddressRequest'
             example:
-              receiverName: "张三"
-              phone: "+81-90-1111-2222"
-              isDefault: false
+              receiver_name: 张三
+              phone: +81-90-1234-5678
+              country: JP
+              province: Tokyo
+              city: Shinjuku
+              district: Nishi-Shinjuku
+              address_line1: 1-1-1
+              address_line2: Room 901
+              zipcode: 160-0023
+              is_default: true
+        required: true
       responses:
-        "200":
+        '200':
           description: 已修改
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponseBase'
-                  - type: object
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/AddressRespond'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
                     properties:
-                      data: { $ref: '#/components/schemas/Address' }
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
               example:
                 success: true
-                code: "OK"
-                message: "Address updated"
-                timestamp: "2025-10-26T06:40:30.000Z"
+                code: OK
+                message: 地址已更新
+                timestamp: '2025-11-16 21:58:19'
                 data:
-                  id: 123
-                  receiverName: "张三"
-                  phone: "+81-90-1111-2222"
-                  addressLine1: "1-1-1"
-                  isDefault: false
-
+                  id: 1
+                  receiver_name: 张三
+                  phone: '+819012345678'
+                  country: JP
+                  province: Tokyo
+                  city: Shinjuku
+                  district: Nishi-Shinjuku
+                  address_line1: 1-1-1
+                  address_line2: Room 901
+                  zipcode: 160-0023
+                  is_default: false
+                  created_at: '2025-11-16 11:18:21'
+                  updated_at: '2025-11-16 11:32:16'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
     delete:
-      tags: [Addresses]
       summary: 删除收货地址
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Addresses
       parameters:
-        - $ref: '#/components/parameters/AddressId'
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: c3c30828-0116-44d0-a5b5-72bef425b973
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzMwMTQyNCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzU2MDYyNCwiaWF0IjoxNzYzMzAxNDI0LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.rjWq0GVyuwFQaZ90M3gYEywvO6chu709ZaArpdOxOwI
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: 收货地址ID
+          required: true
+          example: 1
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: c3c30828-0116-44d0-a5b5-72bef425b973
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       responses:
-        "200":
+        '200':
           description: 已删除
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
+              schema:
+                $ref: '#/components/schemas/Result'
               example:
                 success: true
-                code: "OK"
-                message: "Address deleted"
-                timestamp: "2025-10-26T06:41:00.000Z"
-                data: null
-
+                code: OK
+                message: 地址已删除
+                timestamp: '2025-11-16 23:10:20'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
   /users/me/addresses/{id}/set-default:
     post:
-      tags: [Addresses]
       summary: 设为默认地址（保证同用户仅一个默认）
-      security:
-        - cookieAuth: []
-          csrfHeader: []
-          csrfCookie: []
+      deprecated: false
+      description: ''
+      tags:
+        - Addresses
       parameters:
-        - $ref: '#/components/parameters/AddressId'
-        - $ref: '#/components/parameters/CsrfHeader'
-        - $ref: '#/components/parameters/CsrfCookie'
+        - name: csrf_token
+          in: cookie
+          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          required: true
+          example: c3c30828-0116-44d0-a5b5-72bef425b973
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzMwMTQyNCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzU2MDYyNCwiaWF0IjoxNzYzMzAxNDI0LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.rjWq0GVyuwFQaZ90M3gYEywvO6chu709ZaArpdOxOwI
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: 收货地址ID
+          required: true
+          example: 1
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: c3c30828-0116-44d0-a5b5-72bef425b973
+          schema:
+            type: string
+            examples:
+              - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       responses:
-        "200":
+        '200':
           description: 已设为默认
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ApiResponseBase' }
+              schema:
+                $ref: '#/components/schemas/Result'
               example:
                 success: true
-                code: "OK"
-                message: "Default address set"
-                timestamp: "2025-10-26T06:41:30.000Z"
+                code: OK
+                message: Default address set
+                timestamp: '2025-10-26T06:41:30.000Z'
                 data: null
+          headers: {}
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+      security: []
+webhooks: {}
+components:
+  schemas:
+    Result:
+      type: object
+      required:
+        - success
+        - code
+        - message
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: 业务是否成功（非 HTTP 含义）
+          examples:
+            - true
+        code:
+          type: string
+          description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+          examples:
+            - OK
+          enum:
+            - OK
+            - CREATED
+            - ACCEPTED
+            - FOUND
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - UNPROCESSABLE_ENTITY
+            - TOO_MANY_REQUESTS
+            - INTERNAL_SERVER_ERROR
+        message:
+          type: string
+          description: 人类可读的简短信息
+          examples:
+            - OK
+        timestamp:
+          type: string
+          format: date-time
+          description: 服务器时间
+          examples:
+            - '2025-10-26T06:30:00.123Z'
+        traceId:
+          type:
+            - string
+            - 'null'
+          description: 请求追踪ID
+          examples:
+            - af9c5b1f0e2a4c1b
+        data:
+          type: object
+          properties: {}
+          description: 业务数据（随具体接口定义）
+        meta:
+          description: 附加元信息（分页等，可选）
+          type:
+            - object
+            - 'null'
+          properties:
+            page:
+              type: integer
+              examples:
+                - 1
+            size:
+              type: integer
+              examples:
+                - 20
+            total:
+              type: integer
+              examples:
+                - 135
+    Gender:
+      type: string
+      enum:
+        - UNKNOWN
+        - MALE
+        - FEMALE
+    AuthProvider:
+      type: string
+      enum:
+        - LOCAL
+        - GOOGLE
+        - TIKTOK
+        - X
+    AccountStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - DISABLED
+    LoginRequest:
+      type: object
+      required:
+        - account
+        - password
+      properties:
+        account:
+          type: string
+          description: 用户名 / 邮箱 / 手机号其一
+          examples:
+            - eason
+        password:
+          type: string
+          format: password
+          examples:
+            - Passw0rd!
+    ResendActivationRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          examples:
+            - eason@example.com
+    VerifyEmailRequest:
+      type: object
+      required:
+        - email
+        - code
+      properties:
+        email:
+          type: string
+          format: email
+          examples:
+            - eason@example.com
+        code:
+          type: string
+          examples:
+            - '893642'
+    UpdateAddressRequest:
+      type: object
+      properties:
+        receiver_name:
+          type: string
+          examples:
+            - 张三
+        phone:
+          type: string
+          examples:
+            - +81-90-1234-5678
+        country:
+          type:
+            - string
+            - 'null'
+          examples:
+            - JP
+        province:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Tokyo
+        city:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Shinjuku
+        district:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Nishi-Shinjuku
+        address_line1:
+          type: string
+          examples:
+            - 1-1-1
+        address_line2:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Room 901
+        zipcode:
+          type:
+            - string
+            - 'null'
+          examples:
+            - 160-0023
+        is_default:
+          type: boolean
+          examples:
+            - true
+    CreateAddressRequest:
+      type: object
+      required:
+        - receiver_name
+        - phone
+        - address_line1
+      properties:
+        receiver_name:
+          type: string
+          examples:
+            - 张三
+        phone:
+          type: string
+          examples:
+            - +81-90-1234-5678
+        country:
+          type:
+            - string
+            - 'null'
+          examples:
+            - JP
+        province:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Tokyo
+        city:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Shinjuku
+        district:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Nishi-Shinjuku
+        address_line1:
+          type: string
+          examples:
+            - 1-1-1
+        address_line2:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Room 901
+        zipcode:
+          type:
+            - string
+            - 'null'
+          examples:
+            - 160-0023
+        is_default:
+          type: boolean
+          default: false
+          examples:
+            - true
+    UpdateProfileRequest:
+      type: object
+      properties:
+        display_name:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Eason C.
+        avatar_url:
+          type:
+            - string
+            - 'null'
+          examples:
+            - https://cdn.example.com/avatar/1001.png
+        gender:
+          $ref: '#/components/schemas/Gender'
+        birthday:
+          type:
+            - string
+            - 'null'
+          format: date
+          examples:
+            - '1992-10-01'
+        country:
+          type:
+            - string
+            - 'null'
+          examples:
+            - JP
+        province:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Tokyo
+        city:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Shinjuku
+        address_line:
+          type:
+            - string
+            - 'null'
+          examples:
+            - 1-1-1 Nishi-Shinjuku
+        zipcode:
+          type:
+            - string
+            - 'null'
+          examples:
+            - 160-0023
+        extra:
+          type: object
+          additionalProperties: true
+          examples:
+            - language: ja-JP
+          properties: {}
+    ChangeEmailRequest:
+      type: object
+      required:
+        - new_email
+      properties:
+        new_email:
+          type: string
+          format: email
+          examples:
+            - new.eason@example.com
+    UpdateAccountRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+          examples:
+            - Eason Chen
+        phone:
+          type:
+            - string
+            - 'null'
+          examples:
+            - +81-80-0000-0000
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+        - email
+        - nickname
+      properties:
+        username:
+          type: string
+          examples:
+            - eason
+        password:
+          type: string
+          format: password
+          minLength: 6
+          examples:
+            - Passw0rd!
+        nickname:
+          type: string
+          examples:
+            - Eason
+        email:
+          type: string
+          format: email
+          examples:
+            - eason@example.com
+        phone:
+          type:
+            - string
+            - 'null'
+          examples:
+            - +86-13800138000
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - account
+      properties:
+        account:
+          type: string
+          description: 用户名 / 邮箱 / 手机号其一，用于发送重置验证码
+          examples:
+            - eason@example.com
+    ResetPasswordRequest:
+      type: object
+      required:
+        - account
+        - code
+        - new_password
+      properties:
+        account:
+          type: string
+          description: 用户名 / 邮箱 / 手机号其一
+          examples:
+            - eason
+        code:
+          type: string
+          examples:
+            - '893642'
+        new_password:
+          type: string
+          format: password
+          minLength: 6
+          examples:
+            - NewPassw0rd!
+    AddressRespond:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 123
+        receiver_name:
+          type: string
+          examples:
+            - 张三
+        phone:
+          type: string
+          examples:
+            - +81-90-1234-5678
+        country:
+          type:
+            - string
+            - 'null'
+          examples:
+            - JP
+        province:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Tokyo
+        city:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Shinjuku
+        district:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Nishi-Shinjuku
+        address_line1:
+          type: string
+          examples:
+            - 1-1-1
+        address_line2:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Room 901
+        zipcode:
+          type:
+            - string
+            - 'null'
+          examples:
+            - 160-0023
+        is_default:
+          type: boolean
+          examples:
+            - true
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2025-10-20T10:00:00.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          examples:
+            - '2025-10-25T09:10:00.000Z'
+      required:
+        - id
+        - receiver_name
+        - phone
+        - address_line1
+        - is_default
+        - created_at
+        - updated_at
+    UserAuthBindingRespond:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 11
+        provider:
+          $ref: '#/components/schemas/AuthProvider'
+        issuer:
+          type:
+            - string
+            - 'null'
+          examples:
+            - https://accounts.google.com
+        providerUid:
+          type: string
+          examples:
+            - '1132244556677889900'
+        scope:
+          type:
+            - string
+            - 'null'
+          examples:
+            - openid email profile
+        lastLoginAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          examples:
+            - '2025-10-25T08:00:00.000Z'
+        createdAt:
+          type: string
+          format: date-time
+          examples:
+            - '2025-10-20T10:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          examples:
+            - '2025-10-25T08:00:00.000Z'
+    UserProfileRespond:
+      type: object
+      properties:
+        displayName:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Eason
+        avatarUrl:
+          type:
+            - string
+            - 'null'
+          examples:
+            - https://cdn.example.com/avatar/1001.png
+        gender:
+          $ref: '#/components/schemas/Gender'
+        birthday:
+          type:
+            - string
+            - 'null'
+          format: date
+          examples:
+            - '1990-01-01'
+        country:
+          type:
+            - string
+            - 'null'
+          examples:
+            - CN
+        province:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Guangdong
+        city:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Guangzhou
+        addressLine:
+          type:
+            - string
+            - 'null'
+          examples:
+            - Tianhe CBD
+        zipcode:
+          type:
+            - string
+            - 'null'
+          examples:
+            - '510000'
+        extra:
+          type: object
+          additionalProperties: true
+          examples:
+            - marketingOptIn: true
+          properties: {}
+      required:
+        - gender
+    UserAccountRespond:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 1001
+        username:
+          type: string
+          examples:
+            - eason
+        nickname:
+          type: string
+          examples:
+            - Eason
+        email:
+          type:
+            - string
+            - 'null'
+          format: email
+          examples:
+            - eason@example.com
+        phone:
+          type:
+            - string
+            - 'null'
+          examples:
+            - +86-13800138000
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        lastLogin_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          examples:
+            - '2025-10-25T09:10:00.000Z'
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2025-10-20T10:00:00.000Z'
+        updated_at:
+          type: string
+          format: date-time
+          examples:
+            - '2025-10-25T09:10:00.000Z'
+      required:
+        - id
+        - username
+        - nickname
+        - status
+        - created_at
+        - updated_at
+  responses:
+    已创建:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    参数错误:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            空值或格式错误:
+              summary: 空值或格式错误
+              value:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+    已接受:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    重定向:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    未鉴权:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+    权限不足:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+    未找到:
+      description: ''
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: {}
+    冲突:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+    无法处理的实体:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: UNPROCESSABLE_ENTITY
+                message: 验证码错误或已过期
+                timestamp: '2025-11-06 15:28:11'
+    服务器内部错误:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    请求过多:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+  securitySchemes: {}
+servers: []
+security: []
