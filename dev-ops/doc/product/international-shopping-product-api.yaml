@@ -365,7 +365,7 @@ paths:
           example: phones
           schema:
             type: string
-        - name: q
+        - name: query
           in: query
           description: 关键词，匹配 title/subtitle（全文索引 ftx_prod_text 或 ftx_prod_i18n_text）
           required: false
