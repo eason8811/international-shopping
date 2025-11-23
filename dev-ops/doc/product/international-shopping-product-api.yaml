@@ -34,6 +34,17 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAP42CD338G2ZP2ESF1HP4CZ:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CategoryNode'
+                        description: 业务数据（随具体接口定义）
+                x-apifox-orders:
+                  - 01KAP42CD338G2ZP2ESF1HP4CZ
                 properties:
                   success:
                     type: boolean
@@ -79,55 +90,7 @@ paths:
                   data:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                          format: int64
-                        parent_id:
-                          type:
-                            - integer
-                            - 'null'
-                          format: int64
-                        name:
-                          type: string
-                        slug:
-                          type: string
-                        level:
-                          type: integer
-                        path:
-                          type:
-                            - string
-                            - 'null'
-                        sort_order:
-                          type: integer
-                        brand:
-                          type:
-                            - string
-                            - 'null'
-                        locale:
-                          type:
-                            - string
-                            - 'null'
-                          description: 当前返回内容的语言
-                        i18n:
-                          type:
-                            - object
-                            - 'null'
-                          description: 本地化覆盖（来自 product_category_i18n）
-                          properties:
-                            name:
-                              type: string
-                            slug:
-                              type: string
-                            brand:
-                              type:
-                                - string
-                                - 'null'
-                        children:
-                          type: array
-                          items:
-                            $ref: '#/components/schemas/CategoryNode'
+                      $ref: '#/components/schemas/CategoryNode'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -147,11 +110,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -314,13 +290,20 @@ paths:
                   size: 20
                   total: 135
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: product/Categories
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380647326-run
   /products:
     get:
       summary: 搜索/筛选商品列表
@@ -334,16 +317,16 @@ paths:
           in: query
           description: 页码（从 1 开始）
           required: false
-          example: '1'
+          example: 1
           schema:
-            type: string
+            type: integer
         - name: size
           in: query
           description: 每页个数
           required: false
-          example: '20'
+          example: 20
           schema:
-            type: string
+            type: integer
         - name: locale
           in: query
           description: 语言代码，用于读取 product_i18n / product_category_i18n
@@ -383,16 +366,16 @@ paths:
           in: query
           description: 价格下限（与 `currency` 同币种）
           required: false
-          example: '100'
+          example: 100
           schema:
-            type: string
+            type: integer
         - name: price_max
           in: query
           description: 价格上限（与 `currency` 同币种）
           required: false
-          example: '2000'
+          example: 2000
           schema:
-            type: string
+            type: integer
         - name: sort_by
           in: query
           description: 排序字段（最新/销量/价格）
@@ -412,6 +395,17 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAP592E9SY7G5JD60K70WDTD:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ProductSpu'
+                        description: 业务数据（随具体接口定义）
+                x-apifox-orders:
+                  - 01KAP592E9SY7G5JD60K70WDTD
                 properties:
                   success:
                     type: boolean
@@ -455,8 +449,10 @@ paths:
                     examples:
                       - af9c5b1f0e2a4c1b
                   data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductSpu'
                     description: 业务数据（随具体接口定义）
-                    $ref: '#/components/schemas/ProductSpu'
                   meta:
                     description: 附加元信息（分页等，可选）
                     type:
@@ -475,11 +471,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -487,37 +496,96 @@ paths:
                 timestamp: '2025-10-26T06:30:00.123Z'
                 traceId: af9c5b1f0e2a4c1b
                 data:
-                  id: 77
-                  slug: velit tempor
-                  title: 嘘从大哦热实际上幸亏油门因为拆
-                  subtitle: 净索性对于以免直到嘘
-                  description: 音值员没飞员每要。料王专。发置文亲行克两小管列。广治路世往家。已品们领点处议养重。
-                  category_id: 65
-                  category_slug: exercitation aliqua consectetur pariatur adipisicing
-                  brand: sed ut
-                  cover_image_url: https://loremflickr.com/400/400?lock=6903119249553753
-                  stock_total: 34
-                  sale_count: 8
-                  sku_type: VARIANT
-                  status: ON_SALE
-                  tags:
-                    - in consequat tempor labore
-                  price_range:
-                    currency: Duis ex dolor
-                    list_price_min: 861.2
-                    list_price_max: 237.45
-                    sale_price_min: 749.75
-                    sale_price_max: 710.9
-                  liked_at: '1981-09-07T03:37:35.197Z'
-                meta: null
+                  - id: 81
+                    slug: consectetur amet
+                    title: 喝哎呀关于蠕动哼平常代表统统
+                    subtitle: 老实哪个单离开因为
+                    description: 易系心分里题局度法没。决建接示并林办保数。般压律。六务了员了任由治。发解进。
+                    category_id: 45
+                    category_slug: dolore do nulla sunt
+                    brand: sint
+                    cover_image_url: https://loremflickr.com/400/400?lock=2420214479444327
+                    stock_total: 23
+                    sale_count: 59
+                    sku_type: VARIANT
+                    status: OFF_SHELF
+                    tags:
+                      - voluptate labore
+                      - labore sit et
+                      - magna sint ea amet
+                    price_range:
+                      currency: ipsum ut
+                      list_price_min: 583
+                      list_price_max: 602.85
+                      sale_price_min: 167.69
+                      sale_price_max: 339.89
+                    liked_at: '2009-02-26T16:11:36.371Z'
+                  - id: 83
+                    slug: qui sit
+                    title: 多亏坏短而
+                    subtitle: 甜蠕动对细平常拉仅仅围绕着
+                    description: 八展很重厂已眼所存。委光院回真工流。方带解。精该北写事斯角对。点名现查万地。部头需话复。
+                    category_id: 96
+                    category_slug: nisi ullamco do adipisicing
+                    brand: null
+                    cover_image_url: https://loremflickr.com/400/400?lock=253926199252670
+                    stock_total: 42
+                    sale_count: 79
+                    sku_type: SINGLE
+                    status: OFF_SHELF
+                    tags:
+                      - est anim commodo
+                    price_range:
+                      currency: laboris
+                      list_price_min: 353.2
+                      list_price_max: 635.17
+                      sale_price_min: 65.19
+                      sale_price_max: 689.89
+                    liked_at: null
+                  - id: 70
+                    slug: non in consectetur Lorem
+                    title: 摔鸟笼坚固驳船谁掘
+                    subtitle: 托架糟糕骨碌碌关于比杏子比
+                    description: >-
+                      变种听间带拉。她志八完千少对带。始管前京个区果。数行色技事值角第解。做管元响学低细就具来。层马族听当更给越。了华着油音情团百民。金受工运日复决。
+                    category_id: 43
+                    category_slug: consequat
+                    brand: voluptate exercitation ex anim deserunt
+                    cover_image_url: https://loremflickr.com/400/400?lock=7607717463411970
+                    stock_total: 22
+                    sale_count: 11
+                    sku_type: SINGLE
+                    status: OFF_SHELF
+                    tags:
+                      - amet laboris proident exercitation
+                      - consequat culpa
+                      - reprehenderit fugiat in
+                    price_range:
+                      currency: sunt exercitation ipsum
+                      list_price_min: 167.69
+                      list_price_max: 296.16
+                      sale_price_min: 623.89
+                      sale_price_max: 535.94
+                    liked_at: '1988-04-12T18:37:03.949Z'
+                meta:
+                  page: 1
+                  size: 20
+                  total: 135
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: product/Products
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380647327-run
   /products/{slug}:
     get:
       summary: 获取商品详情（含 SKU / 规格 / 多语言）
@@ -555,6 +623,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAP96DE3V2TPNR9G7CASY96X:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/ProductDetail'
+                    required: []
+                x-apifox-orders:
+                  - 01KAP96DE3V2TPNR9G7CASY96X
                 properties:
                   success:
                     type: boolean
@@ -618,11 +696,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -752,13 +843,20 @@ paths:
                     tags:
                       - flagship
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: product/Products
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380647328-run
   /products/{product_id}/like:
     put:
       summary: 点赞商品（幂等，重复点赞不会报错）
@@ -804,6 +902,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAP9A2QC7G4DGX93TXWCE7PM:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/LikeState'
+                    required: []
+                x-apifox-orders:
+                  - 01KAP9A2QC7G4DGX93TXWCE7PM
                 properties:
                   success:
                     type: boolean
@@ -867,11 +975,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -881,19 +1002,28 @@ paths:
                   liked: true
                   liked_at: '2025-11-06T12:20:00.000Z'
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 3
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 4
       security: []
+      x-apifox-folder: product/Likes
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380647329-run
     delete:
       summary: 取消点赞商品（幂等，未点赞也视为成功）
       deprecated: false
@@ -937,7 +1067,98 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Result'
+                type: object
+                x-apifox-refs:
+                  01KAR71Q2MS8VA73NYXH37Y0D9:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/LikeState'
+                    required: []
+                x-apifox-orders:
+                  - 01KAR71Q2MS8VA73NYXH37Y0D9
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/LikeState'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -947,19 +1168,28 @@ paths:
                   liked: false
                   liked_at: null
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 3
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 4
       security: []
+      x-apifox-folder: product/Likes
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380647330-run
   /users/me/likes/products:
     get:
       summary: 获取我点赞的商品列表
@@ -1026,6 +1256,18 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAP9DV93WA48CR7HZRTRADEE:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ProductSpu'
+                        description: 业务数据（随具体接口定义）
+                    required: []
+                x-apifox-orders:
+                  - 01KAP9DV93WA48CR7HZRTRADEE
                 properties:
                   success:
                     type: boolean
@@ -1091,59 +1333,126 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
                 message: OK
-                timestamp: '2025-11-06T12:25:00.000Z'
+                timestamp: '2025-10-26T06:30:00.123Z'
+                traceId: af9c5b1f0e2a4c1b
                 data:
-                  items:
-                    - id: 101
-                      slug: iphone-16
-                      title: iPhone 16
-                      subtitle: A18 仿生旗舰
-                      description: null
-                      category_id: 2
-                      category_slug: phones
-                      brand: Apple
-                      cover_image_url: https://cdn.example.com/p/iphone16/main.jpg
-                      stock_total: 520
-                      sale_count: 13450
-                      sku_type: VARIANT
-                      status: ON_SALE
-                      tags:
-                        - 5g
-                        - flagship
-                      price_range:
-                        currency: USD
-                        list_price_min: 1099
-                        list_price_max: 1399
-                        sale_price_min: 999
-                        sale_price_max: 1299
-                      liked_at: '2025-11-06T12:20:00.000Z'
-                meta:
-                  page: 1
-                  size: 10
-                  total: 37
+                  - id: 74
+                    slug: dolor
+                    title: 朝向从每减去酒吧聪明
+                    subtitle: 帽子只嚼捺
+                    description: 强面为教很问就。直治位多使。济马难如。高期次员量指标。
+                    category_id: 93
+                    category_slug: ullamco
+                    brand: null
+                    cover_image_url: https://loremflickr.com/400/400?lock=1146177234546289
+                    stock_total: 2
+                    sale_count: 18
+                    sku_type: VARIANT
+                    status: ON_SALE
+                    tags:
+                      - esse Excepteur cillum ut
+                    price_range:
+                      currency: dolore dolor
+                      list_price_min: 844.59
+                      list_price_max: 777.65
+                      sale_price_min: 539.89
+                      sale_price_max: 620.44
+                    liked_at: null
+                  - id: 29
+                    slug: esse
+                    title: 军营一味粗细航空公司绿
+                    subtitle: 嗯嗯坚固硬但是软然而黑不溜秋出价
+                    description: >-
+                      维主步比。重酸称走大们划规千火。间观面规月青二被。如北使布而标求叫根。片拉值头加统写议。低下称商内有质收。义参消传报她在压世。
+                    category_id: 93
+                    category_slug: mollit
+                    brand: elit ut eiusmod
+                    cover_image_url: https://loremflickr.com/400/400?lock=921536448230394
+                    stock_total: 73
+                    sale_count: 27
+                    sku_type: SINGLE
+                    status: DRAFT
+                    tags:
+                      - occaecat proident et ut
+                      - est enim cupidatat
+                      - quis id fugiat
+                    price_range:
+                      currency: enim pariatur sint tempor
+                      list_price_min: 225.4
+                      list_price_max: 877.89
+                      sale_price_min: 236.45
+                      sale_price_max: 266.09
+                    liked_at: '1980-11-16T22:08:22.427Z'
+                  - id: 70
+                    slug: aute in ex ad
+                    title: 绿角度协助哎呀像撞骨碌碌到
+                    subtitle: 面对大约联盟仅仅也不骨碌碌骨碌碌意识以啊
+                    description: 见质即先形结重求族。八花治速质家。如阶情素越法部权标但。织王术价处性提。开青发细第。按白都转接。立实非场连内。
+                    category_id: 45
+                    category_slug: incididunt Excepteur
+                    brand: Duis mollit exercitation ex
+                    cover_image_url: https://loremflickr.com/400/400?lock=6388477413048108
+                    stock_total: 73
+                    sale_count: 37
+                    sku_type: SINGLE
+                    status: ON_SALE
+                    tags:
+                      - fugiat
+                      - enim quis
+                      - sunt reprehenderit
+                    price_range:
+                      currency: reprehenderit proident
+                      list_price_min: 904.49
+                      list_price_max: 567.79
+                      sale_price_min: 760.99
+                      sale_price_max: 505.4
+                    liked_at: null
+                meta: null
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 3
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 4
       security: []
+      x-apifox-folder: product/Likes
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380647331-run
 webhooks: {}
 components:
   schemas:
@@ -1200,6 +1509,8 @@ components:
           type: object
           properties: {}
           description: 业务数据（随具体接口定义）
+          x-apifox-orders: []
+          x-apifox-ignore-properties: []
         meta:
           description: 附加元信息（分页等，可选）
           type:
@@ -1218,6 +1529,21 @@ components:
               type: integer
               examples:
                 - 135
+          x-apifox-orders:
+            - page
+            - size
+            - total
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - success
+        - code
+        - message
+        - timestamp
+        - traceId
+        - data
+        - meta
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     CategoryNode:
       type: object
       properties:
@@ -1264,10 +1590,44 @@ components:
               type:
                 - string
                 - 'null'
+          x-apifox-orders:
+            - name
+            - slug
+            - brand
+          x-apifox-ignore-properties: []
         children:
           type: array
           items:
             $ref: '#/components/schemas/CategoryNode'
+        is_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      x-apifox-orders:
+        - id
+        - parent_id
+        - name
+        - slug
+        - level
+        - path
+        - sort_order
+        - brand
+        - locale
+        - i18n
+        - children
+        - is_enabled
+        - created_at
+        - updated_at
+      required:
+        - is_enabled
+        - created_at
+        - updated_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductStatus:
       type: string
       enum:
@@ -1275,16 +1635,19 @@ components:
         - ON_SALE
         - OFF_SHELF
         - DELETED
+      x-apifox-folder: products
     SkuStatus:
       type: string
       enum:
         - ENABLED
         - DISABLED
+      x-apifox-folder: products
     SkuType:
       type: string
       enum:
         - SINGLE
         - VARIANT
+      x-apifox-folder: products
     SpecType:
       type: string
       enum:
@@ -1293,6 +1656,7 @@ components:
         - CAPACITY
         - MATERIAL
         - OTHER
+      x-apifox-folder: products
     ProductPriceRange:
       type: object
       properties:
@@ -1314,6 +1678,14 @@ components:
             - number
             - 'null'
           format: double
+      x-apifox-orders:
+        - currency
+        - list_price_min
+        - list_price_max
+        - sale_price_min
+        - sale_price_max
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductPrice:
       type: object
       properties:
@@ -1329,6 +1701,13 @@ components:
           format: double
         is_active:
           type: boolean
+      x-apifox-orders:
+        - currency
+        - list_price
+        - sale_price
+        - is_active
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductImage:
       type: object
       properties:
@@ -1338,6 +1717,12 @@ components:
           type: boolean
         sort_order:
           type: integer
+      x-apifox-orders:
+        - url
+        - is_main
+        - sort_order
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductSpecValue:
       type: object
       properties:
@@ -1353,7 +1738,16 @@ components:
             - object
             - 'null'
           additionalProperties: true
+          x-apifox-orders: []
           properties: {}
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - value_id
+        - value_code
+        - value_name
+        - attributes
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductSpec:
       type: object
       properties:
@@ -1372,6 +1766,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductSpecValue'
+      x-apifox-orders:
+        - spec_id
+        - spec_code
+        - spec_name
+        - spec_type
+        - is_required
+        - values
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductSkuSpec:
       type: object
       properties:
@@ -1389,6 +1792,15 @@ components:
           type: string
         value_name:
           type: string
+      x-apifox-orders:
+        - spec_id
+        - spec_code
+        - spec_name
+        - value_id
+        - value_code
+        - value_name
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductSku:
       type: object
       properties:
@@ -1424,6 +1836,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductImage'
+      x-apifox-orders:
+        - id
+        - sku_code
+        - stock
+        - weight
+        - status
+        - is_default
+        - barcode
+        - price
+        - specs
+        - images
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductSpu:
       type: object
       properties:
@@ -1474,6 +1899,25 @@ components:
             - string
             - 'null'
           format: date-time
+      x-apifox-orders:
+        - id
+        - slug
+        - title
+        - subtitle
+        - description
+        - category_id
+        - category_slug
+        - brand
+        - cover_image_url
+        - stock_total
+        - sale_count
+        - sku_type
+        - status
+        - tags
+        - price_range
+        - liked_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     ProductDetail:
       type: object
       properties:
@@ -1558,6 +2002,36 @@ components:
               type: array
               items:
                 type: string
+          x-apifox-orders:
+            - locale
+            - title
+            - subtitle
+            - description
+            - slug
+            - tags
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - id
+        - slug
+        - title
+        - subtitle
+        - description
+        - category_id
+        - category_slug
+        - brand
+        - cover_image_url
+        - stock_total
+        - sale_count
+        - sku_type
+        - status
+        - tags
+        - default_sku_id
+        - gallery
+        - specs
+        - skus
+        - i18n
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     LikeState:
       type: object
       properties:
@@ -1568,6 +2042,11 @@ components:
             - string
             - 'null'
           format: date-time
+      x-apifox-orders:
+        - liked
+        - liked_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: products
     Result1:
       type: object
       required:
@@ -1599,6 +2078,43 @@ components:
             - UNPROCESSABLE_ENTITY
             - TOO_MANY_REQUESTS
             - INTERNAL_SERVER_ERROR
+          x-apifox-enum:
+            - value: OK
+              name: OK
+              description: 成功
+            - value: CREATED
+              name: Created
+              description: 已创建
+            - value: ACCEPTED
+              name: Accepted
+              description: 已接受
+            - value: FOUND
+              name: Found / Redirect
+              description: 重定向
+            - value: BAD_REQUEST
+              name: Bad Request
+              description: 参数错误
+            - value: UNAUTHORIZED
+              name: Unauthorized
+              description: 未授权
+            - value: FORBIDDEN
+              name: Forbidden
+              description: 没有权限
+            - value: NOT_FOUND
+              name: Not Found
+              description: 未找到
+            - value: CONFLICT
+              name: Conflict
+              description: 冲突
+            - value: UNPROCESSABLE_ENTITY
+              name: Unprocessable Entity
+              description: 不能处理的实体
+            - value: TOO_MANY_REQUESTS
+              name: Too Many Requests
+              description: 请求过多
+            - value: INTERNAL_SERVER_ERROR
+              name: Internal Server Error
+              description: 服务器内部错误
         message:
           type: string
           description: 人类可读的简短信息
@@ -1620,7 +2136,9 @@ components:
         data:
           type: object
           properties: {}
+          x-apifox-orders: []
           description: 业务数据（随具体接口定义）
+          x-apifox-ignore-properties: []
         meta:
           description: 附加元信息（分页等，可选）
           type:
@@ -1639,6 +2157,21 @@ components:
               type: integer
               examples:
                 - 135
+          x-apifox-orders:
+            - page
+            - size
+            - total
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - success
+        - code
+        - message
+        - timestamp
+        - traceId
+        - data
+        - meta
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
   responses:
     已创建:
       description: ''

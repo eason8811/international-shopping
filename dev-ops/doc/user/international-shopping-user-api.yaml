@@ -57,9 +57,12 @@ paths:
                     message: 邮箱已存在
                     timestamp: '2025-11-06 11:38:40'
           headers: {}
+          x-apifox-name: 已接受
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '409':
           description: 用户名/邮箱/手机号已存在
           content:
@@ -67,10 +70,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/Result'
           headers: {}
+          x-apifox-name: 冲突
+          x-apifox-ordering: 2
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 3
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958704-run
   /auth/email-status:
     get:
       summary: 轮询邮件发送状态
@@ -105,10 +114,16 @@ paths:
                   message_id: af4cae0f-b38d-4be8-891c-0807c5e28d3a
                   status: DELIVERED
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-371599921-run
   /auth/verify-email:
     post:
       summary: 验证邮箱验证码并激活账户（status=ACTIVE）
@@ -133,6 +148,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN350B858MXR13XPW07CSF6:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserAccountRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN350B858MXR13XPW07CSF6
                 properties:
                   success:
                     type: boolean
@@ -157,6 +182,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -196,11 +258,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: CREATED
@@ -223,13 +298,20 @@ paths:
                 csrf_token=...; Secure; SameSite=Lax
               schema:
                 type: string
+          x-apifox-name: 已创建
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '422':
           $ref: '#/components/responses/无法处理的实体'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958705-run
   /auth/resend-activation:
     post:
       summary: 重新发送激活邮件
@@ -254,13 +336,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/Result'
           headers: {}
+          x-apifox-name: 已接受
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958706-run
   /auth/login:
     post:
       summary: 本地登录（用户名/邮箱/手机号 + 密码）
@@ -285,6 +374,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN3629GSG269XD6PW7CF9SD:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserAccountRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN3629GSG269XD6PW7CF9SD
                 properties:
                   success:
                     type: boolean
@@ -309,6 +408,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -348,11 +484,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               examples:
                 '1':
                   summary: 成功示例
@@ -386,9 +535,12 @@ paths:
                 csrf_token=...; Secure; SameSite=Lax
               schema:
                 type: string
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           description: 认证失败（密码错误或账户未激活）
           content:
@@ -396,7 +548,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Result'
           headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958707-run
   /auth/password/forgot:
     post:
       summary: 发起重置密码（发送验证码至绑定邮箱）
@@ -416,6 +573,8 @@ paths:
         required: true
       responses:
         '202':
+          x-apifox-name: 已接受
+          x-apifox-ordering: 0
           description: 验证码已发送（或已受理）
           content:
             application/json:
@@ -430,10 +589,15 @@ paths:
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380546353-run
   /auth/password/reset:
     post:
       summary: 验证验证码并重置密码（找回密码）
@@ -454,11 +618,23 @@ paths:
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: 密码已重置（Set-Cookie 会话 + CSRF）
           content:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN376RA2AJ1K6ZD4HNYK6YD:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserAccountRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN376RA2AJ1K6ZD4HNYK6YD
                 properties:
                   success:
                     type: boolean
@@ -483,6 +659,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -522,11 +735,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -553,10 +779,15 @@ paths:
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '422':
           $ref: '#/components/responses/无法处理的实体'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380546354-run
   /auth/logout:
     post:
       summary: 退出登录（清除 Cookie 或使其失效）
@@ -596,10 +827,16 @@ paths:
               description: 清除 access_token/csrf_token
               schema:
                 type: string
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958708-run
   /auth/refresh-token:
     post:
       summary: 刷新访问令牌（依赖 refresh_token Cookie + CSRF）
@@ -639,13 +876,20 @@ paths:
               description: 更新 access_token（以及可选轮换 csrf_token）
               schema:
                 type: string
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958709-run
   /auth/csrf:
     get:
       summary: 获取/轮换 CSRF 令牌（返回并 Set-Cookie）
@@ -676,7 +920,12 @@ paths:
               description: 'Set-Cookie: csrf_token=...; Secure; SameSite=Strict|Lax'
               schema:
                 type: string
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
       security: []
+      x-apifox-folder: user/Auth
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958710-run
   /oauth2/{provider}/authorize:
     get:
       summary: 跳转至第三方授权页（生成并缓存 state/nonce/code_verifier）
@@ -696,6 +945,16 @@ paths:
               - GOOGLE
               - TIKTOK
               - X
+            x-apifox-enum:
+              - value: GOOGLE
+                name: 谷歌
+                description: ''
+              - value: TIKTOK
+                name: TT
+                description: ''
+              - value: X
+                name: X
+                description: ''
         - name: redirectUrl
           in: query
           description: 登录完成后跳回的站内地址
@@ -720,10 +979,16 @@ paths:
                 data:
                   url: https://accounts.google.com/o/oauth2/v2/auth?...
           headers: {}
+          x-apifox-name: 临时重定向
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/OAuth2
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958711-run
   /oauth2/{provider}/callback:
     get:
       summary: 第三方回调（处理 code/state 或 error）
@@ -743,6 +1008,16 @@ paths:
               - GOOGLE
               - TIKTOK
               - X
+            x-apifox-enum:
+              - value: GOOGLE
+                name: 谷歌
+                description: ''
+              - value: TIKTOK
+                name: TT
+                description: ''
+              - value: X
+                name: X
+                description: ''
         - name: code
           in: query
           description: 授权码
@@ -784,7 +1059,12 @@ paths:
               description: 成功时 Set-Cookie `access_token` 与 `csrf_token`
               schema:
                 type: string
+          x-apifox-name: 临时重定向
+          x-apifox-ordering: 0
       security: []
+      x-apifox-folder: user/OAuth2
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958712-run
   /users/me:
     get:
       summary: 获取当前用户账户信息
@@ -822,6 +1102,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN38Y324V34AQZCQ6V2P9SH:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserAccountRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN38Y324V34AQZCQ6V2P9SH
                 properties:
                   success:
                     type: boolean
@@ -846,6 +1136,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -885,11 +1212,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               examples:
                 '1':
                   summary: 成功示例
@@ -916,6 +1256,8 @@ paths:
                     message: Unauthorized
                     timestamp: '2025-11-14 16:36:15'
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '401':
           description: 未登录
           content:
@@ -923,7 +1265,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Result'
           headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/Users
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958713-run
     patch:
       summary: 修改当前用户账户信息（昵称、手机号等）
       deprecated: false
@@ -973,6 +1320,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN53MXJX31Z8X1DM5DF0MY4:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserAccountRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN53MXJX31Z8X1DM5DF0MY4
                 properties:
                   success:
                     type: boolean
@@ -997,6 +1354,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -1036,11 +1430,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -1053,16 +1460,24 @@ paths:
                   email: eason@example.com
                   status: ACTIVE
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 3
       security: []
+      x-apifox-folder: user/Users
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958714-run
   /users/me/email/change:
     post:
       summary: 申请变更邮箱（向新邮箱发送验证码）
@@ -1113,22 +1528,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/Result'
           headers: {}
+          x-apifox-name: 已接受
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 3
         '409':
           $ref: '#/components/responses/冲突'
           description: ''
+          x-apifox-ordering: 4
         '429':
           $ref: '#/components/responses/请求过多'
           description: ''
+          x-apifox-ordering: 5
       security: []
+      x-apifox-folder: user/Users
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958715-run
   /users/me/verify-email:
     post:
       summary: 验证新邮箱验证码并生效
@@ -1179,6 +1604,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN546EZ81VQ81QNW26E3ZRR:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserAccountRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN546EZ81VQ81QNW26E3ZRR
                 properties:
                   success:
                     type: boolean
@@ -1203,6 +1638,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -1242,11 +1714,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               examples:
                 '1':
                   summary: 成功示例
@@ -1274,16 +1759,24 @@ paths:
                     timestamp: '2025-10-26T06:35:20.000Z'
                     data: null
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 3
       security: []
+      x-apifox-folder: user/Users
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958716-run
   /users/me/profile:
     get:
       summary: 获取当前用户资料
@@ -1321,6 +1814,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN3C469KZBJ2S72XJ4C1ZBR:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserProfileRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN3C469KZBJ2S72XJ4C1ZBR
                 properties:
                   success:
                     type: boolean
@@ -1345,6 +1848,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -1384,11 +1924,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -1405,10 +1958,16 @@ paths:
                   address_line: 1-1-1 Nishi-Shinjuku
                   zipcode: 160-0023
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/Profile
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958717-run
     patch:
       summary: 更新当前用户资料
       deprecated: false
@@ -1467,6 +2026,16 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN54R12B4N1JSPNMQ72WZD3:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/UserProfileRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN54R12B4N1JSPNMQ72WZD3
                 properties:
                   success:
                     type: boolean
@@ -1491,6 +2060,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -1530,11 +2136,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -1551,16 +2170,24 @@ paths:
                   address_line: 1-1-1 Nishi-Shinjuku
                   zipcode: 160-0023
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-ordering: 3
       security: []
+      x-apifox-folder: user/Profile
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958718-run
   /users/me/bindings:
     get:
       summary: 查看当前用户的认证绑定列表
@@ -1584,6 +2211,18 @@ paths:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN3DFSSNPPY0BBFQ71FM6T6:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserAuthBindingRespond'
+                        description: 业务数据（随具体接口定义）
+                    required: []
+                x-apifox-orders:
+                  - 01KAN3DFSSNPPY0BBFQ71FM6T6
                 properties:
                   success:
                     type: boolean
@@ -1608,6 +2247,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -1649,11 +2325,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -1666,10 +2355,16 @@ paths:
                     providerUid: 1132...
                     scope: openid email profile
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/Bindings
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958719-run
   /users/me/bindings/{provider}/authorize:
     get:
       summary: 绑定第三方账号
@@ -1706,6 +2401,16 @@ paths:
               - GOOGLE
               - TIKTOK
               - X
+            x-apifox-enum:
+              - value: GOOGLE
+                name: 谷歌
+                description: ''
+              - value: TIKTOK
+                name: TT
+                description: ''
+              - value: X
+                name: X
+                description: ''
         - name: redirectUrl
           in: query
           description: ''
@@ -1737,13 +2442,20 @@ paths:
                 data:
                   url: https://accounts.google.com/o/oauth2/v2/auth?...
           headers: {}
+          x-apifox-name: 重定向
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Bindings
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958720-run
   /users/me/bindings/oauth2/{provider}/callback:
     get:
       summary: 第三方绑定回调（处理 code/state 或 error）
@@ -1765,6 +2477,16 @@ paths:
               - GOOGLE
               - TIKTOK
               - X
+            x-apifox-enum:
+              - value: GOOGLE
+                name: 谷歌
+                description: ''
+              - value: TIKTOK
+                name: TT
+                description: ''
+              - value: X
+                name: X
+                description: ''
         - name: code
           in: query
           description: 授权码
@@ -1795,6 +2517,8 @@ paths:
             type: string
       responses:
         '302':
+          x-apifox-name: 临时重定向
+          x-apifox-ordering: 0
           description: 绑定成功后重定向至前端页面
           content:
             application/json:
@@ -1816,7 +2540,11 @@ paths:
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/Bindings
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380546355-run
   /users/me/bindings/{provider}:
     delete:
       summary: 解绑第三方账号
@@ -1853,6 +2581,16 @@ paths:
               - GOOGLE
               - TIKTOK
               - X
+            x-apifox-enum:
+              - value: GOOGLE
+                name: 谷歌
+                description: ''
+              - value: TIKTOK
+                name: TT
+                description: ''
+              - value: X
+                name: X
+                description: ''
         - name: X-CSRF-Token
           in: header
           description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
@@ -1887,10 +2625,16 @@ paths:
                     timestamp: '2025-10-26T06:38:00.000Z'
                     data: null
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-ordering: 1
       security: []
+      x-apifox-folder: user/Bindings
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958721-run
   /users/me/addresses:
     get:
       summary: 列出当前用户的收货地址
@@ -1937,11 +2681,25 @@ paths:
             type: string
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN3G200Y9ZFD6VMTT393YN7:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AddressRespond'
+                        description: 业务数据（随具体接口定义）
+                    required: []
+                x-apifox-orders:
+                  - 01KAN3G200Y9ZFD6VMTT393YN7
                 properties:
                   success:
                     type: boolean
@@ -1966,6 +2724,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -2007,19 +2802,39 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
           headers: {}
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Addresses
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958722-run
     post:
       summary: 新增收货地址
       deprecated: false
@@ -2081,11 +2896,23 @@ paths:
         required: true
       responses:
         '201':
+          x-apifox-name: 已创建
+          x-apifox-ordering: 0
           description: 已创建
           content:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN3NK7JJWDNB8GCHPMZ0XCT:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/AddressRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN3NK7JJWDNB8GCHPMZ0XCT
                 properties:
                   success:
                     type: boolean
@@ -2110,6 +2937,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -2149,13 +3013,28 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
           headers: {}
         '202':
+          x-apifox-name: 已接受
+          x-apifox-ordering: 1
           description: ''
           content:
             application/json:
@@ -2165,13 +3044,22 @@ paths:
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 2
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-name: 未认证
+          x-apifox-ordering: 3
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 4
       security: []
+      x-apifox-folder: user/Addresses
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958723-run
   /users/me/addresses/{id}:
     get:
       summary: 获取收货地址详情
@@ -2199,11 +3087,23 @@ paths:
             minimum: 1
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN4WM0MHVCDYAH2HAQHV60B:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/AddressRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN4WM0MHVCDYAH2HAQHV60B
                 properties:
                   success:
                     type: boolean
@@ -2228,6 +3128,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -2267,19 +3204,39 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
           headers: {}
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
       security: []
+      x-apifox-folder: user/Addresses
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958724-run
     patch:
       summary: 修改收货地址
       deprecated: false
@@ -2341,11 +3298,23 @@ paths:
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: 已修改
           content:
             application/json:
               schema:
                 type: object
+                x-apifox-refs:
+                  01KAN4XED9BWCWGHEBFQQJJ4YR:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/AddressRespond'
+                    required: []
+                x-apifox-orders:
+                  - 01KAN4XED9BWCWGHEBFQQJJ4YR
                 properties:
                   success:
                     type: boolean
@@ -2370,6 +3339,43 @@ paths:
                       - UNPROCESSABLE_ENTITY
                       - TOO_MANY_REQUESTS
                       - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
                   message:
                     type: string
                     description: 人类可读的简短信息
@@ -2409,11 +3415,24 @@ paths:
                         type: integer
                         examples:
                           - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
                   - message
                   - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
               example:
                 success: true
                 code: OK
@@ -2437,13 +3456,22 @@ paths:
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
       security: []
+      x-apifox-folder: user/Addresses
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958725-run
     delete:
       summary: 删除收货地址
       deprecated: false
@@ -2488,6 +3516,8 @@ paths:
               - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: 已删除
           content:
             application/json:
@@ -2502,13 +3532,22 @@ paths:
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
       security: []
+      x-apifox-folder: user/Addresses
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958726-run
   /users/me/addresses/{id}/set-default:
     post:
       summary: 设为默认地址（保证同用户仅一个默认）
@@ -2554,6 +3593,8 @@ paths:
               - 1fbd1a1b4f3e4a8180f3d2a7c9d2e6f0
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: 已设为默认
           content:
             application/json:
@@ -2569,13 +3610,22 @@ paths:
         '400':
           $ref: '#/components/responses/参数错误'
           description: ''
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
         '401':
           $ref: '#/components/responses/未鉴权'
           description: ''
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
         '403':
           $ref: '#/components/responses/权限不足'
           description: ''
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
       security: []
+      x-apifox-folder: user/Addresses
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-370958727-run
 webhooks: {}
 components:
   schemas:
@@ -2610,6 +3660,43 @@ components:
             - UNPROCESSABLE_ENTITY
             - TOO_MANY_REQUESTS
             - INTERNAL_SERVER_ERROR
+          x-apifox-enum:
+            - value: OK
+              name: OK
+              description: 成功
+            - value: CREATED
+              name: Created
+              description: 已创建
+            - value: ACCEPTED
+              name: Accepted
+              description: 已接受
+            - value: FOUND
+              name: Found / Redirect
+              description: 重定向
+            - value: BAD_REQUEST
+              name: Bad Request
+              description: 参数错误
+            - value: UNAUTHORIZED
+              name: Unauthorized
+              description: 未授权
+            - value: FORBIDDEN
+              name: Forbidden
+              description: 没有权限
+            - value: NOT_FOUND
+              name: Not Found
+              description: 未找到
+            - value: CONFLICT
+              name: Conflict
+              description: 冲突
+            - value: UNPROCESSABLE_ENTITY
+              name: Unprocessable Entity
+              description: 不能处理的实体
+            - value: TOO_MANY_REQUESTS
+              name: Too Many Requests
+              description: 请求过多
+            - value: INTERNAL_SERVER_ERROR
+              name: Internal Server Error
+              description: 服务器内部错误
         message:
           type: string
           description: 人类可读的简短信息
@@ -2631,7 +3718,9 @@ components:
         data:
           type: object
           properties: {}
+          x-apifox-orders: []
           description: 业务数据（随具体接口定义）
+          x-apifox-ignore-properties: []
         meta:
           description: 附加元信息（分页等，可选）
           type:
@@ -2650,12 +3739,28 @@ components:
               type: integer
               examples:
                 - 135
+          x-apifox-orders:
+            - page
+            - size
+            - total
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - success
+        - code
+        - message
+        - timestamp
+        - traceId
+        - data
+        - meta
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     Gender:
       type: string
       enum:
         - UNKNOWN
         - MALE
         - FEMALE
+      x-apifox-folder: user
     AuthProvider:
       type: string
       enum:
@@ -2663,11 +3768,26 @@ components:
         - GOOGLE
         - TIKTOK
         - X
+      x-apifox-enum:
+        - value: LOCAL
+          name: ''
+          description: ''
+        - value: GOOGLE
+          name: ''
+          description: ''
+        - value: TIKTOK
+          name: ''
+          description: ''
+        - value: X
+          name: ''
+          description: ''
+      x-apifox-folder: user
     AccountStatus:
       type: string
       enum:
         - ACTIVE
         - DISABLED
+      x-apifox-folder: user
     LoginRequest:
       type: object
       required:
@@ -2684,6 +3804,11 @@ components:
           format: password
           examples:
             - Passw0rd!
+      x-apifox-orders:
+        - account
+        - password
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     ResendActivationRequest:
       type: object
       required:
@@ -2694,6 +3819,10 @@ components:
           format: email
           examples:
             - eason@example.com
+      x-apifox-orders:
+        - email
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     VerifyEmailRequest:
       type: object
       required:
@@ -2709,6 +3838,11 @@ components:
           type: string
           examples:
             - '893642'
+      x-apifox-orders:
+        - email
+        - code
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     UpdateAddressRequest:
       type: object
       properties:
@@ -2764,6 +3898,19 @@ components:
           type: boolean
           examples:
             - true
+      x-apifox-orders:
+        - receiver_name
+        - phone
+        - country
+        - province
+        - city
+        - district
+        - address_line1
+        - address_line2
+        - zipcode
+        - is_default
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     CreateAddressRequest:
       type: object
       required:
@@ -2824,6 +3971,19 @@ components:
           default: false
           examples:
             - true
+      x-apifox-orders:
+        - receiver_name
+        - phone
+        - country
+        - province
+        - city
+        - district
+        - address_line1
+        - address_line2
+        - zipcode
+        - is_default
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     UpdateProfileRequest:
       type: object
       properties:
@@ -2881,9 +4041,24 @@ components:
         extra:
           type: object
           additionalProperties: true
+          x-apifox-orders: []
           examples:
             - language: ja-JP
           properties: {}
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - display_name
+        - avatar_url
+        - gender
+        - birthday
+        - country
+        - province
+        - city
+        - address_line
+        - zipcode
+        - extra
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     ChangeEmailRequest:
       type: object
       required:
@@ -2894,6 +4069,10 @@ components:
           format: email
           examples:
             - new.eason@example.com
+      x-apifox-orders:
+        - new_email
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     UpdateAccountRequest:
       type: object
       properties:
@@ -2907,6 +4086,11 @@ components:
             - 'null'
           examples:
             - +81-80-0000-0000
+      x-apifox-orders:
+        - nickname
+        - phone
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     RegisterRequest:
       type: object
       required:
@@ -2940,6 +4124,14 @@ components:
             - 'null'
           examples:
             - +86-13800138000
+      x-apifox-orders:
+        - username
+        - password
+        - nickname
+        - email
+        - phone
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     ForgotPasswordRequest:
       type: object
       required:
@@ -2950,6 +4142,10 @@ components:
           description: 用户名 / 邮箱 / 手机号其一，用于发送重置验证码
           examples:
             - eason@example.com
+      x-apifox-orders:
+        - account
+      x-apifox-folder: user
+      x-apifox-ignore-properties: []
     ResetPasswordRequest:
       type: object
       required:
@@ -2972,6 +4168,12 @@ components:
           minLength: 6
           examples:
             - NewPassw0rd!
+      x-apifox-orders:
+        - account
+        - code
+        - new_password
+      x-apifox-folder: user
+      x-apifox-ignore-properties: []
     AddressRespond:
       type: object
       properties:
@@ -3050,6 +4252,22 @@ components:
         - is_default
         - created_at
         - updated_at
+      x-apifox-orders:
+        - id
+        - receiver_name
+        - phone
+        - country
+        - province
+        - city
+        - district
+        - address_line1
+        - address_line2
+        - zipcode
+        - is_default
+        - created_at
+        - updated_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     UserAuthBindingRespond:
       type: object
       properties:
@@ -3093,6 +4311,17 @@ components:
           format: date-time
           examples:
             - '2025-10-25T08:00:00.000Z'
+      x-apifox-orders:
+        - id
+        - provider
+        - issuer
+        - providerUid
+        - scope
+        - lastLoginAt
+        - createdAt
+        - updatedAt
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     UserProfileRespond:
       type: object
       properties:
@@ -3150,11 +4379,26 @@ components:
         extra:
           type: object
           additionalProperties: true
+          x-apifox-orders: []
           examples:
             - marketingOptIn: true
           properties: {}
+          x-apifox-ignore-properties: []
       required:
         - gender
+      x-apifox-orders:
+        - displayName
+        - avatarUrl
+        - gender
+        - birthday
+        - country
+        - province
+        - city
+        - addressLine
+        - zipcode
+        - extra
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
     UserAccountRespond:
       type: object
       properties:
@@ -3210,6 +4454,18 @@ components:
         - status
         - created_at
         - updated_at
+      x-apifox-orders:
+        - id
+        - username
+        - nickname
+        - email
+        - phone
+        - status
+        - lastLogin_at
+        - created_at
+        - updated_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
   responses:
     已创建:
       description: ''
