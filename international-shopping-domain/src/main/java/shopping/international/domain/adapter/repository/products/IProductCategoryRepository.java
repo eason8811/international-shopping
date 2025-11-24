@@ -4,8 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.entity.products.Category;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 商品分类仓储接口
@@ -23,6 +22,34 @@ public interface IProductCategoryRepository {
     List<Category> listEnabledCategories();
 
     /**
+     * 按 slug 查询分类
+     *
+     * @param slug slug
+     * @return 分类
+     */
+    @NotNull
+    Optional<Category> findBySlug(@NotNull String slug);
+
+    /**
+     * 按语言 slug 查询分类
+     *
+     * @param slug   多语言 slug
+     * @param locale 语言
+     * @return 分类
+     */
+    @NotNull
+    Optional<Category> findByLocalizedSlug(@NotNull String slug, @NotNull String locale);
+
+    /**
+     * 按 ID 批量查询分类
+     *
+     * @param ids ID 集合
+     * @return id -> 分类
+     */
+    @NotNull
+    Map<Long, Category> mapByIds(@NotNull Set<Long> ids);
+
+    /**
      * 按 locale 读取所有分类的 i18n 覆盖
      *
      * @param locale 语言代码
@@ -30,4 +57,14 @@ public interface IProductCategoryRepository {
      */
     @NotNull
     Map<Long, CategoryI18n> mapI18nByLocale(@NotNull String locale);
+
+    /**
+     * 按 locale 与 ID 集合读取 i18n
+     *
+     * @param categoryIds 分类ID集合
+     * @param locale      语言
+     * @return id -> i18n
+     */
+    @NotNull
+    Map<Long, CategoryI18n> mapI18nByLocale(@NotNull Collection<Long> categoryIds, @NotNull String locale);
 }
