@@ -67,11 +67,17 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return Optional.ofNullable(category).map(this::toEntity);
     }
 
+    /**
+     * 按 ID 批量查询分类
+     *
+     * @param ids ID 集合
+     * @return id -> 分类
+     */
     @Override
     public @NotNull Map<Long, Category> mapByIds(@NotNull Set<Long> ids) {
         if (ids.isEmpty())
             return Map.of();
-        List<ProductCategoryPO> records = categoryMapper.selectBatchIds(ids);
+        List<ProductCategoryPO> records = categoryMapper.selectByIds(ids);
         return records.stream()
                 .collect(Collectors.toMap(ProductCategoryPO::getId, this::toEntity,
                         (existing, ignore) -> existing, LinkedHashMap::new));
@@ -93,6 +99,13 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
                         (existing, ignore) -> existing, LinkedHashMap::new));
     }
 
+    /**
+     * 按 locale 与 ID 集合读取 i18n
+     *
+     * @param categoryIds 分类ID集合
+     * @param locale      语言
+     * @return id -> i18n
+     */
     @Override
     public @NotNull Map<Long, CategoryI18n> mapI18nByLocale(@NotNull Collection<Long> categoryIds, @NotNull String locale) {
         if (categoryIds.isEmpty())

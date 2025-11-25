@@ -19,33 +19,61 @@ import shopping.international.types.exceptions.IllegalParamException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * 商品查询服务实现
+ * 商品查询服务实现, 负责商品列表与详情的聚合查询, 参数校验及多语言/多币种数据拼装
  */
 @Service
 @RequiredArgsConstructor
 public class ProductQueryService implements IProductQueryService {
 
+    /**
+     * 语言代码正则表达式
+     */
     private static final Pattern LOCALE_PATTERN = Pattern.compile("^[A-Za-z0-9]{2,8}([-_][A-Za-z0-9]{2,8})*$");
+    /**
+     * 货币代码正则表达式
+     */
     private static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Za-z]{3}$");
 
+    /**
+     * 商品查询仓储服务
+     */
     private final IProductQueryRepository productQueryRepository;
+    /**
+     * 商品分类仓储服务
+     */
     private final IProductCategoryRepository categoryRepository;
+    /**
+     * 商品 Like 仓储服务
+     */
     private final IProductLikeRepository productLikeRepository;
 
+    /**
+     * 查询商品列表并按请求参数进行过滤, 排序与分页
+     *
+     * <p>方法会对分页, locale, currency, 价格区间, 关键词等参数进行规范化与校验, 同时根据可选的用户 ID 标记用户喜欢的商品</p>
+     *
+     * @param query 查询参数对象
+     * @return 包含商品概要信息的分页结果
+     * @throws IllegalParamException 当价格区间或其他参数非法时抛出
+     */
     @Override
     public @NotNull PageResult<ProductSummary> list(@NotNull ProductListQuery query) {
         int page = query.page() <= 0 ? 1 : query.page();
         int size = query.size() <= 0 ? 20 : Math.min(query.size(), 100);
+        // 规范化 locale 和 currency
         String locale = normalizeLocale(query.locale());
         String currency = normalizeCurrency(query.currency());
+        // 提取排序字段, 默认按最新排序
         ProductSort sort = query.sortBy() == null ? ProductSort.LATEST : query.sortBy();
-        List<String> tags = normalizeTags(query.tags());
+        List<String> tagList = normalizeTags(query.tags());
         String keyword = normalizeKeyword(query.keyword());
 
+        // 价格区间参数校验
         BigDecimal priceMin = normalizePrice(query.priceMin());
         BigDecimal priceMax = normalizePrice(query.priceMax());
         if ((priceMin != null || priceMax != null) && currency == null)
@@ -55,106 +83,145 @@ public class ProductQueryService implements IProductQueryService {
 
         Long categoryId = resolveCategoryId(query.categorySlug(), locale);
 
-        PageResult<Product> productPage = productQueryRepository.pageOnSaleProducts(
-                page, size, categoryId, keyword, tags, locale, currency, priceMin, priceMax, sort);
+        // 主商品分页查询, 副查询依赖该批次的产品 ID/分类 ID
+        PageResult<Product> productPageResult = productQueryRepository.pageOnSaleProducts(
+                page, size, categoryId, keyword, tagList, locale, currency, priceMin, priceMax, sort);
 
-        if (productPage.items().isEmpty())
-            return new PageResult<>(Collections.emptyList(), productPage.total());
+        if (productPageResult.items().isEmpty())
+            return new PageResult<>(Collections.emptyList(), productPageResult.total());
 
-        Set<Long> productIds = productPage.items().stream()
+        Set<Long> productIds = productPageResult.items().stream()
                 .map(Product::getId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-        Set<Long> categoryIds = productPage.items().stream()
+        Set<Long> categoryIds = productPageResult.items().stream()
                 .map(Product::getCategoryId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
+        // 根据 productId, locale 获取 productId -> ProductI18n 映射
         Map<Long, ProductI18n> i18nMap = locale == null || productIds.isEmpty()
                 ? Collections.emptyMap()
                 : productQueryRepository.mapI18nByLocale(productIds, locale);
+        // 根据 productId 获取 productId -> List<ProductImage> 映射
         Map<Long, List<ProductImage>> galleryMap = productIds.isEmpty()
                 ? Collections.emptyMap()
                 : productQueryRepository.mapProductImages(productIds);
+        // 根据 productId, currency 获取 productId -> ProductPriceRange 映射
         Map<Long, ProductPriceRange> priceRangeMap = currency == null || productIds.isEmpty()
                 ? Collections.emptyMap()
                 : productQueryRepository.mapPriceRangeByProductIds(productIds, currency);
+        // 根据 categoryId 获取 categoryId -> Category 映射
         Map<Long, Category> categoryMap = categoryIds.isEmpty()
                 ? Collections.emptyMap()
                 : categoryRepository.mapByIds(categoryIds);
+        // 根据 categoryId, locale 获取 categoryId -> CategoryI18n 映射
         Map<Long, CategoryI18n> categoryI18nMap = locale == null || categoryIds.isEmpty()
                 ? Collections.emptyMap()
                 : categoryRepository.mapI18nByLocale(categoryIds, locale);
+        // 根据 userId, productId 获取 userId -> LikedAt 映射
         Map<Long, LocalDateTime> likedAtMap = query.userId() == null || productIds.isEmpty()
                 ? Collections.emptyMap()
                 : productLikeRepository.mapLikedAt(query.userId(), productIds);
 
-        List<ProductSummary> summaries = productPage.items().stream()
+        List<ProductSummary> summaryList = productPageResult.items().stream()
                 .map(product -> toSummary(product, i18nMap.get(product.getId()), galleryMap, priceRangeMap,
                         categoryMap, categoryI18nMap, likedAtMap))
                 .toList();
 
-        return new PageResult<>(summaries, productPage.total());
+        return new PageResult<>(summaryList, productPageResult.total());
     }
 
+    /**
+     * 查询单个商品详情, 支持按 locale/currency 返回多语言, 多币种数据
+     *
+     * <p>会优先使用本地化 slug 查询, 未命中则回退到基础 slug, 并补齐价格, 规格, 图库, 分类, 喜欢状态等信息</p>
+     *
+     * @param slug        商品唯一标识 (slug)
+     * @param locale      期望的语言环境, 允许为空
+     * @param currency    期望的币种, 允许为空
+     * @param currentUser 当前用户 ID, 用于标记喜欢状态, 允许为空
+     * @return 商品详情聚合视图
+     * @throws IllegalParamException 当商品不存在或币种下无可售 SKU 时抛出
+     */
     @Override
     public @NotNull ProductDetail detail(@NotNull String slug, @Nullable String locale, @Nullable String currency, @Nullable Long currentUser) {
+        // 规范化 locale 和 currency
         String normalizedLocale = normalizeLocale(locale);
         String normalizedCurrency = normalizeCurrency(currency);
 
+        // 根据本地化后的 slug 和 locale 查询商品, 若未命中则回退到基础 slug, 都查不到则抛出 IllegalParamException
         Optional<Product> localized = normalizedLocale == null
                 ? Optional.empty()
                 : productQueryRepository.findOnSaleByLocalizedSlug(slug, normalizedLocale);
-        Product product = localized.orElseGet(() -> productQueryRepository.findOnSaleBySlug(slug)
-                .orElseThrow(() -> new IllegalParamException("商品不存在或未上架")));
+        Product product = localized.orElseGet(() ->
+                productQueryRepository.findOnSaleBySlug(slug)
+                        .orElseThrow(() -> new IllegalParamException("商品不存在或未上架"))
+        );
 
+        // 根据 ProductId 获取 ProductI18n
         ProductI18n productI18n = normalizedLocale == null
                 ? null
                 : productQueryRepository.mapI18nByLocale(Set.of(product.getId()), normalizedLocale).get(product.getId());
-
-        Category category = categoryRepository.mapByIds(Set.of(product.getCategoryId()))
-                .get(product.getCategoryId());
+        // 根据 ProductId 获取其 Category 本体及其本地化
+        Category category = categoryRepository.mapByIds(Set.of(product.getCategoryId())).get(product.getCategoryId());
         if (category == null)
             throw new IllegalParamException("商品分类不存在");
         CategoryI18n categoryI18n = normalizedLocale == null
                 ? null
-                : categoryRepository.mapI18nByLocale(Set.of(product.getCategoryId()), normalizedLocale)
-                .get(product.getCategoryId());
-
+                : categoryRepository.mapI18nByLocale(Set.of(product.getCategoryId()), normalizedLocale).get(product.getCategoryId());
+        // 根据 ProductId 获取其 商品图片 列表
         List<ProductImage> gallery = productQueryRepository.mapProductImages(Set.of(product.getId()))
                 .getOrDefault(product.getId(), Collections.emptyList());
 
-        List<ProductSpec> specs = productQueryRepository.listSpecs(product.getId());
-        List<ProductSpecValue> specValues = productQueryRepository.listSpecValues(product.getId());
-        Map<Long, List<ProductSpecValue>> specValueMap = specValues.stream()
+        // 获取 SPU 拥有的规格类别
+        List<ProductSpec> specList = productQueryRepository.listSpecs(product.getId());
+        // 获取 SPU 拥有的规格值, 并按规格类别 ID 分类
+        List<ProductSpecValue> specValueList = productQueryRepository.listSpecValues(product.getId());
+        Map<Long, List<ProductSpecValue>> specValueMap = specValueList.stream()
                 .collect(Collectors.groupingBy(ProductSpecValue::getSpecId));
-        if (normalizedLocale != null && !specs.isEmpty()) {
-            Map<Long, String> specI18nMap = productQueryRepository.mapSpecI18n(specs.stream()
-                    .map(ProductSpec::getId).collect(Collectors.toSet()), normalizedLocale);
-            Map<Long, String> specValueI18nMap = productQueryRepository.mapSpecValueI18n(specValues.stream()
-                    .map(ProductSpecValue::getId).collect(Collectors.toSet()), normalizedLocale);
-            specs.forEach(spec -> spec.applyI18n(specI18nMap.get(spec.getId())));
-            specValues.forEach(value -> value.applyI18n(specValueI18nMap.get(value.getId())));
+        // locale 不为空, 获取他们的 I18N 信息
+        if (normalizedLocale != null && !specList.isEmpty()) {
+            Map<Long, String> specI18nMap = productQueryRepository.mapSpecI18n(
+                    specList.stream()
+                            .map(ProductSpec::getId)
+                            .collect(Collectors.toSet()),
+                    normalizedLocale);
+            Map<Long, String> specValueI18nMap = productQueryRepository.mapSpecValueI18n(
+                    specValueList.stream()
+                            .map(ProductSpecValue::getId)
+                            .collect(Collectors.toSet()),
+                    normalizedLocale);
+            specList.forEach(spec -> spec.applyI18n(specI18nMap.get(spec.getId())));
+            specValueList.forEach(value -> value.applyI18n(specValueI18nMap.get(value.getId())));
         }
-        specs.forEach(spec -> spec.attachValues(specValueMap.getOrDefault(spec.getId(), Collections.emptyList())));
+        // 绑定规格值到规格类别
+        specList.forEach(spec -> spec.attachValues(specValueMap.getOrDefault(spec.getId(), Collections.emptyList())));
 
-        List<ProductSku> skus = productQueryRepository.listEnabledSkus(product.getId());
-        Set<Long> skuIds = skus.stream().map(ProductSku::getId).collect(Collectors.toSet());
+        // 获取 SPU 拥有的 SKU 列表
+        List<ProductSku> skuList = productQueryRepository.listEnabledSkus(product.getId());
+        Set<Long> skuIds = skuList.stream()
+                .map(ProductSku::getId)
+                .collect(Collectors.toSet());
+        // 根据 SKU ID, currency 获取 SKU -> SKU价格 映射
         Map<Long, ProductPrice> priceMap = normalizedCurrency == null || skuIds.isEmpty()
                 ? Collections.emptyMap()
                 : productQueryRepository.mapPricesBySkuIds(skuIds, normalizedCurrency);
+        // 根据 SKU ID 获取 SKU -> List<ProductImage> 映射
         Map<Long, List<ProductImage>> skuImageMap = skuIds.isEmpty()
                 ? Collections.emptyMap()
                 : productQueryRepository.mapSkuImages(skuIds);
+        // 根据 SKU ID 获取 SKU -> SKU关联的规格值列表 映射
         Map<Long, List<ProductSkuSpec>> skuSpecMap = skuIds.isEmpty()
                 ? Collections.emptyMap()
                 : productQueryRepository.mapSkuSpecs(skuIds);
 
-        List<ProductSku> enrichedSkus = skus.stream()
-                .map(sku -> attachSkuDetails(sku, specs, priceMap, skuImageMap, skuSpecMap))
+        // 补充完 图片, 价格, 规格类别, 规格值 等详细状态的 SKU 列表
+        List<ProductSku> attachedSkuList = skuList.stream()
+                .map(sku -> attachSkuDetails(sku, specList, priceMap, skuImageMap, skuSpecMap))
                 .filter(Objects::nonNull)
                 .toList();
-        if (normalizedCurrency != null && enrichedSkus.isEmpty())
+        if (normalizedCurrency != null && attachedSkuList.isEmpty())
             throw new IllegalParamException("该商品在指定币种下无可售 SKU 价格");
 
         List<String> tags = productI18n != null && !productI18n.getTags().isEmpty()
@@ -178,14 +245,24 @@ public class ProductQueryService implements IProductQueryService {
                 tags,
                 product.getDefaultSkuId(),
                 gallery,
-                specs,
-                enrichedSkus,
+                specList,
+                attachedSkuList,
                 productI18n
         );
     }
 
+    /**
+     * 为单个 SKU 注入价格, 图片与规格标签, 同时在无价格时过滤掉不可售的 SKU
+     *
+     * @param sku         原始 SKU
+     * @param specList       规格定义列表, 用于回填规格名称
+     * @param priceMap    SKU 价格映射
+     * @param skuImageMap SKU 图片映射
+     * @param skuSpecMap  SKU 规格映射
+     * @return 已补充信息的 SKU, 若无价格可售则返回 null
+     */
     private ProductSku attachSkuDetails(ProductSku sku,
-                                        List<ProductSpec> specs,
+                                        List<ProductSpec> specList,
                                         Map<Long, ProductPrice> priceMap,
                                         Map<Long, List<ProductImage>> skuImageMap,
                                         Map<Long, List<ProductSkuSpec>> skuSpecMap) {
@@ -195,30 +272,53 @@ public class ProductQueryService implements IProductQueryService {
         if (price != null)
             sku.attachPrice(price);
         sku.attachImages(skuImageMap.getOrDefault(sku.getId(), Collections.emptyList()));
-        List<ProductSkuSpec> rawSpecs = skuSpecMap.getOrDefault(sku.getId(), Collections.emptyList());
-        if (!rawSpecs.isEmpty()) {
-            Map<Long, ProductSpec> specIndex = specs.stream()
-                    .collect(Collectors.toMap(ProductSpec::getId, s -> s));
-            List<ProductSkuSpec> adjusted = rawSpecs.stream()
+        List<ProductSkuSpec> rawSkuSpecsMappingList = skuSpecMap.getOrDefault(sku.getId(), Collections.emptyList());
+        if (!rawSkuSpecsMappingList.isEmpty()) {
+            Map<Long, ProductSpec> specIndex = specList.stream()
+                    .collect(Collectors.toMap(ProductSpec::getId, Function.identity()));
+            // 遍历原始 SKU 所属的规格(规格值) 列表, 替换为本地化名称 (包括规格类别和规格值)
+            List<ProductSkuSpec> adjustedSkuSpecsMappingList = rawSkuSpecsMappingList.stream()
                     .map(raw -> {
+                        // 从用 specList 构建的 specIndex 中获取规格分类, 并尝试获取其本地化名称, 若无则使用 SKU 关联的规格的原始名称
                         ProductSpec spec = specIndex.get(raw.getSpecId());
-                        String specName = spec != null && spec.getI18nName() != null ? spec.getI18nName() : raw.getSpecName();
-                        ProductSpecValue value = specIndex.containsKey(raw.getSpecId())
-                                ? specIndex.get(raw.getSpecId()).getValues().stream()
-                                .filter(v -> Objects.equals(v.getId(), raw.getValueId()))
-                                .findFirst().orElse(null)
-                                : null;
-                        String valueName = value != null && value.getI18nName() != null ? value.getI18nName() : raw.getValueName();
+                        String specName = spec != null && spec.getI18nName() != null
+                                ? spec.getI18nName()
+                                : raw.getSpecName();
+
+                        // 从用 specList 构建的 specIndex 中获取规格分类下的规格值列表
+                        // 根据规格值 ID 取出规格值对象, 并尝试获取其本地化名称, 若无则使用 SKU 关联的规格值的原始名称
+                        ProductSpecValue value = null;
+                        if (specIndex.containsKey(raw.getSpecId()))
+                            value = specIndex.get(raw.getSpecId()).getValues()
+                                    .stream()
+                                    .filter(v -> Objects.equals(v.getId(), raw.getValueId()))
+                                    .findFirst()
+                                    .orElse(null);
+                        String valueName = value != null && value.getI18nName() != null
+                                ? value.getI18nName()
+                                : raw.getValueName();
                         return ProductSkuSpec.of(raw.getSpecId(), raw.getSpecCode(), specName, raw.getValueId(), raw.getValueCode(), valueName);
                     })
                     .toList();
-            sku.attachSpecs(adjusted);
+            sku.attachSpecs(adjustedSkuSpecsMappingList);
         }
         if (priceMap.isEmpty())
             return sku;
         return sku.getPrice() == null ? null : sku;
     }
 
+    /**
+     * 将产品及其相关国际化信息, 图片, 价格范围, 分类等信息转换为产品摘要对象
+     *
+     * @param product         产品实体
+     * @param i18n            产品的国际化信息, 可能为空
+     * @param galleryMap      产品图片集合映射, key 为产品 id, value 为该产品的图片列表
+     * @param priceRangeMap   产品价格范围映射, key 为产品 id, value 为该产品的价格范围
+     * @param categoryMap     分类映射, key 为分类 id, value 为分类对象
+     * @param categoryI18nMap 分类的国际化信息映射, key 为分类 id, value 为分类的国际化信息
+     * @param likedAtMap      用户喜欢时间映射, key 为产品 id, value 为用户对该产品标记喜欢的时间
+     * @return 一个包含产品基本信息和相关附加信息的产品摘要对象
+     */
     private ProductSummary toSummary(Product product,
                                      ProductI18n i18n,
                                      Map<Long, List<ProductImage>> galleryMap,
@@ -231,11 +331,14 @@ public class ProductQueryService implements IProductQueryService {
         String displayDescription = i18n != null ? i18n.getDescription() : product.getDescription();
         String displaySlug = i18n != null ? i18n.getSlug() : product.getSlug();
         List<String> displayTags = i18n != null && !i18n.getTags().isEmpty() ? i18n.getTags() : product.getTags();
+
         Category category = categoryMap.get(product.getCategoryId());
         CategoryI18n categoryI18n = categoryI18nMap.get(product.getCategoryId());
-        String categorySlug = categoryI18n != null
-                ? categoryI18n.getSlug()
-                : category != null ? category.getSlug() : null;
+        String categorySlug = null;
+        if (categoryI18n != null)
+            categorySlug = categoryI18n.getSlug();
+        else if (category != null)
+            categorySlug = category.getSlug();
         List<ProductImage> gallery = galleryMap.getOrDefault(product.getId(), Collections.emptyList());
         ProductPriceRange priceRange = priceRangeMap.get(product.getId());
         LocalDateTime likedAt = likedAtMap.get(product.getId());
@@ -261,6 +364,13 @@ public class ProductQueryService implements IProductQueryService {
         );
     }
 
+    /**
+     * 将给定的 locale 字符串进行规范化处理 包括去除首尾空格 检查长度和格式合法性
+     *
+     * @param locale 待规范化的 locale 字符串 可以为 null
+     * @return 规范化后的 locale 字符串 若输入为 null 或者仅包含空白字符 则返回 null 如果 locale 格式不合法或长度超过 16 个字符 则抛出异常
+     * @throws IllegalParamException 当 locale 长度超过 16 个字符或格式不符合预设规则时抛出
+     */
     private String normalizeLocale(@Nullable String locale) {
         if (locale == null)
             return null;
@@ -274,6 +384,13 @@ public class ProductQueryService implements IProductQueryService {
         return trimmed;
     }
 
+    /**
+     * 将给定的货币字符串转换为标准格式 如果输入不符合要求 则抛出异常
+     *
+     * @param currency 要标准化的货币代码 可以为 null
+     * @return 标准化后的货币代码 若输入为空或不合法 则返回 null
+     * @throws IllegalParamException 当提供的货币代码不是 3 位字母时抛出
+     */
     private String normalizeCurrency(@Nullable String currency) {
         if (currency == null)
             return null;
@@ -285,6 +402,12 @@ public class ProductQueryService implements IProductQueryService {
         return trimmed;
     }
 
+    /**
+     * 此方法用于标准化标签列表. 它会移除空值, 去除字符串两端的空白字符, 并确保列表中的每个条目都是唯一的
+     *
+     * @param tags 需要被处理的标签列表 可以为 null
+     * @return 处理后的标签列表, 如果输入为空或只包含无效元素, 则返回一个空列表
+     */
     private List<String> normalizeTags(@Nullable List<String> tags) {
         if (tags == null || tags.isEmpty())
             return Collections.emptyList();
@@ -296,6 +419,13 @@ public class ProductQueryService implements IProductQueryService {
                 .toList();
     }
 
+    /**
+     * 将给定的关键字字符串进行规范化处理 包括去除前后空白字符 并检查长度是否超过 120 个字符
+     *
+     * @param keyword 需要被规范化的关键词 可以为 null
+     * @return 规范化后的关键词 如果原始关键词为空或仅包含空白字符 则返回 null 若关键词长度超过 120 个字符 抛出 {@link IllegalParamException}
+     * @throws IllegalParamException 当关键词长度超过 120 个字符时抛出此异常
+     */
     private String normalizeKeyword(@Nullable String keyword) {
         if (keyword == null)
             return null;
@@ -307,6 +437,13 @@ public class ProductQueryService implements IProductQueryService {
         return trimmed;
     }
 
+    /**
+     * 将给定的价格标准化 如果价格为 null 或负数 则分别返回 null 或抛出异常
+     *
+     * @param price 需要被标准化的价格 可以为 null
+     * @return 标准化后的价格 如果输入价格为 null 则返回 null
+     * @throws IllegalParamException 如果价格小于零
+     */
     private BigDecimal normalizePrice(@Nullable BigDecimal price) {
         if (price == null)
             return null;
@@ -315,6 +452,14 @@ public class ProductQueryService implements IProductQueryService {
         return price;
     }
 
+    /**
+     * 根据 slug 与可选的 locale 解析分类 ID, 优先本地化 slug, 其次基础 slug
+     *
+     * @param categorySlug 分类 slug
+     * @param locale       请求的语言环境, 允许为空
+     * @return 分类 ID, 未找到时抛出异常
+     * @throws IllegalParamException 当分类不存在时抛出
+     */
     private Long resolveCategoryId(@Nullable String categorySlug, @Nullable String locale) {
         if (categorySlug == null || categorySlug.isBlank())
             return null;

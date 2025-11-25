@@ -22,8 +22,18 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProductLikeRepository implements IProductLikeRepository {
 
+    /**
+     * 产品 Like Mapper
+     */
     private final ProductLikeMapper productLikeMapper;
 
+    /**
+     * 查询用户对商品的点赞时间
+     *
+     * @param userId     用户ID
+     * @param productIds 商品ID集合
+     * @return productId -> likedAt
+     */
     @Override
     public @NotNull Map<Long, LocalDateTime> mapLikedAt(@NotNull Long userId, @NotNull Set<Long> productIds) {
         if (productIds.isEmpty())

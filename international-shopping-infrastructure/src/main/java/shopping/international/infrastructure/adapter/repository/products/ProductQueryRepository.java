@@ -1,7 +1,6 @@
 package shopping.international.infrastructure.adapter.repository.products;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -30,42 +29,132 @@ import java.util.stream.Collectors;
 @Repository
 @RequiredArgsConstructor
 public class ProductQueryRepository implements IProductQueryRepository {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
+    /**
+     * JSON 序列化/反序列化工具
+     */
+    private final ObjectMapper objectMapper;
+    /**
+     * 商品 Mapper
+     */
     private final ProductMapper productMapper;
+    /**
+     * 商品 I18n Mapper
+     */
     private final ProductI18nMapper productI18nMapper;
+    /**
+     * 商品图片 Mapper
+     */
     private final ProductImageMapper productImageMapper;
+    /**
+     * 商品 SKU Mapper
+     */
     private final ProductSkuMapper productSkuMapper;
+    /**
+     * 商品 SKU 图片 Mapper
+     */
     private final ProductSkuImageMapper productSkuImageMapper;
+    /**
+     * 商品价格 Mapper
+     */
     private final ProductPriceMapper productPriceMapper;
+    /**
+     * 商品规格 Mapper
+     */
     private final ProductSpecMapper productSpecMapper;
+    /**
+     * 商品规格 I18n Mapper
+     */
     private final ProductSpecI18nMapper productSpecI18nMapper;
+    /**
+     * 商品规格值 Mapper
+     */
     private final ProductSpecValueMapper productSpecValueMapper;
+    /**
+     * 商品规格值 I18n Mapper
+     */
     private final ProductSpecValueI18nMapper productSpecValueI18nMapper;
+    /**
+     * 商品 SKU 关联的规格 Mapper
+     */
     private final ProductSkuSpecMapper productSkuSpecMapper;
 
+    /**
+     * 按条件分页查询上架商品
+     *
+     * @param page       页码, 从1开始
+     * @param size       每页数量
+     * @param categoryId 分类ID, 可空
+     * @param keyword    关键词, 可空
+     * @param tags       标签, 可空
+     * @param locale     语言, 用于关键字/标签匹配 i18n, 可空
+     * @param currency   价格币种, 可空
+     * @param priceMin   价格下限, 可空
+     * @param priceMax   价格上限, 可空
+     * @param sortBy     排序
+     * @return 分页结果
+     */
     @Override
-    public @NotNull IProductQueryService.PageResult<Product> pageOnSaleProducts(int page, int size, @Nullable Long categoryId, @Nullable String keyword, @Nullable List<String> tags, @Nullable String locale, @Nullable String currency, @Nullable BigDecimal priceMin, @Nullable BigDecimal priceMax, @NotNull ProductSort sortBy) {
+    public @NotNull IProductQueryService.PageResult<Product> pageOnSaleProducts(int page,
+                                                                                int size,
+                                                                                @Nullable Long categoryId,
+                                                                                @Nullable String keyword,
+                                                                                @Nullable List<String> tags,
+                                                                                @Nullable String locale,
+                                                                                @Nullable String currency,
+                                                                                @Nullable BigDecimal priceMin,
+                                                                                @Nullable BigDecimal priceMax,
+                                                                                @NotNull ProductSort sortBy) {
         int offset = (page - 1) * size;
-        List<ProductPO> records = productMapper.selectOnSalePage(offset, size, categoryId, keyword, tags, locale, currency, priceMin, priceMax, sortBy.name());
+        List<ProductPO> productPOList = productMapper.selectOnSalePage(
+                offset,
+                size,
+                categoryId,
+                keyword,
+                tags,
+                locale,
+                currency,
+                priceMin,
+                priceMax,
+                sortBy.name());
         long total = productMapper.countOnSale(categoryId, keyword, tags, locale, currency, priceMin, priceMax);
-        List<Product> items = records.stream().map(this::toProduct).toList();
-        return new IProductQueryService.PageResult<>(items, total);
+        List<Product> productList = productPOList.stream()
+                .map(this::toProduct)
+                .toList();
+        return new IProductQueryService.PageResult<>(productList, total);
     }
 
+    /**
+     * 按 slug 查询上架商品
+     *
+     * @param slug slug
+     * @return 商品
+     */
     @Override
     public @NotNull Optional<Product> findOnSaleBySlug(@NotNull String slug) {
         ProductPO record = productMapper.selectOnSaleBySlug(slug);
         return Optional.ofNullable(record).map(this::toProduct);
     }
 
+    /**
+     * 按指定语言的 slug 查询上架商品
+     *
+     * @param slug   多语言 slug
+     * @param locale 语言
+     * @return 商品
+     */
     @Override
     public @NotNull Optional<Product> findOnSaleByLocalizedSlug(@NotNull String slug, @NotNull String locale) {
         ProductPO record = productMapper.selectOnSaleByLocalizedSlug(slug, locale);
         return Optional.ofNullable(record).map(this::toProduct);
     }
 
+    /**
+     * 批量查询商品 i18n
+     *
+     * @param productIds 商品ID集合
+     * @param locale     语言
+     * @return productId -> i18n
+     */
     @Override
     public @NotNull Map<Long, ProductI18n> mapI18nByLocale(@NotNull Set<Long> productIds, @NotNull String locale) {
         if (productIds.isEmpty())
@@ -78,6 +167,12 @@ public class ProductQueryRepository implements IProductQueryRepository {
                         (existing, ignore) -> existing, LinkedHashMap::new));
     }
 
+    /**
+     * 批量查询商品图片
+     *
+     * @param productIds 商品ID集合
+     * @return productId -> 图片列表
+     */
     @Override
     public @NotNull Map<Long, List<ProductImage>> mapProductImages(@NotNull Set<Long> productIds) {
         if (productIds.isEmpty())
@@ -86,51 +181,67 @@ public class ProductQueryRepository implements IProductQueryRepository {
                 .in(ProductImagePO::getProductId, productIds)
                 .orderByAsc(ProductImagePO::getSortOrder, ProductImagePO::getId));
         return records.stream()
-                .collect(Collectors.groupingBy(ProductImagePO::getProductId,
+                .collect(Collectors.groupingBy(
+                        ProductImagePO::getProductId,
                         LinkedHashMap::new,
-                        Collectors.mapping(this::toProductImage, Collectors.toList())));
+                        Collectors.mapping(this::toProductImage, Collectors.toList())
+                ));
     }
 
+    /**
+     * 按币种计算商品价格区间 (仅启用 SKU + 价格)
+     *
+     * @param productIds 商品ID集合
+     * @param currency   币种
+     * @return productId -> 价格区间
+     */
     @Override
     public @NotNull Map<Long, ProductPriceRange> mapPriceRangeByProductIds(@NotNull Set<Long> productIds, @NotNull String currency) {
         if (productIds.isEmpty())
             return Map.of();
-        List<ProductSkuPO> enabledSkus = productSkuMapper.selectList(new LambdaQueryWrapper<ProductSkuPO>()
+        // 获取一系列 SPU ID 对应的 SKU(ENABLED) 列表
+        List<ProductSkuPO> enabledSkuList = productSkuMapper.selectList(new LambdaQueryWrapper<ProductSkuPO>()
                 .in(ProductSkuPO::getProductId, productIds)
                 .eq(ProductSkuPO::getStatus, SkuStatus.ENABLED.name()));
-        Map<Long, List<ProductSkuPO>> skuByProduct = enabledSkus.stream()
+        // 将 SKU 按 SPU ID 分组
+        Map<Long, List<ProductSkuPO>> enabledSkuListOfSpuMap = enabledSkuList.stream()
                 .collect(Collectors.groupingBy(ProductSkuPO::getProductId));
-        Set<Long> skuIds = enabledSkus.stream().map(ProductSkuPO::getId).collect(Collectors.toSet());
+        // 获取一系列 SKU ID 对应的价格列表(ACTIVE 价格)
+        Set<Long> skuIds = enabledSkuList.stream()
+                .map(ProductSkuPO::getId)
+                .collect(Collectors.toSet());
         if (skuIds.isEmpty())
             return Map.of();
-        List<ProductPricePO> prices = productPriceMapper.selectList(new LambdaQueryWrapper<ProductPricePO>()
+        List<ProductPricePO> priceList = productPriceMapper.selectList(new LambdaQueryWrapper<ProductPricePO>()
                 .eq(ProductPricePO::getCurrency, currency)
                 .eq(ProductPricePO::getIsActive, 1)
                 .in(ProductPricePO::getSkuId, skuIds));
-        Map<Long, List<ProductPricePO>> priceBySku = prices.stream()
+        Map<Long, List<ProductPricePO>> activePriceListOfSkuMap = priceList.stream()
                 .collect(Collectors.groupingBy(ProductPricePO::getSkuId));
 
+        // 得到 SPU -> List<SKU> 和 SKU -> List<价格> 的映射
         Map<Long, ProductPriceRange> result = new LinkedHashMap<>();
-        for (Map.Entry<Long, List<ProductSkuPO>> entry : skuByProduct.entrySet()) {
-            List<ProductPricePO> skuPrices = entry.getValue().stream()
-                    .flatMap(sku -> priceBySku.getOrDefault(sku.getId(), Collections.emptyList()).stream())
+        for (Map.Entry<Long, List<ProductSkuPO>> entry : enabledSkuListOfSpuMap.entrySet()) {
+            List<ProductPricePO> activePriceList = entry.getValue().stream()
+                    .flatMap(sku -> activePriceListOfSkuMap.getOrDefault(sku.getId(), Collections.emptyList()).stream())
                     .toList();
-            if (skuPrices.isEmpty())
+            if (activePriceList.isEmpty())
                 continue;
             BigDecimal listMin = null, listMax = null, saleMin = null, saleMax = null;
-            for (ProductPricePO price : skuPrices) {
+            for (ProductPricePO price : activePriceList) {
                 if (price.getListPrice() == null)
                     continue;
                 BigDecimal lp = price.getListPrice();
                 listMin = listMin == null ? lp : listMin.min(lp);
                 listMax = listMax == null ? lp : listMax.max(lp);
-                if (price.getSalePrice() != null) {
-                    BigDecimal sp = price.getSalePrice();
-                    saleMin = saleMin == null ? sp : saleMin.min(sp);
-                    saleMax = saleMax == null ? sp : saleMax.max(sp);
-                }
+                if (price.getSalePrice() == null)
+                    continue;
+
+                BigDecimal sp = price.getSalePrice();
+                saleMin = saleMin == null ? sp : saleMin.min(sp);
+                saleMax = saleMax == null ? sp : saleMax.max(sp);
             }
-            if (listMin != null && listMax != null)
+            if (listMin != null)
                 result.put(entry.getKey(), ProductPriceRange.of(currency, listMin, listMax, saleMin, saleMax));
         }
         return result;
@@ -154,6 +265,13 @@ public class ProductQueryRepository implements IProductQueryRepository {
         return records.stream().map(this::toProductSpecValue).toList();
     }
 
+    /**
+     * 规格 i18n
+     *
+     * @param specIds 规格ID集合
+     * @param locale  语言
+     * @return specId -> 名称
+     */
     @Override
     public @NotNull Map<Long, String> mapSpecI18n(@NotNull Set<Long> specIds, @NotNull String locale) {
         if (specIds.isEmpty())
@@ -165,6 +283,13 @@ public class ProductQueryRepository implements IProductQueryRepository {
                 (existing, ignore) -> existing, LinkedHashMap::new));
     }
 
+    /**
+     * 规格值 i18n
+     *
+     * @param valueIds 规格值ID集合
+     * @param locale   语言
+     * @return valueId -> 名称
+     */
     @Override
     public @NotNull Map<Long, String> mapSpecValueI18n(@NotNull Set<Long> valueIds, @NotNull String locale) {
         if (valueIds.isEmpty())
@@ -176,6 +301,12 @@ public class ProductQueryRepository implements IProductQueryRepository {
                 (existing, ignore) -> existing, LinkedHashMap::new));
     }
 
+    /**
+     * 查询启用 SKU
+     *
+     * @param productId 商品ID
+     * @return SKU 列表
+     */
     @Override
     public @NotNull List<ProductSku> listEnabledSkus(@NotNull Long productId) {
         List<ProductSkuPO> records = productSkuMapper.selectList(new LambdaQueryWrapper<ProductSkuPO>()
@@ -186,6 +317,13 @@ public class ProductQueryRepository implements IProductQueryRepository {
         return records.stream().map(this::toProductSku).toList();
     }
 
+    /**
+     * 批量查询 SKU 价格 (指定币种)
+     *
+     * @param skuIds   SKU ID 集合
+     * @param currency 币种
+     * @return skuId -> 价格
+     */
     @Override
     public @NotNull Map<Long, ProductPrice> mapPricesBySkuIds(@NotNull Set<Long> skuIds, @NotNull String currency) {
         if (skuIds.isEmpty())
@@ -199,6 +337,12 @@ public class ProductQueryRepository implements IProductQueryRepository {
                         (existing, ignore) -> existing, LinkedHashMap::new));
     }
 
+    /**
+     * SKU 图片
+     *
+     * @param skuIds SKU ID 集合
+     * @return skuId -> 图片列表
+     */
     @Override
     public @NotNull Map<Long, List<ProductImage>> mapSkuImages(@NotNull Set<Long> skuIds) {
         if (skuIds.isEmpty())
@@ -212,12 +356,18 @@ public class ProductQueryRepository implements IProductQueryRepository {
                         Collectors.mapping(this::toProductImage, Collectors.toList())));
     }
 
+    /**
+     * SKU 规格映射
+     *
+     * @param skuIds SKU ID 集合
+     * @return skuId -> 规格值列表
+     */
     @Override
     public @NotNull Map<Long, List<ProductSkuSpec>> mapSkuSpecs(@NotNull Set<Long> skuIds) {
         if (skuIds.isEmpty())
             return Map.of();
-        List<ProductSkuSpecPO> records = productSkuSpecMapper.selectList(new QueryWrapper<ProductSkuSpecPO>()
-                .in("sku_id", skuIds));
+        List<ProductSkuSpecPO> records = productSkuSpecMapper.selectList(new LambdaQueryWrapper<ProductSkuSpecPO>()
+                .in(ProductSkuSpecPO::getSkuId, skuIds));
         if (records.isEmpty())
             return Map.of();
         Set<Long> specIds = records.stream().map(ProductSkuSpecPO::getSpecId).collect(Collectors.toSet());
@@ -241,14 +391,20 @@ public class ProductQueryRepository implements IProductQueryRepository {
             ProductSpecValuePO value = valueMap.get(po.getValueId());
             if (spec == null || value == null)
                 continue;
-            ProductSkuSpec specVo = ProductSkuSpec.of(spec.getId(), spec.getSpecCode(), spec.getSpecName(),
+            ProductSkuSpec skuSpec = ProductSkuSpec.of(spec.getId(), spec.getSpecCode(), spec.getSpecName(),
                     value.getId(), value.getValueCode(), value.getValueName());
-            result.computeIfAbsent(po.getSkuId(), ignore -> new ArrayList<>()).add(specVo);
+            result.computeIfAbsent(po.getSkuId(), ignore -> new ArrayList<>()).add(skuSpec);
         }
 
         return result.isEmpty() ? Map.of() : result;
     }
 
+    /**
+     * 将 ProductPO 对象转换为 Product 对象
+     *
+     * @param po ProductPO 对象, 包含商品的基本信息
+     * @return Product 对象, 表示转换后的完整商品信息
+     */
     private Product toProduct(ProductPO po) {
         return Product.reconstitute(
                 po.getId(),
@@ -269,11 +425,23 @@ public class ProductQueryRepository implements IProductQueryRepository {
         );
     }
 
+    /**
+     * 将 ProductI18nPO 转换为 ProductI18n 对象
+     *
+     * @param po ProductI18nPO 对象, 包含商品的多语言信息
+     * @return ProductI18n 对象, 表示商品的多语言覆盖
+     */
     private ProductI18n toProductI18n(ProductI18nPO po) {
         return ProductI18n.of(po.getLocale(), po.getTitle(), po.getSubtitle(), po.getDescription(),
                 po.getSlug(), parseStringList(po.getTags()));
     }
 
+    /**
+     * 将 ProductSkuPO 对象转换为 ProductSku 对象
+     *
+     * @param po ProductSkuPO 对象, 包含 SKU 的基本信息
+     * @return ProductSku 对象, 表示转换后的完整 SKU 信息
+     */
     private ProductSku toProductSku(ProductSkuPO po) {
         return ProductSku.reconstitute(
                 po.getId(),
@@ -286,6 +454,12 @@ public class ProductQueryRepository implements IProductQueryRepository {
         );
     }
 
+    /**
+     * 将 ProductImagePO 转换为 ProductImage 对象
+     *
+     * @param po ProductImagePO 对象, 包含商品图片的信息
+     * @return ProductImage 对象, 表示商品的图片信息
+     */
     private ProductImage toProductImage(ProductImagePO po) {
         return ProductImage.of(po.getUrl(), po.getIsMain() != null && po.getIsMain() == 1, po.getSortOrder());
     }
@@ -313,7 +487,7 @@ public class ProductQueryRepository implements IProductQueryRepository {
         if (json == null || json.isBlank())
             return Collections.emptyList();
         try {
-            return OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {
+            return objectMapper.readValue(json, new TypeReference<>() {
             });
         } catch (Exception ignore) {
             return Collections.emptyList();
@@ -324,7 +498,7 @@ public class ProductQueryRepository implements IProductQueryRepository {
         if (json == null || json.isBlank())
             return Collections.emptyMap();
         try {
-            return OBJECT_MAPPER.readValue(json, new TypeReference<Map<String, Object>>() {
+            return objectMapper.readValue(json, new TypeReference<>() {
             });
         } catch (Exception ignore) {
             return Collections.emptyMap();

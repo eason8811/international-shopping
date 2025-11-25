@@ -18,22 +18,22 @@ import java.util.Set;
 /**
  * 商品读取仓储接口
  *
- * <p>职责：提供上架商品的查询能力，聚合 SPU/SKU/价格/规格等数据</p>
+ * <p>职责：提供上架商品的查询能力, 聚合 SPU/SKU/价格/规格等数据</p>
  */
 public interface IProductQueryRepository {
 
     /**
      * 按条件分页查询上架商品
      *
-     * @param page       页码，从1开始
+     * @param page       页码, 从1开始
      * @param size       每页数量
-     * @param categoryId 分类ID，可空
-     * @param keyword    关键词，可空
-     * @param tags       标签，可空
-     * @param locale     语言，用于关键字/标签匹配 i18n，可空
-     * @param currency   价格币种，可空
-     * @param priceMin   价格下限，可空
-     * @param priceMax   价格上限，可空
+     * @param categoryId 分类ID, 可空
+     * @param keyword    关键词, 可空
+     * @param tags       标签, 可空
+     * @param locale     语言, 用于关键字/标签匹配 i18n, 可空
+     * @param currency   价格币种, 可空
+     * @param priceMin   价格下限, 可空
+     * @param priceMax   价格上限, 可空
      * @param sortBy     排序
      * @return 分页结果
      */

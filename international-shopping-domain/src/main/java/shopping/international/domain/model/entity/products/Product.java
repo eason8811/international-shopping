@@ -6,7 +6,6 @@ import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
-import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -123,8 +122,6 @@ public class Product {
                                        LocalDateTime updatedAt) {
         requireNotBlank(slug, "商品 slug 不能为空");
         requireNotBlank(title, "商品标题不能为空");
-        if (categoryId == null)
-            throw new IllegalParamException("商品分类ID不能为空");
 
         Product product = new Product();
         product.id = id;

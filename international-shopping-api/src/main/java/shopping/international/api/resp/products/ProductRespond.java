@@ -5,10 +5,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
-import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPriceRange;
 import shopping.international.domain.model.vo.products.ProductSummary;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,35 +19,101 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductRespond {
+    /**
+     * 主键ID
+     */
     private Long id;
+    /**
+     * 商品别名(SEO/路由)
+     */
     private String slug;
+    /**
+     * 商品标题
+     */
     private String title;
+    /**
+     * 副标题
+     */
     private String subtitle;
+    /**
+     * 商品描述
+     */
     private String description;
+    /**
+     * 所属分类ID
+     */
     private Long categoryId;
+    /**
+     * 分类别名(SEO/路由)
+     */
     private String categorySlug;
+    /**
+     * 品牌文案(本地化)
+     */
     private String brand;
+    /**
+     * 主图URL
+     */
     private String coverImageUrl;
+    /**
+     * 总库存(聚合)
+     */
     private Integer stockTotal;
+    /**
+     * 销量(聚合)
+     */
     private Integer saleCount;
+    /**
+     * 规格类型(单/多规格)
+     * <ul>
+     *     <li>{@code SINGLE}: 单规格</li>
+     *     <li>{@code VARIANT}: 多规格</li>
+     * </ul>
+     */
     private SkuType skuType;
+    /**
+     * 商品状态
+     * <ul>
+     *     <li>{@code DRAFT}: 草稿</li>
+     *     <li>{@code ON_SALE}: 上架</li>
+     *     <li>{@code OFF_SHELF}: 下架</li>
+     *     <li>{@code DELETED}: 已删除</li>
+     * </ul>
+     */
     private ProductStatus status;
+    /**
+     * 标签(JSON)
+     */
     private List<String> tags;
+    /**
+     * SPU 价格区间
+     */
     private PriceRangeRespond priceRange;
+    /**
+     * 商品图片列表
+     */
     private List<ProductImageRespond> gallery;
+    /**
+     * 收藏时间
+     */
     private LocalDateTime likedAt;
 
     public static ProductRespond from(ProductSummary summary) {
-        ProductPriceRange pr = summary.priceRange();
-        PriceRangeRespond priceRangeRespond = pr == null ? null : new PriceRangeRespond(
-                pr.getCurrency(),
-                pr.getListPriceMin(),
-                pr.getListPriceMax(),
-                pr.getSalePriceMin(),
-                pr.getSalePriceMax()
+        ProductPriceRange summaryPriceRange = summary.priceRange();
+        // 构建价格区间响应, 若价格区间为空则返回null
+        PriceRangeRespond priceRangeRespond = summaryPriceRange == null ? null : new PriceRangeRespond(
+                summaryPriceRange.getCurrency(),
+                summaryPriceRange.getListPriceMin(),
+                summaryPriceRange.getListPriceMax(),
+                summaryPriceRange.getSalePriceMin(),
+                summaryPriceRange.getSalePriceMax()
         );
-        List<ProductImageRespond> images = summary.gallery() == null ? List.of()
-                : summary.gallery().stream().map(ProductImageRespond::from).toList();
+        // 构建图片列表响应
+        List<ProductImageRespond> imageList = summary.gallery() == null ? List.of()
+                : summary.gallery()
+                .stream()
+                .map(ProductImageRespond::from)
+                .toList();
         return new ProductRespond(
                 summary.id(),
                 summary.slug(),
@@ -64,38 +130,38 @@ public class ProductRespond {
                 summary.status(),
                 summary.tags(),
                 priceRangeRespond,
-                images,
+                imageList,
                 summary.likedAt()
         );
     }
 
     /**
-     * 价格区间
+     * 价格区间响应
      */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PriceRangeRespond {
+        /**
+         * 价格结算货币
+         */
         private String currency;
-        private java.math.BigDecimal listPriceMin;
-        private java.math.BigDecimal listPriceMax;
-        private java.math.BigDecimal salePriceMin;
-        private java.math.BigDecimal salePriceMax;
+        /**
+         * 商品原价最小值
+         */
+        private BigDecimal listPriceMin;
+        /**
+         * 商品原价最大值
+         */
+        private BigDecimal listPriceMax;
+        /**
+         * 商品促销价最小值
+         */
+        private BigDecimal salePriceMin;
+        /**
+         * 商品促销价最大值
+         */
+        private BigDecimal salePriceMax;
     }
 
-    /**
-     * 图片
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ProductImageRespond {
-        private String url;
-        private Boolean isMain;
-        private Integer sortOrder;
-
-        public static ProductImageRespond from(ProductImage image) {
-            return new ProductImageRespond(image.getUrl(), image.isMain(), image.getSortOrder());
-        }
-    }
 }

@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
- * SKU 选择的规格值
+ * SKU 关联的 规格 和 规格值
  */
 @Getter
 @ToString

@@ -94,7 +94,7 @@ public class ProductDetailRespond {
     /**
      * SPU 图片列表
      */
-    private List<ProductRespond.ProductImageRespond> gallery;
+    private List<ProductImageRespond> gallery;
     /**
      * SPU 的规格列表
      */
@@ -117,14 +117,23 @@ public class ProductDetailRespond {
      */
     public static ProductDetailRespond from(ProductDetail detail, String locale) {
         // 从商品详情值对象中获取商品的图片列表, 并转换为 ProductImageRespond 列表
-        List<ProductRespond.ProductImageRespond> gallery = detail.gallery() == null ? List.of()
-                : detail.gallery().stream().map(ProductRespond.ProductImageRespond::from).toList();
+        List<ProductImageRespond> gallery = detail.gallery() == null ? List.of()
+                : detail.gallery()
+                .stream()
+                .map(ProductImageRespond::from)
+                .toList();
         // 从商品详情值对象中获取商品的规格列表, 并转换为 本地化后的 SpecRespond 列表
         List<SpecRespond> specResponds = detail.specs() == null ? List.of()
-                : detail.specs().stream().map(spec -> SpecRespond.from(spec, locale)).toList();
+                : detail.specs()
+                .stream()
+                .map(spec -> SpecRespond.from(spec, locale))
+                .toList();
         // 从商品详情值对象中获取商品的 SKU 列表, 并转换为 SkuRespond 列表
         List<SkuRespond> skuResponds = detail.skus() == null ? List.of()
-                : detail.skus().stream().map(SkuRespond::from).toList();
+                : detail.skus()
+                .stream()
+                .map(SkuRespond::from)
+                .toList();
         // 从商品详情值对象中获取商品的 I18N 信息, 并转换为 ProductI18nRespond
         ProductI18nRespond i18nRespond = detail.i18n() == null ? null : ProductI18nRespond.from(detail.i18n());
         return new ProductDetailRespond(
@@ -215,7 +224,10 @@ public class ProductDetailRespond {
             List<SpecI18nRespond> i18nList = i18n == null ? List.of() : List.of(i18n);
             // 从 ProductSpec 中获取规格值列表, 并转换为 本地化后的 SpecValueRespond 列表
             List<SpecValueRespond> specValueList = spec.getValues() == null ? List.of()
-                    : spec.getValues().stream().map(value -> SpecValueRespond.from(value, locale)).toList();
+                    : spec.getValues()
+                    .stream()
+                    .map(value -> SpecValueRespond.from(value, locale))
+                    .toList();
             return new SpecRespond(
                     spec.getId(),
                     spec.getSpecCode(),
@@ -363,7 +375,7 @@ public class ProductDetailRespond {
         /**
          * SKU 的图片列表
          */
-        private List<ProductRespond.ProductImageRespond> images;
+        private List<ProductImageRespond> images;
 
         /**
          * 将 <code>ProductSku</code> 实体转换为 <code>SkuRespond</code> 响应对象
@@ -382,10 +394,16 @@ public class ProductDetailRespond {
             );
             // 从 ProductSku 中获取关联的规格值列表, 并转换为 ProductSkuSpecRespond 列表
             List<ProductSkuSpecRespond> specs = sku.getSpecs() == null ? List.of()
-                    : sku.getSpecs().stream().map(ProductSkuSpecRespond::from).toList();
+                    : sku.getSpecs()
+                    .stream()
+                    .map(ProductSkuSpecRespond::from)
+                    .toList();
             // 从 ProductSku 中获取图片列表, 并转换为 ProductImageRespond 列表
-            List<ProductRespond.ProductImageRespond> images = sku.getImages() == null ? List.of()
-                    : sku.getImages().stream().map(ProductRespond.ProductImageRespond::from).toList();
+            List<ProductImageRespond> images = sku.getImages() == null ? List.of()
+                    : sku.getImages()
+                    .stream()
+                    .map(ProductImageRespond::from)
+                    .toList();
             return new SkuRespond(
                     sku.getId(),
                     sku.getSkuCode(),
@@ -482,7 +500,7 @@ public class ProductDetailRespond {
          */
         private String locale;
         /**
-         *  本地化标题
+         * 本地化标题
          */
         private String title;
         /**
