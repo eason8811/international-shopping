@@ -2,16 +2,13 @@ package shopping.international.domain.model.enums.products;
 
 /**
  * 商品规格类型 (单/多规格)
+ * <ul>
+ *     <li>{@link #SINGLE} - 单规格</li>
+ *     <li>{@link #VARIANT} - 多规格</li>
+ * </ul>
  */
 public enum SkuType {
-    /**
-     * 单规格
-     */
-    SINGLE,
-    /**
-     * 多规格
-     */
-    VARIANT;
+    SINGLE, VARIANT;
 
     /**
      * 解析字符串，大小写不敏感

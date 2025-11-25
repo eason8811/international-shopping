@@ -20,10 +20,19 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @TableName("product_like")
 public class ProductLikePO {
+    /**
+     * 用户ID, 指向 user_account.id
+     */
     @TableId("user_id")
     private Long userId;
+    /**
+     * SPU ID, 指向 product.id
+     */
     @TableField("product_id")
     private Long productId;
+    /**
+     * Like 时间
+     */
     @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;
 }

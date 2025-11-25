@@ -2,16 +2,13 @@ package shopping.international.domain.model.enums.products;
 
 /**
  * 商品分类状态
+ * <ul>
+ *     <li>{@code ENABLED} - 启用</li>
+ *     <li>{@code DISABLED} - 禁用</li>
+ * </ul>
  */
 public enum CategoryStatus {
-    /**
-     * 启用
-     */
-    ENABLED,
-    /**
-     * 禁用
-     */
-    DISABLED;
+    ENABLED, DISABLED;
 
     /**
      * 通过字符串解析状态，大小写不敏感

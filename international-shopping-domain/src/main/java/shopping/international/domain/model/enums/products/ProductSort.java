@@ -2,24 +2,15 @@ package shopping.international.domain.model.enums.products;
 
 /**
  * 商品列表排序方式
+ * <ul>
+ *     <li>{@link #LATEST} - 最新 (更新时间倒序)</li>
+ *     <li>{@link #SALES_DESC} - 销量倒序</li>
+ *     <li>{@link #PRICE_ASC} - 价格升序</li>
+ *     <li>{@link #PRICE_DESC} - 价格降序</li>
+ * </ul>
  */
 public enum ProductSort {
-    /**
-     * 最新（更新时间倒序）
-     */
-    LATEST,
-    /**
-     * 销量倒序
-     */
-    SALES_DESC,
-    /**
-     * 价格升序
-     */
-    PRICE_ASC,
-    /**
-     * 价格降序
-     */
-    PRICE_DESC;
+    LATEST, SALES_DESC, PRICE_ASC, PRICE_DESC;
 
     /**
      * 通过字符串解析排序方式

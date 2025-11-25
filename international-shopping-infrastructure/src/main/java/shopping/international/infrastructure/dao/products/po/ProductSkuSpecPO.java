@@ -20,12 +20,24 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @TableName("product_sku_spec")
 public class ProductSkuSpecPO {
+    /**
+     * SKU ID, 指向 product_sku.id
+     */
     @TableId("sku_id")
     private Long skuId;
+    /**
+     * 规格类别ID, 指向 product_spec.id
+     */
     @TableField("spec_id")
     private Long specId;
+    /**
+     * 规格值ID, 指向 product_spec_value.id
+     */
     @TableField("value_id")
     private Long valueId;
+    /**
+     * 创建时间
+     */
     @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;
 }

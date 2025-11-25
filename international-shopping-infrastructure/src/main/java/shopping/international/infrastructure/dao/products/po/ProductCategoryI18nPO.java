@@ -1,10 +1,6 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -42,7 +38,7 @@ public class ProductCategoryI18nPO {
     @TableField("name")
     private String name;
     /**
-     * 本地化分类描述
+     * 分类slug(本地化, 用于多语言路由/SEO)
      */
     @TableField("slug")
     private String slug;

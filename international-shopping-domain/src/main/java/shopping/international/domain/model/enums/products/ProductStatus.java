@@ -2,24 +2,15 @@ package shopping.international.domain.model.enums.products;
 
 /**
  * 商品状态
+ * <ul>
+ *     <li>{@code DRAFT} - 草稿</li>
+ *     <li>{@code ON_SALE} - 上架</li>
+ *     <li>{@code OFF_SHELF} - 下架</li>
+ *     <li>{@code DELETED} - 已删除</li>
+ * </ul>
  */
 public enum ProductStatus {
-    /**
-     * 草稿
-     */
-    DRAFT,
-    /**
-     * 上架
-     */
-    ON_SALE,
-    /**
-     * 下架
-     */
-    OFF_SHELF,
-    /**
-     * 已删除
-     */
-    DELETED;
+    DRAFT, ON_SALE, OFF_SHELF, DELETED;
 
     /**
      * 解析字符串为枚举值，大小写不敏感

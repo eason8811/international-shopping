@@ -2,28 +2,16 @@ package shopping.international.domain.model.enums.products;
 
 /**
  * 规格类别类型
+ * <ul>
+ *     <li>{@code COLOR} - 颜色</li>
+ *     <li>{@code SIZE} - 尺寸</li>
+ *     <li>{@code CAPACITY} - 容量</li>
+ *     <li>{@code MATERIAL} - 材质</li>
+ *     <li>{@code OTHER} - 其他</li>
+ * </ul>
  */
 public enum SpecType {
-    /**
-     * 颜色
-     */
-    COLOR,
-    /**
-     * 尺寸
-     */
-    SIZE,
-    /**
-     * 容量
-     */
-    CAPACITY,
-    /**
-     * 材质
-     */
-    MATERIAL,
-    /**
-     * 其他
-     */
-    OTHER;
+    COLOR, SIZE, CAPACITY, MATERIAL, OTHER;
 
     /**
      * 解析字符串，大小写不敏感

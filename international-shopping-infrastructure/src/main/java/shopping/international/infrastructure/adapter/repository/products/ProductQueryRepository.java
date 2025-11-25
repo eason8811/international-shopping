@@ -464,25 +464,56 @@ public class ProductQueryRepository implements IProductQueryRepository {
         return ProductImage.of(po.getUrl(), po.getIsMain() != null && po.getIsMain() == 1, po.getSortOrder());
     }
 
+    /**
+     * 将 ProductSkuImagePO 对象转换为 ProductImage 对象
+     *
+     * @param po ProductSkuImagePO 对象, 包含 SKU 图片的信息
+     * @return ProductImage 对象, 表示商品的图片信息
+     */
     private ProductImage toProductImage(ProductSkuImagePO po) {
         return ProductImage.of(po.getUrl(), po.getIsMain() != null && po.getIsMain() == 1, po.getSortOrder());
     }
 
+    /**
+     * 将 ProductPricePO 对象转换为 ProductPrice 对象
+     *
+     * @param po ProductPricePO 对象, 包含价格信息
+     * @return 转换后的 ProductPrice 对象
+     * @throws AppException 如果币种或标价为空，则抛出异常
+     */
     private ProductPrice toProductPrice(ProductPricePO po) {
         if (po.getCurrency() == null || po.getListPrice() == null)
             throw new AppException("价格记录缺少必填字段, skuId=" + po.getSkuId());
         return ProductPrice.of(po.getCurrency(), po.getListPrice(), po.getSalePrice(), po.getIsActive() != null && po.getIsActive() == 1);
     }
 
+    /**
+     * 将 ProductSpecPO 对象转换为 ProductSpec 对象
+     *
+     * @param po ProductSpecPO 对象, 包含规格的基本信息
+     * @return ProductSpec 对象, 表示转换后的完整规格信息
+     */
     private ProductSpec toProductSpec(ProductSpecPO po) {
         return ProductSpec.reconstitute(po.getId(), po.getProductId(), po.getSpecCode(), po.getSpecName(),
                 SpecType.from(po.getSpecType()), po.getIsRequired() != null && po.getIsRequired() == 1);
     }
 
+    /**
+     * 将 ProductSpecValuePO 对象转换为 ProductSpecValue 对象
+     *
+     * @param po ProductSpecValuePO 对象, 包含规格值的基本信息
+     * @return ProductSpecValue 对象, 表示转换后的完整规格值信息
+     */
     private ProductSpecValue toProductSpecValue(ProductSpecValuePO po) {
         return ProductSpecValue.reconstitute(po.getId(), po.getSpecId(), po.getValueCode(), po.getValueName(), parseAttributes(po.getAttributes()));
     }
 
+    /**
+     * 解析给定的 JSON 字符串为字符串列表
+     *
+     * @param json 要解析的 JSON 字符串, 可为空
+     * @return 如果 <code>json</code> 为 null 或空字符串, 则返回空列表; 否则尝试将其解析为字符串列表并返回. 如果解析过程中发生异常, 也返回空列表
+     */
     private List<String> parseStringList(@Nullable String json) {
         if (json == null || json.isBlank())
             return Collections.emptyList();
@@ -494,6 +525,12 @@ public class ProductQueryRepository implements IProductQueryRepository {
         }
     }
 
+    /**
+     * 解析给定的 JSON 字符串为键值对映射
+     *
+     * @param json 要解析的 JSON 字符串, 可为空
+     * @return 如果 <code>json</code> 为 null 或空白字符串, 则返回空映射; 否则尝试将其解析为键值对映射并返回. 如果解析过程中发生异常, 也返回空映射
+     */
     private Map<String, Object> parseAttributes(@Nullable String json) {
         if (json == null || json.isBlank())
             return Collections.emptyMap();
