@@ -3,6 +3,7 @@ package shopping.international.trigger.controller.products;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +26,7 @@ import java.util.List;
 /**
  * 商品查询接口
  */
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(SecurityConstants.API_PREFIX + "/products")
@@ -127,7 +129,8 @@ public class ProductController {
             if (trimmed.startsWith("["))
                 return objectMapper.readValue(trimmed, new TypeReference<>() {
                 });
-        } catch (Exception ignore) {
+        } catch (Exception ex) {
+            log.warn("标签 JSON 解析失败, 改用逗号分隔, 原始输入: {}", trimmed, ex);
         }
         return Arrays.stream(trimmed.split(","))
                 .map(String::trim)
@@ -156,7 +159,8 @@ public class ProductController {
                 return longUserId;
             if (principal instanceof String stringUserId)
                 return Long.parseLong(stringUserId);
-        } catch (Exception ignore) {
+        } catch (Exception ex) {
+            log.warn("从安全上下文解析用户ID失败, 视为未登录访问", ex);
         }
         return null;
     }

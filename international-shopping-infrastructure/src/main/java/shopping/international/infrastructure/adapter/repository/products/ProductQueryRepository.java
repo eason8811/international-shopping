@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Repository;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 /**
  * 商品查询仓储实现
  */
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class ProductQueryRepository implements IProductQueryRepository {
@@ -479,7 +481,7 @@ public class ProductQueryRepository implements IProductQueryRepository {
      *
      * @param po ProductPricePO 对象, 包含价格信息
      * @return 转换后的 ProductPrice 对象
-     * @throws AppException 如果币种或标价为空，则抛出异常
+     * @throws AppException 如果币种或标价为空, 则抛出异常
      */
     private ProductPrice toProductPrice(ProductPricePO po) {
         if (po.getCurrency() == null || po.getListPrice() == null)
@@ -520,7 +522,8 @@ public class ProductQueryRepository implements IProductQueryRepository {
         try {
             return objectMapper.readValue(json, new TypeReference<>() {
             });
-        } catch (Exception ignore) {
+        } catch (Exception ex) {
+            log.warn("规格值列表解析失败, 返回空列表, 原始数据: {}", json, ex);
             return Collections.emptyList();
         }
     }
@@ -537,7 +540,8 @@ public class ProductQueryRepository implements IProductQueryRepository {
         try {
             return objectMapper.readValue(json, new TypeReference<>() {
             });
-        } catch (Exception ignore) {
+        } catch (Exception ex) {
+            log.warn("规格属性解析失败, 返回空映射, 原始数据: {}", json, ex);
             return Collections.emptyMap();
         }
     }
