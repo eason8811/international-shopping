@@ -13,9 +13,7 @@ import shopping.international.infrastructure.dao.products.ProductCategoryMapper;
 import shopping.international.infrastructure.dao.products.po.ProductCategoryI18nPO;
 import shopping.international.infrastructure.dao.products.po.ProductCategoryPO;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +47,42 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
                 .toList();
     }
 
+    @Override
+    public @NotNull Optional<Category> findBySlug(@NotNull String slug) {
+        ProductCategoryPO record = categoryMapper.selectOne(new LambdaQueryWrapper<ProductCategoryPO>()
+                .eq(ProductCategoryPO::getSlug, slug)
+                .last("limit 1"));
+        return Optional.ofNullable(record).map(this::toEntity);
+    }
+
+    @Override
+    public @NotNull Optional<Category> findByLocalizedSlug(@NotNull String slug, @NotNull String locale) {
+        ProductCategoryI18nPO i18n = categoryI18nMapper.selectOne(new LambdaQueryWrapper<ProductCategoryI18nPO>()
+                .eq(ProductCategoryI18nPO::getLocale, locale)
+                .eq(ProductCategoryI18nPO::getSlug, slug)
+                .last("limit 1"));
+        if (i18n == null)
+            return Optional.empty();
+        ProductCategoryPO category = categoryMapper.selectById(i18n.getCategoryId());
+        return Optional.ofNullable(category).map(this::toEntity);
+    }
+
+    /**
+     * 按 ID 批量查询分类
+     *
+     * @param ids ID 集合
+     * @return id -> 分类
+     */
+    @Override
+    public @NotNull Map<Long, Category> mapByIds(@NotNull Set<Long> ids) {
+        if (ids.isEmpty())
+            return Map.of();
+        List<ProductCategoryPO> records = categoryMapper.selectByIds(ids);
+        return records.stream()
+                .collect(Collectors.toMap(ProductCategoryPO::getId, this::toEntity,
+                        (existing, ignore) -> existing, LinkedHashMap::new));
+    }
+
     /**
      * 根据指定的 locale 语言代码, 查询并返回所有分类的本地化信息映射
      *
@@ -59,6 +93,26 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
     public @NotNull Map<Long, CategoryI18n> mapI18nByLocale(@NotNull String locale) {
         List<ProductCategoryI18nPO> records = categoryI18nMapper.selectList(new LambdaQueryWrapper<ProductCategoryI18nPO>()
                 .eq(ProductCategoryI18nPO::getLocale, locale)
+                .orderByAsc(ProductCategoryI18nPO::getCategoryId));
+        return records.stream()
+                .collect(Collectors.toMap(ProductCategoryI18nPO::getCategoryId, this::toI18nEntity,
+                        (existing, ignore) -> existing, LinkedHashMap::new));
+    }
+
+    /**
+     * 按 locale 与 ID 集合读取 i18n
+     *
+     * @param categoryIds 分类ID集合
+     * @param locale      语言
+     * @return id -> i18n
+     */
+    @Override
+    public @NotNull Map<Long, CategoryI18n> mapI18nByLocale(@NotNull Collection<Long> categoryIds, @NotNull String locale) {
+        if (categoryIds.isEmpty())
+            return Map.of();
+        List<ProductCategoryI18nPO> records = categoryI18nMapper.selectList(new LambdaQueryWrapper<ProductCategoryI18nPO>()
+                .eq(ProductCategoryI18nPO::getLocale, locale)
+                .in(ProductCategoryI18nPO::getCategoryId, categoryIds)
                 .orderByAsc(ProductCategoryI18nPO::getCategoryId));
         return records.stream()
                 .collect(Collectors.toMap(ProductCategoryI18nPO::getCategoryId, this::toI18nEntity,

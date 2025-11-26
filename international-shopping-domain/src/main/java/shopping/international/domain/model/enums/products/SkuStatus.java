@@ -1,22 +1,22 @@
 package shopping.international.domain.model.enums.products;
 
 /**
- * 商品分类状态
+ * SKU 状态
  * <ul>
  *     <li>{@code ENABLED} - 启用</li>
  *     <li>{@code DISABLED} - 禁用</li>
  * </ul>
  */
-public enum CategoryStatus {
+public enum SkuStatus {
     ENABLED, DISABLED;
 
     /**
-     * 通过字符串解析状态，大小写不敏感
+     * 解析状态，大小写不敏感
      *
-     * @param value 枚举字符串
-     * @return 匹配到的 {@link CategoryStatus}，无法匹配时默认 {@link #DISABLED}
+     * @param value 字符串值
+     * @return 匹配枚举，无法识别时默认 {@link #DISABLED}
      */
-    public static CategoryStatus from(String value) {
+    public static SkuStatus from(String value) {
         if (value == null)
             return DISABLED;
         if ("enabled".equalsIgnoreCase(value))

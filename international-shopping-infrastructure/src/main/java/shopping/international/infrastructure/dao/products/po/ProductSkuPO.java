@@ -6,47 +6,58 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 持久化对象: product_category_i18n
+ * 持久化对象: product_sku
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("product_category_i18n")
-public class ProductCategoryI18nPO {
+@TableName("product_sku")
+public class ProductSkuPO {
     /**
-     * 主键 ID
+     * 主键ID
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     /**
-     * 分类 ID
+     * SPU ID, 指向 product.id
      */
-    @TableField("category_id")
-    private Long categoryId;
+    @TableField("product_id")
+    private Long productId;
     /**
-     * 语言
+     * SKU编码(外部/条码等)
      */
-    @TableField("locale")
-    private String locale;
+    @TableField("sku_code")
+    private String skuCode;
     /**
-     * 本地化分类名称
+     * 可售库存
      */
-    @TableField("name")
-    private String name;
+    @TableField("stock")
+    private Integer stock;
     /**
-     * 分类slug(本地化, 用于多语言路由/SEO)
+     * 重量(kg)
      */
-    @TableField("slug")
-    private String slug;
+    @TableField("weight")
+    private BigDecimal weight;
     /**
-     * 本地化分类品牌文案
+     * 状态
      */
-    @TableField("brand")
-    private String brand;
+    @TableField("status")
+    private String status;
+    /**
+     * 是否默认展示SKU
+     */
+    @TableField("is_default")
+    private Integer isDefault;
+    /**
+     * 条码(可空)
+     */
+    @TableField("barcode")
+    private String barcode;
     /**
      * 创建时间
      */

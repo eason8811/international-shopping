@@ -9,44 +9,54 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 持久化对象: product_category_i18n
+ * 持久化对象: product_i18n
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("product_category_i18n")
-public class ProductCategoryI18nPO {
+@TableName("product_i18n")
+public class ProductI18nPO {
     /**
-     * 主键 ID
+     * 主键ID
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     /**
-     * 分类 ID
+     * SPU ID, 指向 product.id
      */
-    @TableField("category_id")
-    private Long categoryId;
+    @TableField("product_id")
+    private Long productId;
     /**
-     * 语言
+     * 语言代码, 指向 locale.code
      */
     @TableField("locale")
     private String locale;
     /**
-     * 本地化分类名称
+     * 标题(本地化)
      */
-    @TableField("name")
-    private String name;
+    @TableField("title")
+    private String title;
     /**
-     * 分类slug(本地化, 用于多语言路由/SEO)
+     * 副标题(本地化)
+     */
+    @TableField("subtitle")
+    private String subtitle;
+    /**
+     * 描述(本地化)
+     */
+    @TableField("description")
+    private String description;
+    /**
+     * 商品slug(本地化, 用于多语言路由/SEO)
      */
     @TableField("slug")
     private String slug;
     /**
-     * 本地化分类品牌文案
+     * 标签(本地化, JSON)
      */
-    @TableField("brand")
-    private String brand;
+    @TableField("tags")
+    private String tags;
     /**
      * 创建时间
      */

@@ -6,47 +6,48 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 持久化对象: product_category_i18n
+ * 持久化对象: product_price
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("product_category_i18n")
-public class ProductCategoryI18nPO {
+@TableName("product_price")
+public class ProductPricePO {
     /**
-     * 主键 ID
+     * 主键ID
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     /**
-     * 分类 ID
+     * SKU ID, 指向 product_sku.id
      */
-    @TableField("category_id")
-    private Long categoryId;
+    @TableField("sku_id")
+    private Long skuId;
     /**
-     * 语言
+     * 币种, 指向 currency.code
      */
-    @TableField("locale")
-    private String locale;
+    @TableField("currency")
+    private String currency;
     /**
-     * 本地化分类名称
+     * 标价
      */
-    @TableField("name")
-    private String name;
+    @TableField("list_price")
+    private BigDecimal listPrice;
     /**
-     * 分类slug(本地化, 用于多语言路由/SEO)
+     * 促销价 (可空)
      */
-    @TableField("slug")
-    private String slug;
+    @TableField("sale_price")
+    private BigDecimal salePrice;
     /**
-     * 本地化分类品牌文案
+     * 是否可售用价
      */
-    @TableField("brand")
-    private String brand;
+    @TableField("is_active")
+    private Integer isActive;
     /**
      * 创建时间
      */

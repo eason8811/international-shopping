@@ -9,44 +9,54 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 持久化对象: product_category_i18n
+ * 持久化对象: product_spec
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("product_category_i18n")
-public class ProductCategoryI18nPO {
+@TableName("product_spec")
+public class ProductSpecPO {
     /**
-     * 主键 ID
+     * 主键ID
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     /**
-     * 分类 ID
+     * SPU ID, 指向 product.id
      */
-    @TableField("category_id")
-    private Long categoryId;
+    @TableField("product_id")
+    private Long productId;
     /**
-     * 语言
+     * 类别编码(稳定): color / capacity
      */
-    @TableField("locale")
-    private String locale;
+    @TableField("spec_code")
+    private String specCode;
     /**
-     * 本地化分类名称
+     * 类别名称
      */
-    @TableField("name")
-    private String name;
+    @TableField("spec_name")
+    private String specName;
     /**
-     * 分类slug(本地化, 用于多语言路由/SEO)
+     * 类别类型(用于UI渲染/业务规则)
      */
-    @TableField("slug")
-    private String slug;
+    @TableField("spec_type")
+    private String specType;
     /**
-     * 本地化分类品牌文案
+     * 是否必选(每个SKU必须选择一个值)
      */
-    @TableField("brand")
-    private String brand;
+    @TableField("is_required")
+    private Integer isRequired;
+    /**
+     * 排序(小在前)
+     */
+    @TableField("sort_order")
+    private Integer sortOrder;
+    /**
+     * 启用状态
+     */
+    @TableField("status")
+    private String status;
     /**
      * 创建时间
      */
