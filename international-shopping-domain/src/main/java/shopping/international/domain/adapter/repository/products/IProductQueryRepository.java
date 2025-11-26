@@ -69,6 +69,24 @@ public interface IProductQueryRepository {
     Optional<Product> findOnSaleByLocalizedSlug(@NotNull String slug, @NotNull String locale);
 
     /**
+     * 按ID查询商品(不限制状态)
+     *
+     * @param productId 商品ID
+     * @return 商品
+     */
+    @NotNull
+    Optional<Product> findById(@NotNull Long productId);
+
+    /**
+     * 批量查询商品(不限制状态)
+     *
+     * @param productIds 商品ID集合
+     * @return productId -> 商品
+     */
+    @NotNull
+    Map<Long, Product> mapByIds(@NotNull Set<Long> productIds);
+
+    /**
      * 批量查询商品 i18n
      *
      * @param productIds 商品ID集合

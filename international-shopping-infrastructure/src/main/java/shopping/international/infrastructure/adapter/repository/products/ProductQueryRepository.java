@@ -151,6 +151,35 @@ public class ProductQueryRepository implements IProductQueryRepository {
     }
 
     /**
+     * 按ID查询商品(不限制状态)
+     *
+     * @param productId 商品ID
+     * @return 商品
+     */
+    @Override
+    public @NotNull Optional<Product> findById(@NotNull Long productId) {
+        ProductPO record = productMapper.selectById(productId);
+        return Optional.ofNullable(record).map(this::toProduct);
+    }
+
+    /**
+     * 批量查询商品(不限制状态)
+     *
+     * @param productIds 商品ID集合
+     * @return productId -> 商品
+     */
+    @Override
+    public @NotNull Map<Long, Product> mapByIds(@NotNull Set<Long> productIds) {
+        if (productIds.isEmpty())
+            return Map.of();
+        List<ProductPO> records = productMapper.selectByIds(productIds);
+        return records.stream()
+                .map(this::toProduct)
+                .collect(Collectors.toMap(Product::getId, Function.identity(),
+                        (existing, ignore) -> existing, LinkedHashMap::new));
+    }
+
+    /**
      * 批量查询商品 i18n
      *
      * @param productIds 商品ID集合
