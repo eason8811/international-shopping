@@ -3,10 +3,13 @@ package shopping.international.api.resp.products;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.domain.model.vo.products.CategoryNode;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 商品分类树响应节点
@@ -56,9 +59,25 @@ public class CategoryNodeRespond {
      */
     private CategoryI18nRespond i18n;
     /**
+     * 全量 i18n 列表
+     */
+    private List<CategoryI18nItemRespond> i18nList;
+    /**
      * 子分类节点
      */
     private List<CategoryNodeRespond> children;
+    /**
+     * 是否启用
+     */
+    private Boolean isEnabled;
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updatedAt;
 
     /**
      * 从领域层节点转换为响应节点
@@ -72,6 +91,19 @@ public class CategoryNodeRespond {
         if (i18nVo != null)
             i18nResp = new CategoryI18nRespond(i18nVo.getName(), i18nVo.getSlug(), i18nVo.getBrand());
 
+        List<CategoryI18nItemRespond> i18nListResponds = node.getI18nList().stream()
+                .map(CategoryI18nItemRespond::from)
+                .toList();
+        String displayBrand = node.getBrand();
+        //
+        if (displayBrand == null) {
+            displayBrand = i18nListResponds.stream()
+                    .map(CategoryI18nItemRespond::getBrand)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+        }
+
         List<CategoryNodeRespond> childResponds = node.getChildren().stream()
                 .map(CategoryNodeRespond::from)
                 .toList();
@@ -84,10 +116,14 @@ public class CategoryNodeRespond {
                 node.getLevel(),
                 node.getPath(),
                 node.getSortOrder(),
-                node.getBrand(),
+                displayBrand,
                 node.getLocale(),
                 i18nResp,
-                childResponds
+                i18nListResponds,
+                childResponds,
+                node.getStatus() == null ? null : node.getStatus() == CategoryStatus.ENABLED,
+                node.getCreatedAt(),
+                node.getUpdatedAt()
         );
     }
 
@@ -110,5 +146,40 @@ public class CategoryNodeRespond {
          * 品牌文案
          */
         private String brand;
+    }
+
+    /**
+     * 带 locale 的 i18n 响应
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CategoryI18nItemRespond {
+        /**
+         * 语言代码
+         */
+        private String locale;
+        /**
+         * 分类名称
+         */
+        private String name;
+        /**
+         * 分类 slug
+         */
+        private String slug;
+        /**
+         * 品牌文案
+         */
+        private String brand;
+
+        /**
+         * 从领域对象转换为响应对象
+         *
+         * @param vo 值对象
+         * @return 响应
+         */
+        public static CategoryI18nItemRespond from(CategoryI18n vo) {
+            return new CategoryI18nItemRespond(vo.getLocale(), vo.getName(), vo.getSlug(), vo.getBrand());
+        }
     }
 }

@@ -7,6 +7,8 @@ import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.types.exceptions.IllegalParamException;
 
+import java.time.LocalDateTime;
+
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
@@ -48,6 +50,14 @@ public class Category {
      * 状态
      */
     private CategoryStatus status;
+    /**
+     * 创建时间
+     */
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updatedAt;
 
     private Category() {
     }
@@ -67,6 +77,27 @@ public class Category {
      */
     public static Category reconstitute(Long id, Long parentId, @NotNull String name, @NotNull String slug, int level,
                                         String path, int sortOrder, CategoryStatus status) {
+        return reconstitute(id, parentId, name, slug, level, path, sortOrder, status, null, null);
+    }
+
+    /**
+     * 从持久层数据重建分类实体, 同时带上审计字段
+     *
+     * @param id        主键
+     * @param parentId  父ID
+     * @param name      名称
+     * @param slug      路由 slug
+     * @param level     层级, 从 1 开始
+     * @param path      路径
+     * @param sortOrder 排序
+     * @param status    状态
+     * @param createdAt 创建时间
+     * @param updatedAt 更新时间
+     * @return 分类实体
+     */
+    public static Category reconstitute(Long id, Long parentId, @NotNull String name, @NotNull String slug, int level,
+                                        String path, int sortOrder, CategoryStatus status,
+                                        LocalDateTime createdAt, LocalDateTime updatedAt) {
         requireNotBlank(name, "分类名称不能为空");
         requireNotBlank(slug, "分类 slug 不能为空");
         if (level <= 0)
@@ -81,6 +112,8 @@ public class Category {
         category.path = path;
         category.sortOrder = sortOrder;
         category.status = status == null ? CategoryStatus.DISABLED : status;
+        category.createdAt = createdAt;
+        category.updatedAt = updatedAt;
         return category;
     }
 
