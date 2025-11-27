@@ -1679,7 +1679,9 @@ paths:
     get:
       summary: 分页列出商品分类（含启用状态）
       deprecated: false
-      description: 支持按父级筛选、关键词模糊搜索，返回启用/停用状态及层级路径。
+      description: >-
+        支持按父级筛选（不带 parent_id 不过滤, 带了但为空表示筛选 parent_id IS
+        NULL）、关键词模糊搜索，返回启用/停用状态及层级路径。
       tags:
         - Admin Categories
       parameters:

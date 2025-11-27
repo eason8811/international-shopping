@@ -138,6 +138,17 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return Optional.of(new CategoryWithI18n(categoryOpt.get(), i18nMap.getOrDefault(id, List.of())));
     }
 
+    /**
+     * 分页查询分类
+     *
+     * @param page           页码
+     * @param size           每页大小
+     * @param filterByParent 是否按父级过滤
+     * @param parentId       父级 ID ( filterByParent 为 true 时生效 )
+     * @param keyword        关键词
+     * @param isEnabled      是否启用
+     * @return 分页结果
+     */
     @Override
     public @NotNull PageResult<Category> page(int page, int size, boolean filterByParent, Long parentId, String keyword, Boolean isEnabled) {
         String status = statusString(isEnabled);
@@ -150,6 +161,12 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return new PageResult<>(items, total);
     }
 
+    /**
+     * 新增分类
+     *
+     * @param category 分类实体
+     * @return 生成的 ID
+     */
     @Override
     public @NotNull Long insert(@NotNull Category category) {
         ProductCategoryPO po = toPo(category);
@@ -162,17 +179,24 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         categoryMapper.updateById(toPo(category));
     }
 
+    /**
+     * 批量 upsert 分类的多语言
+     *
+     * @param categoryId 分类 ID
+     * @param payloads   多语言列表
+     */
     @Override
     public void upsertI18n(@NotNull Long categoryId, @NotNull List<CategoryI18n> payloads) {
         if (payloads.isEmpty())
             return;
-        Map<String, ProductCategoryI18nPO> existing = categoryI18nMapper.selectList(new LambdaQueryWrapper<ProductCategoryI18nPO>()
+        // 根据 CategoryId 获取 CategoryId -> I18n 的映射
+        Map<String, ProductCategoryI18nPO> existingMap = categoryI18nMapper.selectList(new LambdaQueryWrapper<ProductCategoryI18nPO>()
                         .eq(ProductCategoryI18nPO::getCategoryId, categoryId))
                 .stream()
                 .collect(Collectors.toMap(ProductCategoryI18nPO::getLocale, Function.identity(),
                         (current, ignore) -> current, LinkedHashMap::new));
         for (CategoryI18n vo : payloads) {
-            ProductCategoryI18nPO po = existing.get(vo.getLocale());
+            ProductCategoryI18nPO po = existingMap.get(vo.getLocale());
             if (po == null) {
                 categoryI18nMapper.insert(ProductCategoryI18nPO.builder()
                         .categoryId(categoryId)
@@ -205,6 +229,13 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return result;
     }
 
+    /**
+     * 判断基础 slug 是否存在
+     *
+     * @param slug      slug
+     * @param excludeId 排除的 ID
+     * @return 是否存在
+     */
     @Override
     public boolean existsBySlug(@NotNull String slug, Long excludeId) {
         LambdaQueryWrapper<ProductCategoryPO> wrapper = new LambdaQueryWrapper<ProductCategoryPO>()
@@ -229,6 +260,14 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return count != null && count > 0;
     }
 
+    /**
+     * 判断 locale + slug 是否被占用
+     *
+     * @param locale            语言
+     * @param slug              slug
+     * @param excludeCategoryId 排除的分类 ID
+     * @return 是否存在
+     */
     @Override
     public boolean existsLocalizedSlug(@NotNull String locale, @NotNull String slug, Long excludeCategoryId) {
         LambdaQueryWrapper<ProductCategoryI18nPO> wrapper = new LambdaQueryWrapper<ProductCategoryI18nPO>()
@@ -245,6 +284,13 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         categoryMapper.updateDescendantsPath(categoryId, oldPrefix, newPrefix, levelDelta);
     }
 
+    /**
+     * 创建分类并返回详情
+     *
+     * @param category 分类
+     * @param i18nList 多语言列表
+     * @return 分类详情
+     */
     @Override
     @Transactional
     public @NotNull CategoryWithI18n createWithI18n(@NotNull Category category, @NotNull List<CategoryI18n> i18nList) {
@@ -282,6 +328,12 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return findWithI18n(updated.getId()).orElse(new CategoryWithI18n(updated, List.of()));
     }
 
+    /**
+     * 将 <code>Category</code> 对象转换为 <code>ProductCategoryPO</code> 持久化对象
+     *
+     * @param category 要转换的分类实体, 包含了如 ID, 父级 ID, 名称, 别名等信息
+     * @return 由给定 <code>Category</code> 实体构建的 <code>ProductCategoryPO</code> 对象, 用于数据库持久化操作
+     */
     private ProductCategoryPO toPo(Category category) {
         return ProductCategoryPO.builder()
                 .id(category.getId())
@@ -328,9 +380,16 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return CategoryI18n.of(po.getLocale(), po.getName(), po.getSlug(), po.getBrand());
     }
 
+    /**
+     * 根据给定的布尔值, 返回相应的分类状态字符串表示
+     *
+     * @param enabled 一个 <code>Boolean</code> 类型的参数, 表示是否启用的状态. 如果为 <code>null</code>, 则方法返回 <code>null</code>
+     * @return 如果 <code>enabled</code> 参数为 <code>true</code>, 则返回 {@link CategoryStatus#ENABLED} 的名称; 如果为 <code>false</code> 或 <code>null</code>, 则返回 {@link CategoryStatus#DISABLED} 的名称
+     *
+     */
     private String statusString(Boolean enabled) {
         if (enabled == null)
             return null;
-        return Boolean.TRUE.equals(enabled) ? CategoryStatus.ENABLED.name() : CategoryStatus.DISABLED.name();
+        return enabled ? CategoryStatus.ENABLED.name() : CategoryStatus.DISABLED.name();
     }
 }

@@ -1,7 +1,9 @@
 package shopping.international.trigger.controller.products;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.req.products.CategoryI18nPayload;
 import shopping.international.api.req.products.CategoryUpsertRequest;
@@ -33,17 +35,26 @@ public class AdminCategoryController {
 
     /**
      * 分页查询分类
+     *
+     * @param page      页码, 默认值为 1
+     * @param size      每页显示的条目数, 默认值为 20, 最大不超过 100
+     * @param parentId  父级分类 ID, 可选参数
+     * @param keyword   查询关键词, 可选参数
+     * @param isEnabled 是否启用, 可选参数
+     * @return 包含分页结果的 ResponseEntity, 结果中包含分类节点列表和元数据信息
      */
     @GetMapping
     public ResponseEntity<Result<List<CategoryNodeRespond>>> page(@RequestParam(defaultValue = "1") int page,
                                                                   @RequestParam(defaultValue = "20") int size,
-                                                                  @RequestParam(value = "parent_id", required = false) Long parentId,
+                                                                  @RequestParam(value = "parent_id", required = false) String parentId,
                                                                   @RequestParam(value = "keyword", required = false) String keyword,
-                                                                  @RequestParam(value = "is_enabled", required = false) Boolean isEnabled) {
+                                                                  @RequestParam(value = "is_enabled", required = false) Boolean isEnabled,
+                                                                  HttpServletRequest request) {
         int pageNo = page <= 0 ? 1 : page;
         int pageSize = size <= 0 ? 20 : Math.min(size, 100);
-        boolean filterByParent = parentId != null;
-        Long normalizedParentId = parentId;
+        // 不带 parent_id 不过滤, 带了但为空表示筛选 parent_id IS NULL
+        boolean filterByParent = request.getParameterMap().containsKey("parent_id");
+        Long normalizedParentId = StringUtils.hasText(parentId) ? Long.valueOf(parentId) : null;
         if (filterByParent && normalizedParentId != null && normalizedParentId <= 0)
             normalizedParentId = null;
 
@@ -60,7 +71,10 @@ public class AdminCategoryController {
     }
 
     /**
-     * 创建分类
+     * 创建分类, 并返回创建成功的分类节点信息
+     *
+     * @param request 包含分类创建所需信息的请求体, 如分类名称, slug, 父级分类 ID (可选), 排序号, 品牌, 是否启用状态以及多语言信息等
+     * @return 包含创建成功分类节点信息的 ResponseEntity, 如果分类创建成功, 则返回 201 Created 状态码及分类节点响应对象
      */
     @PostMapping
     public ResponseEntity<Result<CategoryNodeRespond>> create(@RequestBody CategoryUpsertRequest request) {
@@ -71,7 +85,10 @@ public class AdminCategoryController {
     }
 
     /**
-     * 分类详情
+     * 获取指定 ID 的分类详情
+     *
+     * @param categoryId 分类的唯一标识符, 用于定位具体的分类节点
+     * @return 包含分类节点详细信息的 ResponseEntity, 如果成功获取到数据, 则返回 200 OK 状态码及分类节点响应对象
      */
     @GetMapping("/{category_id}")
     public ResponseEntity<Result<CategoryNodeRespond>> detail(@PathVariable("category_id") Long categoryId) {
@@ -80,7 +97,11 @@ public class AdminCategoryController {
     }
 
     /**
-     * 更新分类
+     * 更新指定 ID 的分类信息
+     *
+     * @param categoryId 分类的唯一标识符, 用于定位具体的分类节点
+     * @param request    包含更新分类所需信息的请求体, 如分类名称, slug, 父级分类 ID (可选), 排序号, 品牌, 是否启用状态以及多语言信息等
+     * @return 包含更新后分类节点详细信息的 ResponseEntity, 如果成功更新数据, 则返回 200 OK 状态码及分类节点响应对象
      */
     @PatchMapping("/{category_id}")
     public ResponseEntity<Result<CategoryNodeRespond>> update(@PathVariable("category_id") Long categoryId,
@@ -91,7 +112,11 @@ public class AdminCategoryController {
     }
 
     /**
-     * upsert 分类多语言
+     * 更新或插入指定分类的多语言信息, 此方法接收一个分类 ID 和一组多语言信息负载, 并更新或插入这些信息到对应的分类节点中
+     *
+     * @param categoryId 分类的唯一标识符, 用于定位具体的分类节点
+     * @param payloads   包含要更新或插入的多语言信息列表, 每个元素代表一种语言下的分类名称、slug 和品牌等信息
+     * @return 包含操作结果的 ResponseEntity, 如果成功执行了更新或插入操作, 则返回 200 OK 状态码及更新后的分类节点响应对象
      */
     @PatchMapping("/{category_id}/i18n")
     public ResponseEntity<Result<CategoryNodeRespond>> upsertI18n(@PathVariable("category_id") Long categoryId,
@@ -117,7 +142,10 @@ public class AdminCategoryController {
     }
 
     /**
-     * 将请求转换为命令
+     * 将 {@link CategoryUpsertRequest} 请求对象转换为 {@link CategoryUpsertCommand} 命令对象
+     *
+     * @param request 包含分类创建或更新所需信息的请求体, 如分类名称, slug, 父级分类 ID (可选), 排序号, 品牌, 是否启用状态以及多语言信息等
+     * @return 一个基于请求数据构建的 {@link CategoryUpsertCommand} 对象, 用于执行实际的业务逻辑操作
      */
     private CategoryUpsertCommand toCommand(CategoryUpsertRequest request) {
         List<CategoryI18n> i18nList = mapI18nPayloads(request.getI18n());
@@ -126,7 +154,10 @@ public class AdminCategoryController {
     }
 
     /**
-     * 映射 i18n 请求
+     * 将 <code>CategoryI18nPayload</code> 对象列表映射为 <code>CategoryI18n</code> 对象列表
+     *
+     * @param payloads 一个包含多个 <code>CategoryI18nPayload</code> 对象的列表, 每个对象代表一种语言下的分类信息, 包括名称、slug 和品牌等
+     * @return 返回一个新的 <code>List<CategoryI18n></code>, 其中每个元素都是从对应的 <code>CategoryI18nPayload</code> 转换而来的 <code>CategoryI18n</code> 对象。如果输入参数为 null, 则返回 null
      */
     private List<CategoryI18n> mapI18nPayloads(List<CategoryI18nPayload> payloads) {
         if (payloads == null)

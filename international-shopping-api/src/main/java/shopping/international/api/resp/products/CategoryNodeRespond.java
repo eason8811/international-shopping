@@ -95,7 +95,7 @@ public class CategoryNodeRespond {
                 .map(CategoryI18nItemRespond::from)
                 .toList();
         String displayBrand = node.getBrand();
-        //
+        // 若没有指定当前语言的品牌文案，则使用 i18n 列表中第一个非空的品牌文案
         if (displayBrand == null) {
             displayBrand = i18nListResponds.stream()
                     .map(CategoryI18nItemRespond::getBrand)

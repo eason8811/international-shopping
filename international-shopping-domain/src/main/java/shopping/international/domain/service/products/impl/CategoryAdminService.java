@@ -28,9 +28,21 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
 @RequiredArgsConstructor
 public class CategoryAdminService implements ICategoryAdminService {
 
+    /**
+     * 分类名称最大长度
+     */
     private static final int NAME_MAX = 64;
+    /**
+     * 分类 slug 最大长度
+     */
     private static final int SLUG_MAX = 64;
+    /**
+     * 品牌文案最大长度
+     */
     private static final int BRAND_MAX = 120;
+    /**
+     * 语言代码正则
+     */
     private static final Pattern LOCALE_PATTERN = Pattern.compile("^[A-Za-z0-9]{2,8}([-_][A-Za-z0-9]{2,8})*$");
 
     /**
@@ -39,7 +51,17 @@ public class CategoryAdminService implements ICategoryAdminService {
     private final IProductCategoryRepository categoryRepository;
 
     /**
-     * 分页查询分类
+     * 根据给定条件分页查询分类节点
+     *
+     * @param page           页码, 如果小于等于 0 则默认为 1
+     * @param size           每页显示的数量, 如果小于等于 0 或大于 100 则默认为 20
+     * @param filterByParent 是否仅返回父级分类下的子分类
+     * @param parentId       父分类 ID, 当 filterByParent 为 true 时有效
+     * @param keyword        查询关键字, 用于模糊匹配分类名称等信息
+     * @param isEnabled      是否仅返回启用状态的分类
+     * @return 包含 {@code CategoryNode} 对象列表和总记录数的 {@code PageResult} 实例
+     * <p>此方法首先根据传入参数调整分页参数, 并调用 {@code repository} 层进行数据获取, 如果查询结果为空, 则直接返回空列表和总记录数,
+     * 否则, 会进一步处理每条分类记录, 将其转换为 {@code CategoryNode} 形式, 同时加载相关的国际化信息, 最终将这些节点与总记录数封装进 {@code PageResult} 返回</p>
      */
     @Override
     public @NotNull PageResult<CategoryNode> page(int page, int size, boolean filterByParent, Long parentId, String keyword, Boolean isEnabled) {
@@ -54,12 +76,13 @@ public class CategoryAdminService implements ICategoryAdminService {
                 .map(Category::getId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+        // 根据分类 ID 获取 分类ID -> 分类 I18N 映射
         Map<Long, List<CategoryI18n>> i18nMap = ids.isEmpty() ? Map.of() : categoryRepository.mapI18n(ids);
-
-        List<CategoryNode> nodes = pageResult.items().stream()
+        // 给分类列表中的每个分类都添加 I18N 列表, 而不是进行 I18N 替换
+        List<CategoryNode> categoryNodeList = pageResult.items().stream()
                 .map(cat -> CategoryNode.from(cat, null, i18nMap.get(cat.getId())))
                 .toList();
-        return new PageResult<>(nodes, pageResult.total());
+        return new PageResult<>(categoryNodeList, pageResult.total());
     }
 
     /**
@@ -73,7 +96,13 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 创建分类
+     * 创建一个新的分类节点
+     *
+     * @param command 包含创建分类所需信息的命令对象, 如名称、slug等
+     * @return 新创建的分类节点, 不会为null
+     * <p>
+     * 该方法首先对传入的<code>CategoryUpsertCommand</code>对象进行处理, 包括标准化分类名称、slug、父分类ID等,
+     * 然后根据这些信息构建一个新的<code>Category
      */
     @Override
     public @NotNull CategoryNode create(@NotNull CategoryUpsertCommand command) {
@@ -156,7 +185,10 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化关键字
+     * 将给定的关键字进行标准化处理 包括去除前后空白字符 并限制其最大长度
+     *
+     * @param keyword 待处理的关键字 如果为 null 或者只包含空白字符 则返回 null
+     * @return 标准化后的关键字 如果原始关键字过长 则会被截断到 <code>NAME_MAX</code> 长度
      */
     private String normalizeKeyword(String keyword) {
         if (keyword == null || keyword.isBlank())
@@ -168,7 +200,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化名称
+     * 将给定的名称进行规范化处理 包括去除首尾空白字符 并检查长度是否超过限制
+     *
+     * @param name 需要被规范化的原始名称
+     * @return 规范化后的名称 如果名称符合要求
+     * @throws IllegalParamException 如果名称为空 或者 名称长度超过 64 个字符
      */
     private String normalizeName(String name) {
         requireNotBlank(name, "分类名称不能为空");
@@ -179,7 +215,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化 slug
+     * 将传入的 slug 标签进行规范化处理
+     *
+     * @param slug 需要被规范化的原始字符串, 该字符串不能为空且长度不能超过 64 个字符
+     * @return 返回经过规范化后的字符串, 即去除首尾空白字符后的结果
+     * @throws IllegalParamException 当输入的 slug 字符串为空或其长度超过了预设的最大值 (64 个字符) 时抛出
      */
     private String normalizeSlug(String slug) {
         requireNotBlank(slug, "分类 slug 不能为空");
@@ -190,7 +230,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化品牌
+     * <p>此方法用于规范化品牌名称, 主要包括去除首尾空白字符以及长度检查.</p>
+     *
+     * @param brand 待处理的品牌名称字符串 如果传入 null, 则直接返回 null
+     * @return 处理后的品牌名称字符串 如果原字符串长度超过 120 个字符, 将抛出异常
+     * @throws IllegalParamException 当品牌名称长度超过 120 个字符时抛出
      */
     private String normalizeBrand(String brand) {
         if (brand == null)
@@ -202,7 +246,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化父级 ID
+     * 此方法用于规范化传入的 parentId 参数
+     * 如果 parentId 为 null 或者小于等于 0, 则返回 null; 否则返回原始的 parentId 值
+     *
+     * @param parentId 需要被规范化的父级 ID
+     * @return 规范化后的父级 ID, 如果输入不合法 (null 或 <= 0), 返回 null
      */
     private Long normalizeParentId(Long parentId) {
         if (parentId == null)
@@ -213,7 +261,12 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 解析父分类
+     * 根据给定的 <code>parentId</code> 查找并返回对应的父分类实体
+     * 如果 <code>parentId</code> 为 null 或者找不到对应分类, 则返回 null 或抛出异常
+     *
+     * @param parentId 父分类的 ID 如果为 null, 方法将直接返回 null
+     * @return 返回与 <code>parentId</code> 匹配的 <code>Category</code> 实体, 如果找不到匹配项, 抛出 <code>IllegalParamException</code>
+     * @throws IllegalParamException 当根据提供的 <code>parentId</code> 无法找到对应的分类时抛出
      */
     private Category resolveParent(Long parentId) {
         if (parentId == null)
@@ -223,7 +276,13 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 校验唯一性
+     * 验证给定的 slug 和 name 在指定的 parentId 下是否唯一
+     *
+     * @param slug      待验证的分类 slug
+     * @param name      待验证的分类名称
+     * @param parentId  分类所属的父分类 id, 如果是顶级分类则此值可以为 null
+     * @param excludeId 排除检查的 id, 通常用于更新操作时排除自身
+     * @throws IllegalParamException 当 slug 或 name 不唯一时抛出
      */
     private void validateUniqueness(String slug, String name, Long parentId, Long excludeId) {
         if (categoryRepository.existsBySlug(slug, excludeId))
@@ -247,7 +306,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化 locale
+     * 将给定的语言代码转换为标准格式
+     *
+     * @param locale 语言代码, 必须非空且长度不超过 16 个字符, 符合特定的正则表达式
+     * @return 标准化后的语言代码
+     * @throws IllegalParamException 如果语言代码为空, 长度过长或格式不正确时抛出
      */
     private String normalizeLocale(String locale) {
         requireNotBlank(locale, "语言代码不能为空");
@@ -260,19 +323,25 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化 i18n 列表
+     * 对给定的 <code>List<CategoryI18n></code> 进行规范化处理, 确保每个 <code>CategoryI18n</code> 实例符合业务规则要求
+     *
+     * @param payloadList       需要被规范化的多语言类别信息列表, 可以为 null
+     * @param brandFallback     当某个 <code>CategoryI18n</code> 的品牌信息为空时使用的备用品牌名, 可以为 null
+     * @param excludeCategoryId 在检查 slug 是否已存在时需要排除的类别 ID, 用于更新操作场景下避免与自身冲突
+     * @return 规范化后的多语言类别信息列表, 如果输入为 null 则返回空列表
+     * @throws IllegalParamException 如果发现重复的 locale 或者品牌文案长度超过限制或 slug 已经存在抛出此异常
      */
-    private List<CategoryI18n> normalizeI18n(@Nullable List<CategoryI18n> payloads, @Nullable String brandFallback, Long excludeCategoryId) {
-        if (payloads == null)
+    private List<CategoryI18n> normalizeI18n(@Nullable List<CategoryI18n> payloadList, @Nullable String brandFallback, Long excludeCategoryId) {
+        if (payloadList == null)
             return List.of();
         Set<String> locales = new LinkedHashSet<>();
         List<CategoryI18n> result = new ArrayList<>();
-        for (CategoryI18n payload : payloads) {
+        for (CategoryI18n payload : payloadList) {
             if (payload == null)
                 continue;
             String locale = normalizeLocale(payload.getLocale());
             if (!locales.add(locale))
-                throw new IllegalParamException("重复的多语言 locale");
+                throw new IllegalParamException("重复的多语言 locale: " + locale);
             String name = normalizeName(payload.getName());
             String slug = normalizeSlug(payload.getSlug());
             String brand = payload.getBrand();
@@ -283,14 +352,17 @@ public class CategoryAdminService implements ICategoryAdminService {
             if (brand != null)
                 brand = brand.strip();
             if (categoryRepository.existsLocalizedSlug(locale, slug, excludeCategoryId))
-                throw new IllegalParamException("多语言 slug 已存在");
+                throw new IllegalParamException(locale + " 多语言 slug 已存在");
             result.add(CategoryI18n.of(locale, name, slug, brand));
         }
         return result;
     }
 
     /**
-     * 构建路径
+     * 构建指定类别的路径字符串
+     *
+     * @param parent 类别的父节点 如果为 null, 则返回根路径 "/"
+     * @return 返回构建后的路径字符串 包含父节点的路径和当前节点 id
      */
     private String buildPath(Category parent) {
         if (parent == null)
@@ -300,7 +372,10 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 规范化路径
+     * <p>将给定的路径字符串转换为统一格式. 该方法确保路径以斜杠开始, 以斜杠结束, 并且中间不会有多余的连续斜杠.</p>
+     *
+     * @param raw 待标准化的原始路径字符串 如果为空或仅包含空白字符, 则返回根目录 "/"
+     * @return 标准化后的路径字符串 确保路径以斜杠开始和结束, 中间没有重复的斜杠
      */
     private String normalizePath(String raw) {
         if (raw == null || raw.isBlank())
@@ -322,11 +397,15 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 解析启用状态
+     * 根据给定的启用状态和默认状态解析出最终的状态值
+     *
+     * @param isEnabled 一个布尔值, 表示是否启用, 可以为 null
+     * @param defaultStatus 当 isEnabled 为 null 时返回的默认状态, 不能为空
+     * @return 返回基于 isEnabled 值决定的 CategoryStatus, 如果 isEnabled 为 null, 则直接返回 defaultStatus; 如果 isEnabled 为 true, 返回 ENABLED 状态; 否则返回 DISABLED 状态
      */
     private CategoryStatus resolveStatus(@Nullable Boolean isEnabled, @NotNull CategoryStatus defaultStatus) {
         if (isEnabled == null)
             return defaultStatus;
-        return Boolean.TRUE.equals(isEnabled) ? CategoryStatus.ENABLED : CategoryStatus.DISABLED;
+        return isEnabled ? CategoryStatus.ENABLED : CategoryStatus.DISABLED;
     }
 }

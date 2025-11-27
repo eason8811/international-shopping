@@ -24,7 +24,13 @@ public interface ProductCategoryMapper extends BaseMapper<ProductCategoryPO> {
                                             @Param("offset") int offset);
 
     /**
-     * 统计分类总数
+     * 统计满足给定条件的分类总数
+     *
+     * @param filterByParent 是否根据父级进行过滤
+     * @param parentId       父级分类 ID, 当 <code>filterByParent</code> 为 true 时生效
+     * @param keyword        搜索关键词, 用于模糊匹配分类名称等
+     * @param status         分类状态, 如 active inactive 等
+     * @return 满足条件的分类数量
      */
     long countAdminPage(@Param("filterByParent") boolean filterByParent,
                         @Param("parentId") Long parentId,
