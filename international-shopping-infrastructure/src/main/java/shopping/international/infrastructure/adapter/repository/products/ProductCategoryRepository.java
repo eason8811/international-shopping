@@ -123,12 +123,24 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
                         (existing, ignore) -> existing, LinkedHashMap::new));
     }
 
+    /**
+     * 根据 ID 获取分类
+     *
+     * @param id 分类 ID
+     * @return 分类
+     */
     @Override
     public @NotNull Optional<Category> findById(@NotNull Long id) {
         ProductCategoryPO po = categoryMapper.selectById(id);
         return Optional.ofNullable(po).map(this::toEntity);
     }
 
+    /**
+     * 查询分类详情 (含 i18n)
+     *
+     * @param id 分类 ID
+     * @return 分类及其多语言
+     */
     @Override
     public @NotNull Optional<CategoryWithI18n> findWithI18n(@NotNull Long id) {
         Optional<Category> categoryOpt = findById(id);
@@ -174,6 +186,11 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return po.getId();
     }
 
+    /**
+     * 更新分类
+     *
+     * @param category 分类实体
+     */
     @Override
     public void update(@NotNull Category category) {
         categoryMapper.updateById(toPo(category));
@@ -189,7 +206,7 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
     public void upsertI18n(@NotNull Long categoryId, @NotNull List<CategoryI18n> payloads) {
         if (payloads.isEmpty())
             return;
-        // 根据 CategoryId 获取 CategoryId -> I18n 的映射
+        // 根据 CategoryId 获取 locale -> I18n 的映射
         Map<String, ProductCategoryI18nPO> existingMap = categoryI18nMapper.selectList(new LambdaQueryWrapper<ProductCategoryI18nPO>()
                         .eq(ProductCategoryI18nPO::getCategoryId, categoryId))
                 .stream()
@@ -214,6 +231,12 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         }
     }
 
+    /**
+     * 获取分类的多语言列表
+     *
+     * @param categoryIds 分类 ID
+     * @return categoryId -> i18n 列表
+     */
     @Override
     public @NotNull Map<Long, List<CategoryI18n>> mapI18n(@NotNull Collection<Long> categoryIds) {
         if (categoryIds.isEmpty())
@@ -246,6 +269,14 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return count != null && count > 0;
     }
 
+    /**
+     * 判断同一父级下名称是否重复
+     *
+     * @param parentId  父级 ID
+     * @param name      名称
+     * @param excludeId 排除的 ID
+     * @return 是否存在
+     */
     @Override
     public boolean existsByParentAndName(Long parentId, @NotNull String name, Long excludeId) {
         LambdaQueryWrapper<ProductCategoryPO> wrapper = new LambdaQueryWrapper<ProductCategoryPO>()
@@ -279,6 +310,14 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return count != null && count > 0;
     }
 
+    /**
+     * 父级变化时更新子孙分类路径和层级
+     *
+     * @param categoryId 分类 ID
+     * @param oldPrefix  旧前缀 ( oldPath + categoryId + '/' )
+     * @param newPrefix  新前缀 ( newPath + categoryId + '/' )
+     * @param levelDelta 层级差值
+     */
     @Override
     public void updateDescendantsPath(Long categoryId, @NotNull String oldPrefix, @NotNull String newPrefix, int levelDelta) {
         categoryMapper.updateDescendantsPath(categoryId, oldPrefix, newPrefix, levelDelta);
@@ -300,10 +339,21 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return findWithI18n(id).orElseThrow(() -> new AppException("分类创建失败"));
     }
 
+    /**
+     * 更新分类, 可级联更新子节点路径与 i18n
+     *
+     * @param updated    更新后的分类
+     * @param oldPrefix  旧路径前缀
+     * @param newPrefix  新路径前缀
+     * @param levelDelta 层级差
+     * @param i18nList   i18n 列表
+     * @return 分类详情
+     */
     @Override
     @Transactional
     public @NotNull CategoryWithI18n updateWithRelations(@NotNull Category updated, String oldPrefix, String newPrefix, int levelDelta, List<CategoryI18n> i18nList) {
         update(updated);
+        // 需要更改的分类的父分类变化了, 或层级发生了变化
         if (oldPrefix != null && newPrefix != null && (!Objects.equals(oldPrefix, newPrefix) || levelDelta != 0))
             updateDescendantsPath(updated.getId(), oldPrefix, newPrefix, levelDelta);
         if (i18nList != null && !i18nList.isEmpty())
@@ -311,6 +361,13 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return findWithI18n(updated.getId()).orElseThrow(() -> new AppException("分类更新失败"));
     }
 
+    /**
+     * upsert i18n 并返回详情
+     *
+     * @param categoryId 分类 ID
+     * @param i18nList   i18n 列表
+     * @return 分类详情
+     */
     @Override
     @Transactional
     public @NotNull CategoryWithI18n upsertI18nAndFetch(@NotNull Long categoryId, @NotNull List<CategoryI18n> i18nList) {
@@ -319,6 +376,13 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
         return findWithI18n(categoryId).orElseThrow(() -> new AppException("分类不存在"));
     }
 
+    /**
+     * 更新分类状态
+     *
+     * @param category 分类
+     * @param status   目标状态
+     * @return 分类详情
+     */
     @Override
     @Transactional
     public @NotNull CategoryWithI18n updateStatus(@NotNull Category category, @NotNull CategoryStatus status) {

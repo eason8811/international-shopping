@@ -86,7 +86,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 分类详情
+     * 获取指定ID的分类节点详细信息
+     *
+     * @param categoryId 分类的唯一标识符, 不能为null
+     * @return 返回一个包含分类详情的 {@link CategoryNode} 对象, 不会返回null
+     * @throws IllegalParamException 如果提供的 categoryId 对应的分类不存在, 则抛出此异常
      */
     @Override
     public @NotNull CategoryNode detail(@NotNull Long categoryId) {
@@ -126,6 +130,10 @@ public class CategoryAdminService implements ICategoryAdminService {
 
     /**
      * 更新分类
+     *
+     * @param categoryId 分类 ID
+     * @param command    更新命令
+     * @return 更新后的分类
      */
     @Override
     public @NotNull CategoryNode update(@NotNull Long categoryId, @NotNull CategoryUpsertCommand command) {
@@ -157,7 +165,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * upsert 分类多语言
+     * 批量 upsert 分类多语言
+     *
+     * @param categoryId 分类 ID
+     * @param payloads   多语言列表
+     * @return 更新后的分类
      */
     @Override
     public @NotNull CategoryNode upsertI18n(@NotNull Long categoryId, @NotNull List<CategoryI18n> payloads) {
@@ -168,19 +180,24 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 启用或禁用分类
+     * 启用或停用分类
+     *
+     * @param categoryId 分类 ID
+     * @param enabled    目标状态
+     * @return 更新后的分类
      */
     @Override
     public @NotNull CategoryNode toggleEnable(@NotNull Long categoryId, boolean enabled) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> IllegalParamException.of("分类不存在"));
-        CategoryStatus target = enabled ? CategoryStatus.ENABLED : CategoryStatus.DISABLED;
-        if (target == category.getStatus()) {
+        CategoryStatus targetStatus = enabled ? CategoryStatus.ENABLED : CategoryStatus.DISABLED;
+        // 如果目标状态与当前状态相同, 则直接返回当前 CategoryNode
+        if (targetStatus == category.getStatus()) {
             CategoryWithI18n detail = categoryRepository.findWithI18n(categoryId)
                     .orElse(new CategoryWithI18n(category, List.of()));
             return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
         }
-        CategoryWithI18n detail = categoryRepository.updateStatus(category, target);
+        CategoryWithI18n detail = categoryRepository.updateStatus(category, targetStatus);
         return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
     }
 
@@ -292,7 +309,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 校验是否形成环
+     * 确保给定的分类与其指定的父分类之间不存在循环引用
+     *
+     * @param current 当前处理的分类, 不能为 null
+     * @param parent  作为当前分类父节点的分类, 可以为 null
+     * @throws IllegalParamException 如果发现存在循环引用 或者 分类 ID 为空, 则抛出此异常
      */
     private void ensureNoCycle(Category current, Category parent) {
         if (parent == null)
@@ -372,7 +393,7 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * <p>将给定的路径字符串转换为统一格式. 该方法确保路径以斜杠开始, 以斜杠结束, 并且中间不会有多余的连续斜杠.</p>
+     * <p>将给定的路径字符串转换为统一格式, 该方法确保路径以斜杠开始, 以斜杠结束, 并且中间不会有多余的连续斜杠</p>
      *
      * @param raw 待标准化的原始路径字符串 如果为空或仅包含空白字符, 则返回根目录 "/"
      * @return 标准化后的路径字符串 确保路径以斜杠开始和结束, 中间没有重复的斜杠
@@ -389,7 +410,11 @@ public class CategoryAdminService implements ICategoryAdminService {
     }
 
     /**
-     * 子节点路径前缀
+     * 构建后代节点的前缀路径
+     *
+     * @param path       路径字符串 代表当前节点的位置
+     * @param categoryId 类别标识符 用于区分不同类别的节点
+     * @return 返回构建好的后代节点前缀路径 包含传入的路径和类别标识符 并以斜杠结尾
      */
     private String buildDescendantPrefix(String path, Long categoryId) {
         String normalized = normalizePath(path);
@@ -399,7 +424,7 @@ public class CategoryAdminService implements ICategoryAdminService {
     /**
      * 根据给定的启用状态和默认状态解析出最终的状态值
      *
-     * @param isEnabled 一个布尔值, 表示是否启用, 可以为 null
+     * @param isEnabled     一个布尔值, 表示是否启用, 可以为 null
      * @param defaultStatus 当 isEnabled 为 null 时返回的默认状态, 不能为空
      * @return 返回基于 isEnabled 值决定的 CategoryStatus, 如果 isEnabled 为 null, 则直接返回 defaultStatus; 如果 isEnabled 为 true, 返回 ENABLED 状态; 否则返回 DISABLED 状态
      */

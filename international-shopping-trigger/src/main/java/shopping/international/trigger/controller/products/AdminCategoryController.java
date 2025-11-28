@@ -131,7 +131,12 @@ public class AdminCategoryController {
     }
 
     /**
-     * 启用或禁用分类
+     * 切换指定分类的启用状态
+     *
+     * @param categoryId 分类 ID, 用于标识要修改的分类
+     * @param request    请求体, 包含是否启用的布尔值 {@code isEnabled}
+     * @return 返回一个 {@link ResponseEntity} 对象, 其中包含操作结果和转换后的 {@link CategoryNodeRespond} 实例
+     * @throws IllegalArgumentException 如果请求体中的数据无效, 将抛出此异常
      */
     @PatchMapping("/{category_id}/enable")
     public ResponseEntity<Result<CategoryNodeRespond>> toggleEnable(@PathVariable("category_id") Long categoryId,
