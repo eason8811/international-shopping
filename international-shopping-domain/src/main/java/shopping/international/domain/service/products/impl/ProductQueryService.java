@@ -247,7 +247,8 @@ public class ProductQueryService implements IProductQueryService {
                 gallery,
                 specList,
                 attachedSkuList,
-                productI18n
+                productI18n,
+                productI18n == null ? List.of() : List.of(productI18n)
         );
     }
 

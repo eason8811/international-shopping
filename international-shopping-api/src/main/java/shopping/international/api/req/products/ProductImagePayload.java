@@ -1,0 +1,42 @@
+package shopping.international.api.req.products;
+
+import lombok.Data;
+import org.jetbrains.annotations.Nullable;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+
+/**
+ * 商品图片请求载荷 (ProductImagePayload)
+ */
+@Data
+public class ProductImagePayload {
+    /**
+     * 图片 URL, 长度不超过 500
+     */
+    private String url;
+    /**
+     * 是否主图
+     */
+    @Nullable
+    private Boolean isMain;
+    /**
+     * 排序权重, 默认 0
+     */
+    @Nullable
+    private Integer sortOrder;
+
+    /**
+     * 校验并规范化图片字段
+     *
+     * @throws IllegalParamException 当 URL 为空或超长时抛出
+     */
+    public void validate() {
+        requireNotBlank(url, "图片 URL 不能为空");
+        url = url.strip();
+        if (url.length() > 500)
+            throw new IllegalParamException("图片 URL 长度不能超过 500 个字符");
+        if (sortOrder == null)
+            sortOrder = 0;
+    }
+}

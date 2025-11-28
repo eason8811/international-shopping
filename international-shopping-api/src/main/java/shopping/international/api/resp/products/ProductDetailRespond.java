@@ -104,9 +104,9 @@ public class ProductDetailRespond {
      */
     private List<SkuRespond> skus;
     /**
-     * SPU I18N
+     * SPU I18N, 可能为单个对象或多语言数组
      */
-    private ProductI18nRespond i18n;
+    private Object i18n;
 
     /**
      * 从 <code>ProductDetail</code> 对象和指定的地区代码创建 <code>ProductDetailRespond</code> 实例
@@ -135,7 +135,13 @@ public class ProductDetailRespond {
                 .map(SkuRespond::from)
                 .toList();
         // 从商品详情值对象中获取商品的 I18N 信息, 并转换为 ProductI18nRespond
-        ProductI18nRespond i18nRespond = detail.i18n() == null ? null : ProductI18nRespond.from(detail.i18n());
+        Object i18nRespond;
+        if (detail.i18nList() != null && !detail.i18nList().isEmpty()) {
+            i18nRespond = detail.i18nList().stream()
+                    .map(ProductI18nRespond::from)
+                    .toList();
+        } else
+            i18nRespond = detail.i18n() == null ? null : ProductI18nRespond.from(detail.i18n());
         return new ProductDetailRespond(
                 detail.id(),
                 detail.slug(),

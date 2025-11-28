@@ -36,4 +36,20 @@ public interface ProductMapper extends BaseMapper<ProductPO> {
     ProductPO selectOnSaleBySlug(@Param("slug") String slug);
 
     ProductPO selectOnSaleByLocalizedSlug(@Param("slug") String slug, @Param("locale") String locale);
+
+    List<ProductPO> selectAdminPage(@Param("status") String status,
+                                    @Param("skuType") String skuType,
+                                    @Param("categoryId") Long categoryId,
+                                    @Param("keyword") String keyword,
+                                    @Param("tag") String tag,
+                                    @Param("includeDeleted") boolean includeDeleted,
+                                    @Param("limit") int limit,
+                                    @Param("offset") int offset);
+
+    long countAdminPage(@Param("status") String status,
+                        @Param("skuType") String skuType,
+                        @Param("categoryId") Long categoryId,
+                        @Param("keyword") String keyword,
+                        @Param("tag") String tag,
+                        @Param("includeDeleted") boolean includeDeleted);
 }

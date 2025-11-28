@@ -109,4 +109,62 @@
         LIMIT 1
     </select>
 
+    <sql id="AdminBaseWhere">
+        FROM product p
+        <where>
+            <choose>
+                <when test="status != null and status != ''">
+                    AND p.status = #{status}
+                </when>
+                <otherwise>
+                    <if test="!includeDeleted">
+                        AND p.status != 'DELETED'
+                    </if>
+                </otherwise>
+            </choose>
+            <if test="skuType != null and skuType != ''">
+                AND p.sku_type = #{skuType}
+            </if>
+            <if test="categoryId != null">
+                AND p.category_id = #{categoryId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                p.title LIKE CONCAT('%', #{keyword}, '%')
+                OR p.subtitle LIKE CONCAT('%', #{keyword}, '%')
+                OR p.slug LIKE CONCAT('%', #{keyword}, '%')
+                OR EXISTS (
+                SELECT 1 FROM product_i18n pi
+                WHERE pi.product_id = p.id
+                AND (pi.title LIKE CONCAT('%', #{keyword}, '%')
+                OR pi.subtitle LIKE CONCAT('%', #{keyword}, '%')
+                OR pi.slug LIKE CONCAT('%', #{keyword}, '%'))
+                )
+                )
+            </if>
+            <if test="tag != null and tag != ''">
+                AND (
+                JSON_CONTAINS(p.tags, CONCAT('\"', #{tag}, '\"'))
+                OR EXISTS (
+                SELECT 1 FROM product_i18n pi
+                WHERE pi.product_id = p.id
+                AND JSON_CONTAINS(pi.tags, CONCAT('\"', #{tag}, '\"'))
+                )
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectAdminPage" resultType="shopping.international.infrastructure.dao.products.po.ProductPO">
+        SELECT p.*
+        <include refid="AdminBaseWhere"/>
+        ORDER BY p.updated_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminPage" resultType="long">
+        SELECT COUNT(1)
+        <include refid="AdminBaseWhere"/>
+    </select>
+
 </mapper>
