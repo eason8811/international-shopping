@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.SpecType;
+import shopping.international.domain.model.vo.products.ProductSpecI18n;
 import shopping.international.domain.model.vo.products.ProductSpecValue;
 import shopping.international.types.exceptions.IllegalParamException;
 
@@ -46,9 +47,21 @@ public class ProductSpec {
      */
     private boolean required;
     /**
+     * 排序权重
+     */
+    private int sortOrder;
+    /**
+     * 是否启用
+     */
+    private boolean enabled;
+    /**
      * 本地化名称
      */
     private String i18nName;
+    /**
+     * 多语言列表
+     */
+    private List<ProductSpecI18n> i18nList = new ArrayList<>();
     /**
      * 规格值
      */
@@ -74,6 +87,30 @@ public class ProductSpec {
                                            @NotNull String specName,
                                            SpecType specType,
                                            Boolean required) {
+        return reconstitute(id, productId, specCode, specName, specType, required, 0, true);
+    }
+
+    /**
+     * 重建规格
+     *
+     * @param id        规格ID
+     * @param productId 商品ID
+     * @param specCode  规格编码
+     * @param specName  规格名称
+     * @param specType  规格类型
+     * @param required  是否必选
+     * @param sortOrder 排序权重
+     * @param enabled   是否启用
+     * @return 规格实体
+     */
+    public static ProductSpec reconstitute(Long id,
+                                           Long productId,
+                                           @NotNull String specCode,
+                                           @NotNull String specName,
+                                           SpecType specType,
+                                           Boolean required,
+                                           Integer sortOrder,
+                                           Boolean enabled) {
         if (id == null)
             throw new IllegalParamException("规格 ID 不能为空");
         if (productId == null)
@@ -87,6 +124,8 @@ public class ProductSpec {
         spec.specName = specName;
         spec.specType = specType == null ? SpecType.OTHER : specType;
         spec.required = Boolean.TRUE.equals(required);
+        spec.sortOrder = sortOrder == null ? 0 : sortOrder;
+        spec.enabled = !Boolean.FALSE.equals(enabled);
         return spec;
     }
 
@@ -98,6 +137,16 @@ public class ProductSpec {
     public void applyI18n(String i18nName) {
         if (i18nName != null && !i18nName.isBlank())
             this.i18nName = i18nName;
+    }
+
+    /**
+     * 绑定多语言列表
+     *
+     * @param i18nList 多语言列表
+     */
+    public void attachI18nList(List<ProductSpecI18n> i18nList) {
+        if (i18nList != null)
+            this.i18nList = new ArrayList<>(i18nList);
     }
 
     /**
@@ -117,5 +166,14 @@ public class ProductSpec {
      */
     public List<ProductSpecValue> getValues() {
         return Collections.unmodifiableList(values);
+    }
+
+    /**
+     * 获取不可变的多语言列表
+     *
+     * @return 多语言列表
+     */
+    public List<ProductSpecI18n> getI18nList() {
+        return Collections.unmodifiableList(i18nList);
     }
 }

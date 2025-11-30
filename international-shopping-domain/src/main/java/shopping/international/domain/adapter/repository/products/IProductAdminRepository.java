@@ -2,8 +2,9 @@ package shopping.international.domain.adapter.repository.products;
 
 import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.entity.products.Product;
-import shopping.international.domain.model.vo.products.ProductI18n;
-import shopping.international.domain.model.vo.products.ProductImage;
+import shopping.international.domain.model.entity.products.ProductSku;
+import shopping.international.domain.model.entity.products.ProductSpec;
+import shopping.international.domain.model.vo.products.*;
 
 import java.util.*;
 
@@ -124,6 +125,165 @@ public interface IProductAdminRepository {
      * @return 是否存在
      */
     boolean existsLocalizedSlug(@NotNull String locale, @NotNull String slug, Long excludeProductId);
+
+    /**
+     * 查询商品规格
+     *
+     * @param productId       商品 ID
+     * @param includeDisabled 是否包含禁用项
+     * @return 规格列表
+     */
+    @NotNull
+    List<ProductSpec> listSpecs(@NotNull Long productId, boolean includeDisabled);
+
+    /**
+     * 查询规格值
+     *
+     * @param productId       商品 ID
+     * @param includeDisabled 是否包含禁用项
+     * @return 规格值列表
+     */
+    @NotNull
+    List<ProductSpecValue> listSpecValues(@NotNull Long productId, boolean includeDisabled);
+
+    /**
+     * 查询规格多语言
+     *
+     * @param specIds 规格 ID 集合
+     * @return 规格 I18N 映射
+     */
+    @NotNull
+    Map<Long, List<ProductSpecI18n>> mapSpecI18n(@NotNull Set<Long> specIds);
+
+    /**
+     * 查询规格值多语言
+     *
+     * @param valueIds 规格值 ID 集合
+     * @return 规格值 I18N 映射
+     */
+    @NotNull
+    Map<Long, List<ProductSpecValueI18n>> mapSpecValueI18n(@NotNull Set<Long> valueIds);
+
+    /**
+     * 增量维护规格与规格值
+     *
+     * @param productId   商品 ID
+     * @param commandList 规格命令列表
+     */
+    void upsertSpecs(@NotNull Long productId, @NotNull List<ProductSpecUpsertCommand> commandList);
+
+    /**
+     * 查询商品下所有 SKU
+     *
+     * @param productId 商品 ID
+     * @return SKU 列表
+     */
+    @NotNull
+    List<ProductSku> listSkus(@NotNull Long productId);
+
+    /**
+     * 查询 SKU 的最新可用价格
+     *
+     * @param skuIds SKU ID 集合
+     * @return skuId -> 价格
+     */
+    @NotNull
+    Map<Long, ProductPrice> mapLatestPrices(@NotNull Set<Long> skuIds);
+
+    /**
+     * 查询 SKU 图片
+     *
+     * @param skuIds SKU ID 集合
+     * @return skuId -> 图片列表
+     */
+    @NotNull
+    Map<Long, List<ProductImage>> mapSkuImages(@NotNull Set<Long> skuIds);
+
+    /**
+     * 查询 SKU 规格绑定
+     *
+     * @param skuIds SKU ID 集合
+     * @return skuId -> 规格绑定列表
+     */
+    @NotNull
+    Map<Long, List<ProductSkuSpec>> mapSkuSpecs(@NotNull Set<Long> skuIds);
+
+    /**
+     * 批量创建 SKU
+     *
+     * @param productId 商品 ID
+     * @param commands  SKU 创建命令
+     * @return 创建后的 SKU 列表
+     */
+    @NotNull
+    List<ProductSku> createSkus(@NotNull Long productId, @NotNull List<ProductSkuUpsertItemCommand> commands);
+
+    /**
+     * 批量更新 SKU
+     *
+     * @param productId 商品 ID
+     * @param commands  SKU 更新命令
+     * @return 更新后的 SKU 列表
+     */
+    @NotNull
+    List<ProductSku> updateSkus(@NotNull Long productId, @NotNull List<ProductSkuUpsertItemCommand> commands);
+
+    /**
+     * 更新或新增 SKU 价格
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param command   价格命令
+     * @return 更新后的 SKU
+     */
+    @NotNull
+    ProductSku upsertPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductPriceUpsertCommand command);
+
+    /**
+     * 调整 SKU 库存
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param command   库存调整命令
+     * @return 更新后的 SKU
+     */
+    @NotNull
+    ProductSku adjustStock(@NotNull Long productId, @NotNull Long skuId, @NotNull StockAdjustCommand command);
+
+    /**
+     * 计算商品的库存总量
+     *
+     * @param productId 商品 ID
+     * @return 库存总量
+     */
+    int sumStock(@NotNull Long productId);
+
+    /**
+     * 更新商品库存与默认 SKU
+     *
+     * @param productId    商品 ID
+     * @param stockTotal   库存总量
+     * @param defaultSkuId 默认 SKU
+     */
+    void updateProductStockAndDefault(@NotNull Long productId, int stockTotal, Long defaultSkuId);
+
+    /**
+     * 判断 SKU 编码是否存在
+     *
+     * @param skuCode      SKU 编码
+     * @param excludeSkuId 需排除的 SKU ID
+     * @return true 表示存在
+     */
+    boolean existsSkuCode(@NotNull String skuCode, Long excludeSkuId);
+
+    /**
+     * 查询单个 SKU
+     *
+     * @param skuId SKU ID
+     * @return SKU
+     */
+    @NotNull
+    Optional<ProductSku> findSkuById(@NotNull Long skuId);
 
     /**
      * 简单分页结果

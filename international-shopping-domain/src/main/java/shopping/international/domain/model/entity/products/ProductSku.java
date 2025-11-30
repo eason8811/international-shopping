@@ -29,6 +29,10 @@ public class ProductSku {
      */
     private Long id;
     /**
+     * 商品 ID
+     */
+    private Long productId;
+    /**
      * SKU 编码
      */
     private String skuCode;
@@ -72,6 +76,41 @@ public class ProductSku {
      * 重建 SKU
      *
      * @param id        主键
+     * @param productId 商品 ID
+     * @param skuCode   编码
+     * @param stock     库存
+     * @param weight    重量
+     * @param status    状态
+     * @param isDefault 是否默认
+     * @param barcode   条码
+     * @return SKU 实体
+     */
+    public static ProductSku reconstitute(Long id,
+                                          Long productId,
+                                          String skuCode,
+                                          Integer stock,
+                                          BigDecimal weight,
+                                          SkuStatus status,
+                                          Boolean isDefault,
+                                          String barcode) {
+        if (id == null)
+            throw new IllegalParamException("SKU ID 不能为空");
+        ProductSku sku = new ProductSku();
+        sku.id = id;
+        sku.productId = productId;
+        sku.skuCode = skuCode;
+        sku.stock = stock == null ? 0 : stock;
+        sku.weight = weight;
+        sku.status = status == null ? SkuStatus.DISABLED : status;
+        sku.isDefault = Boolean.TRUE.equals(isDefault);
+        sku.barcode = barcode;
+        return sku;
+    }
+
+    /**
+     * 重建 SKU
+     *
+     * @param id        主键
      * @param skuCode   编码
      * @param stock     库存
      * @param weight    重量
@@ -87,26 +126,29 @@ public class ProductSku {
                                           SkuStatus status,
                                           Boolean isDefault,
                                           String barcode) {
-        if (id == null)
-            throw new IllegalParamException("SKU ID 不能为空");
-        ProductSku sku = new ProductSku();
-        sku.id = id;
-        sku.skuCode = skuCode;
-        sku.stock = stock == null ? 0 : stock;
-        sku.weight = weight;
-        sku.status = status == null ? SkuStatus.DISABLED : status;
-        sku.isDefault = Boolean.TRUE.equals(isDefault);
-        sku.barcode = barcode;
-        return sku;
+        return reconstitute(id, null, skuCode, stock, weight, status, isDefault, barcode);
     }
 
     /**
-    * 仅用于创建虚拟 SKU (如价格缺失时的兼容)
-    */
+     * 仅用于创建虚拟 SKU (如价格缺失时的兼容)
+     */
     public static ProductSku simple(Long id, @NotNull String skuCode) {
+        return simple(id, null, skuCode);
+    }
+
+    /**
+     * 仅用于创建虚拟 SKU (如价格缺失时的兼容)
+     *
+     * @param id        SKU ID
+     * @param productId 商品 ID
+     * @param skuCode   SKU 编码
+     * @return SKU 实体
+     */
+    public static ProductSku simple(Long id, Long productId, @NotNull String skuCode) {
         requireNotBlank(skuCode, "SKU 编码不能为空");
         ProductSku sku = new ProductSku();
         sku.id = id;
+        sku.productId = productId;
         sku.skuCode = skuCode;
         sku.status = SkuStatus.DISABLED;
         return sku;

@@ -220,14 +220,26 @@ public class ProductDetailRespond {
          * @return SpecRespond 根据提供的规格和语言环境构建的对象
          */
         public static SpecRespond from(ProductSpec spec, String locale) {
-            // 从 ProductSpec 中获取本地化规格名称, 如果为空则退化为规格名称
-            String displayName = spec.getI18nName() != null ? spec.getI18nName() : spec.getSpecName();
-            // 从 ProductSpec 中获取本地化规格名称, 如果本地化规格名称和 locale 不为空则构建为 SpecI18nRespond
-            SpecI18nRespond i18n = spec.getI18nName() == null || locale == null
-                    ? null
-                    : new SpecI18nRespond(locale, spec.getI18nName());
-            // 初始化规格 I18N 列表
-            List<SpecI18nRespond> i18nList = i18n == null ? List.of() : List.of(i18n);
+            List<SpecI18nRespond> i18nList = spec.getI18nList() == null ? List.of()
+                    : spec.getI18nList()
+                    .stream()
+                    .map(item -> new SpecI18nRespond(item.getLocale(), item.getSpecName()))
+                    .toList();
+            if (i18nList.isEmpty() && spec.getI18nName() != null && locale != null)
+                i18nList = List.of(new SpecI18nRespond(locale, spec.getI18nName()));
+
+            SpecI18nRespond i18n = null;
+            if (locale != null && !i18nList.isEmpty())
+                i18n = i18nList.stream()
+                        .filter(item -> locale.equalsIgnoreCase(item.getLocale()))
+                        .findFirst()
+                        .orElse(i18nList.get(0));
+            if (i18n == null && spec.getI18nName() != null && locale != null)
+                i18n = new SpecI18nRespond(locale, spec.getI18nName());
+
+            String displayName = i18n != null
+                    ? i18n.getSpecName()
+                    : spec.getI18nName() != null ? spec.getI18nName() : spec.getSpecName();
             // 从 ProductSpec 中获取规格值列表, 并转换为 本地化后的 SpecValueRespond 列表
             List<SpecValueRespond> specValueList = spec.getValues() == null ? List.of()
                     : spec.getValues()
@@ -297,14 +309,26 @@ public class ProductDetailRespond {
         private List<SpecValueI18nRespond> i18nList;
 
         public static SpecValueRespond from(ProductSpecValue value, String locale) {
-            // 从 ProductSpecValue 中获取本地化规格值名称, 如果为空则退化为规格值名称
-            String displayName = value.getI18nName() != null ? value.getI18nName() : value.getValueName();
-            // 从 ProductSpecValue 中获取本地化规格值名称, 如果本地化规格值名称和 locale 不为空则构建为 SpecValueI18nRespond
-            SpecValueI18nRespond i18n = value.getI18nName() == null || locale == null
-                    ? null
-                    : new SpecValueI18nRespond(locale, value.getI18nName());
-            // 初始化规格值 I18N 列表
-            List<SpecValueI18nRespond> i18nList = i18n == null ? List.of() : List.of(i18n);
+            List<SpecValueI18nRespond> i18nList = value.getI18nList() == null ? List.of()
+                    : value.getI18nList()
+                    .stream()
+                    .map(item -> new SpecValueI18nRespond(item.getLocale(), item.getValueName()))
+                    .toList();
+            if (i18nList.isEmpty() && value.getI18nName() != null && locale != null)
+                i18nList = List.of(new SpecValueI18nRespond(locale, value.getI18nName()));
+
+            SpecValueI18nRespond i18n = null;
+            if (locale != null && !i18nList.isEmpty())
+                i18n = i18nList.stream()
+                        .filter(item -> locale.equalsIgnoreCase(item.getLocale()))
+                        .findFirst()
+                        .orElse(i18nList.get(0));
+            if (i18n == null && value.getI18nName() != null && locale != null)
+                i18n = new SpecValueI18nRespond(locale, value.getI18nName());
+
+            String displayName = i18n != null
+                    ? i18n.getValueName()
+                    : value.getI18nName() != null ? value.getI18nName() : value.getValueName();
             return new SpecValueRespond(
                     value.getId(),
                     value.getValueCode(),

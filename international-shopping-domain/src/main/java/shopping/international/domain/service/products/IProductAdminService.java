@@ -1,6 +1,7 @@
 package shopping.international.domain.service.products;
 
 import org.jetbrains.annotations.NotNull;
+import shopping.international.domain.model.entity.products.ProductSku;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.vo.products.*;
@@ -86,6 +87,58 @@ public interface IProductAdminService {
      */
     @NotNull
     ProductDetail replaceGallery(@NotNull Long productId, @NotNull List<ProductImage> gallery);
+
+    /**
+     * 增量维护商品规格与规格值
+     *
+     * @param productId 商品 ID
+     * @param specList     规格与规格值的维护命令列表
+     * @return 更新后的商品详情
+     */
+    @NotNull
+    ProductDetail upsertSpecs(@NotNull Long productId, @NotNull List<ProductSpecUpsertCommand> specList);
+
+    /**
+     * 批量创建 SKU
+     *
+     * @param productId 商品 ID
+     * @param command   SKU 创建命令
+     * @return 创建后的商品详情
+     */
+    @NotNull
+    ProductDetail createSkus(@NotNull Long productId, @NotNull ProductSkuUpsertCommand command);
+
+    /**
+     * 批量更新 SKU
+     *
+     * @param productId 商品 ID
+     * @param command   SKU 更新命令
+     * @return 更新后的商品详情
+     */
+    @NotNull
+    ProductDetail updateSkus(@NotNull Long productId, @NotNull ProductSkuUpsertCommand command);
+
+    /**
+     * 更新 SKU 价格
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param command   价格维护命令
+     * @return 更新后的 SKU
+     */
+    @NotNull
+    ProductSku updateSkuPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductPriceUpsertCommand command);
+
+    /**
+     * 调整 SKU 库存
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param command   库存调整命令
+     * @return 更新后的 SKU
+     */
+    @NotNull
+    ProductSku adjustSkuStock(@NotNull Long productId, @NotNull Long skuId, @NotNull StockAdjustCommand command);
 
     /**
      * 简单分页结果

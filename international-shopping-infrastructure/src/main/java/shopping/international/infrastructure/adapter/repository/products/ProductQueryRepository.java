@@ -476,6 +476,7 @@ public class ProductQueryRepository implements IProductQueryRepository {
     private ProductSku toProductSku(ProductSkuPO po) {
         return ProductSku.reconstitute(
                 po.getId(),
+                po.getProductId(),
                 po.getSkuCode(),
                 po.getStock(),
                 po.getWeight(),
@@ -526,7 +527,8 @@ public class ProductQueryRepository implements IProductQueryRepository {
      */
     private ProductSpec toProductSpec(ProductSpecPO po) {
         return ProductSpec.reconstitute(po.getId(), po.getProductId(), po.getSpecCode(), po.getSpecName(),
-                SpecType.from(po.getSpecType()), po.getIsRequired() != null && po.getIsRequired() == 1);
+                SpecType.from(po.getSpecType()), po.getIsRequired() != null && po.getIsRequired() == 1,
+                po.getSortOrder(), !"DISABLED".equalsIgnoreCase(po.getStatus()));
     }
 
     /**
@@ -536,7 +538,9 @@ public class ProductQueryRepository implements IProductQueryRepository {
      * @return ProductSpecValue 对象, 表示转换后的完整规格值信息
      */
     private ProductSpecValue toProductSpecValue(ProductSpecValuePO po) {
-        return ProductSpecValue.reconstitute(po.getId(), po.getSpecId(), po.getValueCode(), po.getValueName(), parseAttributes(po.getAttributes()));
+        return ProductSpecValue.reconstitute(po.getId(), po.getProductId(), po.getSpecId(), po.getValueCode(),
+                po.getValueName(), parseAttributes(po.getAttributes()), po.getSortOrder(),
+                !"DISABLED".equalsIgnoreCase(po.getStatus()));
     }
 
     /**
