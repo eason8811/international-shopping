@@ -450,6 +450,9 @@ docker compose -f docker-compose-dev.yaml up -d
     * 代码中应该有合理的注释以确保代码可读性
     * 不要滥用三目运算符
 
+8. **参数校验**：
+    * 所有入参校验应该在 trigger 层完成, 避免在 domain 层重复校验
+
 ### 4.2 安全 / 鉴权规则
 
 1. **JWT 与安全上下文**：
