@@ -441,6 +441,8 @@ docker compose -f docker-compose-dev.yaml up -d
     * Gateway DTO 访问外部系统的 DTO
       * `xxxRequest`, `xxxxRespond` 等。
     * 包名全部小写，无下划线：`shopping.international.domain.model.vo.user`。
+    * 变量类型为 java.util.List 时, 变量命名为 xxxList
+    * 变量类型为 java.util.Set 时, 变量命名为复数形式, 如 productSkus
 
 7. **代码效率**：
     * 避免过多的 `if-else` 嵌套，使用优先考虑提早失败策略，其次是策略模式或状态模式等，最后才是嵌套 if-else。
