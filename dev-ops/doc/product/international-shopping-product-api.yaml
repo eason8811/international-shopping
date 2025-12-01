@@ -7,6 +7,14 @@ info:
     必须相等）<br/> - 匿名接口：显式 `security: []`<br/>
   version: 1.3.0
 tags:
+  - name: products
+  - name: products/Categories
+  - name: products/Products
+  - name: products/Likes
+  - name: products/Admin Categories
+  - name: products/Admin Products
+  - name: products/Admin Specs
+  - name: products/Admin SKUs
   - name: Categories
   - name: Products
   - name: Likes
@@ -19,9 +27,11 @@ paths:
     get:
       summary: 列出商品分类树（含本地化）
       deprecated: false
-      description: |
-        返回 ENABLED 分类的树形结构；当指定 `locale` 时优先返回分类的本地化名称/slug/品牌文案，返回值已直接本地化，不再附带 i18n/i18n_list。
+      description: >
+        返回 ENABLED 分类的树形结构；当指定 `locale` 时优先返回分类的本地化名称/slug/品牌文案，返回值已直接本地化，不再附带
+        i18n/i18n_list。
       tags:
+        - products/Categories
         - Categories
       parameters:
         - name: locale
@@ -47,7 +57,7 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/CategoryTreeNode'
+                          $ref: '#/components/schemas/PublicCategoryNode'
                         description: 业务数据（随具体接口定义）
                 x-apifox-orders:
                   - 01KAP42CD338G2ZP2ESF1HP4CZ
@@ -59,7 +69,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -133,7 +143,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CategoryTreeNode'
+                      $ref: '#/components/schemas/PublicCategoryNode'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -204,17 +214,37 @@ paths:
                   total: 135
           headers: {}
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '429':
-          $ref: '#/components/responses/请求过多'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+          headers: {}
+          x-apifox-name: 请求过多
           x-apifox-ordering: 2
       security: []
       x-apifox-folder: products/Categories
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730622-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361143-run
   /products:
     get:
       summary: 搜索/筛选商品列表
@@ -222,6 +252,7 @@ paths:
       description: |
         仅返回 status=ON_SALE 且 SKU 可售的商品；支持按类目、关键词、价格区间、排序筛选，并可指定语言与结算币种。
       tags:
+        - products/Products
         - Products
       parameters:
         - name: page
@@ -315,7 +346,7 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Product'
+                          $ref: '#/components/schemas/ProductSpu'
                         description: 业务数据（随具体接口定义）
                 x-apifox-orders:
                   - 01KAP592E9SY7G5JD60K70WDTD
@@ -327,7 +358,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -401,7 +432,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Product'
+                      $ref: '#/components/schemas/ProductSpu'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -523,17 +554,37 @@ paths:
                   total: 135
           headers: {}
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '429':
-          $ref: '#/components/responses/请求过多'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+          headers: {}
+          x-apifox-name: 请求过多
           x-apifox-ordering: 2
       security: []
       x-apifox-folder: products/Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730623-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361144-run
   /products/{slug}:
     get:
       summary: 获取商品详情（含 SKU / 规格 / 多语言）
@@ -541,6 +592,7 @@ paths:
       description: |
         根据 slug（默认匹配指定语言的 slug）返回商品详情；仅可访问 status=ON_SALE 且 SKU 启用的商品。
       tags:
+        - products/Products
         - Products
       parameters:
         - name: slug
@@ -579,7 +631,7 @@ paths:
                     x-apifox-overrides:
                       data:
                         description: 业务数据（随具体接口定义）
-                        $ref: '#/components/schemas/ProductDetailPublic'
+                        $ref: '#/components/schemas/PublicProductDetail'
                 x-apifox-orders:
                   - 01KAP96DE3V2TPNR9G7CASY96X
                 properties:
@@ -590,7 +642,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -663,7 +715,7 @@ paths:
                       - af9c5b1f0e2a4c1b
                   data:
                     description: 业务数据（随具体接口定义）
-                    $ref: '#/components/schemas/ProductDetailPublic'
+                    $ref: '#/components/schemas/PublicProductDetail'
                   meta:
                     description: 附加元信息（分页等，可选）
                     type:
@@ -822,17 +874,37 @@ paths:
                           sort_order: 0
           headers: {}
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '429':
-          $ref: '#/components/responses/请求过多'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+          headers: {}
+          x-apifox-name: 请求过多
           x-apifox-ordering: 2
       security: []
       x-apifox-folder: products/Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730624-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361145-run
   /products/{product_id}/like:
     put:
       summary: 点赞商品（幂等，重复点赞不会报错）
@@ -840,6 +912,7 @@ paths:
       description: |
         创建 product_like 记录，主键 (user_id, product_id) 天然保证幂等；要求登录且通过 CSRF 校验。
       tags:
+        - products/Likes
         - Likes
       parameters:
         - name: csrf_token
@@ -897,7 +970,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1017,31 +1090,72 @@ paths:
                   liked_at: '2025-11-06T12:20:00.000Z'
           headers: {}
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '429':
-          $ref: '#/components/responses/请求过多'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+          headers: {}
+          x-apifox-name: 请求过多
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Likes
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730625-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361146-run
     delete:
       summary: 取消点赞商品（幂等，未点赞也视为成功）
       deprecated: false
       description: |
         删除 product_like 记录；多次调用保持幂等，若不存在记录也返回成功。
       tags:
+        - products/Likes
         - Likes
       parameters:
         - name: csrf_token
@@ -1099,7 +1213,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1219,25 +1333,65 @@ paths:
                   liked_at: null
           headers: {}
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '429':
-          $ref: '#/components/responses/请求过多'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+          headers: {}
+          x-apifox-name: 请求过多
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Likes
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730626-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361147-run
   /users/me/likes/products:
     get:
       summary: 获取我点赞的商品列表
@@ -1245,6 +1399,7 @@ paths:
       description: |
         基于 product_like 反查用户点赞的商品；幂等查询，结果按点赞时间倒序。
       tags:
+        - products/Likes
         - Likes
       parameters:
         - name: csrf_token
@@ -1313,7 +1468,7 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Product'
+                          $ref: '#/components/schemas/ProductSpu'
                         description: 业务数据（随具体接口定义）
                 x-apifox-orders:
                   - 01KAP9DV93WA48CR7HZRTRADEE
@@ -1325,7 +1480,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1399,7 +1554,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Product'
+                      $ref: '#/components/schemas/ProductSpu'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -1518,25 +1673,65 @@ paths:
                 meta: null
           headers: {}
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '429':
-          $ref: '#/components/responses/请求过多'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+          headers: {}
+          x-apifox-name: 请求过多
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Likes
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730627-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361148-run
   /admin/products/categories:
     get:
       summary: 分页列出商品分类（含启用状态）
@@ -1545,6 +1740,7 @@ paths:
         支持按父级筛选（不带 parent_id 不过滤, 带了但为空表示筛选 parent_id IS
         NULL）、关键词模糊搜索，返回启用/停用状态及层级路径；管理端不做本地化，全部多语言落在 i18n_list。
       tags:
+        - products/Admin Categories
         - Admin Categories
       parameters:
         - name: page
@@ -1584,6 +1780,8 @@ paths:
             type: boolean
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -1596,9 +1794,8 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/CategoryNode'
+                          $ref: '#/components/schemas/AdminCategoryNode'
                         description: 业务数据（随具体接口定义）
-                    required: []
                 x-apifox-orders:
                   - 01KARD4VV7NJ1A867YEDCYZYBV
                 properties:
@@ -1609,7 +1806,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1683,7 +1880,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CategoryNode'
+                      $ref: '#/components/schemas/AdminCategoryNode'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -1722,29 +1919,58 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730628-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361149-run
     post:
       summary: 创建商品分类
       deprecated: false
       description: ''
       tags:
+        - products/Admin Categories
         - Admin Categories
       parameters: []
       requestBody:
@@ -1752,10 +1978,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryUpsertRequest'
-            examples: {}
         required: true
       responses:
         '201':
+          x-apifox-name: 已创建
+          x-apifox-ordering: 0
           description: Created
           content:
             application/json:
@@ -1767,8 +1994,7 @@ paths:
                     x-apifox-overrides:
                       data:
                         description: 业务数据（随具体接口定义）
-                        $ref: '#/components/schemas/CategoryNode'
-                    required: []
+                        $ref: '#/components/schemas/AdminCategoryNode'
                 x-apifox-orders:
                   - 01KARD87SJXAXTPNX1FRG4M02T
                 properties:
@@ -1779,7 +2005,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1852,7 +2078,7 @@ paths:
                       - af9c5b1f0e2a4c1b
                   data:
                     description: 业务数据（随具体接口定义）
-                    $ref: '#/components/schemas/CategoryNode'
+                    $ref: '#/components/schemas/AdminCategoryNode'
                   meta:
                     description: 附加元信息（分页等，可选）
                     type:
@@ -1890,34 +2116,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 已创建
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730629-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361150-run
   /admin/products/categories/{category_id}:
     get:
       summary: 获取分类详情（含全部多语言）
       deprecated: false
       description: ''
       tags:
+        - products/Admin Categories
         - Admin Categories
       parameters:
         - name: category_id
@@ -1930,6 +2195,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -1941,8 +2208,7 @@ paths:
                     x-apifox-overrides:
                       data:
                         description: 业务数据（随具体接口定义）
-                        $ref: '#/components/schemas/CategoryNode'
-                    required: []
+                        $ref: '#/components/schemas/AdminCategoryNode'
                 x-apifox-orders:
                   - 01KARDRG5RMR1WFJ7DVXJDKD25
                 properties:
@@ -1953,7 +2219,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2026,7 +2292,7 @@ paths:
                       - af9c5b1f0e2a4c1b
                   data:
                     description: 业务数据（随具体接口定义）
-                    $ref: '#/components/schemas/CategoryNode'
+                    $ref: '#/components/schemas/AdminCategoryNode'
                   meta:
                     description: 附加元信息（分页等，可选）
                     type:
@@ -2064,29 +2330,58 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730630-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361151-run
     patch:
       summary: 更新商品分类
       deprecated: false
       description: ''
       tags:
+        - products/Admin Categories
         - Admin Categories
       parameters:
         - name: category_id
@@ -2102,10 +2397,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryUpsertRequest'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -2119,12 +2415,13 @@ paths:
                         type: object
                         description: 更新结果
                         properties:
-                          category_id:
+                          category_id: &ref_0
                             type: integer
                             format: int64
                         required:
                           - category_id
-                    required: []
+                        x-apifox-orders:
+                          - category_id
                 x-apifox-orders:
                   - 01KARDVB17TW6YHXVE2DN8RXMX
                 properties:
@@ -2135,7 +2432,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2210,11 +2507,35 @@ paths:
                     type: object
                     description: 更新结果
                     properties:
-                      category_id:
-                        type: integer
-                        format: int64
+                      category_id: *ref_0
                     required:
                       - category_id
+                    x-apifox-orders:
+                      - category_id
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -2229,33 +2550,72 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730631-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361152-run
     delete:
       summary: 删除商品分类
       deprecated: false
       description: 删除前应确认无子分类和商品引用，避免产生孤立数据。
       tags:
+        - products/Admin Categories
         - Admin Categories
       parameters:
         - name: category_id
@@ -2268,6 +2628,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -2281,15 +2643,17 @@ paths:
                         type: object
                         description: 删除结果
                         properties:
-                          category_id:
+                          category_id: &ref_1
                             type: integer
                             format: int64
-                          deleted:
+                          deleted: &ref_2
                             type: boolean
                             default: true
                         required:
                           - category_id
-                    required: []
+                        x-apifox-orders:
+                          - category_id
+                          - deleted
                 x-apifox-orders:
                   - 01KARFK8M0HB27YNDA8XD5A4WE
                 properties:
@@ -2300,7 +2664,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2375,14 +2739,37 @@ paths:
                     type: object
                     description: 删除结果
                     properties:
-                      category_id:
-                        type: integer
-                        format: int64
-                      deleted:
-                        type: boolean
-                        default: true
+                      category_id: *ref_1
+                      deleted: *ref_2
                     required:
                       - category_id
+                    x-apifox-orders:
+                      - category_id
+                      - deleted
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -2397,33 +2784,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361153-run
   /admin/products/categories/{category_id}/i18n:
     patch:
       summary: 批量设置分类多语言
       deprecated: false
       description: 覆盖式 upsert，未出现的 locale 将被保留。
       tags:
+        - products/Admin Categories
         - Admin Categories
       parameters:
         - name: category_id
@@ -2441,10 +2868,11 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/CategoryI18nPayload'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -2458,7 +2886,7 @@ paths:
                         type: object
                         description: 多语言设置结果
                         properties:
-                          category_id:
+                          category_id: &ref_3
                             type: integer
                             format: int64
                           locales:
@@ -2466,11 +2894,13 @@ paths:
                               - array
                               - 'null'
                             description: 已覆盖的语言列表
-                            items:
+                            items: &ref_4
                               type: string
                         required:
                           - category_id
-                    required: []
+                        x-apifox-orders:
+                          - category_id
+                          - locales
                 x-apifox-orders:
                   - 01KARDX98AS8FVVJCPE9R07SVS
                 properties:
@@ -2481,7 +2911,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2556,18 +2986,42 @@ paths:
                     type: object
                     description: 多语言设置结果
                     properties:
-                      category_id:
-                        type: integer
-                        format: int64
+                      category_id: *ref_3
                       locales:
                         type:
                           - array
                           - 'null'
                         description: 已覆盖的语言列表
-                        items:
-                          type: string
+                        items: *ref_4
                     required:
                       - category_id
+                    x-apifox-orders:
+                      - category_id
+                      - locales
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -2582,34 +3036,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730632-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361154-run
   /admin/products/categories/{category_id}/enable:
     patch:
       summary: 启用/停用分类
       deprecated: false
       description: ''
       tags:
+        - products/Admin Categories
         - Admin Categories
       parameters:
         - name: category_id
@@ -2625,10 +3118,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ToggleEnableRequest'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -2642,14 +3136,16 @@ paths:
                         type: object
                         description: 启用状态更新结果
                         properties:
-                          category_id:
+                          category_id: &ref_5
                             type: integer
                             format: int64
-                          is_enabled:
+                          is_enabled: &ref_6
                             type: boolean
                         required:
                           - category_id
-                    required: []
+                        x-apifox-orders:
+                          - category_id
+                          - is_enabled
                 x-apifox-orders:
                   - 01KARDYW63TSRJ2W1VNWVYKGXC
                 properties:
@@ -2660,7 +3156,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2735,13 +3231,37 @@ paths:
                     type: object
                     description: 启用状态更新结果
                     properties:
-                      category_id:
-                        type: integer
-                        format: int64
-                      is_enabled:
-                        type: boolean
+                      category_id: *ref_5
+                      is_enabled: *ref_6
                     required:
                       - category_id
+                    x-apifox-orders:
+                      - category_id
+                      - is_enabled
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -2756,30 +3276,59 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730633-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361155-run
   /admin/products:
     get:
       summary: 搜索/筛选商品（管理侧）
       deprecated: false
       description: 支持按状态、类目、SKU 类型、关键词、品牌和标签筛选，包含下架/草稿数据。1
       tags:
+        - products/Admin Products
         - Admin Products
       parameters:
         - name: page
@@ -2864,6 +3413,8 @@ paths:
             default: false
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -2876,9 +3427,8 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Product'
+                          $ref: '#/components/schemas/ProductSpu'
                         description: 业务数据（随具体接口定义）
-                    required: []
                 x-apifox-orders:
                   - 01KARE8D6GXBEF4BDSNKHG2EP6
                 properties:
@@ -2889,7 +3439,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2963,7 +3513,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Product'
+                      $ref: '#/components/schemas/ProductSpu'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -3002,24 +3552,52 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730634-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361156-run
     post:
       summary: 创建商品（基础信息）
       deprecated: false
@@ -3029,17 +3607,19 @@ paths:
 
         推荐流程：先创建 SPU -> 维护图库/多语言 -> 维护规格 -> 创建/更新 SKU -> 设置价格/库存。
       tags:
+        - products/Admin Products
         - Admin Products
       parameters: []
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductSaveRequest'
-            examples: {}
+              $ref: '#/components/schemas/ProductSpuBasicUpsertRequest'
         required: true
       responses:
         '201':
+          x-apifox-name: 已创建
+          x-apifox-ordering: 0
           description: Created
           content:
             application/json:
@@ -3051,8 +3631,7 @@ paths:
                     x-apifox-overrides:
                       data:
                         description: 业务数据（随具体接口定义）
-                        $ref: '#/components/schemas/ProductDetail'
-                    required: []
+                        $ref: '#/components/schemas/AdminProductDetail'
                 x-apifox-orders:
                   - 01KARESACK12RBPJ2GJ4M3GHCB
                 properties:
@@ -3063,7 +3642,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3136,7 +3715,7 @@ paths:
                       - af9c5b1f0e2a4c1b
                   data:
                     description: 业务数据（随具体接口定义）
-                    $ref: '#/components/schemas/ProductDetail'
+                    $ref: '#/components/schemas/AdminProductDetail'
                   meta:
                     description: 附加元信息（分页等，可选）
                     type:
@@ -3174,34 +3753,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 已创建
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730635-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361157-run
   /admin/products/{product_id}:
     get:
       summary: 获取商品详情（含停用 SKU/多语言）
       deprecated: false
       description: ''
       tags:
+        - products/Admin Products
         - Admin Products
       parameters:
         - name: product_id
@@ -3214,6 +3832,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -3225,8 +3845,7 @@ paths:
                     x-apifox-overrides:
                       data:
                         description: 业务数据（随具体接口定义）
-                        $ref: '#/components/schemas/ProductDetail'
-                    required: []
+                        $ref: '#/components/schemas/AdminProductDetail'
                 x-apifox-orders:
                   - 01KAREY9QRD5V8RJM0QWTC6ZX7
                 properties:
@@ -3237,7 +3856,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3310,7 +3929,7 @@ paths:
                       - af9c5b1f0e2a4c1b
                   data:
                     description: 业务数据（随具体接口定义）
-                    $ref: '#/components/schemas/ProductDetail'
+                    $ref: '#/components/schemas/AdminProductDetail'
                   meta:
                     description: 附加元信息（分页等，可选）
                     type:
@@ -3348,29 +3967,58 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730636-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361158-run
     patch:
       summary: 更新商品基础信息
       deprecated: false
       description: ''
       tags:
+        - products/Admin Products
         - Admin Products
       parameters:
         - name: product_id
@@ -3385,11 +4033,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductSaveRequest'
-            examples: {}
+              $ref: '#/components/schemas/ProductSpuBasicUpsertRequest'
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -3403,12 +4052,13 @@ paths:
                         type: object
                         description: 更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_7
                             type: integer
                             format: int64
                         required:
                           - product_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
                 x-apifox-orders:
                   - 01KARF02J88C6Z6CHNTE34W7AJ
                 properties:
@@ -3419,7 +4069,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3494,11 +4144,35 @@ paths:
                     type: object
                     description: 更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
+                      product_id: *ref_7
                     required:
                       - product_id
+                    x-apifox-orders:
+                      - product_id
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -3513,34 +4187,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730637-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361159-run
   /admin/products/{product_id}/status:
     patch:
       summary: 更新商品状态（上架/下架/删除/草稿）
       deprecated: false
       description: ''
       tags:
+        - products/Admin Products
         - Admin Products
       parameters:
         - name: product_id
@@ -3564,10 +4277,11 @@ paths:
               x-apifox-orders:
                 - status
               x-apifox-ignore-properties: []
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -3581,14 +4295,16 @@ paths:
                         type: object
                         description: 状态更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_8
                             type: integer
                             format: int64
-                          status:
+                          status: &ref_9
                             $ref: '#/components/schemas/ProductStatus'
                         required:
                           - product_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - status
                 x-apifox-orders:
                   - 01KARF1DZP5Z8T3M3JMN82Q120
                 properties:
@@ -3599,7 +4315,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3674,13 +4390,37 @@ paths:
                     type: object
                     description: 状态更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      status:
-                        $ref: '#/components/schemas/ProductStatus'
+                      product_id: *ref_8
+                      status: *ref_9
                     required:
                       - product_id
+                    x-apifox-orders:
+                      - product_id
+                      - status
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -3695,30 +4435,59 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730638-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361160-run
   /admin/products/{product_id}/i18n:
     patch:
       summary: 批量设置商品多语言
       deprecated: false
       description: 覆盖式 upsert，未包含的 locale 保持不变。
       tags:
+        - products/Admin Products
         - Admin Products
       parameters:
         - name: product_id
@@ -3736,10 +4505,11 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/ProductI18nUpsertRequest'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -3753,7 +4523,7 @@ paths:
                         type: object
                         description: 多语言覆盖结果
                         properties:
-                          product_id:
+                          product_id: &ref_10
                             type: integer
                             format: int64
                           locales:
@@ -3761,11 +4531,13 @@ paths:
                               - array
                               - 'null'
                             description: 已覆盖的语言列表
-                            items:
+                            items: &ref_11
                               type: string
                         required:
                           - product_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - locales
                 x-apifox-orders:
                   - 01KARFDTB8R4E84EMCGCY4DM43
                 properties:
@@ -3776,7 +4548,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3851,18 +4623,42 @@ paths:
                     type: object
                     description: 多语言覆盖结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
+                      product_id: *ref_10
                       locales:
                         type:
                           - array
                           - 'null'
                         description: 已覆盖的语言列表
-                        items:
-                          type: string
+                        items: *ref_11
                     required:
                       - product_id
+                    x-apifox-orders:
+                      - product_id
+                      - locales
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -3877,34 +4673,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730639-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361161-run
   /admin/products/{product_id}/gallery:
     patch:
       summary: 覆盖商品主图/图库
       deprecated: false
       description: ''
       tags:
+        - products/Admin Products
         - Admin Products
       parameters:
         - name: product_id
@@ -3922,10 +4757,11 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/ProductImage'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -3939,17 +4775,19 @@ paths:
                         type: object
                         description: 图库更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_12
                             type: integer
                             format: int64
-                          image_count:
+                          image_count: &ref_13
                             type:
                               - integer
                               - 'null'
                             description: 当前图库图片数量
                         required:
                           - product_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - image_count
                 x-apifox-orders:
                   - 01KARFFY2YYSXPSWJKB3PCKX78
                 properties:
@@ -3960,7 +4798,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -4035,16 +4873,37 @@ paths:
                     type: object
                     description: 图库更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      image_count:
-                        type:
-                          - integer
-                          - 'null'
-                        description: 当前图库图片数量
+                      product_id: *ref_12
+                      image_count: *ref_13
                     required:
                       - product_id
+                    x-apifox-orders:
+                      - product_id
+                      - image_count
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -4059,30 +4918,59 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730640-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361162-run
   /admin/products/{product_id}/specs:
     get:
       summary: 获取商品可选规格
       deprecated: false
       description: 返回当前商品下可维护的规格及取值，管理侧不做本地化，i18n_list 承载多语言。
       tags:
+        - products/Admin Specs
         - Admin Specs
       parameters:
         - name: product_id
@@ -4095,6 +4983,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -4107,9 +4997,8 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/ProductSpec'
+                          $ref: '#/components/schemas/AdminProductSpec'
                         description: 业务数据（随具体接口定义）
-                    required: []
                 x-apifox-orders:
                   - 01KARSPECGETLIST
                 properties:
@@ -4120,7 +5009,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -4194,7 +5083,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/ProductSpec'
+                      $ref: '#/components/schemas/AdminProductSpec'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -4233,28 +5122,58 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Specs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361163-run
     patch:
       summary: 增量更改规格（不含取值）
       deprecated: false
       description: 增量 upsert 规格基础信息，未提交的规格保持原状态；取值请使用 /values 相关接口。
       tags:
+        - products/Admin Specs
         - Admin Specs
       parameters:
         - name: product_id
@@ -4271,11 +5190,12 @@ paths:
             schema:
               type: array
               items:
-                $ref: '#/components/schemas/ProductSpecPatchRequest'
-            examples: {}
+                $ref: '#/components/schemas/ProductSpecUpsertRequest'
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -4289,7 +5209,7 @@ paths:
                         type: object
                         description: 规格更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_14
                             type: integer
                             format: int64
                           spec_ids:
@@ -4297,12 +5217,14 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的规格ID 列表
-                            items:
+                            items: &ref_15
                               type: integer
                               format: int64
                         required:
                           - product_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - spec_ids
                 x-apifox-orders:
                   - 01KARGJNTBMAT37FV1BF15CDT5
                 properties:
@@ -4313,7 +5235,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -4388,19 +5310,42 @@ paths:
                     type: object
                     description: 规格更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
+                      product_id: *ref_14
                       spec_ids:
                         type:
                           - array
                           - 'null'
                         description: 受影响的规格ID 列表
-                        items:
-                          type: integer
-                          format: int64
+                        items: *ref_15
                     required:
                       - product_id
+                    x-apifox-orders:
+                      - product_id
+                      - spec_ids
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -4415,34 +5360,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Specs
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730641-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361164-run
   /admin/products/{product_id}/specs/{spec_id}:
     delete:
       summary: 删除规格
       deprecated: false
       description: 删除商品下的指定规格，删除前必须确保无 SKU 绑定；若仍有绑定则应返回冲突错误，不允许删除。
       tags:
+        - products/Admin Specs
         - Admin Specs
       parameters:
         - name: product_id
@@ -4463,6 +5447,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -4476,19 +5462,22 @@ paths:
                         type: object
                         description: 删除结果
                         properties:
-                          product_id:
+                          product_id: &ref_16
                             type: integer
                             format: int64
-                          spec_id:
+                          spec_id: &ref_17
                             type: integer
                             format: int64
-                          deleted:
+                          deleted: &ref_18
                             type: boolean
                             default: true
                         required:
                           - product_id
                           - spec_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - spec_id
+                          - deleted
                 x-apifox-orders:
                   - 01KARSPDELSPC001
                 properties:
@@ -4499,7 +5488,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -4574,18 +5563,40 @@ paths:
                     type: object
                     description: 删除结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      spec_id:
-                        type: integer
-                        format: int64
-                      deleted:
-                        type: boolean
-                        default: true
+                      product_id: *ref_16
+                      spec_id: *ref_17
+                      deleted: *ref_18
                     required:
                       - product_id
                       - spec_id
+                    x-apifox-orders:
+                      - product_id
+                      - spec_id
+                      - deleted
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -4600,33 +5611,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Specs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361165-run
   /admin/products/{product_id}/specs/{spec_id}/values:
     get:
       summary: 根据规格ID获取可选规格取值
       deprecated: false
       description: 返回当前规格下可用的取值列表，管理侧不做本地化，i18n_list 承载多语言。
       tags:
+        - products/Admin Specs
         - Admin Specs
       parameters:
         - name: product_id
@@ -4647,6 +5698,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -4659,9 +5712,8 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/ProductSpecValue'
+                          $ref: '#/components/schemas/AdminProductSpecValue'
                         description: 业务数据（随具体接口定义）
-                    required: []
                 x-apifox-orders:
                   - 01KARSPVALGET001
                 properties:
@@ -4672,7 +5724,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -4746,7 +5798,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/ProductSpecValue'
+                      $ref: '#/components/schemas/AdminProductSpecValue'
                     description: 业务数据（随具体接口定义）
                   meta:
                     description: 附加元信息（分页等，可选）
@@ -4785,28 +5837,58 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin Specs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361166-run
     patch:
       summary: 增量更改规格取值
       deprecated: false
       description: 增量 upsert 规格取值，未提交的取值保持原状态，需禁用时请显式传 is_enabled=false。
       tags:
+        - products/Admin Specs
         - Admin Specs
       parameters:
         - name: product_id
@@ -4832,10 +5914,11 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/ProductSpecValueUpsertRequest'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -4849,10 +5932,10 @@ paths:
                         type: object
                         description: 规格取值更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_19
                             type: integer
                             format: int64
-                          spec_id:
+                          spec_id: &ref_20
                             type: integer
                             format: int64
                           value_ids:
@@ -4860,13 +5943,16 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的取值ID 列表
-                            items:
+                            items: &ref_21
                               type: integer
                               format: int64
                         required:
                           - product_id
                           - spec_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - spec_id
+                          - value_ids
                 x-apifox-orders:
                   - 01KARSPVALPATCH1
                 properties:
@@ -4877,7 +5963,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -4952,23 +6038,45 @@ paths:
                     type: object
                     description: 规格取值更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      spec_id:
-                        type: integer
-                        format: int64
+                      product_id: *ref_19
+                      spec_id: *ref_20
                       value_ids:
                         type:
                           - array
                           - 'null'
                         description: 受影响的取值ID 列表
-                        items:
-                          type: integer
-                          format: int64
+                        items: *ref_21
                     required:
                       - product_id
                       - spec_id
+                    x-apifox-orders:
+                      - product_id
+                      - spec_id
+                      - value_ids
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -4983,33 +6091,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Specs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361167-run
   /admin/products/{product_id}/specs/{spec_id}/values/{value_id}:
     delete:
       summary: 删除规格取值
       deprecated: false
       description: 删除指定取值，删除前必须确保无 SKU 绑定；若仍有绑定则应返回冲突错误，不允许删除。
       tags:
+        - products/Admin Specs
         - Admin Specs
       parameters:
         - name: product_id
@@ -5038,6 +6186,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -5051,23 +6201,27 @@ paths:
                         type: object
                         description: 删除结果
                         properties:
-                          product_id:
+                          product_id: &ref_22
                             type: integer
                             format: int64
-                          spec_id:
+                          spec_id: &ref_23
                             type: integer
                             format: int64
-                          value_id:
+                          value_id: &ref_24
                             type: integer
                             format: int64
-                          deleted:
+                          deleted: &ref_25
                             type: boolean
                             default: true
                         required:
                           - product_id
                           - spec_id
                           - value_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - spec_id
+                          - value_id
+                          - deleted
                 x-apifox-orders:
                   - 01KARSPVALDEL001
                 properties:
@@ -5078,7 +6232,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -5153,22 +6307,43 @@ paths:
                     type: object
                     description: 删除结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      spec_id:
-                        type: integer
-                        format: int64
-                      value_id:
-                        type: integer
-                        format: int64
-                      deleted:
-                        type: boolean
-                        default: true
+                      product_id: *ref_22
+                      spec_id: *ref_23
+                      value_id: *ref_24
+                      deleted: *ref_25
                     required:
                       - product_id
                       - spec_id
                       - value_id
+                    x-apifox-orders:
+                      - product_id
+                      - spec_id
+                      - value_id
+                      - deleted
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -5183,33 +6358,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin Specs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361168-run
   /admin/products/{product_id}/skus:
     get:
       summary: 获取商品 SKU 列表（含禁用）
       deprecated: false
       description: 返回商品下所有 SKU 明细，包含禁用和默认标记，方便管理端整体查看。
       tags:
+        - products/Admin SKUs
         - Admin SKUs
       parameters:
         - name: product_id
@@ -5222,6 +6437,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -5236,7 +6453,6 @@ paths:
                         items:
                           $ref: '#/components/schemas/ProductSku'
                         description: 业务数据（随具体接口定义）
-                    required: []
                 x-apifox-orders:
                   - 01KARSKULISTGET01
                 properties:
@@ -5247,7 +6463,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -5360,28 +6576,58 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361169-run
     post:
-      summary: 批量创建 SKU
+      summary: 创建 SKU
       deprecated: false
       description: 仅创建新的 SKU（`id` 应为空），默认 SKU 必须唯一；不会影响已有 SKU。
       tags:
+        - products/Admin SKUs
         - Admin SKUs
       parameters:
         - name: product_id
@@ -5396,11 +6642,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductSkuUpsertRequest'
+              $ref: '#/components/schemas/ProductSkuCreateRequest'
             examples: {}
         required: true
       responses:
         '201':
+          x-apifox-name: 已创建
+          x-apifox-ordering: 0
           description: Created
           content:
             application/json:
@@ -5412,8 +6660,7 @@ paths:
                     x-apifox-overrides:
                       data:
                         description: 业务数据（随具体接口定义）
-                        $ref: '#/components/schemas/ProductDetail'
-                    required: []
+                        $ref: '#/components/schemas/ProductSku'
                 x-apifox-orders:
                   - 01KARHBD1B7WHYK7VJEW9R2GCE
                 properties:
@@ -5424,7 +6671,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -5497,7 +6744,7 @@ paths:
                       - af9c5b1f0e2a4c1b
                   data:
                     description: 业务数据（随具体接口定义）
-                    $ref: '#/components/schemas/ProductDetail'
+                    $ref: '#/components/schemas/ProductSku'
                   meta:
                     description: 附加元信息（分页等，可选）
                     type:
@@ -5535,34 +6782,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 已创建
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730642-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361170-run
   /admin/products/{product_id}/skus/{sku_id}:
     patch:
       summary: 根据 sku_id 增量更新 SKU 信息
       deprecated: false
       description: 更新基础信息（编码、库存、重量、状态、默认标记、条码、图片）；价格和规格绑定请使用专用接口。
       tags:
+        - products/Admin SKUs
         - Admin SKUs
       parameters:
         - name: product_id
@@ -5585,11 +6871,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductSkuPatchRequest'
-            examples: {}
+              $ref: '#/components/schemas/ProductSkuUpdateRequest'
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -5603,16 +6890,18 @@ paths:
                         type: object
                         description: SKU 更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_26
                             type: integer
                             format: int64
-                          sku_id:
+                          sku_id: &ref_27
                             type: integer
                             format: int64
                         required:
                           - product_id
                           - sku_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
                 x-apifox-orders:
                   - 01KARSKUPATCH001
                 properties:
@@ -5623,7 +6912,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -5698,15 +6987,38 @@ paths:
                     type: object
                     description: SKU 更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      sku_id:
-                        type: integer
-                        format: int64
+                      product_id: *ref_26
+                      sku_id: *ref_27
                     required:
                       - product_id
                       - sku_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -5721,33 +7033,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361171-run
   /admin/products/{product_id}/skus/{sku_id}/specs:
     patch:
       summary: 更新 SKU 与规格取值的绑定
       deprecated: false
       description: 以传入列表对指定 SKU 的规格/取值绑定做增量 upsert，未提交的绑定保持原状。
       tags:
+        - products/Admin SKUs
         - Admin SKUs
       parameters:
         - name: product_id
@@ -5773,10 +7125,11 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/ProductSkuSpecUpsertRequest'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -5790,10 +7143,10 @@ paths:
                         type: object
                         description: 规格绑定更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_28
                             type: integer
                             format: int64
-                          sku_id:
+                          sku_id: &ref_29
                             type: integer
                             format: int64
                           spec_ids:
@@ -5801,13 +7154,16 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的规格ID 列表
-                            items:
+                            items: &ref_30
                               type: integer
                               format: int64
                         required:
                           - product_id
                           - sku_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
+                          - spec_ids
                 x-apifox-orders:
                   - 01KARSKUSPECS001
                 properties:
@@ -5818,7 +7174,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -5893,23 +7249,45 @@ paths:
                     type: object
                     description: 规格绑定更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      sku_id:
-                        type: integer
-                        format: int64
+                      product_id: *ref_28
+                      sku_id: *ref_29
                       spec_ids:
                         type:
                           - array
                           - 'null'
                         description: 受影响的规格ID 列表
-                        items:
-                          type: integer
-                          format: int64
+                        items: *ref_30
                     required:
                       - product_id
                       - sku_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                      - spec_ids
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -5924,33 +7302,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361172-run
   /admin/products/{product_id}/skus/{sku_id}/specs/{spec_id}:
     delete:
       summary: 解除 SKU 与规格的绑定
       deprecated: false
       description: 删除指定规格绑定及其取值，SKU 仍然保留。
       tags:
+        - products/Admin SKUs
         - Admin SKUs
       parameters:
         - name: product_id
@@ -5979,6 +7397,8 @@ paths:
             format: int64
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -5992,23 +7412,27 @@ paths:
                         type: object
                         description: 解绑结果
                         properties:
-                          product_id:
+                          product_id: &ref_31
                             type: integer
                             format: int64
-                          sku_id:
+                          sku_id: &ref_32
                             type: integer
                             format: int64
-                          spec_id:
+                          spec_id: &ref_33
                             type: integer
                             format: int64
-                          deleted:
+                          deleted: &ref_34
                             type: boolean
                             default: true
                         required:
                           - product_id
                           - sku_id
                           - spec_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
+                          - spec_id
+                          - deleted
                 x-apifox-orders:
                   - 01KARSKUSPECDEL1
                 properties:
@@ -6019,7 +7443,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -6094,22 +7518,43 @@ paths:
                     type: object
                     description: 解绑结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      sku_id:
-                        type: integer
-                        format: int64
-                      spec_id:
-                        type: integer
-                        format: int64
-                      deleted:
-                        type: boolean
-                        default: true
+                      product_id: *ref_31
+                      sku_id: *ref_32
+                      spec_id: *ref_33
+                      deleted: *ref_34
                     required:
                       - product_id
                       - sku_id
                       - spec_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                      - spec_id
+                      - deleted
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -6124,33 +7569,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361173-run
   /admin/products/{product_id}/skus/{sku_id}/price:
     patch:
       summary: 批量更新 SKU 价格（多币种）
       deprecated: false
       description: 支持一次更新多个 currency 的价格，未提交的币种保持不变。
       tags:
+        - products/Admin SKUs
         - Admin SKUs
       parameters:
         - name: product_id
@@ -6176,10 +7661,11 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/ProductPriceUpsertRequest'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -6193,10 +7679,10 @@ paths:
                         type: object
                         description: 价格更新结果
                         properties:
-                          product_id:
+                          product_id: &ref_35
                             type: integer
                             format: int64
-                          sku_id:
+                          sku_id: &ref_36
                             type: integer
                             format: int64
                           currencies:
@@ -6204,12 +7690,15 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的币种列表
-                            items:
+                            items: &ref_37
                               type: string
                         required:
                           - product_id
                           - sku_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
+                          - currencies
                 x-apifox-orders:
                   - 01KARHQCY28NEYXDT1V56VX8VZ
                 properties:
@@ -6220,7 +7709,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -6295,22 +7784,45 @@ paths:
                     type: object
                     description: 价格更新结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      sku_id:
-                        type: integer
-                        format: int64
+                      product_id: *ref_35
+                      sku_id: *ref_36
                       currencies:
                         type:
                           - array
                           - 'null'
                         description: 受影响的币种列表
-                        items:
-                          type: string
+                        items: *ref_37
                     required:
                       - product_id
                       - sku_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                      - currencies
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -6325,34 +7837,73 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
         '409':
-          $ref: '#/components/responses/冲突'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730644-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361174-run
   /admin/products/{product_id}/skus/{sku_id}/stock:
     patch:
       summary: 调整 SKU 库存
       deprecated: false
       description: ''
       tags:
+        - products/Admin SKUs
         - Admin SKUs
       parameters:
         - name: product_id
@@ -6376,10 +7927,11 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/StockAdjustRequest'
-            examples: {}
         required: true
       responses:
         '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
@@ -6393,18 +7945,21 @@ paths:
                         type: object
                         description: 库存调整结果
                         properties:
-                          product_id:
+                          product_id: &ref_38
                             type: integer
                             format: int64
-                          sku_id:
+                          sku_id: &ref_39
                             type: integer
                             format: int64
-                          stock:
+                          stock: &ref_40
                             type: integer
                         required:
                           - product_id
                           - sku_id
-                    required: []
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
+                          - stock
                 x-apifox-orders:
                   - 01KARHT252RKH8THMZJXKZA8AG
                 properties:
@@ -6415,7 +7970,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -6490,17 +8045,40 @@ paths:
                     type: object
                     description: 库存调整结果
                     properties:
-                      product_id:
-                        type: integer
-                        format: int64
-                      sku_id:
-                        type: integer
-                        format: int64
-                      stock:
-                        type: integer
+                      product_id: *ref_38
+                      sku_id: *ref_39
+                      stock: *ref_40
                     required:
                       - product_id
                       - sku_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                      - stock
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
                 required:
                   - success
                   - code
@@ -6515,24 +8093,52 @@ paths:
                   - data
                   - meta
           headers: {}
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
         '400':
-          $ref: '#/components/responses/参数错误'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
-          $ref: '#/components/responses/未鉴权'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
-          $ref: '#/components/responses/权限不足'
           description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-380730645-run
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361175-run
 webhooks: {}
 components:
   schemas:
@@ -6551,7 +8157,7 @@ components:
             - true
         code:
           type: string
-          description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+          description: 业务码
           examples:
             - OK
           enum:
@@ -6700,70 +8306,464 @@ components:
         - brand
         - is_enabled
         - i18n
-      x-apifox-ignore-properties: []
       x-apifox-folder: products
-    CategoryTreeNode:
+      x-apifox-ignore-properties: []
+    ProductSpuBasicUpsertRequest:
       type: object
-      description: 用户侧分类节点，name/slug/brand 已按 locale 做过本地化替换
+      required:
+        - slug
+        - title
+        - category_id
+        - sku_type
       properties:
-        id:
-          type: integer
-          format: int64
-        parent_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        name:
-          type: string
         slug:
           type: string
-        level:
-          type: integer
-        path:
+        title:
+          type: string
+        subtitle:
           type:
             - string
             - 'null'
-        sort_order:
+        description:
+          type:
+            - string
+            - 'null'
+        category_id:
           type: integer
+          format: int64
         brand:
           type:
             - string
             - 'null'
-        locale:
+        cover_image_url:
           type:
             - string
             - 'null'
-          description: 当前返回内容的语言
-        children:
-          type: array
+        sku_type:
+          $ref: '#/components/schemas/SkuType'
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        tags:
+          type:
+            - array
+            - 'null'
           items:
-            $ref: '#/components/schemas/CategoryTreeNode'
-        is_enabled:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+            type: string
       x-apifox-orders:
-        - id
-        - parent_id
-        - name
         - slug
-        - level
-        - path
-        - sort_order
+        - title
+        - subtitle
+        - description
+        - category_id
         - brand
-        - locale
-        - children
-        - is_enabled
-        - created_at
-        - updated_at
+        - cover_image_url
+        - sku_type
+        - status
+        - tags
       x-apifox-folder: products
       x-apifox-ignore-properties: []
-    CategoryNode:
+    ProductI18nUpsertRequest:
+      type: object
+      required:
+        - locale
+        - title
+        - slug
+        - id
+      properties:
+        id:
+          type: integer
+          description: I18N 本地化 ID
+        locale:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type:
+            - string
+            - 'null'
+        description:
+          type:
+            - string
+            - 'null'
+        slug:
+          type: string
+        tags:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
+      x-apifox-orders:
+        - id
+        - locale
+        - title
+        - subtitle
+        - description
+        - slug
+        - tags
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductSkuCreateRequest:
+      type: object
+      required:
+        - sku_code
+        - stock
+        - status
+      properties:
+        id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        sku_code:
+          type: string
+        stock:
+          type: integer
+        weight:
+          type:
+            - number
+            - 'null'
+          format: double
+        status:
+          $ref: '#/components/schemas/SkuStatus'
+        is_default:
+          type: boolean
+          default: false
+        barcode:
+          type:
+            - string
+            - 'null'
+        price:
+          type:
+            - array
+            - 'null'
+          description: 多币种定价列表
+          items:
+            $ref: '#/components/schemas/ProductPriceUpsertRequest'
+        specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSkuSpecUpsertRequest'
+        images:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/ProductImage'
+      x-apifox-orders:
+        - id
+        - sku_code
+        - stock
+        - weight
+        - status
+        - is_default
+        - barcode
+        - price
+        - specs
+        - images
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductSkuUpdateRequest:
+      type: object
+      description: SKU 增量更新请求，仅填写需要修改的基础字段，规格/价格请使用专用接口。
+      properties:
+        sku_code:
+          type:
+            - string
+            - 'null'
+        stock:
+          type:
+            - integer
+            - 'null'
+        weight:
+          type:
+            - number
+            - 'null'
+          format: double
+        status:
+          anyOf:
+            - $ref: '#/components/schemas/SkuStatus'
+            - type: 'null'
+        is_default:
+          type:
+            - boolean
+            - 'null'
+        barcode:
+          type:
+            - string
+            - 'null'
+        images:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/ProductImage'
+      x-apifox-orders:
+        - sku_code
+        - stock
+        - weight
+        - status
+        - is_default
+        - barcode
+        - images
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductSpecUpsertRequest:
+      type: object
+      description: 规格增量更新请求，不包含取值，取值请使用 /values 接口
+      required:
+        - spec_code
+        - spec_name
+        - spec_type
+      properties:
+        spec_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        spec_code:
+          type: string
+        spec_name:
+          type: string
+        spec_type:
+          $ref: '#/components/schemas/SpecType'
+        is_required:
+          type:
+            - boolean
+            - 'null'
+        i18n_list:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/ProductSpecI18nPayload'
+      x-apifox-orders:
+        - spec_id
+        - spec_code
+        - spec_name
+        - spec_type
+        - is_required
+        - i18n_list
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductSpecValueUpsertRequest:
+      type: object
+      required:
+        - value_code
+        - value_name
+        - i18n_list
+      properties:
+        value_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        value_code:
+          type: string
+        value_name:
+          type: string
+        attributes:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          properties: {}
+          x-apifox-orders: []
+          x-apifox-ignore-properties: []
+        is_enabled:
+          type: boolean
+          default: true
+        i18n_list:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/ProductSpecValueI18nPayload'
+      x-apifox-orders:
+        - value_id
+        - value_code
+        - value_name
+        - attributes
+        - is_enabled
+        - i18n_list
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductSkuSpecUpsertRequest:
+      type: object
+      required:
+        - spec_code
+        - value_code
+      properties:
+        spec_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        spec_code:
+          type: string
+        spec_name:
+          type:
+            - string
+            - 'null'
+        value_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        value_code:
+          type: string
+        value_name:
+          type:
+            - string
+            - 'null'
+      x-apifox-orders:
+        - spec_id
+        - spec_code
+        - spec_name
+        - value_id
+        - value_code
+        - value_name
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductPriceUpsertRequest:
+      type: object
+      required:
+        - currency
+        - list_price
+        - id
+      properties:
+        id:
+          type: integer
+          description: 价格 ID
+        currency:
+          type: string
+        list_price:
+          type: number
+          format: double
+        sale_price:
+          type:
+            - number
+            - 'null'
+          format: double
+        is_active:
+          type: boolean
+          default: true
+      x-apifox-orders:
+        - id
+        - currency
+        - list_price
+        - sale_price
+        - is_active
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ToggleEnableRequest:
+      type: object
+      required:
+        - is_enabled
+      properties:
+        is_enabled:
+          type: boolean
+      x-apifox-orders:
+        - is_enabled
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    StockAdjustRequest:
+      type: object
+      required:
+        - mode
+        - quantity
+      properties:
+        mode:
+          type: string
+          enum:
+            - SET
+            - INCREASE
+            - DECREASE
+        quantity:
+          type: integer
+          description: 当 mode=SET 时为目标库存，其余为增量
+        reason:
+          type:
+            - string
+            - 'null'
+          description: 调整原因备注
+      x-apifox-orders:
+        - mode
+        - quantity
+        - reason
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    CategoryI18nPayload:
+      type: object
+      required:
+        - locale
+        - name
+        - slug
+        - id
+      properties:
+        id:
+          type: integer
+          description: I18N 本地化 ID
+        locale:
+          type: string
+          description: 语言代码（如 en-US）
+        name:
+          type: string
+        slug:
+          type: string
+        brand:
+          type:
+            - string
+            - 'null'
+      x-apifox-orders:
+        - id
+        - locale
+        - name
+        - slug
+        - brand
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductSpecI18nPayload:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: I18N 本地化 ID
+        locale:
+          type: string
+        spec_name:
+          type: string
+      x-apifox-orders:
+        - id
+        - locale
+        - spec_name
+      required:
+        - locale
+        - spec_name
+        - id
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductSpecValueI18nPayload:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: I18N 本地化 ID
+        locale:
+          type: string
+        value_name:
+          type: string
+      x-apifox-orders:
+        - id
+        - locale
+        - value_name
+      required:
+        - locale
+        - value_name
+        - id
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    AdminCategoryNode:
       type: object
       description: 管理端分类节点，返回原始名称/slug/品牌，i18n_list 承载所有多语言
       properties:
@@ -6801,7 +8801,7 @@ components:
         children:
           type: array
           items:
-            $ref: '#/components/schemas/CategoryNode'
+            $ref: '#/components/schemas/AdminCategoryNode'
         is_enabled:
           type: boolean
         created_at:
@@ -6826,32 +8826,371 @@ components:
         - updated_at
       x-apifox-folder: products
       x-apifox-ignore-properties: []
-    CategoryI18nPayload:
+    PublicCategoryNode:
       type: object
-      required:
-        - locale
-        - name
-        - slug
+      description: 用户侧分类节点，name/slug/brand 已按 locale 做过本地化替换
       properties:
-        locale:
-          type: string
-          description: 语言代码（如 en-US）
+        id:
+          type: integer
+          format: int64
+        parent_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
         name:
           type: string
         slug:
+          type: string
+        level:
+          type: integer
+        path:
+          type:
+            - string
+            - 'null'
+        sort_order:
+          type: integer
+        brand:
+          type:
+            - string
+            - 'null'
+        locale:
+          type:
+            - string
+            - 'null'
+          description: 当前返回内容的语言
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicCategoryNode'
+        is_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      x-apifox-orders:
+        - id
+        - parent_id
+        - name
+        - slug
+        - level
+        - path
+        - sort_order
+        - brand
+        - locale
+        - children
+        - is_enabled
+        - created_at
+        - updated_at
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    AdminProductDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        slug:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type:
+            - string
+            - 'null'
+        description:
+          type:
+            - string
+            - 'null'
+        category_id:
+          type: integer
+          format: int64
+        category_slug:
           type: string
         brand:
           type:
             - string
             - 'null'
+        cover_image_url:
+          type:
+            - string
+            - 'null'
+        stock_total:
+          type: integer
+        sale_count:
+          type: integer
+        sku_type:
+          $ref: '#/components/schemas/SkuType'
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        tags:
+          type: array
+          items:
+            type: string
+        default_sku_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        gallery:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminProductSpec'
+        skus:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSku'
+        i18n_list:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/ProductI18nUpsertRequest'
+          description: 来自 product_i18n 的多语言覆盖，仅管理侧使用多语言数组
       x-apifox-orders:
-        - locale
-        - name
+        - id
         - slug
+        - title
+        - subtitle
+        - description
+        - category_id
+        - category_slug
         - brand
-      x-apifox-ignore-properties: []
+        - cover_image_url
+        - stock_total
+        - sale_count
+        - sku_type
+        - status
+        - tags
+        - default_sku_id
+        - gallery
+        - specs
+        - skus
+        - i18n_list
       x-apifox-folder: products
-    Product:
+      x-apifox-ignore-properties: []
+    PublicProductDetail:
+      type: object
+      description: 用户侧商品详情，已按 locale 完成本地化，不返回 i18n 信息
+      properties:
+        id:
+          type: integer
+          format: int64
+        slug:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type:
+            - string
+            - 'null'
+        description:
+          type:
+            - string
+            - 'null'
+        category_id:
+          type: integer
+          format: int64
+        category_slug:
+          type: string
+        brand:
+          type:
+            - string
+            - 'null'
+        cover_image_url:
+          type:
+            - string
+            - 'null'
+        stock_total:
+          type: integer
+        sale_count:
+          type: integer
+        sku_type:
+          $ref: '#/components/schemas/SkuType'
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        tags:
+          type: array
+          items:
+            type: string
+        default_sku_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        gallery:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicProductSpec'
+        skus:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSku'
+      x-apifox-orders:
+        - id
+        - slug
+        - title
+        - subtitle
+        - description
+        - category_id
+        - category_slug
+        - brand
+        - cover_image_url
+        - stock_total
+        - sale_count
+        - sku_type
+        - status
+        - tags
+        - default_sku_id
+        - gallery
+        - specs
+        - skus
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    AdminProductSpec:
+      type: object
+      properties:
+        spec_id:
+          type: integer
+          format: int64
+        spec_code:
+          type: string
+        spec_name:
+          type: string
+        spec_type:
+          $ref: '#/components/schemas/SpecType'
+        is_required:
+          type: boolean
+        i18n_list:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/ProductSpecI18nPayload'
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminProductSpecValue'
+      x-apifox-orders:
+        - spec_id
+        - spec_code
+        - spec_name
+        - spec_type
+        - is_required
+        - i18n_list
+        - values
+      x-apifox-folder: products
+      required:
+        - i18n_list
+      x-apifox-ignore-properties: []
+    PublicProductSpec:
+      type: object
+      description: 用户侧规格信息，已本地化，不返回 i18n/i18n_list
+      properties:
+        spec_id:
+          type: integer
+          format: int64
+        spec_code:
+          type: string
+        spec_name:
+          type: string
+        spec_type:
+          $ref: '#/components/schemas/SpecType'
+        is_required:
+          type: boolean
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicProductSpecValue'
+      x-apifox-orders:
+        - spec_id
+        - spec_code
+        - spec_name
+        - spec_type
+        - is_required
+        - values
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    AdminProductSpecValue:
+      type: object
+      properties:
+        value_id:
+          type: integer
+          format: int64
+        value_code:
+          type: string
+        value_name:
+          type: string
+        attributes:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          x-apifox-orders: []
+          properties: {}
+          x-apifox-ignore-properties: []
+        i18n_list:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/ProductSpecValueI18nPayload'
+      x-apifox-orders:
+        - value_id
+        - value_code
+        - value_name
+        - attributes
+        - i18n_list
+      x-apifox-folder: products
+      required:
+        - i18n_list
+      x-apifox-ignore-properties: []
+    PublicProductSpecValue:
+      type: object
+      description: 用户侧规格取值，已本地化，不返回 i18n/i18n_list
+      properties:
+        value_id:
+          type: integer
+          format: int64
+        value_code:
+          type: string
+        value_name:
+          type: string
+        attributes:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          x-apifox-orders: []
+          properties: {}
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - value_id
+        - value_code
+        - value_name
+        - attributes
+      x-apifox-folder: products
+      x-apifox-ignore-properties: []
+    ProductStatus:
+      type: string
+      enum:
+        - DRAFT
+        - ON_SALE
+        - OFF_SHELF
+        - DELETED
+      x-apifox-folder: products
+    ProductSpu:
       type: object
       properties:
         id:
@@ -6927,399 +9266,6 @@ components:
       required:
         - gallery
       x-apifox-ignore-properties: []
-    ProductDetail:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        slug:
-          type: string
-        title:
-          type: string
-        subtitle:
-          type:
-            - string
-            - 'null'
-        description:
-          type:
-            - string
-            - 'null'
-        category_id:
-          type: integer
-          format: int64
-        category_slug:
-          type: string
-        brand:
-          type:
-            - string
-            - 'null'
-        cover_image_url:
-          type:
-            - string
-            - 'null'
-        stock_total:
-          type: integer
-        sale_count:
-          type: integer
-        sku_type:
-          $ref: '#/components/schemas/SkuType'
-        status:
-          $ref: '#/components/schemas/ProductStatus'
-        tags:
-          type: array
-          items:
-            type: string
-        default_sku_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        gallery:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductImage'
-        specs:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSpec'
-        skus:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSku'
-        i18n_list:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductI18nUpsertRequest'
-          description: 来自 product_i18n 的多语言覆盖，仅管理侧使用多语言数组
-      x-apifox-orders:
-        - id
-        - slug
-        - title
-        - subtitle
-        - description
-        - category_id
-        - category_slug
-        - brand
-        - cover_image_url
-        - stock_total
-        - sale_count
-        - sku_type
-        - status
-        - tags
-        - default_sku_id
-        - gallery
-        - specs
-        - skus
-        - i18n_list
-      x-apifox-folder: products
-      required: []
-      x-apifox-ignore-properties: []
-    ProductDetailPublic:
-      type: object
-      description: 用户侧商品详情，已按 locale 完成本地化，不返回 i18n 信息
-      properties:
-        id:
-          type: integer
-          format: int64
-        slug:
-          type: string
-        title:
-          type: string
-        subtitle:
-          type:
-            - string
-            - 'null'
-        description:
-          type:
-            - string
-            - 'null'
-        category_id:
-          type: integer
-          format: int64
-        category_slug:
-          type: string
-        brand:
-          type:
-            - string
-            - 'null'
-        cover_image_url:
-          type:
-            - string
-            - 'null'
-        stock_total:
-          type: integer
-        sale_count:
-          type: integer
-        sku_type:
-          $ref: '#/components/schemas/SkuType'
-        status:
-          $ref: '#/components/schemas/ProductStatus'
-        tags:
-          type: array
-          items:
-            type: string
-        default_sku_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        gallery:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductImage'
-        specs:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSpecPublic'
-        skus:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSku'
-      x-apifox-orders:
-        - id
-        - slug
-        - title
-        - subtitle
-        - description
-        - category_id
-        - category_slug
-        - brand
-        - cover_image_url
-        - stock_total
-        - sale_count
-        - sku_type
-        - status
-        - tags
-        - default_sku_id
-        - gallery
-        - specs
-        - skus
-      x-apifox-folder: products
-      x-apifox-ignore-properties: []
-    SkuType:
-      type: string
-      enum:
-        - SINGLE
-        - VARIANT
-      x-apifox-folder: products
-    ProductStatus:
-      type: string
-      enum:
-        - DRAFT
-        - ON_SALE
-        - OFF_SHELF
-        - DELETED
-      x-apifox-folder: products
-    ProductPriceRange:
-      type: object
-      properties:
-        currency:
-          type: string
-        list_price_min:
-          type: number
-          format: double
-        list_price_max:
-          type: number
-          format: double
-        sale_price_min:
-          type:
-            - number
-            - 'null'
-          format: double
-        sale_price_max:
-          type:
-            - number
-            - 'null'
-          format: double
-      x-apifox-orders:
-        - currency
-        - list_price_min
-        - list_price_max
-        - sale_price_min
-        - sale_price_max
-      x-apifox-folder: products
-      x-apifox-ignore-properties: []
-    ProductImage:
-      type: object
-      properties:
-        url:
-          type: string
-        is_main:
-          type: boolean
-        sort_order:
-          type: integer
-      x-apifox-orders:
-        - url
-        - is_main
-        - sort_order
-      x-apifox-folder: products
-      x-apifox-ignore-properties: []
-    ProductSpec:
-      type: object
-      properties:
-        spec_id:
-          type: integer
-          format: int64
-        spec_code:
-          type: string
-        spec_name:
-          type: string
-        spec_type:
-          $ref: '#/components/schemas/SpecType'
-        is_required:
-          type: boolean
-        i18n_list:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductSpecI18nPayload'
-        values:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSpecValue'
-      x-apifox-orders:
-        - spec_id
-        - spec_code
-        - spec_name
-        - spec_type
-        - is_required
-        - i18n_list
-        - values
-      x-apifox-folder: products
-      required:
-        - i18n_list
-      x-apifox-ignore-properties: []
-    ProductSpecPublic:
-      type: object
-      description: 用户侧规格信息，已本地化，不返回 i18n/i18n_list
-      properties:
-        spec_id:
-          type: integer
-          format: int64
-        spec_code:
-          type: string
-        spec_name:
-          type: string
-        spec_type:
-          $ref: '#/components/schemas/SpecType'
-        is_required:
-          type: boolean
-        values:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSpecValuePublic'
-      x-apifox-orders:
-        - spec_id
-        - spec_code
-        - spec_name
-        - spec_type
-        - is_required
-        - values
-      x-apifox-folder: products
-      x-apifox-ignore-properties: []
-    SpecType:
-      type: string
-      enum:
-        - COLOR
-        - SIZE
-        - CAPACITY
-        - MATERIAL
-        - OTHER
-      x-apifox-folder: products
-    ProductSpecI18nPayload:
-      type: object
-      properties:
-        locale:
-          type: string
-        spec_name:
-          type: string
-      x-apifox-orders:
-        - locale
-        - spec_name
-      required:
-        - locale
-        - spec_name
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductSpecValue:
-      type: object
-      properties:
-        value_id:
-          type: integer
-          format: int64
-        value_code:
-          type: string
-        value_name:
-          type: string
-        attributes:
-          type:
-            - object
-            - 'null'
-          additionalProperties: true
-          x-apifox-orders: []
-          properties: {}
-          x-apifox-ignore-properties: []
-        i18n_list:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductSpecValueI18nPayload'
-      x-apifox-orders:
-        - value_id
-        - value_code
-        - value_name
-        - attributes
-        - i18n_list
-      x-apifox-folder: products
-      required:
-        - i18n_list
-      x-apifox-ignore-properties: []
-    ProductSpecValuePublic:
-      type: object
-      description: 用户侧规格取值，已本地化，不返回 i18n/i18n_list
-      properties:
-        value_id:
-          type: integer
-          format: int64
-        value_code:
-          type: string
-        value_name:
-          type: string
-        attributes:
-          type:
-            - object
-            - 'null'
-          additionalProperties: true
-          x-apifox-orders: []
-          properties: {}
-          x-apifox-ignore-properties: []
-      x-apifox-orders:
-        - value_id
-        - value_code
-        - value_name
-        - attributes
-      x-apifox-folder: products
-      x-apifox-ignore-properties: []
-    ProductSpecValueI18nPayload:
-      type: object
-      properties:
-        locale:
-          type: string
-        value_name:
-          type: string
-      x-apifox-orders:
-        - locale
-        - value_name
-      required:
-        - locale
-        - value_name
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
     ProductSku:
       type: object
       properties:
@@ -7371,34 +9317,6 @@ components:
         - images
       x-apifox-folder: products
       x-apifox-ignore-properties: []
-    SkuStatus:
-      type: string
-      enum:
-        - ENABLED
-        - DISABLED
-      x-apifox-folder: products
-    ProductPrice:
-      type: object
-      properties:
-        currency:
-          type: string
-        list_price:
-          type: number
-          format: double
-        sale_price:
-          type:
-            - number
-            - 'null'
-          format: double
-        is_active:
-          type: boolean
-      x-apifox-orders:
-        - currency
-        - list_price
-        - sale_price
-        - is_active
-      x-apifox-folder: products
-      x-apifox-ignore-properties: []
     ProductSkuSpec:
       type: object
       properties:
@@ -7425,342 +9343,41 @@ components:
         - value_name
       x-apifox-folder: products
       x-apifox-ignore-properties: []
-    ProductSaveRequest:
-      type: object
-      required:
-        - slug
-        - title
-        - category_id
-        - sku_type
-      properties:
-        slug:
-          type: string
-        title:
-          type: string
-        subtitle:
-          type:
-            - string
-            - 'null'
-        description:
-          type:
-            - string
-            - 'null'
-        category_id:
-          type: integer
-          format: int64
-        brand:
-          type:
-            - string
-            - 'null'
-        cover_image_url:
-          type:
-            - string
-            - 'null'
-        sku_type:
-          $ref: '#/components/schemas/SkuType'
-        status:
-          $ref: '#/components/schemas/ProductStatus'
-        tags:
-          type:
-            - array
-            - 'null'
-          items:
-            type: string
-      x-apifox-orders:
-        - slug
-        - title
-        - subtitle
-        - description
-        - category_id
-        - brand
-        - cover_image_url
-        - sku_type
-        - status
-        - tags
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductI18nUpsertRequest:
-      type: object
-      required:
-        - locale
-        - title
-        - slug
-      properties:
-        locale:
-          type: string
-        title:
-          type: string
-        subtitle:
-          type:
-            - string
-            - 'null'
-        description:
-          type:
-            - string
-            - 'null'
-        slug:
-          type: string
-        tags:
-          type:
-            - array
-            - 'null'
-          items:
-            type: string
-      x-apifox-orders:
-        - locale
-        - title
-        - subtitle
-        - description
-        - slug
-        - tags
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductSpecUpsertRequest:
-      type: object
-      required:
-        - spec_code
-        - spec_name
-        - spec_type
-        - i18n_list
-      properties:
-        spec_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        spec_code:
-          type: string
-        spec_name:
-          type: string
-        spec_type:
-          $ref: '#/components/schemas/SpecType'
-        is_required:
-          type: boolean
-          default: true
-        i18n_list:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductSpecI18nPayload'
-        values:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSpecValueUpsertRequest'
-      x-apifox-orders:
-        - spec_id
-        - spec_code
-        - spec_name
-        - spec_type
-        - is_required
-        - i18n_list
-        - values
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductSpecPatchRequest:
-      type: object
-      description: 规格增量更新请求，不包含取值，取值请使用 /values 接口
-      required:
-        - spec_code
-        - spec_name
-        - spec_type
-      properties:
-        spec_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        spec_code:
-          type: string
-        spec_name:
-          type: string
-        spec_type:
-          $ref: '#/components/schemas/SpecType'
-        is_required:
-          type:
-            - boolean
-            - 'null'
-        i18n_list:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductSpecI18nPayload'
-      x-apifox-orders:
-        - spec_id
-        - spec_code
-        - spec_name
-        - spec_type
-        - is_required
-        - i18n_list
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductSpecValueUpsertRequest:
-      type: object
-      required:
-        - value_code
-        - value_name
-        - i18n_list
-      properties:
-        value_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        value_code:
-          type: string
-        value_name:
-          type: string
-        attributes:
-          type:
-            - object
-            - 'null'
-          additionalProperties: true
-          properties: {}
-          x-apifox-orders: []
-          x-apifox-ignore-properties: []
-        is_enabled:
-          type: boolean
-          default: true
-        i18n_list:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductSpecValueI18nPayload'
-      x-apifox-orders:
-        - value_id
-        - value_code
-        - value_name
-        - attributes
-        - is_enabled
-        - i18n_list
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductSkuUpsertRequest:
+    ProductPriceRange:
       type: object
       properties:
-        skus:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSkuUpsertRequestItem'
+        currency:
+          type: string
+        list_price_min:
+          type: number
+          format: double
+        list_price_max:
+          type: number
+          format: double
+        sale_price_min:
+          type:
+            - number
+            - 'null'
+          format: double
+        sale_price_max:
+          type:
+            - number
+            - 'null'
+          format: double
       x-apifox-orders:
-        - skus
-      required:
-        - skus
-      x-apifox-ignore-properties: []
+        - currency
+        - list_price_min
+        - list_price_max
+        - sale_price_min
+        - sale_price_max
       x-apifox-folder: products
-    ProductSkuUpsertRequestItem:
+      x-apifox-ignore-properties: []
+    ProductPrice:
       type: object
-      required:
-        - sku_code
-        - stock
-        - status
       properties:
         id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        sku_code:
-          type: string
-        stock:
           type: integer
-        weight:
-          type:
-            - number
-            - 'null'
-          format: double
-        status:
-          $ref: '#/components/schemas/SkuStatus'
-        is_default:
-          type: boolean
-          default: false
-        barcode:
-          type:
-            - string
-            - 'null'
-        price:
-          type:
-            - array
-            - 'null'
-          description: 多币种定价列表
-          items:
-            $ref: '#/components/schemas/ProductPriceUpsertRequest'
-        specs:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductSkuSpecUpsertRequest'
-        images:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductImage'
-      x-apifox-orders:
-        - id
-        - sku_code
-        - stock
-        - weight
-        - status
-        - is_default
-        - barcode
-        - price
-        - specs
-        - images
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductSkuPatchRequest:
-      type: object
-      description: SKU 增量更新请求，仅填写需要修改的基础字段，规格/价格请使用专用接口。
-      properties:
-        sku_code:
-          type:
-            - string
-            - 'null'
-        stock:
-          type:
-            - integer
-            - 'null'
-        weight:
-          type:
-            - number
-            - 'null'
-          format: double
-        status:
-          anyOf:
-            - $ref: '#/components/schemas/SkuStatus'
-            - type: 'null'
-        is_default:
-          type:
-            - boolean
-            - 'null'
-        barcode:
-          type:
-            - string
-            - 'null'
-        images:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/ProductImage'
-      x-apifox-orders:
-        - sku_code
-        - stock
-        - weight
-        - status
-        - is_default
-        - barcode
-        - images
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    ProductPriceUpsertRequest:
-      type: object
-      required:
-        - currency
-        - list_price
-      properties:
+          description: 价格 ID
         currency:
           type: string
         list_price:
@@ -7773,50 +9390,56 @@ components:
           format: double
         is_active:
           type: boolean
-          default: true
       x-apifox-orders:
+        - id
         - currency
         - list_price
         - sale_price
         - is_active
-      x-apifox-ignore-properties: []
       x-apifox-folder: products
-    ProductSkuSpecUpsertRequest:
-      type: object
       required:
-        - spec_code
-        - value_code
-      properties:
-        spec_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        spec_code:
-          type: string
-        spec_name:
-          type:
-            - string
-            - 'null'
-        value_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        value_code:
-          type: string
-        value_name:
-          type:
-            - string
-            - 'null'
-      x-apifox-orders:
-        - spec_id
-        - spec_code
-        - spec_name
-        - value_id
-        - value_code
-        - value_name
+        - id
       x-apifox-ignore-properties: []
+    ProductImage:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        is_main:
+          type: boolean
+        sort_order:
+          type: integer
+      x-apifox-orders:
+        - id
+        - url
+        - is_main
+        - sort_order
+      x-apifox-folder: products
+      required:
+        - id
+      x-apifox-ignore-properties: []
+    SkuType:
+      type: string
+      enum:
+        - SINGLE
+        - VARIANT
+      x-apifox-folder: products
+    SkuStatus:
+      type: string
+      enum:
+        - ENABLED
+        - DISABLED
+      x-apifox-folder: products
+    SpecType:
+      type: string
+      enum:
+        - COLOR
+        - SIZE
+        - CAPACITY
+        - MATERIAL
+        - OTHER
       x-apifox-folder: products
     LikeState:
       type: object
@@ -7833,43 +9456,6 @@ components:
         - liked_at
       x-apifox-folder: products
       x-apifox-ignore-properties: []
-    ToggleEnableRequest:
-      type: object
-      required:
-        - is_enabled
-      properties:
-        is_enabled:
-          type: boolean
-      x-apifox-orders:
-        - is_enabled
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
-    StockAdjustRequest:
-      type: object
-      required:
-        - mode
-        - quantity
-      properties:
-        mode:
-          type: string
-          enum:
-            - SET
-            - INCREASE
-            - DECREASE
-        quantity:
-          type: integer
-          description: 当 mode=SET 时为目标库存，其余为增量
-        reason:
-          type:
-            - string
-            - 'null'
-          description: 调整原因备注
-      x-apifox-orders:
-        - mode
-        - quantity
-        - reason
-      x-apifox-ignore-properties: []
-      x-apifox-folder: products
   responses:
     已创建:
       description: ''
