@@ -17,7 +17,7 @@ import java.util.Objects;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CategoryNodeRespond {
+public class AdminCategoryNodeRespond {
     /**
      * 分类 ID
      */
@@ -53,11 +53,11 @@ public class CategoryNodeRespond {
     /**
      * 全量 i18n 列表
      */
-    private List<CategoryI18nItemRespond> i18nList;
+    private List<CategoryI18nPayloadRespond> i18nList;
     /**
      * 子分类节点
      */
-    private List<CategoryNodeRespond> children;
+    private List<AdminCategoryNodeRespond> children;
     /**
      * 是否启用
      */
@@ -77,25 +77,24 @@ public class CategoryNodeRespond {
      * @param node 领域层分类节点
      * @return 响应节点
      */
-    public static CategoryNodeRespond from(CategoryNode node) {
-        List<CategoryI18nItemRespond> i18nListResponds = node.getI18nList().stream()
-                .map(CategoryI18nItemRespond::from)
+    public static AdminCategoryNodeRespond from(CategoryNode node) {
+        List<CategoryI18nPayloadRespond> i18nListResponds = node.getI18nList().stream()
+                .map(CategoryI18nPayloadRespond::from)
                 .toList();
         String displayBrand = node.getBrand();
         // 若没有指定当前语言的品牌文案，则使用 i18n 列表中第一个非空的品牌文案
-        if (displayBrand == null) {
+        if (displayBrand == null)
             displayBrand = i18nListResponds.stream()
-                    .map(CategoryI18nItemRespond::getBrand)
+                    .map(CategoryI18nPayloadRespond::getBrand)
                     .filter(Objects::nonNull)
                     .findFirst()
                     .orElse(null);
-        }
 
-        List<CategoryNodeRespond> childResponds = node.getChildren().stream()
-                .map(CategoryNodeRespond::from)
+        List<AdminCategoryNodeRespond> childNodeList = node.getChildren().stream()
+                .map(AdminCategoryNodeRespond::from)
                 .toList();
 
-        return new CategoryNodeRespond(
+        return new AdminCategoryNodeRespond(
                 node.getId(),
                 node.getParentId(),
                 node.getName(),
@@ -105,7 +104,7 @@ public class CategoryNodeRespond {
                 node.getSortOrder(),
                 displayBrand,
                 i18nListResponds,
-                childResponds,
+                childNodeList,
                 node.getStatus() == null ? null : node.getStatus() == CategoryStatus.ENABLED,
                 node.getCreatedAt(),
                 node.getUpdatedAt()
@@ -118,7 +117,7 @@ public class CategoryNodeRespond {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class CategoryI18nItemRespond {
+    public static class CategoryI18nPayloadRespond {
         /**
          * 语言代码
          */
@@ -142,8 +141,8 @@ public class CategoryNodeRespond {
          * @param vo 值对象
          * @return 响应
          */
-        public static CategoryI18nItemRespond from(CategoryI18n vo) {
-            return new CategoryI18nItemRespond(vo.getLocale(), vo.getName(), vo.getSlug(), vo.getBrand());
+        public static CategoryI18nPayloadRespond from(CategoryI18n vo) {
+            return new CategoryI18nPayloadRespond(vo.getLocale(), vo.getName(), vo.getSlug(), vo.getBrand());
         }
     }
 }

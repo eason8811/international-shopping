@@ -75,11 +75,11 @@ public class AdminProductController {
      * @return 详情
      */
     @PostMapping
-    public ResponseEntity<Result<ProductDetailRespond>> create(@RequestBody ProductSaveRequest request) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> create(@RequestBody ProductSaveRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.create(toCommand(request));
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
-                .body(Result.created(ProductDetailRespond.from(detail)));
+                .body(Result.created(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -89,9 +89,9 @@ public class AdminProductController {
      * @return 详情
      */
     @GetMapping("/{product_id}")
-    public ResponseEntity<Result<ProductDetailRespond>> detail(@PathVariable("product_id") Long productId) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> detail(@PathVariable("product_id") Long productId) {
         ProductDetail detail = productAdminService.detail(productId);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
+        return ResponseEntity.ok(Result.ok(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -102,11 +102,11 @@ public class AdminProductController {
      * @return 详情
      */
     @PatchMapping("/{product_id}")
-    public ResponseEntity<Result<ProductDetailRespond>> update(@PathVariable("product_id") Long productId,
-                                                               @RequestBody ProductSaveRequest request) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> update(@PathVariable("product_id") Long productId,
+                                                                    @RequestBody ProductSaveRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.update(productId, toCommand(request));
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
+        return ResponseEntity.ok(Result.ok(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -117,11 +117,11 @@ public class AdminProductController {
      * @return 详情
      */
     @PatchMapping("/{product_id}/status")
-    public ResponseEntity<Result<ProductDetailRespond>> updateStatus(@PathVariable("product_id") Long productId,
-                                                                     @RequestBody ProductStatusUpdateRequest request) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> updateStatus(@PathVariable("product_id") Long productId,
+                                                                          @RequestBody ProductStatusUpdateRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.updateStatus(productId, request.getStatus());
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
+        return ResponseEntity.ok(Result.ok(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -132,8 +132,8 @@ public class AdminProductController {
      * @return 详情
      */
     @PatchMapping("/{product_id}/i18n")
-    public ResponseEntity<Result<ProductDetailRespond>> upsertI18n(@PathVariable("product_id") Long productId,
-                                                                   @RequestBody List<ProductI18nUpsertRequest> payloads) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> upsertI18n(@PathVariable("product_id") Long productId,
+                                                                        @RequestBody List<ProductI18nUpsertRequest> payloads) {
         List<ProductI18nUpsertRequest> safePayloads = payloads == null ? List.of() : payloads;
         List<ProductI18n> i18nList = new ArrayList<>();
         for (ProductI18nUpsertRequest payload : safePayloads) {
@@ -144,7 +144,7 @@ public class AdminProductController {
                     payload.getDescription(), payload.getSlug(), payload.getTags()));
         }
         ProductDetail detail = productAdminService.upsertI18n(productId, i18nList);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
+        return ResponseEntity.ok(Result.ok(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -155,8 +155,8 @@ public class AdminProductController {
      * @return 详情
      */
     @PatchMapping("/{product_id}/gallery")
-    public ResponseEntity<Result<ProductDetailRespond>> replaceGallery(@PathVariable("product_id") Long productId,
-                                                                       @RequestBody List<ProductImagePayload> payloads) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> replaceGallery(@PathVariable("product_id") Long productId,
+                                                                            @RequestBody List<ProductImagePayload> payloads) {
         List<ProductImagePayload> safePayloads = payloads == null ? List.of() : payloads;
         List<ProductImage> gallery = new ArrayList<>();
         for (ProductImagePayload payload : safePayloads) {
@@ -166,7 +166,7 @@ public class AdminProductController {
             gallery.add(ProductImage.of(payload.getUrl(), Boolean.TRUE.equals(payload.getIsMain()), payload.getSortOrder()));
         }
         ProductDetail detail = productAdminService.replaceGallery(productId, gallery);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
+        return ResponseEntity.ok(Result.ok(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -200,12 +200,12 @@ public class AdminProductController {
      * @return 商品详情
      */
     @PostMapping("/{product_id}/skus")
-    public ResponseEntity<Result<ProductDetailRespond>> createSkus(@PathVariable("product_id") Long productId,
-                                                                   @RequestBody ProductSkuUpsertRequest request) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> createSkus(@PathVariable("product_id") Long productId,
+                                                                        @RequestBody ProductSkuUpsertRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.createSkus(productId, toSkuCommand(request));
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
-                .body(Result.created(ProductDetailRespond.from(detail)));
+                .body(Result.created(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -216,11 +216,11 @@ public class AdminProductController {
      * @return 商品详情
      */
     @PatchMapping("/{product_id}/skus")
-    public ResponseEntity<Result<ProductDetailRespond>> updateSkus(@PathVariable("product_id") Long productId,
-                                                                   @RequestBody ProductSkuUpsertRequest request) {
+    public ResponseEntity<Result<AdminProductDetailRespond>> updateSkus(@PathVariable("product_id") Long productId,
+                                                                        @RequestBody ProductSkuUpsertRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.updateSkus(productId, toSkuCommand(request));
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
+        return ResponseEntity.ok(Result.ok(AdminProductDetailRespond.from(detail)));
     }
 
     /**
@@ -287,10 +287,10 @@ public class AdminProductController {
      * @return 规格值列表
      */
     @GetMapping("/{product_id}/specs/{spec_id}/values")
-    public ResponseEntity<Result<List<ProductDetailRespond.SpecValueRespond>>> listSpecValues(@PathVariable("product_id") Long productId,
-                                                                                               @PathVariable("spec_id") Long specId) {
-        List<ProductDetailRespond.SpecValueRespond> data = productAdminService.listSpecValues(productId, specId).stream()
-                .map(ProductDetailRespond.SpecValueRespond::from)
+    public ResponseEntity<Result<List<AdminProductDetailRespond.AdminSpecValueRespond>>> listSpecValues(@PathVariable("product_id") Long productId,
+                                                                                                        @PathVariable("spec_id") Long specId) {
+        List<AdminProductDetailRespond.AdminSpecValueRespond> data = productAdminService.listSpecValues(productId, specId).stream()
+                .map(AdminProductDetailRespond.AdminSpecValueRespond::from)
                 .toList();
         return ResponseEntity.ok(Result.ok(data));
     }

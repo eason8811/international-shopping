@@ -10,7 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.products.ProductRespond;
-import shopping.international.api.resp.products.ProductDetailPublicRespond;
+import shopping.international.api.resp.products.PublicProductDetailRespond;
 import shopping.international.domain.model.enums.products.ProductSort;
 import shopping.international.domain.model.vo.products.ProductDetail;
 import shopping.international.domain.model.vo.products.ProductListQuery;
@@ -18,7 +18,7 @@ import shopping.international.domain.model.vo.products.ProductSummary;
 import shopping.international.domain.service.products.IProductQueryService;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.exceptions.IllegalParamException;
-import shopping.international.types.utils.RequestNormalizeUtils;
+import shopping.international.types.utils.FieldValidateUtils;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -76,12 +76,12 @@ public class ProductController {
             size = 20;
         if (size > 100)
             size = 100;
-        String normalizedLocale = RequestNormalizeUtils.normalizeLocale(locale);
-        String normalizedCurrency = RequestNormalizeUtils.normalizeCurrency(currency);
-        String normalizedKeyword = RequestNormalizeUtils.normalizeKeyword(keyword, 120);
-        List<String> tagList = RequestNormalizeUtils.normalizeTags(parseTags(tags));
-        BigDecimal normalizedPriceMin = RequestNormalizeUtils.normalizeNonNegativePrice(priceMin, "price_min");
-        BigDecimal normalizedPriceMax = RequestNormalizeUtils.normalizeNonNegativePrice(priceMax, "price_max");
+        String normalizedLocale = FieldValidateUtils.normalizeLocale(locale);
+        String normalizedCurrency = FieldValidateUtils.normalizeCurrency(currency);
+        String normalizedKeyword = FieldValidateUtils.normalizeKeyword(keyword, 120);
+        List<String> tagList = FieldValidateUtils.normalizeTags(parseTags(tags));
+        BigDecimal normalizedPriceMin = FieldValidateUtils.normalizeNonNegativePrice(priceMin, "price_min");
+        BigDecimal normalizedPriceMax = FieldValidateUtils.normalizeNonNegativePrice(priceMax, "price_max");
         if ((normalizedPriceMin != null || normalizedPriceMax != null) && normalizedCurrency == null)
             throw new IllegalParamException("按价格筛选时必须提供 currency");
         if (normalizedPriceMin != null && normalizedPriceMax != null && normalizedPriceMin.compareTo(normalizedPriceMax) > 0)
@@ -111,13 +111,13 @@ public class ProductController {
      * @return 包含商品详情的结果集 {@link ResponseEntity} 包裹着 {@link Result}, 其中包含 {@code ProductDetailPublicRespond} 对象
      */
     @GetMapping("/{slug}")
-    public ResponseEntity<Result<ProductDetailPublicRespond>> detail(@PathVariable("slug") String slug,
+    public ResponseEntity<Result<PublicProductDetailRespond>> detail(@PathVariable("slug") String slug,
                                                                      @RequestParam(value = "locale", required = false) String locale,
                                                                      @RequestParam(value = "currency", required = false) String currency) {
-        String normalizedLocale = RequestNormalizeUtils.normalizeLocale(locale);
-        String normalizedCurrency = RequestNormalizeUtils.normalizeCurrency(currency);
+        String normalizedLocale = FieldValidateUtils.normalizeLocale(locale);
+        String normalizedCurrency = FieldValidateUtils.normalizeCurrency(currency);
         ProductDetail detail = productQueryService.detail(slug, normalizedLocale, normalizedCurrency, resolveCurrentUserId());
-        return ResponseEntity.ok(Result.ok(ProductDetailPublicRespond.from(detail)));
+        return ResponseEntity.ok(Result.ok(PublicProductDetailRespond.from(detail)));
     }
 
     // =========================== 私有方法 ===========================

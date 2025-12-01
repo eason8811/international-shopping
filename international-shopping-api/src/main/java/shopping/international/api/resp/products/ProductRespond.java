@@ -88,7 +88,7 @@ public class ProductRespond {
     /**
      * SPU 价格区间
      */
-    private PriceRangeRespond priceRange;
+    private ProductPriceRangeRespond priceRange;
     /**
      * 商品图片列表
      */
@@ -101,13 +101,15 @@ public class ProductRespond {
     public static ProductRespond from(ProductSummary summary) {
         ProductPriceRange summaryPriceRange = summary.priceRange();
         // 构建价格区间响应, 若价格区间为空则返回null
-        PriceRangeRespond priceRangeRespond = summaryPriceRange == null ? null : new PriceRangeRespond(
-                summaryPriceRange.getCurrency(),
-                summaryPriceRange.getListPriceMin(),
-                summaryPriceRange.getListPriceMax(),
-                summaryPriceRange.getSalePriceMin(),
-                summaryPriceRange.getSalePriceMax()
-        );
+        ProductPriceRangeRespond productPriceRangeRespond = summaryPriceRange == null ?
+                null :
+                new ProductPriceRangeRespond(
+                        summaryPriceRange.getCurrency(),
+                        summaryPriceRange.getListPriceMin(),
+                        summaryPriceRange.getListPriceMax(),
+                        summaryPriceRange.getSalePriceMin(),
+                        summaryPriceRange.getSalePriceMax()
+                );
         // 构建图片列表响应
         List<ProductImageRespond> imageList = summary.gallery() == null ? List.of()
                 : summary.gallery()
@@ -129,7 +131,7 @@ public class ProductRespond {
                 summary.skuType(),
                 summary.status(),
                 summary.tags(),
-                priceRangeRespond,
+                productPriceRangeRespond,
                 imageList,
                 summary.likedAt()
         );
@@ -141,7 +143,7 @@ public class ProductRespond {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class PriceRangeRespond {
+    public static class ProductPriceRangeRespond {
         /**
          * 价格结算货币
          */

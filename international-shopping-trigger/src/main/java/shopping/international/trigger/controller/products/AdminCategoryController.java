@@ -9,8 +9,8 @@ import shopping.international.api.req.products.CategoryI18nPayload;
 import shopping.international.api.req.products.CategoryUpsertRequest;
 import shopping.international.api.req.products.ToggleEnableRequest;
 import shopping.international.api.resp.Result;
+import shopping.international.api.resp.products.AdminCategoryNodeRespond;
 import shopping.international.api.resp.products.CategoryOperationRespond;
-import shopping.international.api.resp.products.CategoryNodeRespond;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.domain.model.vo.products.CategoryNode;
 import shopping.international.domain.model.vo.products.CategoryUpsertCommand;
@@ -45,12 +45,12 @@ public class AdminCategoryController {
      * @return 包含分页结果的 ResponseEntity, 结果中包含分类节点列表和元数据信息
      */
     @GetMapping
-    public ResponseEntity<Result<List<CategoryNodeRespond>>> page(@RequestParam(defaultValue = "1") int page,
-                                                                  @RequestParam(defaultValue = "20") int size,
-                                                                  @RequestParam(value = "parent_id", required = false) String parentId,
-                                                                  @RequestParam(value = "keyword", required = false) String keyword,
-                                                                  @RequestParam(value = "is_enabled", required = false) Boolean isEnabled,
-                                                                  HttpServletRequest request) {
+    public ResponseEntity<Result<List<AdminCategoryNodeRespond>>> page(@RequestParam(defaultValue = "1") int page,
+                                                                       @RequestParam(defaultValue = "20") int size,
+                                                                       @RequestParam(value = "parent_id", required = false) String parentId,
+                                                                       @RequestParam(value = "keyword", required = false) String keyword,
+                                                                       @RequestParam(value = "is_enabled", required = false) Boolean isEnabled,
+                                                                       HttpServletRequest request) {
         int pageNo = page <= 0 ? 1 : page;
         int pageSize = size <= 0 ? 20 : Math.min(size, 100);
         // 不带 parent_id 不过滤, 带了但为空表示筛选 parent_id IS NULL
@@ -60,8 +60,8 @@ public class AdminCategoryController {
             normalizedParentId = null;
 
         ICategoryAdminService.PageResult<CategoryNode> pageResult = categoryAdminService.page(pageNo, pageSize, filterByParent, normalizedParentId, keyword, isEnabled);
-        List<CategoryNodeRespond> data = pageResult.items().stream()
-                .map(CategoryNodeRespond::from)
+        List<AdminCategoryNodeRespond> data = pageResult.items().stream()
+                .map(AdminCategoryNodeRespond::from)
                 .toList();
         Result.Meta meta = Result.Meta.builder()
                 .page(pageNo)
@@ -78,11 +78,11 @@ public class AdminCategoryController {
      * @return 包含创建成功分类节点信息的 ResponseEntity, 如果分类创建成功, 则返回 201 Created 状态码及分类节点响应对象
      */
     @PostMapping
-    public ResponseEntity<Result<CategoryNodeRespond>> create(@RequestBody CategoryUpsertRequest request) {
+    public ResponseEntity<Result<AdminCategoryNodeRespond>> create(@RequestBody CategoryUpsertRequest request) {
         request.validate();
         CategoryNode node = categoryAdminService.create(toCommand(request));
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
-                .body(Result.created(CategoryNodeRespond.from(node)));
+                .body(Result.created(AdminCategoryNodeRespond.from(node)));
     }
 
     /**
@@ -92,9 +92,9 @@ public class AdminCategoryController {
      * @return 包含分类节点详细信息的 ResponseEntity, 如果成功获取到数据, 则返回 200 OK 状态码及分类节点响应对象
      */
     @GetMapping("/{category_id}")
-    public ResponseEntity<Result<CategoryNodeRespond>> detail(@PathVariable("category_id") Long categoryId) {
+    public ResponseEntity<Result<AdminCategoryNodeRespond>> detail(@PathVariable("category_id") Long categoryId) {
         CategoryNode node = categoryAdminService.detail(categoryId);
-        return ResponseEntity.ok(Result.ok(CategoryNodeRespond.from(node)));
+        return ResponseEntity.ok(Result.ok(AdminCategoryNodeRespond.from(node)));
     }
 
     /**
@@ -120,15 +120,15 @@ public class AdminCategoryController {
      * @return 包含操作结果的 ResponseEntity, 如果成功执行了更新或插入操作, 则返回 200 OK 状态码及更新后的分类节点响应对象
      */
     @PatchMapping("/{category_id}/i18n")
-    public ResponseEntity<Result<CategoryNodeRespond>> upsertI18n(@PathVariable("category_id") Long categoryId,
-                                                                  @RequestBody List<CategoryI18nPayload> payloads) {
+    public ResponseEntity<Result<AdminCategoryNodeRespond>> upsertI18n(@PathVariable("category_id") Long categoryId,
+                                                                       @RequestBody List<CategoryI18nPayload> payloads) {
         List<CategoryI18nPayload> safePayloads = payloads == null ? List.of() : payloads;
         safePayloads.forEach(payload -> {
             if (payload != null)
                 payload.validate();
         });
         CategoryNode node = categoryAdminService.upsertI18n(categoryId, mapI18nPayloads(safePayloads));
-        return ResponseEntity.ok(Result.ok(CategoryNodeRespond.from(node)));
+        return ResponseEntity.ok(Result.ok(AdminCategoryNodeRespond.from(node)));
     }
 
     /**
@@ -136,15 +136,15 @@ public class AdminCategoryController {
      *
      * @param categoryId 分类 ID, 用于标识要修改的分类
      * @param request    请求体, 包含是否启用的布尔值 {@code isEnabled}
-     * @return 返回一个 {@link ResponseEntity} 对象, 其中包含操作结果和转换后的 {@link CategoryNodeRespond} 实例
+     * @return 返回一个 {@link ResponseEntity} 对象, 其中包含操作结果和转换后的 {@link AdminCategoryNodeRespond} 实例
      * @throws IllegalArgumentException 如果请求体中的数据无效, 将抛出此异常
      */
     @PatchMapping("/{category_id}/enable")
-    public ResponseEntity<Result<CategoryNodeRespond>> toggleEnable(@PathVariable("category_id") Long categoryId,
-                                                                    @RequestBody ToggleEnableRequest request) {
+    public ResponseEntity<Result<AdminCategoryNodeRespond>> toggleEnable(@PathVariable("category_id") Long categoryId,
+                                                                         @RequestBody ToggleEnableRequest request) {
         request.validate();
         CategoryNode node = categoryAdminService.toggleEnable(categoryId, Boolean.TRUE.equals(request.getIsEnabled()));
-        return ResponseEntity.ok(Result.ok(CategoryNodeRespond.from(node)));
+        return ResponseEntity.ok(Result.ok(AdminCategoryNodeRespond.from(node)));
     }
 
     /**

@@ -3,13 +3,14 @@ package shopping.international.api.resp.products;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.entity.products.ProductSku;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.ProductStatus;
-import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
-import shopping.international.domain.model.vo.products.*;
+import shopping.international.domain.model.vo.products.ProductDetail;
+import shopping.international.domain.model.vo.products.ProductI18n;
+import shopping.international.domain.model.vo.products.ProductSkuSpec;
+import shopping.international.domain.model.vo.products.ProductSpecValue;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -22,7 +23,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductDetailRespond {
+public class AdminProductDetailRespond {
     /**
      * 商品 ID
      */
@@ -90,11 +91,11 @@ public class ProductDetailRespond {
     /**
      * 规格列表
      */
-    private List<SpecRespond> specs;
+    private List<AdminSpecRespond> specs;
     /**
      * SKU 列表
      */
-    private List<SkuRespond> skus;
+    private List<ProductSkuRespond> skus;
     /**
      * 商品多语言列表
      */
@@ -106,16 +107,16 @@ public class ProductDetailRespond {
      * @param detail 领域层商品详情
      * @return 详情响应
      */
-    public static ProductDetailRespond from(ProductDetail detail) {
+    public static AdminProductDetailRespond from(ProductDetail detail) {
         List<ProductImageRespond> gallery = detail.gallery() == null ? List.of()
                 : detail.gallery().stream().map(ProductImageRespond::from).toList();
-        List<SpecRespond> specResponds = detail.specs() == null ? List.of()
-                : detail.specs().stream().map(SpecRespond::from).toList();
-        List<SkuRespond> skuResponds = detail.skus() == null ? List.of()
-                : detail.skus().stream().map(SkuRespond::from).toList();
+        List<AdminSpecRespond> adminSpecResponds = detail.specs() == null ? List.of()
+                : detail.specs().stream().map(AdminSpecRespond::from).toList();
+        List<ProductSkuRespond> productSkuResponds = detail.skus() == null ? List.of()
+                : detail.skus().stream().map(ProductSkuRespond::from).toList();
         List<ProductI18nRespond> i18nResponds = detail.i18nList() == null ? List.of()
                 : detail.i18nList().stream().map(ProductI18nRespond::from).toList();
-        return new ProductDetailRespond(
+        return new AdminProductDetailRespond(
                 detail.id(),
                 detail.slug(),
                 detail.title(),
@@ -132,8 +133,8 @@ public class ProductDetailRespond {
                 detail.tags(),
                 detail.defaultSkuId(),
                 gallery,
-                specResponds,
-                skuResponds,
+                adminSpecResponds,
+                productSkuResponds,
                 i18nResponds
         );
     }
@@ -144,7 +145,7 @@ public class ProductDetailRespond {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpecRespond {
+    public static class AdminSpecRespond {
         /**
          * 规格 ID
          */
@@ -168,11 +169,11 @@ public class ProductDetailRespond {
         /**
          * 规格多语言列表
          */
-        private List<SpecI18nRespond> i18nList;
+        private List<SpecI18nPayloadRespond> i18nList;
         /**
          * 规格值列表
          */
-        private List<SpecValueRespond> values;
+        private List<AdminSpecValueRespond> values;
 
         /**
          * 从规格实体构建响应
@@ -180,14 +181,14 @@ public class ProductDetailRespond {
          * @param spec 规格实体
          * @return 规格响应
          */
-        public static SpecRespond from(ProductSpec spec) {
-            List<SpecI18nRespond> i18nResponds = spec.getI18nList() == null ? List.of()
+        public static AdminSpecRespond from(ProductSpec spec) {
+            List<SpecI18nPayloadRespond> i18nResponds = spec.getI18nList() == null ? List.of()
                     : spec.getI18nList().stream()
-                    .map(item -> new SpecI18nRespond(item.getLocale(), item.getSpecName()))
+                    .map(item -> new SpecI18nPayloadRespond(item.getLocale(), item.getSpecName()))
                     .toList();
-            List<SpecValueRespond> valueResponds = spec.getValues() == null ? List.of()
-                    : spec.getValues().stream().map(SpecValueRespond::from).toList();
-            return new SpecRespond(
+            List<AdminSpecValueRespond> valueResponds = spec.getValues() == null ? List.of()
+                    : spec.getValues().stream().map(AdminSpecValueRespond::from).toList();
+            return new AdminSpecRespond(
                     spec.getId(),
                     spec.getSpecCode(),
                     spec.getSpecName(),
@@ -205,7 +206,7 @@ public class ProductDetailRespond {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpecI18nRespond {
+    public static class SpecI18nPayloadRespond {
         /**
          * 语言代码
          */
@@ -222,7 +223,7 @@ public class ProductDetailRespond {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpecValueRespond {
+    public static class AdminSpecValueRespond {
         /**
          * 规格值 ID
          */
@@ -242,7 +243,7 @@ public class ProductDetailRespond {
         /**
          * 规格值多语言列表
          */
-        private List<SpecValueI18nRespond> i18nList;
+        private List<SpecValueI18nPayloadRespond> i18nList;
 
         /**
          * 从规格值实体构建响应
@@ -250,12 +251,12 @@ public class ProductDetailRespond {
          * @param value 规格值实体
          * @return 规格值响应
          */
-        public static SpecValueRespond from(ProductSpecValue value) {
-            List<SpecValueI18nRespond> i18nList = value.getI18nList() == null ? List.of()
+        public static AdminSpecValueRespond from(ProductSpecValue value) {
+            List<SpecValueI18nPayloadRespond> i18nList = value.getI18nList() == null ? List.of()
                     : value.getI18nList().stream()
-                    .map(item -> new SpecValueI18nRespond(item.getLocale(), item.getValueName()))
+                    .map(item -> new SpecValueI18nPayloadRespond(item.getLocale(), item.getValueName()))
                     .toList();
-            return new SpecValueRespond(
+            return new AdminSpecValueRespond(
                     value.getId(),
                     value.getValueCode(),
                     value.getValueName(),
@@ -271,7 +272,7 @@ public class ProductDetailRespond {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpecValueI18nRespond {
+    public static class SpecValueI18nPayloadRespond {
         /**
          * 语言代码
          */
@@ -280,84 +281,6 @@ public class ProductDetailRespond {
          * 本地化规格值名称
          */
         private String valueName;
-    }
-
-    /**
-     * SKU 响应 SkuRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SkuRespond {
-        /**
-         * SKU ID
-         */
-        private Long id;
-        /**
-         * SKU 编码
-         */
-        private String skuCode;
-        /**
-         * 库存
-         */
-        private Integer stock;
-        /**
-         * 重量
-         */
-        private BigDecimal weight;
-        /**
-         * 状态
-         */
-        private SkuStatus status;
-        /**
-         * 是否默认
-         */
-        private Boolean isDefault;
-        /**
-         * 条码
-         */
-        private String barcode;
-        /**
-         * 多币种价格列表
-         */
-        private List<ProductPriceRespond> price;
-        /**
-         * 规格绑定列表
-         */
-        private List<ProductSkuSpecRespond> specs;
-        /**
-         * SKU 图片
-         */
-        private List<ProductImageRespond> images;
-
-        /**
-         * 从 SKU 实体构建响应
-         *
-         * @param sku SKU 实体
-         * @return SKU 响应
-         */
-        public static SkuRespond from(ProductSku sku) {
-            List<ProductPriceRespond> priceList = sku.getPrices() == null ? List.of()
-                    : sku.getPrices().stream()
-                    .map(price -> new ProductPriceRespond(price.getCurrency(), price.getListPrice(), price.getSalePrice(), price.isActive()))
-                    .toList();
-            List<ProductSkuSpecRespond> specs = sku.getSpecs() == null ? List.of()
-                    : sku.getSpecs().stream().map(ProductSkuSpecRespond::from).toList();
-            List<ProductImageRespond> images = sku.getImages() == null ? List.of()
-                    : sku.getImages().stream().map(ProductImageRespond::from).toList();
-            return new SkuRespond(
-                    sku.getId(),
-                    sku.getSkuCode(),
-                    sku.getStock(),
-                    sku.getWeight(),
-                    sku.getStatus(),
-                    sku.isDefault(),
-                    sku.getBarcode(),
-                    priceList,
-                    specs,
-                    images
-            );
-        }
     }
 
     /**

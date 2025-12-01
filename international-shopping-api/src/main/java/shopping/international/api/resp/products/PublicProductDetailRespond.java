@@ -3,26 +3,26 @@ package shopping.international.api.resp.products;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.entity.products.ProductSku;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.ProductStatus;
-import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
-import shopping.international.domain.model.vo.products.*;
+import shopping.international.domain.model.vo.products.ProductDetail;
+import shopping.international.domain.model.vo.products.ProductSkuSpec;
+import shopping.international.domain.model.vo.products.ProductSpecValue;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * 用户侧商品详情响应 ProductDetailPublicRespond
+ * 用户侧商品详情响应 PublicProductDetailRespond
  *
  * <p>字段已经根据 locale 做过本地化替换, 不返回 i18n 信息</p>
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductDetailPublicRespond {
+public class PublicProductDetailRespond {
     /**
      * 商品 ID
      */
@@ -90,11 +90,11 @@ public class ProductDetailPublicRespond {
     /**
      * 规格列表
      */
-    private List<SpecRespond> specs;
+    private List<PublicSpecRespond> specs;
     /**
      * SKU 列表
      */
-    private List<SkuRespond> skus;
+    private List<ProductSkuRespond> skus;
 
     /**
      * 构建用户侧商品详情响应
@@ -102,14 +102,17 @@ public class ProductDetailPublicRespond {
      * @param detail 商品详情
      * @return 详情响应
      */
-    public static ProductDetailPublicRespond from(ProductDetail detail) {
-        List<ProductImageRespond> gallery = detail.gallery() == null ? List.of()
+    public static PublicProductDetailRespond from(ProductDetail detail) {
+        List<ProductImageRespond> gallery = detail.gallery() == null
+                ? List.of()
                 : detail.gallery().stream().map(ProductImageRespond::from).toList();
-        List<SpecRespond> specResponds = detail.specs() == null ? List.of()
-                : detail.specs().stream().map(SpecRespond::from).toList();
-        List<SkuRespond> skuResponds = detail.skus() == null ? List.of()
-                : detail.skus().stream().map(SkuRespond::from).toList();
-        return new ProductDetailPublicRespond(
+        List<PublicSpecRespond> publicSpecResponds = detail.specs() == null
+                ? List.of()
+                : detail.specs().stream().map(PublicSpecRespond::from).toList();
+        List<ProductSkuRespond> productSkuResponds = detail.skus() == null
+                ? List.of()
+                : detail.skus().stream().map(ProductSkuRespond::from).toList();
+        return new PublicProductDetailRespond(
                 detail.id(),
                 detail.slug(),
                 detail.title(),
@@ -126,18 +129,18 @@ public class ProductDetailPublicRespond {
                 detail.tags(),
                 detail.defaultSkuId(),
                 gallery,
-                specResponds,
-                skuResponds
+                publicSpecResponds,
+                productSkuResponds
         );
     }
 
     /**
-     * 用户侧规格响应 SpecRespond
+     * 用户侧规格响应 PublicSpecRespond
      */
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpecRespond {
+    public static class PublicSpecRespond {
         /**
          * 规格 ID
          */
@@ -161,7 +164,7 @@ public class ProductDetailPublicRespond {
         /**
          * 规格值列表
          */
-        private List<SpecValueRespond> values;
+        private List<PublicSpecValueRespond> values;
 
         /**
          * 从规格实体构建响应
@@ -169,11 +172,11 @@ public class ProductDetailPublicRespond {
          * @param spec 规格实体
          * @return 规格响应
          */
-        public static SpecRespond from(ProductSpec spec) {
+        public static PublicSpecRespond from(ProductSpec spec) {
             String displayName = spec.getI18nName() == null ? spec.getSpecName() : spec.getI18nName();
-            List<SpecValueRespond> valueResponds = spec.getValues() == null ? List.of()
-                    : spec.getValues().stream().map(SpecValueRespond::from).toList();
-            return new SpecRespond(
+            List<PublicSpecValueRespond> valueResponds = spec.getValues() == null ? List.of()
+                    : spec.getValues().stream().map(PublicSpecValueRespond::from).toList();
+            return new PublicSpecRespond(
                     spec.getId(),
                     spec.getSpecCode(),
                     displayName,
@@ -190,7 +193,7 @@ public class ProductDetailPublicRespond {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class SpecValueRespond {
+    public static class PublicSpecValueRespond {
         /**
          * 规格值 ID
          */
@@ -214,91 +217,13 @@ public class ProductDetailPublicRespond {
          * @param value 规格值实体
          * @return 规格值响应
          */
-        public static SpecValueRespond from(ProductSpecValue value) {
+        public static PublicSpecValueRespond from(ProductSpecValue value) {
             String displayName = value.getI18nName() == null ? value.getValueName() : value.getI18nName();
-            return new SpecValueRespond(
+            return new PublicSpecValueRespond(
                     value.getId(),
                     value.getValueCode(),
                     displayName,
                     value.getAttributes()
-            );
-        }
-    }
-
-    /**
-     * 用户侧 SKU 响应 SkuRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SkuRespond {
-        /**
-         * SKU ID
-         */
-        private Long id;
-        /**
-         * SKU 编码
-         */
-        private String skuCode;
-        /**
-         * 库存
-         */
-        private Integer stock;
-        /**
-         * 重量
-         */
-        private BigDecimal weight;
-        /**
-         * 状态
-         */
-        private SkuStatus status;
-        /**
-         * 是否默认
-         */
-        private Boolean isDefault;
-        /**
-         * 条码
-         */
-        private String barcode;
-        /**
-         * 价格列表
-         */
-        private List<ProductPriceRespond> price;
-        /**
-         * 规格绑定
-         */
-        private List<ProductSkuSpecRespond> specs;
-        /**
-         * 图片列表
-         */
-        private List<ProductImageRespond> images;
-
-        /**
-         * 从 SKU 实体构建响应
-         *
-         * @param sku SKU 实体
-         * @return SKU 响应
-         */
-        public static SkuRespond from(ProductSku sku) {
-            List<ProductPriceRespond> priceList = sku.getPrices() == null ? List.of()
-                    : sku.getPrices().stream()
-                    .map(price -> new ProductPriceRespond(price.getCurrency(), price.getListPrice(), price.getSalePrice(), price.isActive()))
-                    .toList();
-            List<ProductSkuSpecRespond> specs = sku.getSpecs() == null ? List.of()
-                    : sku.getSpecs().stream().map(ProductSkuSpecRespond::from).toList();
-            List<ProductImageRespond> images = sku.getImages() == null ? List.of()
-                    : sku.getImages().stream().map(ProductImageRespond::from).toList();
-            return new SkuRespond(
-                    sku.getId(),
-                    sku.getSkuCode(),
-                    sku.getStock(),
-                    sku.getWeight(),
-                    sku.getStatus(),
-                    sku.isDefault(),
-                    sku.getBarcode(),
-                    priceList,
-                    specs,
-                    images
             );
         }
     }

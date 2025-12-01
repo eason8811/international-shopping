@@ -17,7 +17,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CategoryTreeNodeRespond {
+public class PublicCategoryNodeRespond {
     /**
      * 分类 ID
      */
@@ -57,7 +57,7 @@ public class CategoryTreeNodeRespond {
     /**
      * 子节点列表
      */
-    private List<CategoryTreeNodeRespond> children;
+    private List<PublicCategoryNodeRespond> children;
     /**
      * 是否启用
      */
@@ -77,12 +77,12 @@ public class CategoryTreeNodeRespond {
      * @param node 领域层分类树节点
      * @return 分类树节点响应
      */
-    public static CategoryTreeNodeRespond from(CategoryTreeNode node) {
-        List<CategoryTreeNodeRespond> childNodes = node.getChildren()
+    public static PublicCategoryNodeRespond from(CategoryTreeNode node) {
+        List<PublicCategoryNodeRespond> childNodes = node.getChildren()
                 .stream()
-                .map(CategoryTreeNodeRespond::from)
+                .map(PublicCategoryNodeRespond::from)
                 .toList();
-        return new CategoryTreeNodeRespond(
+        return new PublicCategoryNodeRespond(
                 node.getId(),
                 node.getParentId(),
                 node.getName(),
