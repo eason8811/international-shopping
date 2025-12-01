@@ -52,10 +52,10 @@ public class ProductSkuUpsertRequestItem {
     @Nullable
     private String barcode;
     /**
-     * 价格信息
+     * 多币种价格信息
      */
     @Nullable
-    private ProductPriceUpsertRequest price;
+    private List<ProductPriceUpsertRequest> price;
     /**
      * 规格绑定列表
      */
@@ -101,8 +101,22 @@ public class ProductSkuUpsertRequestItem {
                 throw new IllegalParamException("SKU 条码长度不能超过 64 个字符");
         }
 
-        if (price != null)
-            price.validate();
+        if (price == null)
+            price = List.of();
+        else {
+            List<ProductPriceUpsertRequest> normalizedPrices = new ArrayList<>();
+            Set<String> currencies = new LinkedHashSet<>();
+            for (ProductPriceUpsertRequest priceItem : price) {
+                if (priceItem == null)
+                    continue;
+                priceItem.validate();
+                String currency = priceItem.getCurrency() == null ? null : priceItem.getCurrency().strip().toUpperCase();
+                if (currency != null && !currencies.add(currency))
+                    throw new IllegalParamException("同一 SKU 的价格币种不可重复");
+                normalizedPrices.add(priceItem);
+            }
+            price = normalizedPrices;
+        }
 
         if (specs == null)
             specs = List.of();

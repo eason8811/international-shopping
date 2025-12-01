@@ -80,7 +80,7 @@ public class CategoryAdminService implements ICategoryAdminService {
         Map<Long, List<CategoryI18n>> i18nMap = ids.isEmpty() ? Map.of() : categoryRepository.mapI18n(ids);
         // 给分类列表中的每个分类都添加 I18N 列表, 而不是进行 I18N 替换
         List<CategoryNode> categoryNodeList = pageResult.items().stream()
-                .map(cat -> CategoryNode.from(cat, null, i18nMap.get(cat.getId())))
+                .map(cat -> CategoryNode.from(cat, i18nMap.get(cat.getId())))
                 .toList();
         return new PageResult<>(categoryNodeList, pageResult.total());
     }
@@ -96,7 +96,7 @@ public class CategoryAdminService implements ICategoryAdminService {
     public @NotNull CategoryNode detail(@NotNull Long categoryId) {
         CategoryWithI18n detail = categoryRepository.findWithI18n(categoryId)
                 .orElseThrow(() -> IllegalParamException.of("分类不存在"));
-        return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
+        return CategoryNode.from(detail.getCategory(), detail.getI18nList());
     }
 
     /**
@@ -125,7 +125,7 @@ public class CategoryAdminService implements ICategoryAdminService {
 
         Category category = Category.reconstitute(null, parentId, name, slug, level, path, sortOrder, status, null, null);
         CategoryWithI18n detail = categoryRepository.createWithI18n(category, i18nList);
-        return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
+        return CategoryNode.from(detail.getCategory(), detail.getI18nList());
     }
 
     /**
@@ -161,7 +161,7 @@ public class CategoryAdminService implements ICategoryAdminService {
         Category updated = Category.reconstitute(existing.getId(), parentId, name, slug, newLevel, newPath,
                 sortOrder, status, existing.getCreatedAt(), existing.getUpdatedAt());
         CategoryWithI18n detail = categoryRepository.updateWithRelations(updated, oldPrefix, newPrefix, levelDelta, i18nList);
-        return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
+        return CategoryNode.from(detail.getCategory(), detail.getI18nList());
     }
 
     /**
@@ -176,7 +176,7 @@ public class CategoryAdminService implements ICategoryAdminService {
         categoryRepository.findById(categoryId).orElseThrow(() -> IllegalParamException.of("分类不存在"));
         List<CategoryI18n> normalized = normalizeI18n(payloads, null, categoryId);
         CategoryWithI18n detail = categoryRepository.upsertI18nAndFetch(categoryId, normalized);
-        return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
+        return CategoryNode.from(detail.getCategory(), detail.getI18nList());
     }
 
     /**
@@ -195,10 +195,26 @@ public class CategoryAdminService implements ICategoryAdminService {
         if (targetStatus == category.getStatus()) {
             CategoryWithI18n detail = categoryRepository.findWithI18n(categoryId)
                     .orElse(new CategoryWithI18n(category, List.of()));
-            return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
+            return CategoryNode.from(detail.getCategory(), detail.getI18nList());
         }
         CategoryWithI18n detail = categoryRepository.updateStatus(category, targetStatus);
-        return CategoryNode.from(detail.getCategory(), null, detail.getI18nList());
+        return CategoryNode.from(detail.getCategory(), detail.getI18nList());
+    }
+
+    /**
+     * 删除分类
+     *
+     * @param categoryId 分类 ID
+     */
+    @Override
+    public void delete(@NotNull Long categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> IllegalParamException.of("分类不存在"));
+        if (categoryRepository.hasChildren(categoryId))
+            throw IllegalParamException.of("存在子分类, 不可删除");
+        if (categoryRepository.hasProductReference(categoryId))
+            throw IllegalParamException.of("存在商品引用该分类, 不可删除");
+        categoryRepository.delete(category.getId());
     }
 
     /**

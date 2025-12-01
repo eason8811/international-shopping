@@ -218,6 +218,29 @@ public interface IProductCategoryRepository {
     CategoryWithI18n updateStatus(@NotNull Category category, @NotNull CategoryStatus status);
 
     /**
+     * 是否存在子分类
+     *
+     * @param categoryId 分类 ID
+     * @return true 表示存在子分类
+     */
+    boolean hasChildren(@NotNull Long categoryId);
+
+    /**
+     * 是否有商品引用该分类
+     *
+     * @param categoryId 分类 ID
+     * @return true 表示被商品引用
+     */
+    boolean hasProductReference(@NotNull Long categoryId);
+
+    /**
+     * 删除分类（包含多语言）
+     *
+     * @param categoryId 分类 ID
+     */
+    void delete(@NotNull Long categoryId);
+
+    /**
      * 简单分页结果
      *
      * @param items 列表

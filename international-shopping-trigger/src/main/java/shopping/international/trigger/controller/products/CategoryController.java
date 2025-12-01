@@ -7,9 +7,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import shopping.international.api.resp.Result;
-import shopping.international.api.resp.products.CategoryNodeRespond;
+import shopping.international.api.resp.products.CategoryTreeNodeRespond;
 import shopping.international.domain.service.products.ICategoryQueryService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.utils.RequestNormalizeUtils;
 
 import java.util.List;
 
@@ -33,9 +34,10 @@ public class CategoryController {
      * @return 分类树
      */
     @GetMapping("/tree")
-    public ResponseEntity<Result<List<CategoryNodeRespond>>> tree(@RequestParam(value = "locale", required = false) String locale) {
-        List<CategoryNodeRespond> data = categoryQueryService.tree(locale).stream()
-                .map(CategoryNodeRespond::from)
+    public ResponseEntity<Result<List<CategoryTreeNodeRespond>>> tree(@RequestParam(value = "locale", required = false) String locale) {
+        String normalizedLocale = RequestNormalizeUtils.normalizeLocale(locale);
+        List<CategoryTreeNodeRespond> data = categoryQueryService.tree(normalizedLocale).stream()
+                .map(CategoryTreeNodeRespond::from)
                 .toList();
         return ResponseEntity.ok(Result.ok(data));
     }

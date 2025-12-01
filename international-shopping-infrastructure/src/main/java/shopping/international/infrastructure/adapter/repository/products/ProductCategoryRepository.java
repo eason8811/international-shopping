@@ -12,6 +12,8 @@ import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.domain.model.vo.products.CategoryWithI18n;
 import shopping.international.infrastructure.dao.products.ProductCategoryI18nMapper;
 import shopping.international.infrastructure.dao.products.ProductCategoryMapper;
+import shopping.international.infrastructure.dao.products.ProductMapper;
+import shopping.international.infrastructure.dao.products.po.ProductPO;
 import shopping.international.infrastructure.dao.products.po.ProductCategoryI18nPO;
 import shopping.international.infrastructure.dao.products.po.ProductCategoryPO;
 import shopping.international.types.exceptions.AppException;
@@ -35,6 +37,10 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
      * 商品分类 i18n Mapper
      */
     private final ProductCategoryI18nMapper categoryI18nMapper;
+    /**
+     * 商品 Mapper, 用于检测分类引用
+     */
+    private final ProductMapper productMapper;
 
     /**
      * 查询启用状态的商品分类列表, 并按层级(level) 排序, 同一层级内按排序号(sortOrder) 排序, 最后按 ID 排序
@@ -390,6 +396,28 @@ public class ProductCategoryRepository implements IProductCategoryRepository {
                 category.getLevel(), category.getPath(), category.getSortOrder(), status, category.getCreatedAt(), category.getUpdatedAt());
         update(updated);
         return findWithI18n(updated.getId()).orElse(new CategoryWithI18n(updated, List.of()));
+    }
+
+    @Override
+    public boolean hasChildren(@NotNull Long categoryId) {
+        Long count = categoryMapper.selectCount(new LambdaQueryWrapper<ProductCategoryPO>()
+                .eq(ProductCategoryPO::getParentId, categoryId));
+        return count != null && count > 0;
+    }
+
+    @Override
+    public boolean hasProductReference(@NotNull Long categoryId) {
+        Long count = productMapper.selectCount(new LambdaQueryWrapper<ProductPO>()
+                .eq(ProductPO::getCategoryId, categoryId));
+        return count != null && count > 0;
+    }
+
+    @Override
+    @Transactional
+    public void delete(@NotNull Long categoryId) {
+        categoryI18nMapper.delete(new LambdaQueryWrapper<ProductCategoryI18nPO>()
+                .eq(ProductCategoryI18nPO::getCategoryId, categoryId));
+        categoryMapper.deleteById(categoryId);
     }
 
     /**

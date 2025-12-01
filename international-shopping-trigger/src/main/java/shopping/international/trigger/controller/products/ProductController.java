@@ -9,14 +9,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.resp.Result;
-import shopping.international.api.resp.products.ProductDetailRespond;
 import shopping.international.api.resp.products.ProductRespond;
+import shopping.international.api.resp.products.ProductDetailPublicRespond;
 import shopping.international.domain.model.enums.products.ProductSort;
 import shopping.international.domain.model.vo.products.ProductDetail;
 import shopping.international.domain.model.vo.products.ProductListQuery;
 import shopping.international.domain.model.vo.products.ProductSummary;
 import shopping.international.domain.service.products.IProductQueryService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.RequestNormalizeUtils;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -74,10 +76,19 @@ public class ProductController {
             size = 20;
         if (size > 100)
             size = 100;
-        List<String> tagList = parseTags(tags);
+        String normalizedLocale = RequestNormalizeUtils.normalizeLocale(locale);
+        String normalizedCurrency = RequestNormalizeUtils.normalizeCurrency(currency);
+        String normalizedKeyword = RequestNormalizeUtils.normalizeKeyword(keyword, 120);
+        List<String> tagList = RequestNormalizeUtils.normalizeTags(parseTags(tags));
+        BigDecimal normalizedPriceMin = RequestNormalizeUtils.normalizeNonNegativePrice(priceMin, "price_min");
+        BigDecimal normalizedPriceMax = RequestNormalizeUtils.normalizeNonNegativePrice(priceMax, "price_max");
+        if ((normalizedPriceMin != null || normalizedPriceMax != null) && normalizedCurrency == null)
+            throw new IllegalParamException("按价格筛选时必须提供 currency");
+        if (normalizedPriceMin != null && normalizedPriceMax != null && normalizedPriceMin.compareTo(normalizedPriceMax) > 0)
+            throw new IllegalParamException("价格区间不合法");
         // 构建查询条件
-        ProductListQuery query = new ProductListQuery(page, size, locale, currency, categorySlug, keyword, tagList,
-                priceMin, priceMax, ProductSort.from(sortBy), resolveCurrentUserId());
+        ProductListQuery query = new ProductListQuery(page, size, normalizedLocale, normalizedCurrency, categorySlug,
+                normalizedKeyword, tagList, normalizedPriceMin, normalizedPriceMax, ProductSort.from(sortBy), resolveCurrentUserId());
         IProductQueryService.PageResult<ProductSummary> productSummaryPageResult = productQueryService.list(query);
         List<ProductRespond> data = productSummaryPageResult.items()
                 .stream()
@@ -97,14 +108,16 @@ public class ProductController {
      * @param slug  商品标识符, 用于唯一确定一个商品
      * @param locale 地区标识, 可选参数, 用于指定返回数据的语言版本
      * @param currency 货币类型, 可选参数, 用于指定价格展示的货币单位
-     * @return 包含商品详情的结果集 {@link ResponseEntity} 包裹着 {@link Result}, 其中包含 {@code ProductDetailRespond} 对象
+     * @return 包含商品详情的结果集 {@link ResponseEntity} 包裹着 {@link Result}, 其中包含 {@code ProductDetailPublicRespond} 对象
      */
     @GetMapping("/{slug}")
-    public ResponseEntity<Result<ProductDetailRespond>> detail(@PathVariable("slug") String slug,
-                                                               @RequestParam(value = "locale", required = false) String locale,
-                                                               @RequestParam(value = "currency", required = false) String currency) {
-        ProductDetail detail = productQueryService.detail(slug, locale, currency, resolveCurrentUserId());
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, locale)));
+    public ResponseEntity<Result<ProductDetailPublicRespond>> detail(@PathVariable("slug") String slug,
+                                                                     @RequestParam(value = "locale", required = false) String locale,
+                                                                     @RequestParam(value = "currency", required = false) String currency) {
+        String normalizedLocale = RequestNormalizeUtils.normalizeLocale(locale);
+        String normalizedCurrency = RequestNormalizeUtils.normalizeCurrency(currency);
+        ProductDetail detail = productQueryService.detail(slug, normalizedLocale, normalizedCurrency, resolveCurrentUserId());
+        return ResponseEntity.ok(Result.ok(ProductDetailPublicRespond.from(detail)));
     }
 
     // =========================== 私有方法 ===========================

@@ -28,7 +28,6 @@ import java.util.List;
  * @param gallery       商品图片列表
  * @param specs         商品规格列表
  * @param skus          商品SKU列表
- * @param i18n          当前语言的商品国际化信息
  * @param i18nList      商品国际化信息列表
  */
 public record ProductDetail(Long id,
@@ -49,6 +48,5 @@ public record ProductDetail(Long id,
                             List<ProductImage> gallery,
                             List<ProductSpec> specs,
                             List<ProductSku> skus,
-                            ProductI18n i18n,
                             List<ProductI18n> i18nList) {
 }

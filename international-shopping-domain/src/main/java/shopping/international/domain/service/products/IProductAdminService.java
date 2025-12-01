@@ -119,15 +119,63 @@ public interface IProductAdminService {
     ProductDetail updateSkus(@NotNull Long productId, @NotNull ProductSkuUpsertCommand command);
 
     /**
+     * 增量更新单个 SKU 基础信息
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param command   基础信息命令
+     * @return 更新后的 SKU
+     */
+    @NotNull
+    ProductSku patchSku(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductSkuPatchCommand command);
+
+    /**
      * 更新 SKU 价格
      *
      * @param productId 商品 ID
      * @param skuId     SKU ID
-     * @param command   价格维护命令
+     * @param commands  价格维护命令列表
      * @return 更新后的 SKU
      */
     @NotNull
-    ProductSku updateSkuPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductPriceUpsertCommand command);
+    ProductSku updateSkuPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull List<ProductPriceUpsertCommand> commands);
+
+    /**
+     * 增量更新规格（不含规格值）
+     *
+     * @param productId 商品 ID
+     * @param commands  规格命令列表
+     * @return 受影响的规格 ID 列表
+     */
+    @NotNull
+    List<Long> patchSpecs(@NotNull Long productId, @NotNull List<ProductSpecPatchCommand> commands);
+
+    /**
+     * 查询规格值
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @return 规格值列表
+     */
+    @NotNull
+    List<ProductSpecValue> listSpecValues(@NotNull Long productId, @NotNull Long specId);
+
+    /**
+     * 删除规格
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     */
+    void deleteSpec(@NotNull Long productId, @NotNull Long specId);
+
+    /**
+     * 删除规格值
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @param valueId   规格值 ID
+     */
+    void deleteSpecValue(@NotNull Long productId, @NotNull Long specId, @NotNull Long valueId);
 
     /**
      * 调整 SKU 库存

@@ -15,14 +15,14 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * 管理端商品详情响应 ProductDetailRespond
+ * 用户侧商品详情响应 ProductDetailPublicRespond
  *
- * <p>对应 ProductDetail schema, 包含 i18n_list、多币种价格与完整的规格信息</p>
+ * <p>字段已经根据 locale 做过本地化替换, 不返回 i18n 信息</p>
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductDetailRespond {
+public class ProductDetailPublicRespond {
     /**
      * 商品 ID
      */
@@ -56,11 +56,11 @@ public class ProductDetailRespond {
      */
     private String brand;
     /**
-     * 封面图地址
+     * 封面图
      */
     private String coverImageUrl;
     /**
-     * 聚合库存
+     * 库存总量
      */
     private Integer stockTotal;
     /**
@@ -84,7 +84,7 @@ public class ProductDetailRespond {
      */
     private Long defaultSkuId;
     /**
-     * 商品图片
+     * 商品图库
      */
     private List<ProductImageRespond> gallery;
     /**
@@ -95,27 +95,21 @@ public class ProductDetailRespond {
      * SKU 列表
      */
     private List<SkuRespond> skus;
-    /**
-     * 商品多语言列表
-     */
-    private List<ProductI18nRespond> i18nList;
 
     /**
-     * 构建管理端商品详情响应
+     * 构建用户侧商品详情响应
      *
-     * @param detail 领域层商品详情
+     * @param detail 商品详情
      * @return 详情响应
      */
-    public static ProductDetailRespond from(ProductDetail detail) {
+    public static ProductDetailPublicRespond from(ProductDetail detail) {
         List<ProductImageRespond> gallery = detail.gallery() == null ? List.of()
                 : detail.gallery().stream().map(ProductImageRespond::from).toList();
         List<SpecRespond> specResponds = detail.specs() == null ? List.of()
                 : detail.specs().stream().map(SpecRespond::from).toList();
         List<SkuRespond> skuResponds = detail.skus() == null ? List.of()
                 : detail.skus().stream().map(SkuRespond::from).toList();
-        List<ProductI18nRespond> i18nResponds = detail.i18nList() == null ? List.of()
-                : detail.i18nList().stream().map(ProductI18nRespond::from).toList();
-        return new ProductDetailRespond(
+        return new ProductDetailPublicRespond(
                 detail.id(),
                 detail.slug(),
                 detail.title(),
@@ -133,13 +127,12 @@ public class ProductDetailRespond {
                 detail.defaultSkuId(),
                 gallery,
                 specResponds,
-                skuResponds,
-                i18nResponds
+                skuResponds
         );
     }
 
     /**
-     * 规格响应 SpecRespond
+     * 用户侧规格响应 SpecRespond
      */
     @Data
     @NoArgsConstructor
@@ -166,10 +159,6 @@ public class ProductDetailRespond {
          */
         private Boolean isRequired;
         /**
-         * 规格多语言列表
-         */
-        private List<SpecI18nRespond> i18nList;
-        /**
          * 规格值列表
          */
         private List<SpecValueRespond> values;
@@ -181,43 +170,22 @@ public class ProductDetailRespond {
          * @return 规格响应
          */
         public static SpecRespond from(ProductSpec spec) {
-            List<SpecI18nRespond> i18nResponds = spec.getI18nList() == null ? List.of()
-                    : spec.getI18nList().stream()
-                    .map(item -> new SpecI18nRespond(item.getLocale(), item.getSpecName()))
-                    .toList();
+            String displayName = spec.getI18nName() == null ? spec.getSpecName() : spec.getI18nName();
             List<SpecValueRespond> valueResponds = spec.getValues() == null ? List.of()
                     : spec.getValues().stream().map(SpecValueRespond::from).toList();
             return new SpecRespond(
                     spec.getId(),
                     spec.getSpecCode(),
-                    spec.getSpecName(),
+                    displayName,
                     spec.getSpecType(),
                     spec.isRequired(),
-                    i18nResponds,
                     valueResponds
             );
         }
     }
 
     /**
-     * 规格多语言响应 SpecI18nRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SpecI18nRespond {
-        /**
-         * 语言代码
-         */
-        private String locale;
-        /**
-         * 本地化规格名称
-         */
-        private String specName;
-    }
-
-    /**
-     * 规格值响应 SpecValueRespond
+     * 用户侧规格值响应 SpecValueRespond
      */
     @Data
     @NoArgsConstructor
@@ -239,10 +207,6 @@ public class ProductDetailRespond {
          * 规格值属性
          */
         private Object attributes;
-        /**
-         * 规格值多语言列表
-         */
-        private List<SpecValueI18nRespond> i18nList;
 
         /**
          * 从规格值实体构建响应
@@ -251,39 +215,18 @@ public class ProductDetailRespond {
          * @return 规格值响应
          */
         public static SpecValueRespond from(ProductSpecValue value) {
-            List<SpecValueI18nRespond> i18nList = value.getI18nList() == null ? List.of()
-                    : value.getI18nList().stream()
-                    .map(item -> new SpecValueI18nRespond(item.getLocale(), item.getValueName()))
-                    .toList();
+            String displayName = value.getI18nName() == null ? value.getValueName() : value.getI18nName();
             return new SpecValueRespond(
                     value.getId(),
                     value.getValueCode(),
-                    value.getValueName(),
-                    value.getAttributes(),
-                    i18nList
+                    displayName,
+                    value.getAttributes()
             );
         }
     }
 
     /**
-     * 规格值多语言响应 SpecValueI18nRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SpecValueI18nRespond {
-        /**
-         * 语言代码
-         */
-        private String locale;
-        /**
-         * 本地化规格值名称
-         */
-        private String valueName;
-    }
-
-    /**
-     * SKU 响应 SkuRespond
+     * 用户侧 SKU 响应 SkuRespond
      */
     @Data
     @NoArgsConstructor
@@ -318,15 +261,15 @@ public class ProductDetailRespond {
          */
         private String barcode;
         /**
-         * 多币种价格列表
+         * 价格列表
          */
         private List<ProductPriceRespond> price;
         /**
-         * 规格绑定列表
+         * 规格绑定
          */
         private List<ProductSkuSpecRespond> specs;
         /**
-         * SKU 图片
+         * 图片列表
          */
         private List<ProductImageRespond> images;
 
@@ -361,7 +304,7 @@ public class ProductDetailRespond {
     }
 
     /**
-     * SKU 价格响应 ProductPriceRespond
+     * 用户侧价格响应 ProductPriceRespond
      */
     @Data
     @NoArgsConstructor
@@ -386,7 +329,7 @@ public class ProductDetailRespond {
     }
 
     /**
-     * SKU 规格绑定响应 ProductSkuSpecRespond
+     * 用户侧 SKU 规格绑定响应 ProductSkuSpecRespond
      */
     @Data
     @NoArgsConstructor
@@ -432,49 +375,6 @@ public class ProductDetailRespond {
                     spec.getValueCode(),
                     spec.getValueName()
             );
-        }
-    }
-
-    /**
-     * 商品多语言响应 ProductI18nRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ProductI18nRespond {
-        /**
-         * 语言代码
-         */
-        private String locale;
-        /**
-         * 本地化标题
-         */
-        private String title;
-        /**
-         * 本地化副标题
-         */
-        private String subtitle;
-        /**
-         * 本地化描述
-         */
-        private String description;
-        /**
-         * 本地化 slug
-         */
-        private String slug;
-        /**
-         * 本地化标签
-         */
-        private List<String> tags;
-
-        /**
-         * 从商品多语言实体构建响应
-         *
-         * @param vo 商品多语言实体
-         * @return 商品多语言响应
-         */
-        public static ProductI18nRespond from(ProductI18n vo) {
-            return new ProductI18nRespond(vo.getLocale(), vo.getTitle(), vo.getSubtitle(), vo.getDescription(), vo.getSlug(), vo.getTags());
         }
     }
 }

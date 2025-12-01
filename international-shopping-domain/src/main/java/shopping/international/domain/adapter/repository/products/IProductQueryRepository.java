@@ -167,10 +167,10 @@ public interface IProductQueryRepository {
      *
      * @param skuIds   SKU ID 集合
      * @param currency 币种
-     * @return skuId -> 价格
+     * @return skuId -> 价格列表
      */
     @NotNull
-    Map<Long, ProductPrice> mapPricesBySkuIds(@NotNull Set<Long> skuIds, @NotNull String currency);
+    Map<Long, List<ProductPrice>> mapPricesBySkuIds(@NotNull Set<Long> skuIds, @Nullable String currency);
 
     /**
      * SKU 图片

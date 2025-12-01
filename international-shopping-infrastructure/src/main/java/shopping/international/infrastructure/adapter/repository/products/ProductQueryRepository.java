@@ -356,16 +356,20 @@ public class ProductQueryRepository implements IProductQueryRepository {
      * @return skuId -> 价格
      */
     @Override
-    public @NotNull Map<Long, ProductPrice> mapPricesBySkuIds(@NotNull Set<Long> skuIds, @NotNull String currency) {
+    public @NotNull Map<Long, List<ProductPrice>> mapPricesBySkuIds(@NotNull Set<Long> skuIds, @Nullable String currency) {
         if (skuIds.isEmpty())
             return Map.of();
-        List<ProductPricePO> records = productPriceMapper.selectList(new LambdaQueryWrapper<ProductPricePO>()
-                .eq(ProductPricePO::getCurrency, currency)
+        LambdaQueryWrapper<ProductPricePO> wrapper = new LambdaQueryWrapper<ProductPricePO>()
                 .eq(ProductPricePO::getIsActive, 1)
-                .in(ProductPricePO::getSkuId, skuIds));
+                .in(ProductPricePO::getSkuId, skuIds)
+                .orderByDesc(ProductPricePO::getUpdatedAt, ProductPricePO::getId);
+        if (currency != null)
+            wrapper.eq(ProductPricePO::getCurrency, currency);
+        List<ProductPricePO> records = productPriceMapper.selectList(wrapper);
         return records.stream()
-                .collect(Collectors.toMap(ProductPricePO::getSkuId, this::toProductPrice,
-                        (existing, ignore) -> existing, LinkedHashMap::new));
+                .collect(Collectors.groupingBy(ProductPricePO::getSkuId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(this::toProductPrice, Collectors.toList())));
     }
 
     /**

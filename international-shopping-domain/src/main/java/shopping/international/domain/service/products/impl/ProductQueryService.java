@@ -20,7 +20,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -29,15 +28,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ProductQueryService implements IProductQueryService {
-
-    /**
-     * 语言代码正则表达式
-     */
-    private static final Pattern LOCALE_PATTERN = Pattern.compile("^[A-Za-z0-9]{2,8}([-_][A-Za-z0-9]{2,8})*$");
-    /**
-     * 货币代码正则表达式
-     */
-    private static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Za-z]{3}$");
 
     /**
      * 商品查询仓储服务
@@ -63,24 +53,15 @@ public class ProductQueryService implements IProductQueryService {
      */
     @Override
     public @NotNull PageResult<ProductSummary> list(@NotNull ProductListQuery query) {
-        int page = query.page() <= 0 ? 1 : query.page();
-        int size = query.size() <= 0 ? 20 : Math.min(query.size(), 100);
-        // 规范化 locale 和 currency
-        String locale = normalizeLocale(query.locale());
-        String currency = normalizeCurrency(query.currency());
-        // 提取排序字段, 默认按最新排序
+        int page = query.page();
+        int size = query.size();
+        String locale = query.locale() == null || query.locale().isBlank() ? null : query.locale();
+        String currency = query.currency() == null || query.currency().isBlank() ? null : query.currency();
         ProductSort sort = query.sortBy() == null ? ProductSort.LATEST : query.sortBy();
-        List<String> tagList = normalizeTags(query.tags());
-        String keyword = normalizeKeyword(query.keyword());
-
-        // 价格区间参数校验
-        BigDecimal priceMin = normalizePrice(query.priceMin());
-        BigDecimal priceMax = normalizePrice(query.priceMax());
-        if ((priceMin != null || priceMax != null) && currency == null)
-            throw new IllegalParamException("按价格筛选时必须提供 currency");
-        if (priceMin != null && priceMax != null && priceMin.compareTo(priceMax) > 0)
-            throw new IllegalParamException("价格区间不合法");
-
+        List<String> tagList = query.tags() == null ? Collections.emptyList() : query.tags();
+        String keyword = query.keyword();
+        BigDecimal priceMin = query.priceMin();
+        BigDecimal priceMax = query.priceMax();
         Long categoryId = resolveCategoryId(query.categorySlug(), locale);
 
         // 主商品分页查询, 副查询依赖该批次的产品 ID/分类 ID
@@ -146,9 +127,8 @@ public class ProductQueryService implements IProductQueryService {
      */
     @Override
     public @NotNull ProductDetail detail(@NotNull String slug, @Nullable String locale, @Nullable String currency, @Nullable Long currentUser) {
-        // 规范化 locale 和 currency
-        String normalizedLocale = normalizeLocale(locale);
-        String normalizedCurrency = normalizeCurrency(currency);
+        String normalizedLocale = locale == null || locale.isBlank() ? null : locale;
+        String normalizedCurrency = currency == null || currency.isBlank() ? null : currency;
 
         // 根据本地化后的 slug 和 locale 查询商品, 若未命中则回退到基础 slug, 都查不到则抛出 IllegalParamException
         Optional<Product> localized = normalizedLocale == null
@@ -204,7 +184,7 @@ public class ProductQueryService implements IProductQueryService {
                 .map(ProductSku::getId)
                 .collect(Collectors.toSet());
         // 根据 SKU ID, currency 获取 SKU -> SKU价格 映射
-        Map<Long, ProductPrice> priceMap = normalizedCurrency == null || skuIds.isEmpty()
+        Map<Long, List<ProductPrice>> priceMap = skuIds.isEmpty()
                 ? Collections.emptyMap()
                 : productQueryRepository.mapPricesBySkuIds(skuIds, normalizedCurrency);
         // 根据 SKU ID 获取 SKU -> List<ProductImage> 映射
@@ -218,7 +198,7 @@ public class ProductQueryService implements IProductQueryService {
 
         // 补充完 图片, 价格, 规格类别, 规格值 等详细状态的 SKU 列表
         List<ProductSku> attachedSkuList = skuList.stream()
-                .map(sku -> attachSkuDetails(sku, specList, priceMap, skuImageMap, skuSpecMap))
+                .map(sku -> attachSkuDetails(sku, specList, priceMap, skuImageMap, skuSpecMap, normalizedCurrency))
                 .filter(Objects::nonNull)
                 .toList();
         if (normalizedCurrency != null && attachedSkuList.isEmpty())
@@ -247,7 +227,6 @@ public class ProductQueryService implements IProductQueryService {
                 gallery,
                 specList,
                 attachedSkuList,
-                productI18n,
                 productI18n == null ? List.of() : List.of(productI18n)
         );
     }
@@ -260,18 +239,21 @@ public class ProductQueryService implements IProductQueryService {
      * @param priceMap    SKU 价格映射
      * @param skuImageMap SKU 图片映射
      * @param skuSpecMap  SKU 规格映射
+     * @param currency    请求的币种, 可空
      * @return 已补充信息的 SKU, 若无价格可售则返回 null
      */
     private ProductSku attachSkuDetails(ProductSku sku,
                                         List<ProductSpec> specList,
-                                        Map<Long, ProductPrice> priceMap,
+                                        Map<Long, List<ProductPrice>> priceMap,
                                         Map<Long, List<ProductImage>> skuImageMap,
-                                        Map<Long, List<ProductSkuSpec>> skuSpecMap) {
+                                        Map<Long, List<ProductSkuSpec>> skuSpecMap,
+                                        String currency) {
         if (!sku.isEnabled())
             return null;
-        ProductPrice price = priceMap.get(sku.getId());
-        if (price != null)
-            sku.attachPrice(price);
+        List<ProductPrice> prices = priceMap.getOrDefault(sku.getId(), Collections.emptyList());
+        if (currency != null && prices.isEmpty())
+            return null;
+        sku.attachPrices(prices);
         sku.attachImages(skuImageMap.getOrDefault(sku.getId(), Collections.emptyList()));
         List<ProductSkuSpec> rawSkuSpecsMappingList = skuSpecMap.getOrDefault(sku.getId(), Collections.emptyList());
         if (!rawSkuSpecsMappingList.isEmpty()) {
@@ -303,9 +285,9 @@ public class ProductQueryService implements IProductQueryService {
                     .toList();
             sku.attachSpecs(adjustedSkuSpecsMappingList);
         }
-        if (priceMap.isEmpty())
+        if (currency == null)
             return sku;
-        return sku.getPrice() == null ? null : sku;
+        return sku.getPrices().isEmpty() ? null : sku;
     }
 
     /**
@@ -363,94 +345,6 @@ public class ProductQueryService implements IProductQueryService {
                 gallery,
                 likedAt
         );
-    }
-
-    /**
-     * 将给定的 locale 字符串进行规范化处理 包括去除首尾空格 检查长度和格式合法性
-     *
-     * @param locale 待规范化的 locale 字符串 可以为 null
-     * @return 规范化后的 locale 字符串 若输入为 null 或者仅包含空白字符 则返回 null 如果 locale 格式不合法或长度超过 16 个字符 则抛出异常
-     * @throws IllegalParamException 当 locale 长度超过 16 个字符或格式不符合预设规则时抛出
-     */
-    private String normalizeLocale(@Nullable String locale) {
-        if (locale == null)
-            return null;
-        String trimmed = locale.trim();
-        if (trimmed.isEmpty())
-            return null;
-        if (trimmed.length() > 16)
-            throw new IllegalParamException("locale 最长 16 个字符");
-        if (!LOCALE_PATTERN.matcher(trimmed).matches())
-            throw new IllegalParamException("locale 格式不合法");
-        return trimmed;
-    }
-
-    /**
-     * 将给定的货币字符串转换为标准格式 如果输入不符合要求 则抛出异常
-     *
-     * @param currency 要标准化的货币代码 可以为 null
-     * @return 标准化后的货币代码 若输入为空或不合法 则返回 null
-     * @throws IllegalParamException 当提供的货币代码不是 3 位字母时抛出
-     */
-    private String normalizeCurrency(@Nullable String currency) {
-        if (currency == null)
-            return null;
-        String trimmed = currency.trim().toUpperCase(Locale.ROOT);
-        if (trimmed.isEmpty())
-            return null;
-        if (!CURRENCY_PATTERN.matcher(trimmed).matches())
-            throw new IllegalParamException("currency 需为 3 位字母代码");
-        return trimmed;
-    }
-
-    /**
-     * 此方法用于标准化标签列表. 它会移除空值, 去除字符串两端的空白字符, 并确保列表中的每个条目都是唯一的
-     *
-     * @param tags 需要被处理的标签列表 可以为 null
-     * @return 处理后的标签列表, 如果输入为空或只包含无效元素, 则返回一个空列表
-     */
-    private List<String> normalizeTags(@Nullable List<String> tags) {
-        if (tags == null || tags.isEmpty())
-            return Collections.emptyList();
-        return tags.stream()
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(t -> !t.isEmpty())
-                .distinct()
-                .toList();
-    }
-
-    /**
-     * 将给定的关键字字符串进行规范化处理 包括去除前后空白字符 并检查长度是否超过 120 个字符
-     *
-     * @param keyword 需要被规范化的关键词 可以为 null
-     * @return 规范化后的关键词 如果原始关键词为空或仅包含空白字符 则返回 null 若关键词长度超过 120 个字符 抛出 {@link IllegalParamException}
-     * @throws IllegalParamException 当关键词长度超过 120 个字符时抛出此异常
-     */
-    private String normalizeKeyword(@Nullable String keyword) {
-        if (keyword == null)
-            return null;
-        String trimmed = keyword.trim();
-        if (trimmed.isEmpty())
-            return null;
-        if (trimmed.length() > 120)
-            throw new IllegalParamException("关键词长度不能超过 120");
-        return trimmed;
-    }
-
-    /**
-     * 将给定的价格标准化 如果价格为 null 或负数 则分别返回 null 或抛出异常
-     *
-     * @param price 需要被标准化的价格 可以为 null
-     * @return 标准化后的价格 如果输入价格为 null 则返回 null
-     * @throws IllegalParamException 如果价格小于零
-     */
-    private BigDecimal normalizePrice(@Nullable BigDecimal price) {
-        if (price == null)
-            return null;
-        if (price.compareTo(BigDecimal.ZERO) < 0)
-            throw new IllegalParamException("价格不能为负");
-        return price;
     }
 
     /**

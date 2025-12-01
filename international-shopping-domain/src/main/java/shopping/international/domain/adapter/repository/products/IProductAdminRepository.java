@@ -188,7 +188,7 @@ public interface IProductAdminRepository {
      * @return skuId -> 价格
      */
     @NotNull
-    Map<Long, ProductPrice> mapLatestPrices(@NotNull Set<Long> skuIds);
+    Map<Long, List<ProductPrice>> mapActivePrices(@NotNull Set<Long> skuIds);
 
     /**
      * 查询 SKU 图片
@@ -233,11 +233,11 @@ public interface IProductAdminRepository {
      *
      * @param productId 商品 ID
      * @param skuId     SKU ID
-     * @param command   价格命令
+     * @param commands  价格命令列表
      * @return 更新后的 SKU
      */
     @NotNull
-    ProductSku upsertPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductPriceUpsertCommand command);
+    ProductSku upsertPrices(@NotNull Long productId, @NotNull Long skuId, @NotNull List<ProductPriceUpsertCommand> commands);
 
     /**
      * 调整 SKU 库存
@@ -284,6 +284,76 @@ public interface IProductAdminRepository {
      */
     @NotNull
     Optional<ProductSku> findSkuById(@NotNull Long skuId);
+
+    /**
+     * 增量更新 SKU 基础信息
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param command   基础信息命令
+     * @return 更新后的 SKU
+     */
+    @NotNull
+    ProductSku patchSku(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductSkuPatchCommand command);
+
+    /**
+     * 检查规格是否被 SKU 绑定
+     *
+     * @param specId 规格 ID
+     * @return true 表示存在绑定
+     */
+    boolean hasSkuBindingWithSpec(@NotNull Long specId);
+
+    /**
+     * 检查规格值是否被 SKU 绑定
+     *
+     * @param valueId 规格值 ID
+     * @return true 表示存在绑定
+     */
+    boolean hasSkuBindingWithSpecValue(@NotNull Long valueId);
+
+    /**
+     * 删除规格及其多语言、取值
+     *
+     * @param specId 规格 ID
+     */
+    void deleteSpec(@NotNull Long specId);
+
+    /**
+     * 删除规格值及其多语言
+     *
+     * @param valueId 规格值 ID
+     */
+    void deleteSpecValue(@NotNull Long valueId);
+
+    /**
+     * 按规格查询规格值
+     *
+     * @param productId       商品 ID
+     * @param specId          规格 ID
+     * @param includeDisabled 是否包含禁用
+     * @return 规格值列表
+     */
+    @NotNull
+    List<ProductSpecValue> listSpecValues(@NotNull Long productId, @NotNull Long specId, boolean includeDisabled);
+
+    /**
+     * 查询规格
+     *
+     * @param specId 规格 ID
+     * @return 规格
+     */
+    @NotNull
+    Optional<ProductSpec> findSpecById(@NotNull Long specId);
+
+    /**
+     * 查询规格值
+     *
+     * @param valueId 规格值 ID
+     * @return 规格值
+     */
+    @NotNull
+    Optional<ProductSpecValue> findSpecValueById(@NotNull Long valueId);
 
     /**
      * 简单分页结果

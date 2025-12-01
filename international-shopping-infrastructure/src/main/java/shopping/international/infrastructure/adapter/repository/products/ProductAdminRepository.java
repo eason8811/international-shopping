@@ -118,6 +118,18 @@ public class ProductAdminRepository implements IProductAdminRepository {
         return Optional.ofNullable(po).map(this::toEntity);
     }
 
+    @Override
+    public @NotNull Optional<ProductSpec> findSpecById(@NotNull Long specId) {
+        ProductSpecPO po = productSpecMapper.selectById(specId);
+        return Optional.ofNullable(po).map(this::toProductSpec);
+    }
+
+    @Override
+    public @NotNull Optional<ProductSpecValue> findSpecValueById(@NotNull Long valueId) {
+        ProductSpecValuePO po = productSpecValueMapper.selectById(valueId);
+        return Optional.ofNullable(po).map(this::toProductSpecValue);
+    }
+
     /**
      * 批量查询商品
      *
@@ -337,6 +349,16 @@ public class ProductAdminRepository implements IProductAdminRepository {
         return records.stream().map(this::toProductSpecValue).toList();
     }
 
+    @Override
+    public @NotNull List<ProductSpecValue> listSpecValues(@NotNull Long productId, @NotNull Long specId, boolean includeDisabled) {
+        List<ProductSpecValuePO> records = productSpecValueMapper.selectList(new LambdaQueryWrapper<ProductSpecValuePO>()
+                .eq(ProductSpecValuePO::getProductId, productId)
+                .eq(ProductSpecValuePO::getSpecId, specId)
+                .ne(!includeDisabled, ProductSpecValuePO::getStatus, SkuStatus.DISABLED.name())
+                .orderByAsc(ProductSpecValuePO::getSortOrder, ProductSpecValuePO::getId));
+        return records.stream().map(this::toProductSpecValue).toList();
+    }
+
     /**
      * 查询规格 I18N
      *
@@ -474,20 +496,17 @@ public class ProductAdminRepository implements IProductAdminRepository {
      * @return 映射
      */
     @Override
-    public @NotNull Map<Long, ProductPrice> mapLatestPrices(@NotNull Set<Long> skuIds) {
+    public @NotNull Map<Long, List<ProductPrice>> mapActivePrices(@NotNull Set<Long> skuIds) {
         if (skuIds.isEmpty())
             return Map.of();
         List<ProductPricePO> records = productPriceMapper.selectList(new LambdaQueryWrapper<ProductPricePO>()
                 .in(ProductPricePO::getSkuId, skuIds)
                 .eq(ProductPricePO::getIsActive, 1)
                 .orderByDesc(ProductPricePO::getUpdatedAt, ProductPricePO::getId));
-        Map<Long, ProductPrice> result = new LinkedHashMap<>();
-        for (ProductPricePO po : records) {
-            ProductPrice price = toProductPrice(po);
-            if (price != null)
-                result.putIfAbsent(po.getSkuId(), price);
-        }
-        return result;
+        return records.stream()
+                .collect(Collectors.groupingBy(ProductPricePO::getSkuId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(this::toProductPrice, Collectors.toList())));
     }
 
     /**
@@ -570,8 +589,7 @@ public class ProductAdminRepository implements IProductAdminRepository {
                     .build();
             productSkuMapper.insert(po);
             Long skuId = po.getId();
-            if (command.getPrice() != null)
-                upsertPriceInternal(skuId, command.getPrice());
+            upsertPriceListInternal(skuId, command.getPriceList());
             replaceSkuSpecs(skuId, command.getSpecs());
             replaceSkuImages(skuId, command.getImages());
             result.add(toProductSku(po));
@@ -602,8 +620,7 @@ public class ProductAdminRepository implements IProductAdminRepository {
                     .barcode(command.getBarcode())
                     .build();
             productSkuMapper.updateById(po);
-            if (command.getPrice() != null)
-                upsertPriceInternal(command.getId(), command.getPrice());
+            upsertPriceListInternal(command.getId(), command.getPriceList());
             replaceSkuSpecs(command.getId(), command.getSpecs());
             replaceSkuImages(command.getId(), command.getImages());
             result.add(toProductSku(productSkuMapper.selectById(command.getId())));
@@ -611,21 +628,42 @@ public class ProductAdminRepository implements IProductAdminRepository {
         return result;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public @NotNull ProductSku patchSku(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductSkuPatchCommand command) {
+        ProductSkuPO existing = productSkuMapper.selectById(skuId);
+        if (existing == null || !Objects.equals(existing.getProductId(), productId))
+            throw new IllegalParamException("SKU 不存在");
+        ProductSkuPO toUpdate = ProductSkuPO.builder()
+                .id(existing.getId())
+                .productId(productId)
+                .skuCode(command.getSkuCode() == null ? existing.getSkuCode() : command.getSkuCode())
+                .stock(command.getStock() == null ? existing.getStock() : command.getStock())
+                .weight(command.getWeight() == null ? existing.getWeight() : command.getWeight())
+                .status(command.getStatus() == null ? existing.getStatus() : command.getStatus().name())
+                .isDefault(command.getIsDefault() == null ? existing.getIsDefault() : (Boolean.TRUE.equals(command.getIsDefault()) ? 1 : 0))
+                .barcode(command.getBarcode() == null ? existing.getBarcode() : command.getBarcode())
+                .build();
+        productSkuMapper.updateById(toUpdate);
+        if (command.getImages() != null)
+            replaceSkuImages(skuId, command.getImages());
+        return toProductSku(productSkuMapper.selectById(skuId));
+    }
+
     /**
      * 更新 SKU 价格
      *
      * @param productId 商品 ID
      * @param skuId     SKU ID
-     * @param command   价格命令
      * @return SKU
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public @NotNull ProductSku upsertPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductPriceUpsertCommand command) {
+    public @NotNull ProductSku upsertPrices(@NotNull Long productId, @NotNull Long skuId, @NotNull List<ProductPriceUpsertCommand> commands) {
         ProductSkuPO sku = productSkuMapper.selectById(skuId);
         if (sku == null || !Objects.equals(sku.getProductId(), productId))
             throw new IllegalParamException("SKU 不存在");
-        upsertPriceInternal(skuId, command);
+        upsertPriceListInternal(skuId, commands);
         return toProductSku(productSkuMapper.selectById(skuId));
     }
 
@@ -701,6 +739,42 @@ public class ProductAdminRepository implements IProductAdminRepository {
         return productSkuMapper.selectCount(new LambdaQueryWrapper<ProductSkuPO>()
                 .eq(ProductSkuPO::getSkuCode, skuCode)
                 .ne(excludeSkuId != null, ProductSkuPO::getId, excludeSkuId)) > 0;
+    }
+
+    @Override
+    public boolean hasSkuBindingWithSpec(@NotNull Long specId) {
+        return productSkuSpecMapper.selectCount(new LambdaQueryWrapper<ProductSkuSpecPO>()
+                .eq(ProductSkuSpecPO::getSpecId, specId)) > 0;
+    }
+
+    @Override
+    public boolean hasSkuBindingWithSpecValue(@NotNull Long valueId) {
+        return productSkuSpecMapper.selectCount(new LambdaQueryWrapper<ProductSkuSpecPO>()
+                .eq(ProductSkuSpecPO::getValueId, valueId)) > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteSpec(@NotNull Long specId) {
+        productSpecI18nMapper.delete(new LambdaQueryWrapper<ProductSpecI18nPO>()
+                .eq(ProductSpecI18nPO::getSpecId, specId));
+        List<ProductSpecValuePO> values = productSpecValueMapper.selectList(new LambdaQueryWrapper<ProductSpecValuePO>()
+                .eq(ProductSpecValuePO::getSpecId, specId));
+        if (!values.isEmpty()) {
+            Set<Long> valueIds = values.stream().map(ProductSpecValuePO::getId).collect(Collectors.toSet());
+            productSpecValueI18nMapper.delete(new LambdaQueryWrapper<ProductSpecValueI18nPO>()
+                    .in(ProductSpecValueI18nPO::getValueId, valueIds));
+            productSpecValueMapper.deleteBatchIds(valueIds);
+        }
+        productSpecMapper.deleteById(specId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteSpecValue(@NotNull Long valueId) {
+        productSpecValueI18nMapper.delete(new LambdaQueryWrapper<ProductSpecValueI18nPO>()
+                .eq(ProductSpecValueI18nPO::getValueId, valueId));
+        productSpecValueMapper.deleteById(valueId);
     }
 
     /**
@@ -937,6 +1011,22 @@ public class ProductAdminRepository implements IProductAdminRepository {
         existing.setSalePrice(command.getSalePrice());
         existing.setIsActive(command.isActive() ? 1 : 0);
         productPriceMapper.updateById(existing);
+    }
+
+    /**
+     * 批量 upsert 价格
+     *
+     * @param skuId    SKU ID
+     * @param commands 价格命令列表
+     */
+    private void upsertPriceListInternal(Long skuId, List<ProductPriceUpsertCommand> commands) {
+        if (commands == null || commands.isEmpty())
+            return;
+        for (ProductPriceUpsertCommand command : commands) {
+            if (command == null)
+                continue;
+            upsertPriceInternal(skuId, command);
+        }
     }
 
     /**

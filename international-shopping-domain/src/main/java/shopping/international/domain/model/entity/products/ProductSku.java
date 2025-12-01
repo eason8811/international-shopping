@@ -59,7 +59,7 @@ public class ProductSku {
     /**
      * 价格
      */
-    private ProductPrice price;
+    private List<ProductPrice> prices = new ArrayList<>();
     /**
      * 规格选项
      */
@@ -155,12 +155,15 @@ public class ProductSku {
     }
 
     /**
-     * 设置价格
+     * 设置价格列表
      *
-     * @param price 价格
+     * @param priceList 价格列表
      */
-    public void attachPrice(ProductPrice price) {
-        this.price = price;
+    public void attachPrices(List<ProductPrice> priceList) {
+        if (priceList == null)
+            this.prices = new ArrayList<>();
+        else
+            this.prices = new ArrayList<>(priceList);
     }
 
     /**
@@ -199,6 +202,15 @@ public class ProductSku {
      */
     public List<ProductSkuSpec> getSpecs() {
         return Collections.unmodifiableList(specs);
+    }
+
+    /**
+     * 获取不可变的价格列表
+     *
+     * @return 价格列表
+     */
+    public List<ProductPrice> getPrices() {
+        return Collections.unmodifiableList(prices);
     }
 
     /**

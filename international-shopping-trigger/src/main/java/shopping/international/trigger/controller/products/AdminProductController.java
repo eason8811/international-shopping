@@ -5,8 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.req.products.*;
 import shopping.international.api.resp.Result;
-import shopping.international.api.resp.products.ProductDetailRespond;
-import shopping.international.api.resp.products.ProductRespond;
+import shopping.international.api.resp.products.*;
 import shopping.international.domain.model.entity.products.ProductSku;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
@@ -80,7 +79,7 @@ public class AdminProductController {
         request.validate();
         ProductDetail detail = productAdminService.create(toCommand(request));
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
-                .body(Result.created(ProductDetailRespond.from(detail, null)));
+                .body(Result.created(ProductDetailRespond.from(detail)));
     }
 
     /**
@@ -92,7 +91,7 @@ public class AdminProductController {
     @GetMapping("/{product_id}")
     public ResponseEntity<Result<ProductDetailRespond>> detail(@PathVariable("product_id") Long productId) {
         ProductDetail detail = productAdminService.detail(productId);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, null)));
+        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
     }
 
     /**
@@ -107,7 +106,7 @@ public class AdminProductController {
                                                                @RequestBody ProductSaveRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.update(productId, toCommand(request));
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, null)));
+        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
     }
 
     /**
@@ -122,7 +121,7 @@ public class AdminProductController {
                                                                      @RequestBody ProductStatusUpdateRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.updateStatus(productId, request.getStatus());
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, null)));
+        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
     }
 
     /**
@@ -145,7 +144,7 @@ public class AdminProductController {
                     payload.getDescription(), payload.getSlug(), payload.getTags()));
         }
         ProductDetail detail = productAdminService.upsertI18n(productId, i18nList);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, null)));
+        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
     }
 
     /**
@@ -167,29 +166,30 @@ public class AdminProductController {
             gallery.add(ProductImage.of(payload.getUrl(), Boolean.TRUE.equals(payload.getIsMain()), payload.getSortOrder()));
         }
         ProductDetail detail = productAdminService.replaceGallery(productId, gallery);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, null)));
+        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
     }
 
     /**
-     * 批量维护商品规格
+     * 增量维护商品规格（不含规格值）
      *
      * @param productId 商品 ID
      * @param payloads  规格列表
-     * @return 商品详情
+     * @return 更新结果
      */
     @PatchMapping("/{product_id}/specs")
-    public ResponseEntity<Result<ProductDetailRespond>> upsertSpecs(@PathVariable("product_id") Long productId,
-                                                                    @RequestBody List<ProductSpecUpsertRequest> payloads) {
-        List<ProductSpecUpsertRequest> safePayloads = payloads == null ? List.of() : payloads;
-        List<ProductSpecUpsertCommand> commands = new ArrayList<>();
-        for (ProductSpecUpsertRequest payload : safePayloads) {
+    public ResponseEntity<Result<SpecOperationRespond>> patchSpecs(@PathVariable("product_id") Long productId,
+                                                                   @RequestBody List<ProductSpecPatchRequest> payloads) {
+        List<ProductSpecPatchRequest> safePayloads = payloads == null ? List.of() : payloads;
+        List<ProductSpecPatchCommand> commands = new ArrayList<>();
+        for (ProductSpecPatchRequest payload : safePayloads) {
             if (payload == null)
                 continue;
             payload.validate();
-            commands.add(toSpecCommand(payload));
+            commands.add(ProductSpecPatchCommand.of(payload.getSpecId(), payload.getSpecCode(), payload.getSpecName(),
+                    payload.getSpecType(), Boolean.TRUE.equals(payload.getIsRequired()), toSpecI18nList(payload.getI18nList())));
         }
-        ProductDetail detail = productAdminService.upsertSpecs(productId, commands);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, null)));
+        List<Long> specIds = productAdminService.patchSpecs(productId, commands);
+        return ResponseEntity.ok(Result.ok(new SpecOperationRespond(productId, specIds)));
     }
 
     /**
@@ -205,7 +205,7 @@ public class AdminProductController {
         request.validate();
         ProductDetail detail = productAdminService.createSkus(productId, toSkuCommand(request));
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
-                .body(Result.created(ProductDetailRespond.from(detail, null)));
+                .body(Result.created(ProductDetailRespond.from(detail)));
     }
 
     /**
@@ -220,7 +220,25 @@ public class AdminProductController {
                                                                    @RequestBody ProductSkuUpsertRequest request) {
         request.validate();
         ProductDetail detail = productAdminService.updateSkus(productId, toSkuCommand(request));
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, null)));
+        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail)));
+    }
+
+    /**
+     * 增量更新单个 SKU 基础信息
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param request   SKU 基础字段
+     * @return 更新结果
+     */
+    @PatchMapping("/{product_id}/skus/{sku_id}")
+    public ResponseEntity<Result<SkuOperationRespond>> patchSku(@PathVariable("product_id") Long productId,
+                                                                @PathVariable("sku_id") Long skuId,
+                                                                @RequestBody ProductSkuPatchRequest request) {
+        request.validate();
+        ProductSkuPatchCommand command = toSkuPatchCommand(request);
+        ProductSku sku = productAdminService.patchSku(productId, skuId, command);
+        return ResponseEntity.ok(Result.ok(new SkuOperationRespond(productId, sku.getId())));
     }
 
     /**
@@ -232,14 +250,15 @@ public class AdminProductController {
      * @return SKU
      */
     @PatchMapping("/{product_id}/skus/{sku_id}/price")
-    public ResponseEntity<Result<ProductDetailRespond.SkuRespond>> updateSkuPrice(@PathVariable("product_id") Long productId,
-                                                                                  @PathVariable("sku_id") Long skuId,
-                                                                                  @RequestBody ProductPriceUpsertRequest request) {
-        request.validate();
-        ProductPriceUpsertCommand command = ProductPriceUpsertCommand.of(request.getCurrency(), request.getListPrice(),
-                request.getSalePrice(), Boolean.TRUE.equals(request.getIsActive()));
-        ProductSku sku = productAdminService.updateSkuPrice(productId, skuId, command);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.SkuRespond.from(sku)));
+    public ResponseEntity<Result<SkuPriceUpdateRespond>> updateSkuPrice(@PathVariable("product_id") Long productId,
+                                                                        @PathVariable("sku_id") Long skuId,
+                                                                        @RequestBody List<ProductPriceUpsertRequest> request) {
+        List<ProductPriceUpsertRequest> payloads = request == null ? List.of() : request;
+        payloads.forEach(ProductPriceUpsertRequest::validate);
+        List<ProductPriceUpsertCommand> commands = mapPrices(payloads);
+        ProductSku sku = productAdminService.updateSkuPrice(productId, skuId, commands);
+        List<String> currencies = sku.getPrices().stream().map(ProductPrice::getCurrency).toList();
+        return ResponseEntity.ok(Result.ok(new SkuPriceUpdateRespond(productId, sku.getId(), currencies)));
     }
 
     /**
@@ -251,13 +270,59 @@ public class AdminProductController {
      * @return SKU
      */
     @PatchMapping("/{product_id}/skus/{sku_id}/stock")
-    public ResponseEntity<Result<ProductDetailRespond.SkuRespond>> adjustSkuStock(@PathVariable("product_id") Long productId,
-                                                                                  @PathVariable("sku_id") Long skuId,
-                                                                                  @RequestBody StockAdjustRequest request) {
+    public ResponseEntity<Result<SkuStockAdjustRespond>> adjustSkuStock(@PathVariable("product_id") Long productId,
+                                                                        @PathVariable("sku_id") Long skuId,
+                                                                        @RequestBody StockAdjustRequest request) {
         request.validate();
         StockAdjustCommand command = StockAdjustCommand.of(request.getMode(), request.getQuantity(), request.getReason());
         ProductSku sku = productAdminService.adjustSkuStock(productId, skuId, command);
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.SkuRespond.from(sku)));
+        return ResponseEntity.ok(Result.ok(new SkuStockAdjustRespond(productId, sku.getId(), sku.getStock())));
+    }
+
+    /**
+     * 获取指定规格的规格值列表
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @return 规格值列表
+     */
+    @GetMapping("/{product_id}/specs/{spec_id}/values")
+    public ResponseEntity<Result<List<ProductDetailRespond.SpecValueRespond>>> listSpecValues(@PathVariable("product_id") Long productId,
+                                                                                               @PathVariable("spec_id") Long specId) {
+        List<ProductDetailRespond.SpecValueRespond> data = productAdminService.listSpecValues(productId, specId).stream()
+                .map(ProductDetailRespond.SpecValueRespond::from)
+                .toList();
+        return ResponseEntity.ok(Result.ok(data));
+    }
+
+    /**
+     * 删除规格
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{product_id}/specs/{spec_id}")
+    public ResponseEntity<Result<SpecDeleteRespond>> deleteSpec(@PathVariable("product_id") Long productId,
+                                                                @PathVariable("spec_id") Long specId) {
+        productAdminService.deleteSpec(productId, specId);
+        return ResponseEntity.ok(Result.ok(new SpecDeleteRespond(productId, specId, true)));
+    }
+
+    /**
+     * 删除规格值
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @param valueId   规格值 ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{product_id}/specs/{spec_id}/values/{value_id}")
+    public ResponseEntity<Result<SpecValueDeleteRespond>> deleteSpecValue(@PathVariable("product_id") Long productId,
+                                                                          @PathVariable("spec_id") Long specId,
+                                                                          @PathVariable("value_id") Long valueId) {
+        productAdminService.deleteSpecValue(productId, specId, valueId);
+        return ResponseEntity.ok(Result.ok(new SpecValueDeleteRespond(productId, specId, valueId, true)));
     }
 
     /**
@@ -270,29 +335,6 @@ public class AdminProductController {
         return new ProductSaveCommand(request.getSlug(), request.getTitle(), request.getSubtitle(),
                 request.getDescription(), request.getCategoryId(), request.getBrand(), request.getCoverImageUrl(),
                 request.getSkuType(), request.getStatus(), request.getTags());
-    }
-
-    /**
-     * 将规格请求转换为命令
-     *
-     * @param request 规格请求
-     * @return 规格命令
-     */
-    private ProductSpecUpsertCommand toSpecCommand(ProductSpecUpsertRequest request) {
-        List<ProductSpecI18n> i18nList = toSpecI18nList(request.getI18nList());
-        List<ProductSpecValueUpsertCommand> values = new ArrayList<>();
-        List<ProductSpecValueUpsertRequest> valuePayloads = request.getValues() == null ? List.of() : request.getValues();
-        int sort = 0;
-        for (ProductSpecValueUpsertRequest valuePayload : valuePayloads) {
-            if (valuePayload == null)
-                continue;
-            valuePayload.validate();
-            values.add(ProductSpecValueUpsertCommand.of(valuePayload.getValueId(), request.getSpecId(),
-                    valuePayload.getValueCode(), valuePayload.getValueName(), valuePayload.getAttributes(),
-                    Boolean.TRUE.equals(valuePayload.getIsEnabled()), sort++, toSpecValueI18nList(valuePayload.getI18nList())));
-        }
-        return ProductSpecUpsertCommand.of(request.getSpecId(), request.getSpecCode(), request.getSpecName(),
-                request.getSpecType(), Boolean.TRUE.equals(request.getIsRequired()), true, 0, i18nList, values);
     }
 
     private List<ProductSpecI18n> toSpecI18nList(List<ProductSpecI18nPayload> payloads) {
@@ -333,16 +375,11 @@ public class AdminProductController {
             if (item == null)
                 continue;
             item.validate();
-            ProductPriceUpsertCommand price = null;
-            if (item.getPrice() != null) {
-                ProductPriceUpsertRequest priceReq = item.getPrice();
-                price = ProductPriceUpsertCommand.of(priceReq.getCurrency(), priceReq.getListPrice(),
-                        priceReq.getSalePrice(), Boolean.TRUE.equals(priceReq.getIsActive()));
-            }
+            List<ProductPriceUpsertCommand> priceList = mapPrices(item.getPrice());
             List<ProductSkuSpecUpsertCommand> specs = mapSkuSpecs(item.getSpecs());
             List<ProductImage> images = mapSkuImages(item.getImages());
             itemList.add(ProductSkuUpsertItemCommand.of(item.getId(), item.getSkuCode(), item.getStock(), item.getWeight(),
-                    item.getStatus(), Boolean.TRUE.equals(item.getIsDefault()), item.getBarcode(), price, specs, images));
+                    item.getStatus(), Boolean.TRUE.equals(item.getIsDefault()), item.getBarcode(), priceList, specs, images));
         }
         return ProductSkuUpsertCommand.of(itemList);
     }
@@ -371,6 +408,37 @@ public class AdminProductController {
             images.add(ProductImage.of(payload.getUrl(), Boolean.TRUE.equals(payload.getIsMain()), payload.getSortOrder()));
         }
         return images;
+    }
+
+    /**
+     * 将价格请求映射为命令列表
+     *
+     * @param payloads 价格请求
+     * @return 价格命令列表
+     */
+    private List<ProductPriceUpsertCommand> mapPrices(List<ProductPriceUpsertRequest> payloads) {
+        if (payloads == null || payloads.isEmpty())
+            return List.of();
+        List<ProductPriceUpsertCommand> commands = new ArrayList<>();
+        for (ProductPriceUpsertRequest payload : payloads) {
+            if (payload == null)
+                continue;
+            commands.add(ProductPriceUpsertCommand.of(payload.getCurrency(), payload.getListPrice(),
+                    payload.getSalePrice(), Boolean.TRUE.equals(payload.getIsActive())));
+        }
+        return commands;
+    }
+
+    /**
+     * 将 SKU PATCH 请求转换为命令
+     *
+     * @param request PATCH 请求
+     * @return 命令
+     */
+    private ProductSkuPatchCommand toSkuPatchCommand(ProductSkuPatchRequest request) {
+        List<ProductImage> images = request.getImages() == null ? null : mapSkuImages(request.getImages());
+        return ProductSkuPatchCommand.of(request.getSkuCode(), request.getStock(), request.getWeight(),
+                request.getStatus(), request.getIsDefault(), request.getBarcode(), images);
     }
 
     /**

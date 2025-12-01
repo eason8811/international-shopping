@@ -2,7 +2,7 @@ package shopping.international.domain.service.products;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import shopping.international.domain.model.vo.products.CategoryNode;
+import shopping.international.domain.model.vo.products.CategoryTreeNode;
 
 import java.util.List;
 
@@ -18,5 +18,5 @@ public interface ICategoryQueryService {
      * @return 分类树 (根列表)
      */
     @NotNull
-    List<CategoryNode> tree(@Nullable String locale);
+    List<CategoryTreeNode> tree(@Nullable String locale);
 }

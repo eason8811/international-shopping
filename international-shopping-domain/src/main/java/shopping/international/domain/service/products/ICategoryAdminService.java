@@ -77,6 +77,13 @@ public interface ICategoryAdminService {
     CategoryNode toggleEnable(@NotNull Long categoryId, boolean enabled);
 
     /**
+     * 删除分类
+     *
+     * @param categoryId 分类 ID
+     */
+    void delete(@NotNull Long categoryId);
+
+    /**
      * 简单分页结果
      *
      * @param items 列表

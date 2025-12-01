@@ -9,6 +9,7 @@ import shopping.international.api.req.products.CategoryI18nPayload;
 import shopping.international.api.req.products.CategoryUpsertRequest;
 import shopping.international.api.req.products.ToggleEnableRequest;
 import shopping.international.api.resp.Result;
+import shopping.international.api.resp.products.CategoryOperationRespond;
 import shopping.international.api.resp.products.CategoryNodeRespond;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.domain.model.vo.products.CategoryNode;
@@ -104,11 +105,11 @@ public class AdminCategoryController {
      * @return 包含更新后分类节点详细信息的 ResponseEntity, 如果成功更新数据, 则返回 200 OK 状态码及分类节点响应对象
      */
     @PatchMapping("/{category_id}")
-    public ResponseEntity<Result<CategoryNodeRespond>> update(@PathVariable("category_id") Long categoryId,
-                                                              @RequestBody CategoryUpsertRequest request) {
+    public ResponseEntity<Result<CategoryOperationRespond>> update(@PathVariable("category_id") Long categoryId,
+                                                                   @RequestBody CategoryUpsertRequest request) {
         request.validate();
         CategoryNode node = categoryAdminService.update(categoryId, toCommand(request));
-        return ResponseEntity.ok(Result.ok(CategoryNodeRespond.from(node)));
+        return ResponseEntity.ok(Result.ok(new CategoryOperationRespond(node.getId(), null)));
     }
 
     /**
@@ -144,6 +145,18 @@ public class AdminCategoryController {
         request.validate();
         CategoryNode node = categoryAdminService.toggleEnable(categoryId, Boolean.TRUE.equals(request.getIsEnabled()));
         return ResponseEntity.ok(Result.ok(CategoryNodeRespond.from(node)));
+    }
+
+    /**
+     * 删除分类
+     *
+     * @param categoryId 分类 ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{category_id}")
+    public ResponseEntity<Result<CategoryOperationRespond>> delete(@PathVariable("category_id") Long categoryId) {
+        categoryAdminService.delete(categoryId);
+        return ResponseEntity.ok(Result.ok(new CategoryOperationRespond(categoryId, true)));
     }
 
     /**

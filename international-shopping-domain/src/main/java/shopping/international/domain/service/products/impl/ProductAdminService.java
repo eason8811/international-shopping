@@ -370,7 +370,7 @@ public class ProductAdminService implements IProductAdminService {
             List<ProductSkuSpecUpsertCommand> resolvedSpecList = resolveSkuSpecs(item.getSpecs(), context, product.getSkuType());
             List<ProductImage> imageList = normalizeSkuImages(item.getImages());
             normalized.add(ProductSkuUpsertItemCommand.of(null, skuCode, item.getStock(), item.getWeight(),
-                    item.getStatus(), isDefault, barcode, item.getPrice(), resolvedSpecList, imageList));
+                    item.getStatus(), isDefault, barcode, item.getPriceList(), resolvedSpecList, imageList));
         }
         List<ProductSku> created = productAdminRepository.createSkus(productId, normalized);
         Long targetDefault = product.getDefaultSkuId();
@@ -392,6 +392,97 @@ public class ProductAdminService implements IProductAdminService {
         int stockTotal = productAdminRepository.sumStock(productId);
         productAdminRepository.updateProductStockAndDefault(productId, stockTotal, targetDefault);
         return loadDetail(productId);
+    }
+
+    /**
+     * 增量更新规格基础信息（不含规格值）
+     *
+     * @param productId 商品 ID
+     * @param commands  规格命令列表
+     * @return 受影响的规格 ID 列表
+     */
+    @Override
+    public @NotNull List<Long> patchSpecs(@NotNull Long productId, @NotNull List<ProductSpecPatchCommand> commands) {
+        if (commands.isEmpty())
+            return List.of();
+        List<ProductSpecUpsertCommand> upsertCommands = new ArrayList<>();
+        int sortOrder = 0;
+        for (ProductSpecPatchCommand command : commands) {
+            String specCode = normalizeSpecCode(command.getSpecCode());
+            String specName = normalizeSpecName(command.getSpecName());
+            upsertCommands.add(ProductSpecUpsertCommand.of(command.getSpecId(), specCode, specName,
+                    command.getSpecType(), command.isRequired(), true, sortOrder++, command.getI18nList(), List.of()));
+        }
+        ProductDetail detail = upsertSpecs(productId, upsertCommands);
+        Map<String, Long> codeToId = detail.specs().stream()
+                .collect(Collectors.toMap(ProductSpec::getSpecCode, ProductSpec::getId, (current, ignore) -> current, LinkedHashMap::new));
+        List<Long> specIds = new ArrayList<>();
+        for (ProductSpecPatchCommand command : commands) {
+            Long id = codeToId.get(command.getSpecCode());
+            if (id != null)
+                specIds.add(id);
+        }
+        return specIds;
+    }
+
+    /**
+     * 查询指定规格的规格值
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @return 规格值列表
+     */
+    @Override
+    public @NotNull List<ProductSpecValue> listSpecValues(@NotNull Long productId, @NotNull Long specId) {
+        ensureProduct(productId);
+        ProductSpec spec = productAdminRepository.findSpecById(specId)
+                .orElseThrow(() -> IllegalParamException.of("规格不存在"));
+        if (!Objects.equals(spec.getProductId(), productId))
+            throw new IllegalParamException("规格不属于当前商品");
+        List<ProductSpecValue> values = productAdminRepository.listSpecValues(productId, specId, true);
+        if (values.isEmpty())
+            return values;
+        Set<Long> valueIds = values.stream().map(ProductSpecValue::getId).collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, List<ProductSpecValueI18n>> i18nMap = productAdminRepository.mapSpecValueI18n(valueIds);
+        values.forEach(val -> val.attachI18nList(i18nMap.getOrDefault(val.getId(), List.of())));
+        return values;
+    }
+
+    /**
+     * 删除规格
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     */
+    @Override
+    public void deleteSpec(@NotNull Long productId, @NotNull Long specId) {
+        ensureProduct(productId);
+        ProductSpec spec = productAdminRepository.findSpecById(specId)
+                .orElseThrow(() -> IllegalParamException.of("规格不存在"));
+        if (!Objects.equals(spec.getProductId(), productId))
+            throw new IllegalParamException("规格不属于当前商品");
+        if (productAdminRepository.hasSkuBindingWithSpec(specId))
+            throw new IllegalParamException("存在 SKU 绑定该规格, 不可删除");
+        productAdminRepository.deleteSpec(specId);
+    }
+
+    /**
+     * 删除规格值
+     *
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @param valueId   规格值 ID
+     */
+    @Override
+    public void deleteSpecValue(@NotNull Long productId, @NotNull Long specId, @NotNull Long valueId) {
+        ensureProduct(productId);
+        ProductSpecValue value = productAdminRepository.findSpecValueById(valueId)
+                .orElseThrow(() -> IllegalParamException.of("规格值不存在"));
+        if (!Objects.equals(value.getProductId(), productId) || !Objects.equals(value.getSpecId(), specId))
+            throw new IllegalParamException("规格值不属于当前商品/规格");
+        if (productAdminRepository.hasSkuBindingWithSpecValue(valueId))
+            throw new IllegalParamException("存在 SKU 绑定该规格值, 不可删除");
+        productAdminRepository.deleteSpecValue(valueId);
     }
 
     /**
@@ -445,7 +536,7 @@ public class ProductAdminService implements IProductAdminService {
             List<ProductSkuSpecUpsertCommand> resolvedSpecLis = resolveSkuSpecs(item.getSpecs(), context, product.getSkuType());
             List<ProductImage> imageList = normalizeSkuImages(item.getImages());
             normalized.add(ProductSkuUpsertItemCommand.of(item.getId(), skuCode, item.getStock(), item.getWeight(),
-                    item.getStatus(), isDefault, barcode, item.getPrice(), resolvedSpecLis, imageList));
+                    item.getStatus(), isDefault, barcode, item.getPriceList(), resolvedSpecLis, imageList));
         }
         List<ProductSku> updated = productAdminRepository.updateSkus(productId, normalized);
         Long targetDefault = defaultSpecified ? defaultCandidate : product.getDefaultSkuId();
@@ -459,22 +550,58 @@ public class ProductAdminService implements IProductAdminService {
     }
 
     /**
+     * 增量更新单个 SKU 基础信息
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param command   基础信息命令
+     * @return 更新后的 SKU
+     */
+    @Override
+    public @NotNull ProductSku patchSku(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductSkuPatchCommand command) {
+        Product product = ensureProduct(productId);
+        ProductSku existing = productAdminRepository.findSkuById(skuId)
+                .orElseThrow(() -> IllegalParamException.of("SKU 不存在"));
+        if (!Objects.equals(existing.getProductId(), productId))
+            throw new IllegalParamException("SKU 不属于当前商品");
+        if (command.getSkuCode() != null && productAdminRepository.existsSkuCode(command.getSkuCode(), skuId))
+            throw new IllegalParamException("SKU 编码已存在");
+
+        ProductSku updated = productAdminRepository.patchSku(productId, skuId, command);
+        int stockTotal = productAdminRepository.sumStock(productId);
+        List<ProductSku> allSkus = productAdminRepository.listSkus(productId);
+        Long targetDefault = allSkus.stream()
+                .filter(ProductSku::isDefault)
+                .map(ProductSku::getId)
+                .findFirst()
+                .orElse(product.getDefaultSkuId());
+        if (targetDefault == null && !allSkus.isEmpty())
+            targetDefault = allSkus.get(0).getId();
+        productAdminRepository.updateProductStockAndDefault(productId, stockTotal, targetDefault);
+        List<ProductSku> attached = attachSkuDetails(productId, List.of(updated));
+        return attached.isEmpty() ? updated : attached.get(0);
+    }
+
+    /**
      * 更新 SKU 价格
      *
      * @param productId 商品 ID
      * @param skuId     SKU ID
-     * @param command   价格命令
+     * @param commands  价格命令列表
      * @return 更新后的 SKU
      */
     @Override
-    public @NotNull ProductSku updateSkuPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull ProductPriceUpsertCommand command) {
+    public @NotNull ProductSku updateSkuPrice(@NotNull Long productId, @NotNull Long skuId, @NotNull List<ProductPriceUpsertCommand> commands) {
         ensureProduct(productId);
         ProductSku sku = productAdminRepository.findSkuById(skuId)
                 .orElseThrow(() -> IllegalParamException.of("SKU 不存在"));
         if (!Objects.equals(productId, sku.getProductId()))
             throw new IllegalParamException("SKU 不属于当前商品");
-        ProductSku updated = productAdminRepository.upsertPrice(productId, skuId, command);
-        updated.attachPrice(ProductPrice.of(command.getCurrency(), command.getListPrice(), command.getSalePrice(), command.isActive()));
+        if (commands == null || commands.isEmpty())
+            throw new IllegalParamException("价格列表不能为空");
+        ProductSku updated = productAdminRepository.upsertPrices(productId, skuId, commands);
+        Map<Long, List<ProductPrice>> priceMap = productAdminRepository.mapActivePrices(Set.of(updated.getId()));
+        updated.attachPrices(priceMap.getOrDefault(updated.getId(), List.of()));
         List<ProductSku> attached = attachSkuDetails(productId, List.of(updated));
         return attached.isEmpty() ? updated : attached.get(0);
     }
@@ -810,14 +937,12 @@ public class ProductAdminService implements IProductAdminService {
         if (skus == null || skus.isEmpty())
             return List.of();
         Set<Long> skuIds = skus.stream().map(ProductSku::getId).collect(Collectors.toCollection(LinkedHashSet::new));
-        Map<Long, ProductPrice> priceMap = productAdminRepository.mapLatestPrices(skuIds);
+        Map<Long, List<ProductPrice>> priceMap = productAdminRepository.mapActivePrices(skuIds);
         Map<Long, List<ProductImage>> imageMap = productAdminRepository.mapSkuImages(skuIds);
         Map<Long, List<ProductSkuSpec>> skuSpecMap = productAdminRepository.mapSkuSpecs(skuIds);
         return skus.stream()
                 .peek(sku -> {
-                    ProductPrice price = priceMap.get(sku.getId());
-                    if (price != null)
-                        sku.attachPrice(price);
+                    sku.attachPrices(priceMap.getOrDefault(sku.getId(), List.of()));
                     sku.attachImages(imageMap.getOrDefault(sku.getId(), List.of()));
                     sku.attachSpecs(skuSpecMap.getOrDefault(sku.getId(), List.of()));
                 })
@@ -995,7 +1120,6 @@ public class ProductAdminService implements IProductAdminService {
                 .orElseThrow(() -> IllegalParamException.of("商品分类不存在"));
         List<ProductI18n> i18nList = productAdminRepository.mapI18n(Set.of(productId))
                 .getOrDefault(productId, List.of());
-        ProductI18n primaryI18n = i18nList.isEmpty() ? null : i18nList.get(0);
         List<ProductImage> gallery = productAdminRepository.listGallery(productId);
         List<ProductSpec> specs = productAdminRepository.listSpecs(productId, true);
         List<ProductSpecValue> specValues = productAdminRepository.listSpecValues(productId, true);
@@ -1033,7 +1157,6 @@ public class ProductAdminService implements IProductAdminService {
                 gallery,
                 orderedSpecs,
                 skus,
-                primaryI18n,
                 i18nList
         );
     }

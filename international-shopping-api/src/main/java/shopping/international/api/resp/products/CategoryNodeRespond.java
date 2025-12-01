@@ -51,14 +51,6 @@ public class CategoryNodeRespond {
      */
     private String brand;
     /**
-     * 当前展示语言 (若使用了 i18n 覆盖)
-     */
-    private String locale;
-    /**
-     * i18n 覆盖部分
-     */
-    private CategoryI18nRespond i18n;
-    /**
      * 全量 i18n 列表
      */
     private List<CategoryI18nItemRespond> i18nList;
@@ -86,11 +78,6 @@ public class CategoryNodeRespond {
      * @return 响应节点
      */
     public static CategoryNodeRespond from(CategoryNode node) {
-        CategoryI18nRespond i18nResp = null;
-        CategoryI18n i18nVo = node.getI18n();
-        if (i18nVo != null)
-            i18nResp = new CategoryI18nRespond(i18nVo.getName(), i18nVo.getSlug(), i18nVo.getBrand());
-
         List<CategoryI18nItemRespond> i18nListResponds = node.getI18nList().stream()
                 .map(CategoryI18nItemRespond::from)
                 .toList();
@@ -117,35 +104,12 @@ public class CategoryNodeRespond {
                 node.getPath(),
                 node.getSortOrder(),
                 displayBrand,
-                node.getLocale(),
-                i18nResp,
                 i18nListResponds,
                 childResponds,
                 node.getStatus() == null ? null : node.getStatus() == CategoryStatus.ENABLED,
                 node.getCreatedAt(),
                 node.getUpdatedAt()
         );
-    }
-
-    /**
-     * i18n 覆盖部分
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class CategoryI18nRespond {
-        /**
-         * 分类名称
-         */
-        private String name;
-        /**
-         * 分类别名
-         */
-        private String slug;
-        /**
-         * 品牌文案
-         */
-        private String brand;
     }
 
     /**
