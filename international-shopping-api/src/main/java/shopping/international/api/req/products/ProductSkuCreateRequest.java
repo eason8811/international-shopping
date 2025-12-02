@@ -11,8 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 单个 SKU 的维护请求 ProductSkuUpsertRequestItem
@@ -71,78 +70,63 @@ public class ProductSkuCreateRequest {
      * @throws IllegalParamException 当必填字段缺失或格式非法时抛出 IllegalParamException
      */
     public void validate() {
-        if (id != null && id <= 0)
-            throw new IllegalParamException("SKU ID 非法");
-
-        requireNotBlank(skuCode, "SKU 编码不能为空");
-        skuCode = skuCode.strip();
-        if (skuCode.length() > 64)
-            throw new IllegalParamException("SKU 编码长度不能超过 64 个字符");
+        requireNotNull(id, "SKU ID 不能为空");
+        require(id > 0, "SKU ID 必须大于 0");
+        skuCode = requireCreateField(skuCode, "SKU 编码不能为空", c -> c.length() <= 64, "SKU 编码长度不能超过 64 个字符");
 
         requireNotNull(stock, "SKU 库存不能为空");
-        if (stock < 0)
-            throw new IllegalParamException("SKU 库存不能为负数");
+        require(stock >= 0, "SKU 库存不能为负数");
+        if (weight != null)
+            require(weight.compareTo(BigDecimal.ZERO) >= 0, "SKU 重量不能为负数");
+        requireNotNull(status, "SKU 状态不能为空");
+        isDefault = isDefault != null && isDefault;
+        barcode = requirePatchField(barcode, "barcode 不能为空", c -> c.length() <= 64, "SKU 条码长度不能超过 64 个字符");
 
-        if (weight != null && weight.compareTo(BigDecimal.ZERO) < 0)
-            throw new IllegalParamException("SKU 重量不能为负数");
-
-        if (status == null)
-            throw new IllegalParamException("SKU 状态不能为空");
-        if (isDefault == null)
-            isDefault = false;
-
-        if (barcode != null) {
-            barcode = barcode.strip();
-            if (barcode.isEmpty())
-                barcode = null;
-            else if (barcode.length() > 64)
-                throw new IllegalParamException("SKU 条码长度不能超过 64 个字符");
-        }
-
-        if (price == null)
+        if (price == null) {
             price = List.of();
-        else {
-            List<ProductPriceUpsertRequest> normalizedPrices = new ArrayList<>();
-            Set<String> currencies = new LinkedHashSet<>();
-            for (ProductPriceUpsertRequest priceItem : price) {
-                if (priceItem == null)
-                    continue;
-                priceItem.validate();
-                String currency = priceItem.getCurrency() == null ? null : priceItem.getCurrency().strip().toUpperCase();
-                if (currency != null && !currencies.add(currency))
-                    throw new IllegalParamException("同一 SKU 的价格币种不可重复");
-                normalizedPrices.add(priceItem);
-            }
-            price = normalizedPrices;
+            return;
         }
+        List<ProductPriceUpsertRequest> normalizedPriceList = new ArrayList<>();
+        Set<String> currencies = new LinkedHashSet<>();
+        for (ProductPriceUpsertRequest priceItem : price) {
+            if (priceItem == null)
+                continue;
+            priceItem.createValidate();
+            String currency = priceItem.getCurrency() == null ? null : priceItem.getCurrency().strip().toUpperCase();
+            if (currency != null && !currencies.add(currency))
+                throw new IllegalParamException("同一 SKU 的价格币种不可重复");
+            normalizedPriceList.add(priceItem);
+        }
+        price = normalizedPriceList;
 
-        if (specs == null)
+        if (specs == null) {
             specs = List.of();
-        else {
-            List<ProductSkuSpecUpsertRequest> normalized = new ArrayList<>();
-            Set<String> specCodes = new LinkedHashSet<>();
-            for (ProductSkuSpecUpsertRequest spec : specs) {
-                if (spec == null)
-                    continue;
-                spec.validate();
-                if (!specCodes.add(spec.getSpecCode()))
-                    throw new IllegalParamException("同一 SKU 的规格编码不可重复");
-                normalized.add(spec);
-            }
-            specs = normalized;
+            return;
         }
+        List<ProductSkuSpecUpsertRequest> normalizedSkuSpecList = new ArrayList<>();
+        Set<String> specCodes = new LinkedHashSet<>();
+        for (ProductSkuSpecUpsertRequest spec : specs) {
+            if (spec == null)
+                continue;
+            spec.validate();
+            if (!specCodes.add(spec.getSpecCode()))
+                throw new IllegalParamException("同一 SKU 的规格编码不可重复");
+            normalizedSkuSpecList.add(spec);
+        }
+        specs = normalizedSkuSpecList;
 
-        if (images == null)
+
+        if (images == null) {
             images = List.of();
-        else {
-            List<ProductImagePayload> normalized = new ArrayList<>();
-            for (ProductImagePayload image : images) {
-                if (image == null)
-                    continue;
-                image.validate();
-                normalized.add(image);
-            }
-            images = normalized;
+            return;
         }
+        List<ProductImagePayload> normalizedImageList = new ArrayList<>();
+        for (ProductImagePayload image : images) {
+            if (image == null)
+                continue;
+            image.validate();
+            normalizedImageList.add(image);
+        }
+        images = normalizedImageList;
     }
 }

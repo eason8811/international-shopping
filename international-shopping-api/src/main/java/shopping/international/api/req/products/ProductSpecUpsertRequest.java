@@ -1,7 +1,6 @@
 package shopping.international.api.req.products;
 
 import lombok.Data;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.types.exceptions.IllegalParamException;
@@ -89,8 +88,8 @@ public class ProductSpecUpsertRequest {
     public void updateValidate() {
         requireNotNull(specId, "规格 ID 不能为空");
         require(specId > 0, "规格 ID 非法");
-        specCode = requirePatchField(specCode, s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
-        specName = requirePatchField(specName, s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
+        specCode = requirePatchField(specCode, "specCode 不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
+        specName = requirePatchField(specName, "specName 不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
         specType = specType == null ? SpecType.OTHER : specType;
         isRequired = isRequired == null || isRequired;
         normalizeI18nList();

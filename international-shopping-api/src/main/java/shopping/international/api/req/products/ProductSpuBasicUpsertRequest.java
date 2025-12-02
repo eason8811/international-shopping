@@ -79,11 +79,11 @@ public class ProductSpuBasicUpsertRequest {
     public void createValidate() {
         slug = requireCreateField(slug, "商品 slug 不能为空", slug -> slug.length() <= 120, "商品 slug 长度不能超过 120 个字符");
         title = requireCreateField(title, "商品标题不能为空", title -> title.length() <= 255, "商品标题长度不能超过 255 个字符");
-        subtitle = requirePatchField(subtitle, subtitle -> subtitle.length() <= 255, "商品副标题长度不能超过 255 个字符");
-        description = requirePatchField(description, d -> true, null);
+        subtitle = requirePatchField(subtitle, "subtitle 不能为空", subtitle -> subtitle.length() <= 255, "商品副标题长度不能超过 255 个字符");
+        description = requirePatchField(description, "description 不能为空", d -> true, null);
         requireNotNull(categoryId, "分类 ID 不能为空");
-        brand = requirePatchField(brand, brand -> brand.length() <= 120, "品牌文案长度不能超过 120 个字符");
-        coverImageUrl = requirePatchField(coverImageUrl, coverImageUrl -> coverImageUrl.length() <= 500, "主图 URL 长度不能超过 500 个字符");
+        brand = requirePatchField(brand, "brand 不能为空", brand -> brand.length() <= 120, "品牌文案长度不能超过 120 个字符");
+        coverImageUrl = requirePatchField(coverImageUrl, "coverImageUrl 不能为空", coverImageUrl -> coverImageUrl.length() <= 500, "主图 URL 长度不能超过 500 个字符");
         normalizeTags();
     }
 
@@ -93,12 +93,12 @@ public class ProductSpuBasicUpsertRequest {
      * @throws IllegalParamException 当必填字段缺失或长度超限时抛出
      */
     public void updateValidate() {
-        slug = requirePatchField(slug, slug -> slug.length() <= 120, "商品 slug 长度不能超过 120 个字符");
-        title = requirePatchField(title, title -> title.length() <= 255, "商品标题长度不能超过 255 个字符");
-        subtitle = requirePatchField(subtitle, subtitle -> subtitle.length() <= 255, "商品副标题长度不能超过 255 个字符");
-        description = requirePatchField(description, d -> true, null);
-        brand = requirePatchField(brand, brand -> brand.length() <= 120, "品牌文案长度不能超过 120 个字符");
-        coverImageUrl = requirePatchField(coverImageUrl, coverImageUrl -> coverImageUrl.length() <= 500, "主图 URL 长度不能超过 500 个字符");
+        slug = requirePatchField(slug, "slug 不能为空", slug -> slug.length() <= 120, "商品 slug 长度不能超过 120 个字符");
+        title = requirePatchField(title, "title 不能为空", title -> title.length() <= 255, "商品标题长度不能超过 255 个字符");
+        subtitle = requirePatchField(subtitle, "subtitle 不能为空", subtitle -> subtitle.length() <= 255, "商品副标题长度不能超过 255 个字符");
+        description = requirePatchField(description, "description 不能为空", d -> true, null);
+        brand = requirePatchField(brand, "brand 不能为空", brand -> brand.length() <= 120, "品牌文案长度不能超过 120 个字符");
+        coverImageUrl = requirePatchField(coverImageUrl, "coverImageUrl 不能为空", coverImageUrl -> coverImageUrl.length() <= 500, "主图 URL 长度不能超过 500 个字符");
         normalizeTags();
     }
 

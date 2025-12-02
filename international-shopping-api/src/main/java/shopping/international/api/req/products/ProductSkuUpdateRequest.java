@@ -9,7 +9,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requirePatchField;
 
 /**
  * SKU 增量更新请求 ProductSkuPatchRequest
@@ -17,7 +18,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
  * <p>用于更新 SKU 基础信息, 价格与规格绑定通过专用接口维护</p>
  */
 @Data
-public class ProductSkuPatchRequest {
+public class ProductSkuUpdateRequest {
     /**
      * SKU 编码
      */
@@ -60,23 +61,12 @@ public class ProductSkuPatchRequest {
      * @throws IllegalParamException 当字段非法时抛出 IllegalParamException
      */
     public void validate() {
-        if (skuCode != null) {
-            requireNotBlank(skuCode, "SKU 编码不能为空");
-            skuCode = skuCode.strip();
-            if (skuCode.length() > 64)
-                throw new IllegalParamException("SKU 编码长度不能超过 64 个字符");
-        }
-        if (stock != null && stock < 0)
-            throw new IllegalParamException("SKU 库存不能为负数");
-        if (weight != null && weight.compareTo(BigDecimal.ZERO) < 0)
-            throw new IllegalParamException("SKU 重量不能为负数");
-        if (barcode != null) {
-            barcode = barcode.strip();
-            if (barcode.isEmpty())
-                barcode = null;
-            else if (barcode.length() > 64)
-                throw new IllegalParamException("SKU 条码长度不能超过 64 个字符");
-        }
+        requirePatchField(skuCode, "SKU 编码不能为空", s -> s.length() <= 64, "SKU 编码长度不能超过 64 个字符");
+        if (stock != null)
+            require(stock >= 0, "SKU 库存不能为负数");
+        if (weight != null)
+            require(weight.compareTo(BigDecimal.ZERO) >= 0, "SKU 重量不能为负数");
+        barcode = requirePatchField(barcode, "SKU 条码不能为空", s -> s.length() <= 64, "SKU 条码长度不能超过 64 个字符");
         if (images != null) {
             List<ProductImagePayload> normalized = new ArrayList<>();
             for (ProductImagePayload image : images) {

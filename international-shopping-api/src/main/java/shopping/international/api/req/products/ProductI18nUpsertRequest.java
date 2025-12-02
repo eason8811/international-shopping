@@ -11,7 +11,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import static shopping.international.types.utils.FieldValidateUtils.*;
+import static shopping.international.types.utils.FieldValidateUtils.requireCreateField;
+import static shopping.international.types.utils.FieldValidateUtils.requirePatchField;
 
 /**
  * 商品多语言 upsert 请求 (ProductI18nUpsertRequest)
@@ -59,10 +60,10 @@ public class ProductI18nUpsertRequest {
                 "语言代码不能为空",
                 locale -> FieldValidateUtils.LOCALE_PATTERN.matcher(locale).matches(),
                 "语言代码格式不合法");
-        title = requirePatchField(title, s -> s.length() <= 255, "本地化标题长度不能超过 255 个字符");
-        subtitle = requirePatchField(subtitle, s -> s.length() <= 255, "本地化副标题长度不能超过 255 个字符");
-        description = requirePatchField(description, s -> true, null);
-        slug = requirePatchField(slug, s -> s.length() <= 120, "本地化 slug 长度不能超过 120 个字符");
+        title = requirePatchField(title, "title 不能为空", s -> s.length() <= 255, "本地化标题长度不能超过 255 个字符");
+        subtitle = requirePatchField(subtitle, "subtitle 不能为空", s -> s.length() <= 255, "本地化副标题长度不能超过 255 个字符");
+        description = requirePatchField(description, "description 不能为空", s -> true, null);
+        slug = requirePatchField(slug, "slug 不能为空", s -> s.length() <= 120, "本地化 slug 长度不能超过 120 个字符");
         if (tags == null)
             return;
         List<String> normalized = new ArrayList<>();

@@ -234,7 +234,7 @@ public class AdminProductController {
     @PatchMapping("/{product_id}/skus/{sku_id}")
     public ResponseEntity<Result<SkuOperationRespond>> patchSku(@PathVariable("product_id") Long productId,
                                                                 @PathVariable("sku_id") Long skuId,
-                                                                @RequestBody ProductSkuPatchRequest request) {
+                                                                @RequestBody ProductSkuUpdateRequest request) {
         request.validate();
         ProductSkuPatchCommand command = toSkuPatchCommand(request);
         ProductSku sku = productAdminService.patchSku(productId, skuId, command);
@@ -435,7 +435,7 @@ public class AdminProductController {
      * @param request PATCH 请求
      * @return 命令
      */
-    private ProductSkuPatchCommand toSkuPatchCommand(ProductSkuPatchRequest request) {
+    private ProductSkuPatchCommand toSkuPatchCommand(ProductSkuUpdateRequest request) {
         List<ProductImage> images = request.getImages() == null ? null : mapSkuImages(request.getImages());
         return ProductSkuPatchCommand.of(request.getSkuCode(), request.getStock(), request.getWeight(),
                 request.getStatus(), request.getIsDefault(), request.getBarcode(), images);

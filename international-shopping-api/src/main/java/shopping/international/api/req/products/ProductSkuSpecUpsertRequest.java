@@ -4,7 +4,7 @@ import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * SKU 规格绑定请求 ProductSkuSpecUpsertRequest
@@ -14,11 +14,11 @@ public class ProductSkuSpecUpsertRequest {
     /**
      * 规格 ID, 推荐传递确保精确绑定
      */
-    @Nullable
     private Long specId;
     /**
      * 规格编码
      */
+    @Nullable
     private String specCode;
     /**
      * 规格名称, 用于冗余提示
@@ -28,11 +28,11 @@ public class ProductSkuSpecUpsertRequest {
     /**
      * 规格值 ID
      */
-    @Nullable
     private Long valueId;
     /**
      * 规格值编码
      */
+    @Nullable
     private String valueCode;
     /**
      * 规格值名称, 用于冗余提示
@@ -46,31 +46,14 @@ public class ProductSkuSpecUpsertRequest {
      * @throws IllegalParamException 当规格或规格值信息缺失或长度超限时抛出 IllegalParamException
      */
     public void validate() {
-        if (specId != null && specId <= 0)
-            throw new IllegalParamException("规格 ID 非法");
-        if (valueId != null && valueId <= 0)
-            throw new IllegalParamException("规格值 ID 非法");
-
+        requireNotNull(specId, "规格 ID 不能为空");
+        require(specId > 0, "规格 ID 非法");
+        requireNotNull(valueId, "规格值 ID 不能为空");
+        require(valueId > 0, "规格值 ID 非法");
         requireNotBlank(specCode, "规格编码不能为空");
-        specCode = specCode.strip();
-        if (specCode.length() > 64)
-            throw new IllegalParamException("规格编码长度不能超过 64 个字符");
-
-        if (specName != null) {
-            specName = specName.strip();
-            if (specName.length() > 64)
-                throw new IllegalParamException("规格名称长度不能超过 64 个字符");
-        }
-
-        requireNotBlank(valueCode, "规格值编码不能为空");
-        valueCode = valueCode.strip();
-        if (valueCode.length() > 64)
-            throw new IllegalParamException("规格值编码长度不能超过 64 个字符");
-
-        if (valueName != null) {
-            valueName = valueName.strip();
-            if (valueName.length() > 64)
-                throw new IllegalParamException("规格值名称长度不能超过 64 个字符");
-        }
+        requirePatchField(specCode, "specCode 不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
+        requirePatchField(specName, "specName 不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
+        requirePatchField(valueCode, "规格值编码不能为空", s -> s.length() <= 64, "规格值编码长度不能超过 64 个字符");
+        requirePatchField(valueName, "规格值名称不能为空", s -> s.length() <= 64, "规格值名称长度不能超过 64 个字符");
     }
 }

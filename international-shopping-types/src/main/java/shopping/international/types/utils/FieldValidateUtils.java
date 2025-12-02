@@ -179,19 +179,28 @@ public final class FieldValidateUtils {
     }
 
     /**
-     * 确保给定的补丁字段满足特定条件, 如果不满足则抛出异常
+     * 校验并处理给定的补丁字段, 确保其满足特定条件
      *
-     * @param patchFiled 待检查的补丁字段
+     * <p>该方法会执行以下验证和处理步骤:</p>
+     * <ul>
+     *     <li>去除首尾空白字符</li>
+     *     <li>确保字段不为空白, 如果为空白则抛出异常</li>
+     *     <li>使用提供的函数 {@code okFunc} 来进一步校验字段, 如果校验失败则抛出异常</li>
+     * </ul>
+     *
+     * @param patchFiled 待检查和处理的补丁字段
+     * @param blankMsg   当 <code>patchFiled</code> 为空白时, 抛出异常的信息
      * @param okFunc     用于判断 <code>patchFiled</code> 是否有效的函数, 接受一个字符串参数并返回布尔值
      * @param msg        当 <code>okFunc</code> 返回 <code>false</code> 时, 抛出异常的信息
-     * @return 处理后的补丁字段, 去除首尾空白字符后的字符串
-     * @throws IllegalParamException 如果 <code>patchFiled</code> 不符合 <code>okFunc</code> 的条件
+     * @return 处理后的补丁字段, 去除首尾空白字符后的字符串, 如果为空白则返回 null
+     * @throws IllegalParamException 如果 <code>patchFiled</code> 为 <code>null</code>, 或者 <code>okFunc</code> 返回 <code>false</code>
      */
-    public static String requirePatchField(String patchFiled, Function<String, Boolean> okFunc, String msg) {
+    public static String requirePatchField(String patchFiled, String blankMsg, Function<String, Boolean> okFunc, String msg) {
         if (patchFiled != null) {
             patchFiled = patchFiled.strip();
+            requireNotBlank(patchFiled, blankMsg);
             require(okFunc.apply(patchFiled), msg);
-            return patchFiled;
+            return patchFiled.isBlank() ? null : patchFiled;
         }
         return patchFiled;
     }

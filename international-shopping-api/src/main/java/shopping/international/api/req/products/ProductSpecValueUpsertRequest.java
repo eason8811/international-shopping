@@ -82,8 +82,8 @@ public class ProductSpecValueUpsertRequest {
     public void updateValidate() {
         requireNotNull(valueId, "更新时规格值 ID 不能为空");
         require(valueId > 0, "更新时规格值 ID 必须大于 0");
-        valueCode = requirePatchField(valueCode, v -> v.length() <= 64, "规格值编码长度不能超过 64 个字符");
-        valueName = requirePatchField(valueName, v -> v.length() <= 64, "规格值名称长度不能超过 64 个字符");
+        valueCode = requirePatchField(valueCode, "valueCode 不能为空", v -> v.length() <= 64, "规格值编码长度不能超过 64 个字符");
+        valueName = requirePatchField(valueName, "valueName 不能为空", v -> v.length() <= 64, "规格值名称长度不能超过 64 个字符");
         isEnabled = isEnabled == null || isEnabled;
         normalizeI18nList();
     }

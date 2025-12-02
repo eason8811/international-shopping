@@ -4,7 +4,7 @@ import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.requirePatchField;
 
 /**
  * 商品图片请求载荷 (ProductImagePayload)
@@ -32,11 +32,8 @@ public class ProductImagePayload {
      * @throws IllegalParamException 当 URL 为空或超长时抛出
      */
     public void validate() {
-        requireNotBlank(url, "图片 URL 不能为空");
-        url = url.strip();
-        if (url.length() > 500)
-            throw new IllegalParamException("图片 URL 长度不能超过 500 个字符");
-        if (sortOrder == null)
-            sortOrder = 0;
+        url = requirePatchField(url, "图片 URL 不能为空", url -> url.length() <= 500, "图片 URL 长度不能超过 500 个字符");
+        isMain = isMain != null && isMain;
+        sortOrder = sortOrder == null ? 0 : sortOrder;
     }
 }
