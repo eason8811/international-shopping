@@ -16,7 +16,7 @@ public class ProductSkuUpsertRequest {
     /**
      * SKU 列表
      */
-    private List<ProductSkuUpsertRequestItem> skus;
+    private List<ProductSkuCreateRequest> skus;
 
     /**
      * 校验并规范化 SKU 列表
@@ -25,8 +25,8 @@ public class ProductSkuUpsertRequest {
      */
     public void validate() {
         requireNotNull(skus, "SKU 列表不能为空");
-        List<ProductSkuUpsertRequestItem> normalized = new ArrayList<>();
-        for (ProductSkuUpsertRequestItem item : skus) {
+        List<ProductSkuCreateRequest> normalized = new ArrayList<>();
+        for (ProductSkuCreateRequest item : skus) {
             if (item == null)
                 continue;
             item.validate();

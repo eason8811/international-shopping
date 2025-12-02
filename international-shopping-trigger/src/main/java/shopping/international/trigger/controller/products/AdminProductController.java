@@ -371,7 +371,7 @@ public class AdminProductController {
      */
     private ProductSkuUpsertCommand toSkuCommand(ProductSkuUpsertRequest request) {
         List<ProductSkuUpsertItemCommand> itemList = new ArrayList<>();
-        for (ProductSkuUpsertRequestItem item : request.getSkus()) {
+        for (ProductSkuCreateRequest item : request.getSkus()) {
             if (item == null)
                 continue;
             item.validate();

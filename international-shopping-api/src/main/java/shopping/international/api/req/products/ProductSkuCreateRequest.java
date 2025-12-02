@@ -18,11 +18,10 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
  * 单个 SKU 的维护请求 ProductSkuUpsertRequestItem
  */
 @Data
-public class ProductSkuUpsertRequestItem {
+public class ProductSkuCreateRequest {
     /**
      * SKU ID, 创建时留空, 更新时必填
      */
-    @Nullable
     private Long id;
     /**
      * SKU 编码, 需在系统内唯一
@@ -44,7 +43,6 @@ public class ProductSkuUpsertRequestItem {
     /**
      * 是否默认展示该 SKU
      */
-    @Nullable
     private Boolean isDefault;
     /**
      * 条码, 可选
