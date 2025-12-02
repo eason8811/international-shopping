@@ -18,7 +18,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductRespond {
+public class ProductSpuRespond {
     /**
      * 主键ID
      */
@@ -98,7 +98,7 @@ public class ProductRespond {
      */
     private LocalDateTime likedAt;
 
-    public static ProductRespond from(ProductSummary summary) {
+    public static ProductSpuRespond from(ProductSummary summary) {
         ProductPriceRange summaryPriceRange = summary.priceRange();
         // 构建价格区间响应, 若价格区间为空则返回null
         ProductPriceRangeRespond productPriceRangeRespond = summaryPriceRange == null ?
@@ -116,7 +116,7 @@ public class ProductRespond {
                 .stream()
                 .map(ProductImageRespond::from)
                 .toList();
-        return new ProductRespond(
+        return new ProductSpuRespond(
                 summary.id(),
                 summary.slug(),
                 summary.title(),

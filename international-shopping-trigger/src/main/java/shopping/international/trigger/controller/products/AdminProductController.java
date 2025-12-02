@@ -44,21 +44,21 @@ public class AdminProductController {
      * @return 商品列表
      */
     @GetMapping
-    public ResponseEntity<Result<List<ProductRespond>>> page(@RequestParam(defaultValue = "1") int page,
-                                                             @RequestParam(defaultValue = "20") int size,
-                                                             @RequestParam(value = "status", required = false) String status,
-                                                             @RequestParam(value = "sku_type", required = false) String skuType,
-                                                             @RequestParam(value = "category_id", required = false) Long categoryId,
-                                                             @RequestParam(value = "keyword", required = false) String keyword,
-                                                             @RequestParam(value = "tag", required = false) String tag,
-                                                             @RequestParam(value = "include_deleted", defaultValue = "false") boolean includeDeleted) {
+    public ResponseEntity<Result<List<ProductSpuRespond>>> page(@RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size,
+                                                                @RequestParam(value = "status", required = false) String status,
+                                                                @RequestParam(value = "sku_type", required = false) String skuType,
+                                                                @RequestParam(value = "category_id", required = false) Long categoryId,
+                                                                @RequestParam(value = "keyword", required = false) String keyword,
+                                                                @RequestParam(value = "tag", required = false) String tag,
+                                                                @RequestParam(value = "include_deleted", defaultValue = "false") boolean includeDeleted) {
         page = page <= 0 ? 1 : page;
         size = size <= 0 ? 20 : Math.min(size, 100);
         ProductStatus filterStatus = parseStatus(status);
         SkuType filterSkuType = parseSkuType(skuType);
         IProductAdminService.PageResult<ProductSummary> pageResult = productAdminService.page(page, size, filterStatus, filterSkuType, categoryId, keyword, tag, includeDeleted);
-        List<ProductRespond> data = pageResult.items().stream()
-                .map(ProductRespond::from)
+        List<ProductSpuRespond> data = pageResult.items().stream()
+                .map(ProductSpuRespond::from)
                 .toList();
         Result.Meta meta = Result.Meta.builder()
                 .page(page)
@@ -75,8 +75,8 @@ public class AdminProductController {
      * @return 详情
      */
     @PostMapping
-    public ResponseEntity<Result<AdminProductDetailRespond>> create(@RequestBody ProductSaveRequest request) {
-        request.validate();
+    public ResponseEntity<Result<AdminProductDetailRespond>> create(@RequestBody ProductSpuBasicUpsertRequest request) {
+        request.createValidate();
         ProductDetail detail = productAdminService.create(toCommand(request));
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
                 .body(Result.created(AdminProductDetailRespond.from(detail)));
@@ -103,8 +103,8 @@ public class AdminProductController {
      */
     @PatchMapping("/{product_id}")
     public ResponseEntity<Result<AdminProductDetailRespond>> update(@PathVariable("product_id") Long productId,
-                                                                    @RequestBody ProductSaveRequest request) {
-        request.validate();
+                                                                    @RequestBody ProductSpuBasicUpsertRequest request) {
+        request.createValidate();
         ProductDetail detail = productAdminService.update(productId, toCommand(request));
         return ResponseEntity.ok(Result.ok(AdminProductDetailRespond.from(detail)));
     }
@@ -178,10 +178,10 @@ public class AdminProductController {
      */
     @PatchMapping("/{product_id}/specs")
     public ResponseEntity<Result<SpecOperationRespond>> patchSpecs(@PathVariable("product_id") Long productId,
-                                                                   @RequestBody List<ProductSpecPatchRequest> payloads) {
-        List<ProductSpecPatchRequest> safePayloads = payloads == null ? List.of() : payloads;
+                                                                   @RequestBody List<ProductSpecUpsertRequest> payloads) {
+        List<ProductSpecUpsertRequest> safePayloads = payloads == null ? List.of() : payloads;
         List<ProductSpecPatchCommand> commands = new ArrayList<>();
-        for (ProductSpecPatchRequest payload : safePayloads) {
+        for (ProductSpecUpsertRequest payload : safePayloads) {
             if (payload == null)
                 continue;
             payload.validate();
@@ -287,10 +287,10 @@ public class AdminProductController {
      * @return 规格值列表
      */
     @GetMapping("/{product_id}/specs/{spec_id}/values")
-    public ResponseEntity<Result<List<AdminProductDetailRespond.AdminSpecValueRespond>>> listSpecValues(@PathVariable("product_id") Long productId,
-                                                                                                        @PathVariable("spec_id") Long specId) {
-        List<AdminProductDetailRespond.AdminSpecValueRespond> data = productAdminService.listSpecValues(productId, specId).stream()
-                .map(AdminProductDetailRespond.AdminSpecValueRespond::from)
+    public ResponseEntity<Result<List<AdminSpecValueRespond>>> listSpecValues(@PathVariable("product_id") Long productId,
+                                                                              @PathVariable("spec_id") Long specId) {
+        List<AdminSpecValueRespond> data = productAdminService.listSpecValues(productId, specId).stream()
+                .map(AdminSpecValueRespond::from)
                 .toList();
         return ResponseEntity.ok(Result.ok(data));
     }
@@ -331,7 +331,7 @@ public class AdminProductController {
      * @param request 商品保存请求
      * @return 保存命令
      */
-    private ProductSaveCommand toCommand(ProductSaveRequest request) {
+    private ProductSaveCommand toCommand(ProductSpuBasicUpsertRequest request) {
         return new ProductSaveCommand(request.getSlug(), request.getTitle(), request.getSubtitle(),
                 request.getDescription(), request.getCategoryId(), request.getBrand(), request.getCoverImageUrl(),
                 request.getSkuType(), request.getStatus(), request.getTags());

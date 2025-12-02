@@ -7,7 +7,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.products.LikeStateRespond;
-import shopping.international.api.resp.products.ProductRespond;
+import shopping.international.api.resp.products.ProductSpuRespond;
 import shopping.international.domain.model.vo.products.LikeState;
 import shopping.international.domain.model.vo.products.ProductSummary;
 import shopping.international.domain.service.products.IProductLikeService;
@@ -66,10 +66,10 @@ public class ProductLikeController {
      * @return 商品列表
      */
     @GetMapping("/users/me/likes/products")
-    public ResponseEntity<Result<List<ProductRespond>>> list(@RequestParam(defaultValue = "1") int page,
-                                                             @RequestParam(defaultValue = "10") int size,
-                                                             @RequestParam(value = "locale", required = false) String locale,
-                                                             @RequestParam(value = "currency", required = false) String currency) {
+    public ResponseEntity<Result<List<ProductSpuRespond>>> list(@RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "10") int size,
+                                                                @RequestParam(value = "locale", required = false) String locale,
+                                                                @RequestParam(value = "currency", required = false) String currency) {
         if (page <= 0)
             page = 1;
         if (size <= 0)
@@ -78,9 +78,9 @@ public class ProductLikeController {
             size = 100;
         Long userId = requireCurrentUserId();
         IProductQueryService.PageResult<ProductSummary> pageResult = productLikeService.listUserLikes(userId, page, size, locale, currency);
-        List<ProductRespond> data = pageResult.items()
+        List<ProductSpuRespond> data = pageResult.items()
                 .stream()
-                .map(ProductRespond::from)
+                .map(ProductSpuRespond::from)
                 .toList();
         Result.Meta meta = Result.Meta.builder()
                 .page(page)

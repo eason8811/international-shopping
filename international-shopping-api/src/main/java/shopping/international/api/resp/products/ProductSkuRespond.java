@@ -64,14 +64,28 @@ public class ProductSkuRespond {
      * @return SKU 响应
      */
     public static ProductSkuRespond from(ProductSku sku) {
-        List<PublicProductDetailRespond.ProductPriceRespond> priceList = sku.getPrices() == null ? List.of()
-                : sku.getPrices().stream()
-                .map(price -> new PublicProductDetailRespond.ProductPriceRespond(price.getCurrency(), price.getListPrice(), price.getSalePrice(), price.isActive()))
+        List<PublicProductDetailRespond.ProductPriceRespond> priceList = sku.getPrices() == null
+                ? List.of()
+                : sku.getPrices()
+                .stream()
+                .map(price ->
+                        new PublicProductDetailRespond.ProductPriceRespond(
+                                price.getCurrency(),
+                                price.getListPrice(),
+                                price.getSalePrice(),
+                                price.isActive()
+                        ))
                 .toList();
-        List<PublicProductDetailRespond.ProductSkuSpecRespond> specs = sku.getSpecs() == null ? List.of()
-                : sku.getSpecs().stream().map(PublicProductDetailRespond.ProductSkuSpecRespond::from).toList();
-        List<ProductImageRespond> images = sku.getImages() == null ? List.of()
-                : sku.getImages().stream().map(ProductImageRespond::from).toList();
+        List<PublicProductDetailRespond.ProductSkuSpecRespond> specs = sku.getSpecs() == null
+                ? List.of()
+                : sku.getSpecs().stream()
+                .map(PublicProductDetailRespond.ProductSkuSpecRespond::from)
+                .toList();
+        List<ProductImageRespond> images = sku.getImages() == null
+                ? List.of()
+                : sku.getImages().stream()
+                .map(ProductImageRespond::from)
+                .toList();
         return new ProductSkuRespond(
                 sku.getId(),
                 sku.getSkuCode(),

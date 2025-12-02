@@ -2,10 +2,12 @@ package shopping.international.types.utils;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nls;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
@@ -15,11 +17,11 @@ public final class FieldValidateUtils {
     /**
      * locale 格式: 允许字母数字及横线/下划线, 段长 2-8
      */
-    private static final Pattern LOCALE_PATTERN = Pattern.compile("^[A-Za-z0-9]{2,8}([-_][A-Za-z0-9]{2,8})*$");
+    public static final Pattern LOCALE_PATTERN = Pattern.compile("^[A-Za-z0-9]{2,8}([-_][A-Za-z0-9]{2,8})*$");
     /**
      * 货币格式: 3 位大写字母
      */
-    private static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Z]{3}$");
+    public static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Z]{3}$");
 
     /**
      * 工具类不能实例化
@@ -95,7 +97,7 @@ public final class FieldValidateUtils {
     public static String normalizeLocale(String locale) {
         if (locale == null)
             return null;
-        String trimmed = locale.trim();
+        String trimmed = locale.strip();
         if (trimmed.isEmpty())
             return null;
         if (trimmed.length() > 16)
@@ -114,7 +116,7 @@ public final class FieldValidateUtils {
     public static String normalizeCurrency(String currency) {
         if (currency == null)
             return null;
-        String trimmed = currency.trim().toUpperCase(Locale.ROOT);
+        String trimmed = currency.strip().toUpperCase(Locale.ROOT);
         if (trimmed.isEmpty())
             return null;
         if (!CURRENCY_PATTERN.matcher(trimmed).matches())
@@ -174,5 +176,40 @@ public final class FieldValidateUtils {
         if (price.compareTo(BigDecimal.ZERO) < 0)
             throw new IllegalParamException(fieldName + " 不能为负数");
         return price;
+    }
+
+    /**
+     * 确保给定的补丁字段满足特定条件, 如果不满足则抛出异常
+     *
+     * @param patchFiled 待检查的补丁字段
+     * @param okFunc     用于判断 <code>patchFiled</code> 是否有效的函数, 接受一个字符串参数并返回布尔值
+     * @param msg        当 <code>okFunc</code> 返回 <code>false</code> 时, 抛出异常的信息
+     * @return 处理后的补丁字段, 去除首尾空白字符后的字符串
+     * @throws IllegalParamException 如果 <code>patchFiled</code> 不符合 <code>okFunc</code> 的条件
+     */
+    public static String requirePatchField(String patchFiled, Function<String, Boolean> okFunc, String msg) {
+        if (patchFiled != null) {
+            patchFiled = patchFiled.strip();
+            require(okFunc.apply(patchFiled), msg);
+            return patchFiled;
+        }
+        return patchFiled;
+    }
+
+    /**
+     * 确保给定的创建字段满足特定条件, 如果不满足则抛出异常
+     *
+     * @param createFiled 待检查的创建字段
+     * @param nullMsg     当 <code>createFiled</code> 为 <code>null</code> 时, 抛出异常的信息
+     * @param okFunc      用于判断 <code>createFiled</code> 是否有效的函数, 接受一个字符串参数并返回布尔值
+     * @param notOkMsg    当 <code>okFunc</code> 返回 <code>false</code> 时, 抛出异常的信息
+     * @return 处理后的创建字段, 去除首尾空白字符后的字符串
+     * @throws IllegalParamException 如果 <code>createFiled</code> 为 <code>null</code>, 或者 <code>okFunc</code> 返回 <code>false</code>
+     */
+    public static @NotNull String requireCreateField(String createFiled, String nullMsg, @NotNull Function<String, Boolean> okFunc, String notOkMsg) {
+        requireNotNull(createFiled, nullMsg);
+        createFiled = createFiled.strip();
+        require(okFunc.apply(createFiled), notOkMsg);
+        return createFiled;
     }
 }

@@ -9,7 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.resp.Result;
-import shopping.international.api.resp.products.ProductRespond;
+import shopping.international.api.resp.products.ProductSpuRespond;
 import shopping.international.api.resp.products.PublicProductDetailRespond;
 import shopping.international.domain.model.enums.products.ProductSort;
 import shopping.international.domain.model.vo.products.ProductDetail;
@@ -59,16 +59,16 @@ public class ProductController {
      * @return 包含分页信息和商品列表的结果集 {@link ResponseEntity} 包裹着 {@link Result}, 其中包含 {@code List<ProductRespond>} 和元数据
      */
     @GetMapping
-    public ResponseEntity<Result<List<ProductRespond>>> list(@RequestParam(defaultValue = "1") int page,
-                                                             @RequestParam(defaultValue = "20") int size,
-                                                             @RequestParam(value = "locale", required = false) String locale,
-                                                             @RequestParam(value = "currency", required = false) String currency,
-                                                             @RequestParam(value = "category_slug", required = false) String categorySlug,
-                                                             @RequestParam(value = "query", required = false) String keyword,
-                                                             @RequestParam(value = "tags", required = false) String tags,
-                                                             @RequestParam(value = "price_min", required = false) BigDecimal priceMin,
-                                                             @RequestParam(value = "price_max", required = false) BigDecimal priceMax,
-                                                             @RequestParam(value = "sort_by", required = false) String sortBy) {
+    public ResponseEntity<Result<List<ProductSpuRespond>>> list(@RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size,
+                                                                @RequestParam(value = "locale", required = false) String locale,
+                                                                @RequestParam(value = "currency", required = false) String currency,
+                                                                @RequestParam(value = "category_slug", required = false) String categorySlug,
+                                                                @RequestParam(value = "query", required = false) String keyword,
+                                                                @RequestParam(value = "tags", required = false) String tags,
+                                                                @RequestParam(value = "price_min", required = false) BigDecimal priceMin,
+                                                                @RequestParam(value = "price_max", required = false) BigDecimal priceMax,
+                                                                @RequestParam(value = "sort_by", required = false) String sortBy) {
         // page 和 size 不合法时, 取默认 1 和 20, 最大不超过 100
         if (page <= 0)
             page = 1;
@@ -90,9 +90,9 @@ public class ProductController {
         ProductListQuery query = new ProductListQuery(page, size, normalizedLocale, normalizedCurrency, categorySlug,
                 normalizedKeyword, tagList, normalizedPriceMin, normalizedPriceMax, ProductSort.from(sortBy), resolveCurrentUserId());
         IProductQueryService.PageResult<ProductSummary> productSummaryPageResult = productQueryService.list(query);
-        List<ProductRespond> data = productSummaryPageResult.items()
+        List<ProductSpuRespond> data = productSummaryPageResult.items()
                 .stream()
-                .map(ProductRespond::from)
+                .map(ProductSpuRespond::from)
                 .toList();
         Result.Meta meta = Result.Meta.builder()
                 .page(page)
