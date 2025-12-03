@@ -451,7 +451,7 @@ docker compose -f docker-compose-dev.yaml up -d
     * 不要滥用三目运算符
 
 8. **参数校验**：
-    * shopping.international.api.req 包下的请求都需要实现 `shopping.international.api.req.Verifiable` 接口, 并视情况实现其中的方法, 如果 Request 对象为单一功能对象, 则直接实现 validate 方法, 如果 Request 对象为创建/更新共用对象, 则还需要实现 createValidate / updateValidate 方法
+    * shopping.international.api.req 包下的请求都需要实现 `shopping.international.types.utils.Verifiable` 接口, 并视情况实现其中的方法, 如果 Request 对象为单一功能对象, 则直接实现 validate 方法, 如果 Request 对象为创建/更新共用对象, 则还需要实现 createValidate / updateValidate 方法
     * 所有入参校验应该在 trigger 层完成, 避免在 domain 层重复校验
 
 ### 4.2 安全 / 鉴权规则
