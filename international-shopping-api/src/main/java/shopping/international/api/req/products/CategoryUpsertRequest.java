@@ -1,15 +1,14 @@
 package shopping.international.api.req.products;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
-import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.Verifiable;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 分类创建或更新请求体 ( CategoryUpsertRequest )
@@ -17,14 +16,18 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
  * <p>管理端用于新增或修改商品分类的基础信息以及可选的多语言覆盖</p>
  */
 @Data
-public class CategoryUpsertRequest {
+@NoArgsConstructor
+@AllArgsConstructor
+public class CategoryUpsertRequest implements Verifiable {
     /**
      * 分类名称
      */
+    @Nullable
     private String name;
     /**
      * 路由 slug
      */
+    @Nullable
     private String slug;
     /**
      * 父级分类 ID ( 根为 null )
@@ -37,11 +40,6 @@ public class CategoryUpsertRequest {
     @Nullable
     private Integer sortOrder;
     /**
-     * 默认品牌文案 ( 可空 )
-     */
-    @Nullable
-    private String brand;
-    /**
      * 是否启用 ( 默认 true )
      */
     @Nullable
@@ -53,32 +51,39 @@ public class CategoryUpsertRequest {
     private List<CategoryI18nPayload> i18n;
 
     /**
-     * 入参规范化与校验
+     * 验证并规范化当前对象的字段
      *
-     * @throws IllegalParamException 当必填字段缺失或重复 locale 时抛出
+     * <p>此方法用于确保 {@code sortOrder} 字段存在一个默认值 0, 如果其为空则设置为 0;
+     * 同时确保 {@code isEnabled} 字段为布尔值, 如果其为空则设置为 true</p>
      */
     public void validate() {
-        requireNotBlank(name, "分类名称不能为空");
-        name = name.strip();
-        requireNotBlank(slug, "分类 slug 不能为空");
-        slug = slug.strip();
-        if (sortOrder == null)
-            sortOrder = 0;
-        if (brand != null)
-            brand = brand.strip();
+        sortOrder = sortOrder == null ? 0 : sortOrder;
+        isEnabled = isEnabled == null || isEnabled;
+    }
 
-        if (i18n == null)
-            return;
-        List<CategoryI18nPayload> normalized = new ArrayList<>();
-        Set<String> locales = new LinkedHashSet<>();
-        for (CategoryI18nPayload payload : i18n) {
-            if (payload == null)
-                continue;
-            payload.validate();
-            if (!locales.add(payload.getLocale()))
-                throw new IllegalParamException("重复的多语言 locale");
-            normalized.add(payload);
-        }
-        this.i18n = normalized;
+    /**
+     * 调用 {@link #validate()} 方法来验证当前对象是否符合预定义的规则或条件
+     *
+     * @throws IllegalArgumentException 如果验证失败, 表示当前对象不符合要求, 异常信息将提供具体的错误详情
+     */
+    @Override
+    public void createValidate() {
+        validate();
+        name = normalizeNotNullField(name, "分类名称不能为空", s -> s.length() <= 64, "分类名称长度不能超过 64 个字符");
+        slug = normalizeNotNullField(slug, "分类 slug 不能为空", s -> s.length() <= 64, "分类 slug 长度不能超过 64 个字符");
+        i18n = normalizeDistinctList(i18n, CategoryI18nPayload::createValidate, CategoryI18nPayload::getLocale, "重复的多语言 locale");
+    }
+
+    /**
+     * 调用 {@link #validate()} 方法来验证当前对象在更新操作前是否符合预定义的规则或条件
+     *
+     * @throws IllegalArgumentException 如果验证失败, 表示当前对象不符合要求, 异常信息将提供具体的错误详情
+     */
+    @Override
+    public void updateValidate() {
+        validate();
+        name = normalizeNullableField(name, "分类名称不能为空", s -> s.length() <= 64, "分类名称长度不能超过 64 个字符");
+        slug = normalizeNullableField(slug, "分类 slug 不能为空", s -> s.length() <= 64, "分类 slug 长度不能超过 64 个字符");
+        i18n = normalizeDistinctList(i18n, CategoryI18nPayload::updateValidate, CategoryI18nPayload::getLocale, "重复的多语言 locale");
     }
 }

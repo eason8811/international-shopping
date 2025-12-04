@@ -6,7 +6,6 @@ import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.math.BigDecimal;
-import java.util.regex.Pattern;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -44,9 +43,8 @@ public class ProductPriceUpsertRequest implements Verifiable {
      */
     @Override
     public void validate() {
-        requireNotBlank(currency, "价格币种不能为空");
-        currency = currency.strip().toUpperCase();
-        require(Pattern.matches("^[A-Z]{3}$", currency), "价格币种格式不合法, 需要 3 位大写字母");
+        currency = normalizeNotNullField(currency, "价格币种不能为空", s -> true, "价格币种格式不合法, 需要 3 位大写字母");
+        currency = normalizeCurrency(currency);
     }
 
     /**

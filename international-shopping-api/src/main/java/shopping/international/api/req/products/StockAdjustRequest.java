@@ -4,14 +4,16 @@ import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.products.StockAdjustMode;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.Verifiable;
 
+import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 库存调整请求 StockAdjustRequest
  */
 @Data
-public class StockAdjustRequest {
+public class StockAdjustRequest implements Verifiable {
     /**
      * 调整模式, 支持设置/增加/减少
      */
@@ -40,10 +42,6 @@ public class StockAdjustRequest {
         } else if (quantity <= 0)
             throw new IllegalParamException("库存变更数量必须大于 0");
 
-        if (reason != null) {
-            reason = reason.strip();
-            if (reason.length() > 255)
-                throw new IllegalParamException("库存调整原因长度不能超过 255 个字符");
-        }
+        reason = normalizeNullableField(reason, "库存调整原因不能为空", r -> r.length() <= 255, "库存调整原因长度不能超过 255 个字符");
     }
 }

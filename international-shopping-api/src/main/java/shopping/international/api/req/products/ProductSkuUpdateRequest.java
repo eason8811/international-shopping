@@ -59,12 +59,12 @@ public class ProductSkuUpdateRequest {
      * @throws IllegalParamException 当字段非法时抛出 IllegalParamException
      */
     public void validate() {
-        requirePatchField(skuCode, "SKU 编码不能为空", s -> s.length() <= 64, "SKU 编码长度不能超过 64 个字符");
+        normalizeNullableField(skuCode, "SKU 编码不能为空", s -> s.length() <= 64, "SKU 编码长度不能超过 64 个字符");
         if (stock != null)
             require(stock >= 0, "SKU 库存不能为负数");
         if (weight != null)
             require(weight.compareTo(BigDecimal.ZERO) >= 0, "SKU 重量不能为负数");
-        barcode = requirePatchField(barcode, "SKU 条码不能为空", s -> s.length() <= 64, "SKU 条码长度不能超过 64 个字符");
-        images = requireNormalizedList(images);
+        barcode = normalizeNullableField(barcode, "SKU 条码不能为空", s -> s.length() <= 64, "SKU 条码长度不能超过 64 个字符");
+        images = normalizeFieldList(images, ProductImagePayload::updateValidate);
     }
 }

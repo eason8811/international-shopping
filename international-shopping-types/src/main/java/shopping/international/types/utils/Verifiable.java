@@ -14,7 +14,7 @@ public interface Verifiable {
     void validate();
 
     /**
-     * 调用 {@link #validate()} 方法来验证当前对象是否符合预定义的规则或条件
+     * 默认调用 {@link #validate()} 方法来验证当前对象是否符合预定义的规则或条件
      *
      * @throws IllegalArgumentException 如果验证失败, 表示当前对象不符合要求, 异常信息将提供具体的错误详情
      */
@@ -23,7 +23,7 @@ public interface Verifiable {
     }
 
     /**
-     * 调用 {@link #validate()} 方法来验证当前对象在更新操作前是否符合预定义的规则或条件
+     * 默认调用 {@link #validate()} 方法来验证当前对象在更新操作前是否符合预定义的规则或条件
      *
      * @throws IllegalArgumentException 如果验证失败, 表示当前对象不符合要求, 异常信息将提供具体的错误详情
      */

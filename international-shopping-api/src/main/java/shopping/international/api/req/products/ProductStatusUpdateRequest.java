@@ -3,6 +3,7 @@ package shopping.international.api.req.products;
 import lombok.Data;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.Verifiable;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
@@ -10,7 +11,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
  * 商品状态更新请求 (ProductStatusUpdateRequest)
  */
 @Data
-public class ProductStatusUpdateRequest {
+public class ProductStatusUpdateRequest implements Verifiable {
     /**
      * 目标商品状态
      */

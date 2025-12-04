@@ -4,11 +4,9 @@ import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.Verifiable;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -18,10 +16,11 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * <p>仅更新规格基础信息, 规格值通过专用接口维护</p>
  */
 @Data
-public class ProductSpecUpsertRequest {
+public class ProductSpecUpsertRequest implements Verifiable {
     /**
      * 规格 ID, 更新时可选
      */
+    @Nullable
     private Long specId;
     /**
      * 规格编码
@@ -50,73 +49,60 @@ public class ProductSpecUpsertRequest {
     private List<ProductSpecI18nPayload> i18nList;
 
     /**
-     * 执行新增规格时的验证, 确保所有必填字段均被正确设置且符合业务规则
+     * 验证当前对象是否符合预定义的规则或条件
      *
-     * <p>此方法用于在创建新的规格时进行数据校验. 它会检查以下几点:
-     * <ul>
-     *     <li>规格 ID 不能被指定</li>
-     *     <li>规格编码和名称不能为空, 并且长度不能超过 64 个字符</li>
-     *     <li>规格类型和是否必选字段必须被设置</li>
-     *     <li>规格多语言列表需要通过 {@link #normalizeI18nList()} 方法进行规范化</li>
-     * </ul>
+     * <p>此方法用于确保对象的状态或属性满足特定的要求, 如果验证失败, 则可能抛出异常来指示问题所在</p>
      *
-     * @throws IllegalParamException 如果上述任一条件未满足, 将抛出此异常
+     * @throws IllegalArgumentException 如果对象不符合要求, 该异常包含了具体的错误信息
      */
-    public void createValidate() {
-        require(specId == null, "新增时规格 ID 不能指定");
-        specCode = requireCreateField(specCode, "规格编码不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
-        specName = requireCreateField(specName, "规格名称不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
-        require(specType != null, "规格类型不能为空");
-        require(isRequired != null, "是否必选不能为空");
-        normalizeI18nList();
+    @Override
+    public void validate() {
+        i18nList = normalizeDistinctList(i18nList, ProductSpecI18nPayload::getLocale, "规格多语言 locale 不可重复");
     }
 
     /**
-     * 执行规格更新时的验证, 确保所有必填字段均被正确设置且符合业务规则
+     * 在创建新规格时执行验证, 确保所有必要的字段符合业务规则
      *
-     * <p>此方法用于在更新现有规格时进行数据校验. 它会检查以下几点:
+     * <p>此方法用于在新增规格信息时进行数据校验. 它会检查以下几点:
      * <ul>
-     *     <li>规格 ID 必须存在且为正数</li>
-     *     <li>规格编码和名称如果提供, 则长度不能超过 64 个字符</li>
-     *     <li>规格类型如果未指定, 则默认为 {@link SpecType#OTHER}</li>
-     *     <li>是否必选字段如果没有指定, 则默认为 <code>true</code></li>
-     *     <li>规格多语言列表需要通过 {@link #normalizeI18nList()} 方法进行规范化</li>
+     *     <li>规格 ID 不能被指定</li>
+     *     <li>规格类型不能为空</li>
+     *     <li>是否必选字段不能为空</li>
      * </ul>
+     * 之后调用 {@link #validate()} 方法来进一步验证其他字段.
      *
-     * @throws IllegalParamException 如果上述任一条件未满足, 将抛出此异常
+     * @throws IllegalParamException    如果上述条件未满足, 将抛出此异常
+     * @throws IllegalArgumentException 如果其他字段不符合要求, 该异常包含了具体的错误信息
      */
+    @Override
+    public void createValidate() {
+        require(specId == null, "新增时规格 ID 不能指定");
+        specCode = normalizeNotNullField(specCode, "规格编码不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
+        specName = normalizeNotNullField(specName, "规格名称不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
+        requireNotNull(specType, "规格类型不能为空");
+        requireNotNull(isRequired, "是否必选不能为空");
+        validate();
+    }
+
+    /**
+     * 在更新规格时执行验证, 确保所有必要的字段符合业务规则
+     *
+     * <p>此方法用于在更新规格信息时进行数据校验. 它会检查以下几点:
+     * <ul>
+     *     <li>规格 ID 必须被指定且不为空</li>
+     *     <li>规格 ID 必须大于 0</li>
+     * </ul>
+     * 之后调用 {@link #validate()} 方法来进一步验证其他字段.
+     *
+     * @throws IllegalParamException    如果规格 ID 未满足上述条件, 将抛出此异常
+     * @throws IllegalArgumentException 如果其他字段不符合要求, 该异常包含了具体的错误信息
+     */
+    @Override
     public void updateValidate() {
         requireNotNull(specId, "规格 ID 不能为空");
         require(specId > 0, "规格 ID 非法");
-        specCode = requirePatchField(specCode, "specCode 不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
-        specName = requirePatchField(specName, "specName 不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
-        specType = specType == null ? SpecType.OTHER : specType;
-        isRequired = isRequired == null || isRequired;
-        normalizeI18nList();
-    }
-
-    /**
-     * 校验并规范化规格多语言列表
-     *
-     * <p>此方法确保 {@code i18nList} 中的每个元素都经过了验证, 并且所有 locale 值都是唯一的. 如果 {@code i18nList} 为 null, 则将其初始化为空列表. 方法内部会遍历给定的多语言列表, 对每个元素调用其 validate 方法进行校验, 同时检查是否存在重复的 locale 值, 存在则抛出异常.</p>
-     *
-     * @throws IllegalParamException 当存在重复的 locale 或者某个 ProductSpecI18nPayload 实例无法通过其自身的校验时抛出
-     */
-    private void normalizeI18nList() {
-        if (i18nList == null) {
-            i18nList = List.of();
-            return;
-        }
-        List<ProductSpecI18nPayload> normalized = new ArrayList<>();
-        Set<String> locales = new LinkedHashSet<>();
-        for (ProductSpecI18nPayload payload : i18nList) {
-            if (payload == null)
-                continue;
-            payload.validate();
-            if (!locales.add(payload.getLocale()))
-                throw new IllegalParamException("规格多语言 locale 不可重复");
-            normalized.add(payload);
-        }
-        i18nList = normalized;
+        specCode = normalizeNullableField(specCode, "规格编码不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
+        specName = normalizeNullableField(specName, "规格名称不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
+        validate();
     }
 }

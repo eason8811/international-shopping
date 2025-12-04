@@ -49,12 +49,34 @@ public class ProductSkuSpecUpsertRequest implements Verifiable {
     public void validate() {
         requireNotNull(specId, "规格 ID 不能为空");
         require(specId > 0, "规格 ID 非法");
+        requireNotBlank(specCode, "规格编码不能为空");
+        normalizeNullableField(specCode, "specCode 不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
+        normalizeNullableField(specName, "specName 不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
+        normalizeNullableField(valueCode, "规格值编码不能为空", s -> s.length() <= 64, "规格值编码长度不能超过 64 个字符");
+        normalizeNullableField(valueName, "规格值名称不能为空", s -> s.length() <= 64, "规格值名称长度不能超过 64 个字符");
+    }
+
+    /**
+     * 默认调用 {@link #validate()} 方法来验证当前对象是否符合预定义的规则或条件
+     *
+     * @throws IllegalArgumentException 如果验证失败, 表示当前对象不符合要求, 异常信息将提供具体的错误详情
+     */
+    @Override
+    public void createValidate() {
+        validate();
         requireNotNull(valueId, "规格值 ID 不能为空");
         require(valueId > 0, "规格值 ID 非法");
-        requireNotBlank(specCode, "规格编码不能为空");
-        requirePatchField(specCode, "specCode 不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
-        requirePatchField(specName, "specName 不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
-        requirePatchField(valueCode, "规格值编码不能为空", s -> s.length() <= 64, "规格值编码长度不能超过 64 个字符");
-        requirePatchField(valueName, "规格值名称不能为空", s -> s.length() <= 64, "规格值名称长度不能超过 64 个字符");
+    }
+
+    /**
+     * 默认调用 {@link #validate()} 方法来验证当前对象在更新操作前是否符合预定义的规则或条件
+     *
+     * @throws IllegalArgumentException 如果验证失败, 表示当前对象不符合要求, 异常信息将提供具体的错误详情
+     */
+    @Override
+    public void updateValidate() {
+        validate();
+        if (valueId != null)
+            require(valueId > 0, "规格值 ID 非法");
     }
 }

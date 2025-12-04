@@ -181,48 +181,57 @@ public final class FieldValidateUtils {
     }
 
     /**
-     * 校验并处理给定的补丁字段, 确保其满足特定条件
+     * 规范化可为空的字段, 确保其不为 null 且满足特定条件
      *
-     * <p>该方法会执行以下验证和处理步骤:</p>
+     * <p>该方法会执行以下操作:</p>
      * <ul>
-     *     <li>去除首尾空白字符</li>
-     *     <li>确保字段不为空白, 如果为空白则抛出异常</li>
-     *     <li>使用提供的函数 {@code okFunc} 来进一步校验字段, 如果校验失败则抛出异常</li>
+     *     <li>如果字段为 <code>null</code>, 直接返回 <code>null</code></li>
+     *     <li>去除字段首尾空白字符</li>
+     *     <li>确保字段既不为 <code>null</code> 也不为空白, 否则抛出 {@link IllegalParamException} 异常</li>
+     *     <li>通过提供的函数验证字段, 如果不满足条件则抛出 {@link IllegalParamException} 异常</li>
+     *     <li>如果字段为空白, 返回 <code>null</code>; 否则返回规范化后的字段</li>
      * </ul>
      *
-     * @param patchFiled 待检查和处理的补丁字段
-     * @param blankMsg   当 <code>patchFiled</code> 为空白时, 抛出异常的信息
-     * @param okFunc     用于判断 <code>patchFiled</code> 是否有效的函数, 接受一个字符串参数并返回布尔值
-     * @param msg        当 <code>okFunc</code> 返回 <code>false</code> 时, 抛出异常的信息
-     * @return 处理后的补丁字段, 去除首尾空白字符后的字符串, 如果为空白则返回 null
-     * @throws IllegalParamException 如果 <code>patchFiled</code> 为 <code>null</code>, 或者 <code>okFunc</code> 返回 <code>false</code>
+     * @param nullableField 待处理的字段, 可以为 <code>null</code>
+     * @param blankMsg      当字段为空白时, 抛出异常的信息
+     * @param okFunc        用于验证字段是否满足特定条件的函数
+     * @param msg           当字段不满足 <code>okFunc</code> 条件时, 抛出异常的信息
+     * @return 规范化后的字段, 如果字段为空白则返回 <code>null</code>
+     * @throws IllegalParamException 如果字段为空白或不满足 <code>okFunc</code> 条件
      */
-    public static String requirePatchField(String patchFiled, String blankMsg, Function<String, Boolean> okFunc, String msg) {
-        if (patchFiled != null) {
-            patchFiled = patchFiled.strip();
-            requireNotBlank(patchFiled, blankMsg);
-            require(okFunc.apply(patchFiled), msg);
-            return patchFiled.isBlank() ? null : patchFiled;
+    public static String normalizeNullableField(String nullableField, String blankMsg, Function<String, Boolean> okFunc, String msg) {
+        if (nullableField != null) {
+            nullableField = nullableField.strip();
+            requireNotBlank(nullableField, blankMsg);
+            require(okFunc.apply(nullableField), msg);
+            return nullableField;
         }
-        return patchFiled;
+        return nullableField;
     }
 
     /**
-     * 确保给定的创建字段满足特定条件, 如果不满足则抛出异常
+     * 规范化并验证一个非空字段, 确保其不为空且满足特定条件
      *
-     * @param createFiled 待检查的创建字段
-     * @param nullMsg     当 <code>createFiled</code> 为 <code>null</code> 时, 抛出异常的信息
-     * @param okFunc      用于判断 <code>createFiled</code> 是否有效的函数, 接受一个字符串参数并返回布尔值
-     * @param notOkMsg    当 <code>okFunc</code> 返回 <code>false</code> 时, 抛出异常的信息
-     * @return 处理后的创建字段, 去除首尾空白字符后的字符串
-     * @throws IllegalParamException 如果 <code>createFiled</code> 为 <code>null</code>, 或者 <code>okFunc</code> 返回 <code>false</code>
+     * <p>该方法会执行以下操作:</p>
+     * <ul>
+     *     <li>去除字段首尾空白字符</li>
+     *     <li>确保字段既不为 <code>null</code> 也不为空白, 否则抛出 {@link IllegalParamException} 异常</li>
+     *     <li>通过提供的函数验证字段, 如果不满足条件则抛出 {@link IllegalParamException} 异常</li>
+     * </ul>
+     *
+     * @param notNullField 待处理的字段, 必须不为 <code>null</code>
+     * @param blankMsg     当字段为空白时, 抛出异常的信息
+     * @param okFunc       用于验证字段是否满足特定条件的函数
+     * @param notOkMsg     当字段不满足 <code>okFunc</code> 条件时, 抛出异常的信息
+     * @return 规范化后的字段
+     * @throws IllegalParamException 如果字段为空白或不满足 <code>okFunc</code> 条件
      */
     @NotNull
-    public static String requireCreateField(String createFiled, String nullMsg, @NotNull Function<String, Boolean> okFunc, String notOkMsg) {
-        requireNotNull(createFiled, nullMsg);
-        createFiled = createFiled.strip();
-        require(okFunc.apply(createFiled), notOkMsg);
-        return createFiled;
+    public static String normalizeNotNullField(String notNullField, String blankMsg, @NotNull Function<String, Boolean> okFunc, String notOkMsg) {
+        requireNotBlank(notNullField, blankMsg);
+        notNullField = notNullField.strip();
+        require(okFunc.apply(notNullField), notOkMsg);
+        return notNullField;
     }
 
     /**
@@ -241,8 +250,8 @@ public final class FieldValidateUtils {
      * @throws IllegalArgumentException 如果列表中的任何元素在验证过程中失败, 将抛出此异常, 异常信息将提供具体的错误详情
      */
     @NotNull
-    public static <T extends Verifiable> List<T> requireNormalizedList(List<T> fieldList) {
-        return requireNormalizedList(fieldList, Verifiable::validate);
+    public static <T extends Verifiable> List<T> normalizeFieldList(List<T> fieldList) {
+        return normalizeFieldList(fieldList, Verifiable::validate);
     }
 
     /**
@@ -262,7 +271,7 @@ public final class FieldValidateUtils {
      * @throws IllegalArgumentException 如果列表中的任何元素在验证过程中失败, 将抛出此异常, 异常信息将提供具体的错误详情
      */
     @NotNull
-    public static <T extends Verifiable> List<T> requireNormalizedList(List<T> fieldList, Consumer<T> validateFunc) {
+    public static <T extends Verifiable> List<T> normalizeFieldList(List<T> fieldList, Consumer<T> validateFunc) {
         if (fieldList == null || fieldList.isEmpty())
             return Collections.emptyList();
         return fieldList.stream()
@@ -276,9 +285,9 @@ public final class FieldValidateUtils {
      *
      * <p>该方法会执行以下操作:</p>
      * <ul>
-     *     <li>如果输入列表为 <code>null</code> 或空, 则返回一个空列表</li>
-     *     <li>过滤掉列表中的所有 <code>null</code> 值</li>
-     *     <li>对列表中剩余的每个非 <code>null</code> 元素调用其 {@link Verifiable#validate()} 方法来确保它们符合预定义的规则或条件</li>
+     *     <li>如果输入列表为 {@code null} 或空, 则返回一个空列表</li>
+     *     <li>过滤掉列表中的所有 {@code null} 值</li>
+     *     <li>对列表中剩余的每个非 {@code null} 元素调用 {@link Verifiable#validate()} 方法来确保它们符合预定义的规则或条件</li>
      *     <li>使用提供的键函数 {@code distinctKeyFunc} 来提取每个元素的唯一标识, 并检查这些标识是否唯一</li>
      * </ul>
      *
@@ -286,12 +295,12 @@ public final class FieldValidateUtils {
      * @param fieldList       待处理的列表, 其元素需要实现 {@link Verifiable} 接口
      * @param distinctKeyFunc 用于从每个元素中提取唯一标识的函数
      * @param duplicateMsg    如果列表中存在重复元素, 抛出异常时使用的错误信息
-     * @return 一个新的列表, 包含了经过验证且非 <code>null</code> 的元素, 并且这些元素基于提供的键函数是唯一的
+     * @return 一个新的列表, 包含了经过验证且非 {@code null} 的元素, 并且这些元素基于提供的键函数是唯一的
      * @throws IllegalParamException 如果列表中存在基于提供的键函数不唯一的元素
      */
     @NotNull
-    public static <T extends Verifiable> List<T> requireDistinctNormalizedList(List<T> fieldList, Function<T, Object> distinctKeyFunc, String duplicateMsg) {
-        return requireDistinctNormalizedList(fieldList, Verifiable::validate, distinctKeyFunc, duplicateMsg);
+    public static <T extends Verifiable> List<T> normalizeDistinctList(List<T> fieldList, Function<T, Object> distinctKeyFunc, String duplicateMsg) {
+        return normalizeDistinctList(fieldList, Verifiable::validate, distinctKeyFunc, duplicateMsg);
     }
 
     /**
@@ -314,7 +323,7 @@ public final class FieldValidateUtils {
      * @throws IllegalParamException 如果列表中存在基于提供的键函数不唯一的元素
      */
     @NotNull
-    public static <T extends Verifiable> List<T> requireDistinctNormalizedList(List<T> fieldList, Consumer<T> validateFunc, Function<T, Object> distinctKeyFunc, String duplicateMsg) {
+    public static <T extends Verifiable> List<T> normalizeDistinctList(List<T> fieldList, Consumer<T> validateFunc, Function<T, Object> distinctKeyFunc, String duplicateMsg) {
         if (fieldList == null || fieldList.isEmpty())
             return Collections.emptyList();
         Set<Object> distinctKeys = fieldList.stream()

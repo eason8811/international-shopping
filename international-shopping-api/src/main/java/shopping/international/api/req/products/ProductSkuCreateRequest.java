@@ -69,7 +69,7 @@ public class ProductSkuCreateRequest {
     public void validate() {
         requireNotNull(id, "SKU ID 不能为空");
         require(id > 0, "SKU ID 必须大于 0");
-        skuCode = requireCreateField(skuCode, "SKU 编码不能为空", c -> c.length() <= 64, "SKU 编码长度不能超过 64 个字符");
+        skuCode = normalizeNotNullField(skuCode, "SKU 编码不能为空", c -> c.length() <= 64, "SKU 编码长度不能超过 64 个字符");
 
         requireNotNull(stock, "SKU 库存不能为空");
         require(stock >= 0, "SKU 库存不能为负数");
@@ -77,19 +77,20 @@ public class ProductSkuCreateRequest {
             require(weight.compareTo(BigDecimal.ZERO) >= 0, "SKU 重量不能为负数");
         requireNotNull(status, "SKU 状态不能为空");
         isDefault = isDefault != null && isDefault;
-        barcode = requirePatchField(barcode, "barcode 不能为空", c -> c.length() <= 64, "SKU 条码长度不能超过 64 个字符");
+        barcode = normalizeNullableField(barcode, "barcode 不能为空", c -> c.length() <= 64, "SKU 条码长度不能超过 64 个字符");
 
-        price = requireDistinctNormalizedList(
+        price = normalizeDistinctList(
                 price,
                 ProductPriceUpsertRequest::createValidate,
                 ProductPriceUpsertRequest::getCurrency,
                 "同一 SKU 的价格币种不可重复"
         );
-        specs = requireDistinctNormalizedList(
+        specs = normalizeDistinctList(
                 specs,
+                ProductSkuSpecUpsertRequest::createValidate,
                 ProductSkuSpecUpsertRequest::getSpecCode,
                 "同一 SKU 的规格编码不可重复"
         );
-        images = requireNormalizedList(images);
+        images = normalizeFieldList(images, ProductImagePayload::createValidate);
     }
 }
