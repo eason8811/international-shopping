@@ -2,14 +2,13 @@ package shopping.international.api.resp.products;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.vo.products.ProductDetail;
 import shopping.international.domain.model.vo.products.ProductI18n;
-import shopping.international.domain.model.vo.products.ProductSkuSpec;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -19,84 +18,40 @@ import java.util.List;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
-public class AdminProductDetailRespond {
-    /**
-     * 商品 ID
-     */
-    private Long id;
-    /**
-     * 商品 slug
-     */
-    private String slug;
-    /**
-     * 商品标题
-     */
-    private String title;
-    /**
-     * 商品副标题
-     */
-    private String subtitle;
-    /**
-     * 商品描述
-     */
-    private String description;
-    /**
-     * 分类 ID
-     */
-    private Long categoryId;
-    /**
-     * 分类 slug
-     */
-    private String categorySlug;
-    /**
-     * 品牌文案
-     */
-    private String brand;
-    /**
-     * 封面图地址
-     */
-    private String coverImageUrl;
-    /**
-     * 聚合库存
-     */
-    private Integer stockTotal;
-    /**
-     * 销量
-     */
-    private Integer saleCount;
-    /**
-     * SKU 类型
-     */
-    private SkuType skuType;
-    /**
-     * 商品状态
-     */
-    private ProductStatus status;
-    /**
-     * 标签列表
-     */
-    private List<String> tags;
-    /**
-     * 默认 SKU ID
-     */
-    private Long defaultSkuId;
-    /**
-     * 商品图片
-     */
-    private List<ProductImageRespond> gallery;
-    /**
-     * 规格列表
-     */
-    private List<AdminSpecRespond> specs;
-    /**
-     * SKU 列表
-     */
-    private List<ProductSkuRespond> skus;
+@EqualsAndHashCode(callSuper = true)
+public class AdminProductDetailRespond extends AbstractProductDetailRespond {
     /**
      * 商品多语言列表
      */
     private List<ProductI18nRespond> i18nList;
+
+    /**
+     * 构造函数, 用于初始化管理端商品详情响应对象
+     *
+     * @param id            商品 ID
+     * @param slug          商品标识符, 通常为 URL 友好的字符串
+     * @param title         商品标题
+     * @param subtitle      商品副标题
+     * @param description   商品描述
+     * @param categoryId    商品分类 ID
+     * @param categorySlug  商品分类标识符
+     * @param brand         品牌名称
+     * @param coverImageUrl 封面图片 URL
+     * @param stockTotal    总库存量
+     * @param saleCount     销售数量
+     * @param skuType       {@link SkuType} 商品规格类型
+     * @param status        {@link ProductStatus} 商品状态
+     * @param tags          标签列表
+     * @param defaultSkuId  默认 SKU ID
+     * @param gallery       商品图片列表
+     * @param specs         商品规格信息列表
+     * @param skus          商品 SKU 列表
+     * @param i18nList      商品多语言信息列表
+     */
+    private AdminProductDetailRespond(Long id, String slug, String title, String subtitle, String description, Long categoryId, String categorySlug, String brand, String coverImageUrl, Integer stockTotal, Integer saleCount, SkuType skuType, ProductStatus status, List<String> tags, Long defaultSkuId, List<ProductImageRespond> gallery, List<? extends AbstractSpecRespond> specs, List<ProductSkuRespond> skus, List<ProductI18nRespond> i18nList) {
+        super(id, slug, title, subtitle, description, categoryId, categorySlug, brand, coverImageUrl, stockTotal, saleCount, skuType, status, tags, defaultSkuId, gallery, specs, skus);
+        this.i18nList = i18nList;
+    }
 
     /**
      * 构建管理端商品详情响应
@@ -134,81 +89,6 @@ public class AdminProductDetailRespond {
                 productSkuResponds,
                 i18nResponds
         );
-    }
-
-    /**
-     * SKU 价格响应 ProductPriceRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ProductPriceRespond {
-        /**
-         * 币种
-         */
-        private String currency;
-        /**
-         * 标价
-         */
-        private BigDecimal listPrice;
-        /**
-         * 促销价
-         */
-        private BigDecimal salePrice;
-        /**
-         * 是否启用
-         */
-        private Boolean isActive;
-    }
-
-    /**
-     * SKU 规格绑定响应 ProductSkuSpecRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ProductSkuSpecRespond {
-        /**
-         * 规格 ID
-         */
-        private Long specId;
-        /**
-         * 规格编码
-         */
-        private String specCode;
-        /**
-         * 规格名称
-         */
-        private String specName;
-        /**
-         * 规格值 ID
-         */
-        private Long valueId;
-        /**
-         * 规格值编码
-         */
-        private String valueCode;
-        /**
-         * 规格值名称
-         */
-        private String valueName;
-
-        /**
-         * 从规格绑定实体构建响应
-         *
-         * @param spec 规格绑定实体
-         * @return 规格绑定响应
-         */
-        public static ProductSkuSpecRespond from(ProductSkuSpec spec) {
-            return new ProductSkuSpecRespond(
-                    spec.getSpecId(),
-                    spec.getSpecCode(),
-                    spec.getSpecName(),
-                    spec.getValueId(),
-                    spec.getValueCode(),
-                    spec.getValueName()
-            );
-        }
     }
 
     /**

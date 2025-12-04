@@ -1,17 +1,15 @@
 package shopping.international.api.resp.products;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductDetail;
-import shopping.international.domain.model.vo.products.ProductSkuSpec;
 import shopping.international.domain.model.vo.products.ProductSpecValue;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -21,80 +19,33 @@ import java.util.List;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
-public class PublicProductDetailRespond {
+@EqualsAndHashCode(callSuper = true)
+public class PublicProductDetailRespond extends AbstractProductDetailRespond {
     /**
-     * 商品 ID
+     * 构造一个公共商品详情响应对象, 用于展示给用户侧的商品详细信息
+     *
+     * @param id            商品 ID
+     * @param slug          商品别名, 通常用于 URL 中
+     * @param title         商品标题
+     * @param subtitle      商品副标题
+     * @param description   商品描述
+     * @param categoryId    商品所属分类 ID
+     * @param categorySlug  商品所属分类的别名
+     * @param brand         品牌名称
+     * @param coverImageUrl 封面图片 URL
+     * @param stockTotal    总库存量
+     * @param saleCount     销售数量
+     * @param skuType       {@link SkuType} 商品规格类型, 单或多规格
+     * @param status        {@link ProductStatus} 商品状态, 如草稿、上架等
+     * @param tags          标签列表, 用于标识商品特性
+     * @param defaultSkuId  默认 SKU ID
+     * @param gallery       商品图库, 包含多个 {@link ProductImageRespond} 对象
+     * @param specs         规格列表, 每个元素都是 {@code AbstractSpecRespond} 的子类实例
+     * @param skus          SKU 列表, 包含多个 {@link ProductSkuRespond} 对象
      */
-    private Long id;
-    /**
-     * 商品 slug
-     */
-    private String slug;
-    /**
-     * 商品标题
-     */
-    private String title;
-    /**
-     * 商品副标题
-     */
-    private String subtitle;
-    /**
-     * 商品描述
-     */
-    private String description;
-    /**
-     * 分类 ID
-     */
-    private Long categoryId;
-    /**
-     * 分类 slug
-     */
-    private String categorySlug;
-    /**
-     * 品牌文案
-     */
-    private String brand;
-    /**
-     * 封面图
-     */
-    private String coverImageUrl;
-    /**
-     * 库存总量
-     */
-    private Integer stockTotal;
-    /**
-     * 销量
-     */
-    private Integer saleCount;
-    /**
-     * SKU 类型
-     */
-    private SkuType skuType;
-    /**
-     * 商品状态
-     */
-    private ProductStatus status;
-    /**
-     * 标签列表
-     */
-    private List<String> tags;
-    /**
-     * 默认 SKU ID
-     */
-    private Long defaultSkuId;
-    /**
-     * 商品图库
-     */
-    private List<ProductImageRespond> gallery;
-    /**
-     * 规格列表
-     */
-    private List<PublicSpecRespond> specs;
-    /**
-     * SKU 列表
-     */
-    private List<ProductSkuRespond> skus;
+    private PublicProductDetailRespond(Long id, String slug, String title, String subtitle, String description, Long categoryId, String categorySlug, String brand, String coverImageUrl, Integer stockTotal, Integer saleCount, SkuType skuType, ProductStatus status, List<String> tags, Long defaultSkuId, List<ProductImageRespond> gallery, List<? extends AbstractSpecRespond> specs, List<ProductSkuRespond> skus) {
+        super(id, slug, title, subtitle, description, categoryId, categorySlug, brand, coverImageUrl, stockTotal, saleCount, skuType, status, tags, defaultSkuId, gallery, specs, skus);
+    }
 
     /**
      * 构建用户侧商品详情响应
@@ -139,32 +90,21 @@ public class PublicProductDetailRespond {
      */
     @Data
     @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PublicSpecRespond {
+    @EqualsAndHashCode(callSuper = true)
+    public static class PublicSpecRespond extends AbstractSpecRespond {
         /**
-         * 规格 ID
+         * 构造一个 PublicSpecRespond 实例, 用于表示用户侧规格响应
+         *
+         * @param specId     规格 ID
+         * @param specCode   规格代码
+         * @param specName   规格名称
+         * @param specType   规格类型, 可以是 {@code COLOR}, {@code SIZE}, {@code CAPACITY}, {@code MATERIAL} 或 {@code OTHER}
+         * @param isRequired 是否为必填规格
+         * @param values     规格值列表, 其中每个元素都是 {@link AbstractSpecValueRespond} 的子类实例
          */
-        private Long specId;
-        /**
-         * 规格编码
-         */
-        private String specCode;
-        /**
-         * 规格名称
-         */
-        private String specName;
-        /**
-         * 规格类型
-         */
-        private SpecType specType;
-        /**
-         * 是否必选
-         */
-        private Boolean isRequired;
-        /**
-         * 规格值列表
-         */
-        private List<PublicSpecValueRespond> values;
+        private PublicSpecRespond(Long specId, String specCode, String specName, SpecType specType, Boolean isRequired, List<? extends AbstractSpecValueRespond> values) {
+            super(specId, specCode, specName, specType, isRequired, values);
+        }
 
         /**
          * 从规格实体构建响应
@@ -192,24 +132,19 @@ public class PublicProductDetailRespond {
      */
     @Data
     @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PublicSpecValueRespond {
+    @EqualsAndHashCode(callSuper = true)
+    public static class PublicSpecValueRespond extends AbstractSpecValueRespond {
         /**
-         * 规格值 ID
+         * 构造一个 PublicSpecValueRespond 实例, 用于表示用户侧规格值响应
+         *
+         * @param valueId    规格值 ID
+         * @param valueCode  规格值代码
+         * @param valueName  规格值名称
+         * @param attributes 规格值属性
          */
-        private Long valueId;
-        /**
-         * 规格值编码
-         */
-        private String valueCode;
-        /**
-         * 规格值名称
-         */
-        private String valueName;
-        /**
-         * 规格值属性
-         */
-        private Object attributes;
+        private PublicSpecValueRespond(Long valueId, String valueCode, String valueName, Object attributes) {
+            super(valueId, valueCode, valueName, attributes);
+        }
 
         /**
          * 从规格值实体构建响应
@@ -224,81 +159,6 @@ public class PublicProductDetailRespond {
                     value.getValueCode(),
                     displayName,
                     value.getAttributes()
-            );
-        }
-    }
-
-    /**
-     * 用户侧价格响应 ProductPriceRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ProductPriceRespond {
-        /**
-         * 币种
-         */
-        private String currency;
-        /**
-         * 标价
-         */
-        private BigDecimal listPrice;
-        /**
-         * 促销价
-         */
-        private BigDecimal salePrice;
-        /**
-         * 是否启用
-         */
-        private Boolean isActive;
-    }
-
-    /**
-     * 用户侧 SKU 规格绑定响应 ProductSkuSpecRespond
-     */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ProductSkuSpecRespond {
-        /**
-         * 规格 ID
-         */
-        private Long specId;
-        /**
-         * 规格编码
-         */
-        private String specCode;
-        /**
-         * 规格名称
-         */
-        private String specName;
-        /**
-         * 规格值 ID
-         */
-        private Long valueId;
-        /**
-         * 规格值编码
-         */
-        private String valueCode;
-        /**
-         * 规格值名称
-         */
-        private String valueName;
-
-        /**
-         * 从规格绑定实体构建响应
-         *
-         * @param spec 规格绑定实体
-         * @return 规格绑定响应
-         */
-        public static ProductSkuSpecRespond from(ProductSkuSpec spec) {
-            return new ProductSkuSpecRespond(
-                    spec.getSpecId(),
-                    spec.getSpecCode(),
-                    spec.getSpecName(),
-                    spec.getValueId(),
-                    spec.getValueCode(),
-                    spec.getValueName()
             );
         }
     }

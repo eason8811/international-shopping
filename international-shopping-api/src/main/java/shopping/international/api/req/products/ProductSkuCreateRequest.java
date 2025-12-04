@@ -6,10 +6,7 @@ import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -82,51 +79,17 @@ public class ProductSkuCreateRequest {
         isDefault = isDefault != null && isDefault;
         barcode = requirePatchField(barcode, "barcode 不能为空", c -> c.length() <= 64, "SKU 条码长度不能超过 64 个字符");
 
-        if (price == null) {
-            price = List.of();
-            return;
-        }
-        List<ProductPriceUpsertRequest> normalizedPriceList = new ArrayList<>();
-        Set<String> currencies = new LinkedHashSet<>();
-        for (ProductPriceUpsertRequest priceItem : price) {
-            if (priceItem == null)
-                continue;
-            priceItem.createValidate();
-            String currency = priceItem.getCurrency() == null ? null : priceItem.getCurrency().strip().toUpperCase();
-            if (currency != null && !currencies.add(currency))
-                throw new IllegalParamException("同一 SKU 的价格币种不可重复");
-            normalizedPriceList.add(priceItem);
-        }
-        price = normalizedPriceList;
-
-        if (specs == null) {
-            specs = List.of();
-            return;
-        }
-        List<ProductSkuSpecUpsertRequest> normalizedSkuSpecList = new ArrayList<>();
-        Set<String> specCodes = new LinkedHashSet<>();
-        for (ProductSkuSpecUpsertRequest spec : specs) {
-            if (spec == null)
-                continue;
-            spec.validate();
-            if (!specCodes.add(spec.getSpecCode()))
-                throw new IllegalParamException("同一 SKU 的规格编码不可重复");
-            normalizedSkuSpecList.add(spec);
-        }
-        specs = normalizedSkuSpecList;
-
-
-        if (images == null) {
-            images = List.of();
-            return;
-        }
-        List<ProductImagePayload> normalizedImageList = new ArrayList<>();
-        for (ProductImagePayload image : images) {
-            if (image == null)
-                continue;
-            image.validate();
-            normalizedImageList.add(image);
-        }
-        images = normalizedImageList;
+        price = requireDistinctNormalizedList(
+                price,
+                ProductPriceUpsertRequest::createValidate,
+                ProductPriceUpsertRequest::getCurrency,
+                "同一 SKU 的价格币种不可重复"
+        );
+        specs = requireDistinctNormalizedList(
+                specs,
+                ProductSkuSpecUpsertRequest::getSpecCode,
+                "同一 SKU 的规格编码不可重复"
+        );
+        images = requireNormalizedList(images);
     }
 }

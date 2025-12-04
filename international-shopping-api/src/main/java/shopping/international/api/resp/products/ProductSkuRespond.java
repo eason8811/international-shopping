@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.entity.products.ProductSku;
 import shopping.international.domain.model.enums.products.SkuStatus;
+import shopping.international.domain.model.vo.products.ProductSkuSpec;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -47,11 +48,11 @@ public class ProductSkuRespond {
     /**
      * 价格列表
      */
-    private List<PublicProductDetailRespond.ProductPriceRespond> price;
+    private List<ProductPriceRespond> price;
     /**
      * 规格绑定
      */
-    private List<PublicProductDetailRespond.ProductSkuSpecRespond> specs;
+    private List<ProductSkuSpecRespond> specs;
     /**
      * 图片列表
      */
@@ -64,22 +65,22 @@ public class ProductSkuRespond {
      * @return SKU 响应
      */
     public static ProductSkuRespond from(ProductSku sku) {
-        List<PublicProductDetailRespond.ProductPriceRespond> priceList = sku.getPrices() == null
+        List<ProductPriceRespond> priceList = sku.getPrices() == null
                 ? List.of()
                 : sku.getPrices()
                 .stream()
                 .map(price ->
-                        new PublicProductDetailRespond.ProductPriceRespond(
+                        new ProductPriceRespond(
                                 price.getCurrency(),
                                 price.getListPrice(),
                                 price.getSalePrice(),
                                 price.isActive()
                         ))
                 .toList();
-        List<PublicProductDetailRespond.ProductSkuSpecRespond> specs = sku.getSpecs() == null
+        List<ProductSkuSpecRespond> specs = sku.getSpecs() == null
                 ? List.of()
                 : sku.getSpecs().stream()
-                .map(PublicProductDetailRespond.ProductSkuSpecRespond::from)
+                .map(ProductSkuSpecRespond::from)
                 .toList();
         List<ProductImageRespond> images = sku.getImages() == null
                 ? List.of()
@@ -98,5 +99,80 @@ public class ProductSkuRespond {
                 specs,
                 images
         );
+    }
+
+    /**
+     * 用户侧价格响应 ProductPriceRespond
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProductPriceRespond {
+        /**
+         * 币种
+         */
+        private String currency;
+        /**
+         * 标价
+         */
+        private BigDecimal listPrice;
+        /**
+         * 促销价
+         */
+        private BigDecimal salePrice;
+        /**
+         * 是否启用
+         */
+        private Boolean isActive;
+    }
+
+    /**
+     * 用户侧 SKU 规格绑定响应 ProductSkuSpecRespond
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProductSkuSpecRespond {
+        /**
+         * 规格 ID
+         */
+        private Long specId;
+        /**
+         * 规格编码
+         */
+        private String specCode;
+        /**
+         * 规格名称
+         */
+        private String specName;
+        /**
+         * 规格值 ID
+         */
+        private Long valueId;
+        /**
+         * 规格值编码
+         */
+        private String valueCode;
+        /**
+         * 规格值名称
+         */
+        private String valueName;
+
+        /**
+         * 从规格绑定实体构建响应
+         *
+         * @param spec 规格绑定实体
+         * @return 规格绑定响应
+         */
+        public static ProductSkuSpecRespond from(ProductSkuSpec spec) {
+            return new ProductSkuSpecRespond(
+                    spec.getSpecId(),
+                    spec.getSpecCode(),
+                    spec.getSpecName(),
+                    spec.getValueId(),
+                    spec.getValueCode(),
+                    spec.getValueName()
+            );
+        }
     }
 }

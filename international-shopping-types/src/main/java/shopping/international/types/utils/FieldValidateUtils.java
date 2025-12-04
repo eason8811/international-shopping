@@ -7,8 +7,10 @@ import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * 字段验证工具类, 当字段不符合要求时抛出 {@link IllegalParamException} 异常
@@ -215,10 +217,115 @@ public final class FieldValidateUtils {
      * @return 处理后的创建字段, 去除首尾空白字符后的字符串
      * @throws IllegalParamException 如果 <code>createFiled</code> 为 <code>null</code>, 或者 <code>okFunc</code> 返回 <code>false</code>
      */
-    public static @NotNull String requireCreateField(String createFiled, String nullMsg, @NotNull Function<String, Boolean> okFunc, String notOkMsg) {
+    @NotNull
+    public static String requireCreateField(String createFiled, String nullMsg, @NotNull Function<String, Boolean> okFunc, String notOkMsg) {
         requireNotNull(createFiled, nullMsg);
         createFiled = createFiled.strip();
         require(okFunc.apply(createFiled), notOkMsg);
         return createFiled;
+    }
+
+    /**
+     * 确保给定的列表被规范化, 即去除所有 <code>null</code> 值并对每个元素进行验证
+     *
+     * <p>该方法会执行以下操作:</p>
+     * <ul>
+     *     <li>如果输入列表为 <code>null</code> 或空, 则返回一个空列表</li>
+     *     <li>过滤掉列表中的所有 <code>null</code> 值</li>
+     *     <li>对列表中剩余的每个非 <code>null</code> 元素调用其 {@link Verifiable#validate()} 方法来确保它们符合预定义的规则或条件</li>
+     * </ul>
+     *
+     * @param <T>       泛型类型参数, 表示实现了 {@link Verifiable} 接口的具体类型
+     * @param fieldList 待处理的列表, 其元素需要实现 {@link Verifiable} 接口
+     * @return 一个新的列表, 包含了经过验证且非 <code>null</code> 的元素
+     * @throws IllegalArgumentException 如果列表中的任何元素在验证过程中失败, 将抛出此异常, 异常信息将提供具体的错误详情
+     */
+    @NotNull
+    public static <T extends Verifiable> List<T> requireNormalizedList(List<T> fieldList) {
+        return requireNormalizedList(fieldList, Verifiable::validate);
+    }
+
+    /**
+     * 确保给定的列表被规范化, 即去除所有 <code>null</code> 值并对每个元素进行验证
+     *
+     * <p>该方法会执行以下操作:</p>
+     * <ul>
+     *     <li>如果输入列表为 <code>null</code> 或空, 则返回一个空列表</li>
+     *     <li>过滤掉列表中的所有 <code>null</code> 值</li>
+     *     <li>对列表中剩余的每个非 <code>null</code> 元素调用提供的验证函数来确保它们符合预定义的规则或条件</li>
+     * </ul>
+     *
+     * @param <T>          泛型类型参数, 表示实现了 {@link Verifiable} 接口的具体类型
+     * @param fieldList    待处理的列表, 其元素需要实现 {@link Verifiable} 接口
+     * @param validateFunc 用于验证列表中每个元素的函数
+     * @return 一个新的列表, 包含了经过验证且非 <code>null</code> 的元素
+     * @throws IllegalArgumentException 如果列表中的任何元素在验证过程中失败, 将抛出此异常, 异常信息将提供具体的错误详情
+     */
+    @NotNull
+    public static <T extends Verifiable> List<T> requireNormalizedList(List<T> fieldList, Consumer<T> validateFunc) {
+        if (fieldList == null || fieldList.isEmpty())
+            return Collections.emptyList();
+        return fieldList.stream()
+                .filter(Objects::nonNull)
+                .peek(validateFunc)
+                .toList();
+    }
+
+    /**
+     * 确保给定的列表被规范化, 并且所有元素基于提供的键函数是唯一的
+     *
+     * <p>该方法会执行以下操作:</p>
+     * <ul>
+     *     <li>如果输入列表为 <code>null</code> 或空, 则返回一个空列表</li>
+     *     <li>过滤掉列表中的所有 <code>null</code> 值</li>
+     *     <li>对列表中剩余的每个非 <code>null</code> 元素调用其 {@link Verifiable#validate()} 方法来确保它们符合预定义的规则或条件</li>
+     *     <li>使用提供的键函数 {@code distinctKeyFunc} 来提取每个元素的唯一标识, 并检查这些标识是否唯一</li>
+     * </ul>
+     *
+     * @param <T>             泛型类型参数, 表示实现了 {@link Verifiable} 接口的具体类型
+     * @param fieldList       待处理的列表, 其元素需要实现 {@link Verifiable} 接口
+     * @param distinctKeyFunc 用于从每个元素中提取唯一标识的函数
+     * @param duplicateMsg    如果列表中存在重复元素, 抛出异常时使用的错误信息
+     * @return 一个新的列表, 包含了经过验证且非 <code>null</code> 的元素, 并且这些元素基于提供的键函数是唯一的
+     * @throws IllegalParamException 如果列表中存在基于提供的键函数不唯一的元素
+     */
+    @NotNull
+    public static <T extends Verifiable> List<T> requireDistinctNormalizedList(List<T> fieldList, Function<T, Object> distinctKeyFunc, String duplicateMsg) {
+        return requireDistinctNormalizedList(fieldList, Verifiable::validate, distinctKeyFunc, duplicateMsg);
+    }
+
+    /**
+     * 确保给定的列表被规范化, 并且所有元素基于提供的键函数是唯一的
+     *
+     * <p>该方法会执行以下操作:</p>
+     * <ul>
+     *     <li>如果输入列表为 {@code null} 或空, 则返回一个空列表</li>
+     *     <li>过滤掉列表中的所有 {@code null} 值</li>
+     *     <li>对列表中剩余的每个非 {@code null} 元素调用提供的验证函数来确保它们符合预定义的规则或条件</li>
+     *     <li>使用提供的键函数 {@code distinctKeyFunc} 来提取每个元素的唯一标识, 并检查这些标识是否唯一</li>
+     * </ul>
+     *
+     * @param <T>             泛型类型参数, 表示实现了 {@link Verifiable} 接口的具体类型
+     * @param fieldList       待处理的列表, 其元素需要实现 {@link Verifiable} 接口
+     * @param validateFunc    用于验证列表中每个元素的函数
+     * @param distinctKeyFunc 用于从每个元素中提取唯一标识的函数
+     * @param duplicateMsg    如果列表中存在重复元素, 抛出异常时使用的错误信息
+     * @return 一个新的列表, 包含了经过验证且非 {@code null} 的元素, 并且这些元素基于提供的键函数是唯一的
+     * @throws IllegalParamException 如果列表中存在基于提供的键函数不唯一的元素
+     */
+    @NotNull
+    public static <T extends Verifiable> List<T> requireDistinctNormalizedList(List<T> fieldList, Consumer<T> validateFunc, Function<T, Object> distinctKeyFunc, String duplicateMsg) {
+        if (fieldList == null || fieldList.isEmpty())
+            return Collections.emptyList();
+        Set<Object> distinctKeys = fieldList.stream()
+                .filter(Objects::nonNull)
+                .map(distinctKeyFunc)
+                .collect(Collectors.toSet());
+        List<T> normalizedList = fieldList.stream()
+                .filter(Objects::nonNull)
+                .peek(validateFunc)
+                .toList();
+        require(distinctKeys.size() == normalizedList.size(), duplicateMsg);
+        return normalizedList;
     }
 }

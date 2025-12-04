@@ -6,11 +6,9 @@ import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requirePatchField;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * SKU 增量更新请求 ProductSkuPatchRequest
@@ -67,15 +65,6 @@ public class ProductSkuUpdateRequest {
         if (weight != null)
             require(weight.compareTo(BigDecimal.ZERO) >= 0, "SKU 重量不能为负数");
         barcode = requirePatchField(barcode, "SKU 条码不能为空", s -> s.length() <= 64, "SKU 条码长度不能超过 64 个字符");
-        if (images != null) {
-            List<ProductImagePayload> normalized = new ArrayList<>();
-            for (ProductImagePayload image : images) {
-                if (image == null)
-                    continue;
-                image.validate();
-                normalized.add(image);
-            }
-            images = normalized;
-        }
+        images = requireNormalizedList(images);
     }
 }

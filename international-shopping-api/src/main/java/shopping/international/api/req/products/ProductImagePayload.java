@@ -3,6 +3,7 @@ package shopping.international.api.req.products;
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.Verifiable;
 
 import static shopping.international.types.utils.FieldValidateUtils.requirePatchField;
 
@@ -10,7 +11,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requirePatch
  * 商品图片请求载荷 (ProductImagePayload)
  */
 @Data
-public class ProductImagePayload {
+public class ProductImagePayload implements Verifiable {
     /**
      * 图片 URL, 长度不超过 500
      */

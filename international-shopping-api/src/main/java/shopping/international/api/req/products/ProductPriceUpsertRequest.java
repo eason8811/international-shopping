@@ -3,6 +3,7 @@ package shopping.international.api.req.products;
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.Verifiable;
 
 import java.math.BigDecimal;
 import java.util.regex.Pattern;
@@ -13,7 +14,7 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * SKU 价格维护请求 ProductPriceUpsertRequest
  */
 @Data
-public class ProductPriceUpsertRequest {
+public class ProductPriceUpsertRequest implements Verifiable {
     /**
      * 币种代码, 需符合 ISO 4217 格式
      */
@@ -35,6 +36,20 @@ public class ProductPriceUpsertRequest {
     private Boolean isActive;
 
     /**
+     * 验证当前对象是否符合预定义的规则或条件
+     *
+     * <p>此方法用于确保对象的状态或属性满足特定的要求, 如果验证失败, 则可能抛出异常来指示问题所在</p>
+     *
+     * @throws IllegalArgumentException 如果对象不符合要求, 该异常包含了具体的错误信息
+     */
+    @Override
+    public void validate() {
+        requireNotBlank(currency, "价格币种不能为空");
+        currency = currency.strip().toUpperCase();
+        require(Pattern.matches("^[A-Z]{3}$", currency), "价格币种格式不合法, 需要 3 位大写字母");
+    }
+
+    /**
      * 校验并规范化价格字段, 用于创建操作
      *
      * <p>此方法主要用于在创建商品价格时, 对输入的币种和价格进行合法性校验, 并对部分字段做相应的调整。它确保了币种格式符合 ISO 4217 标准, 且所有涉及的价格值均大于零, 同时促销价不能高于标价。</p>
@@ -42,9 +57,7 @@ public class ProductPriceUpsertRequest {
      * @throws IllegalParamException 当币种或价格不符合要求时抛出该异常
      */
     public void createValidate() {
-        requireNotBlank(currency, "价格币种不能为空");
-        currency = currency.strip().toUpperCase();
-        require(Pattern.matches("^[A-Z]{3}$", currency), "价格币种格式不合法, 需要 3 位大写字母");
+        validate();
         requireNotNull(listPrice, "标价不能为空");
         require(listPrice.compareTo(BigDecimal.ZERO) > 0, "标价必须大于 0");
         if (salePrice != null)
@@ -62,9 +75,7 @@ public class ProductPriceUpsertRequest {
      * @throws IllegalParamException 当币种或价格不符合要求时抛出该异常
      */
     public void updateValidate() {
-        requireNotBlank(currency, "价格币种不能为空");
-        currency = currency.strip().toUpperCase();
-        require(Pattern.matches("^[A-Z]{3}$", currency), "价格币种格式不合法, 需要 3 位大写字母");
+        validate();
         if (listPrice != null)
             require(listPrice.compareTo(BigDecimal.ZERO) > 0, "标价必须大于 0");
         if (salePrice != null)

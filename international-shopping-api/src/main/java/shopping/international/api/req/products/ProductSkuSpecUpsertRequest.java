@@ -3,6 +3,7 @@ package shopping.international.api.req.products;
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.utils.Verifiable;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -10,7 +11,7 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * SKU 规格绑定请求 ProductSkuSpecUpsertRequest
  */
 @Data
-public class ProductSkuSpecUpsertRequest {
+public class ProductSkuSpecUpsertRequest implements Verifiable {
     /**
      * 规格 ID, 推荐传递确保精确绑定
      */

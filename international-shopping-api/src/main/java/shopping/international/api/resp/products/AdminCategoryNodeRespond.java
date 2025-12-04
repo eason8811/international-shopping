@@ -2,6 +2,7 @@ package shopping.international.api.resp.products;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.domain.model.vo.products.CategoryI18n;
@@ -16,60 +17,34 @@ import java.util.Objects;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
-public class AdminCategoryNodeRespond {
-    /**
-     * 分类 ID
-     */
-    private Long id;
-    /**
-     * 父分类节点 ID
-     */
-    private Long parentId;
-    /**
-     * 分类名称
-     */
-    private String name;
-    /**
-     * 分类别名
-     */
-    private String slug;
-    /**
-     * 分类层级
-     */
-    private Integer level;
-    /**
-     * 分类路径
-     */
-    private String path;
-    /**
-     * 分类排序
-     */
-    private Integer sortOrder;
-    /**
-     * 品牌文案
-     */
-    private String brand;
+@EqualsAndHashCode(callSuper = true)
+public class AdminCategoryNodeRespond extends AbstractCategoryNodeRespond {
     /**
      * 全量 i18n 列表
      */
     private List<CategoryI18nPayloadRespond> i18nList;
+
     /**
-     * 子分类节点
+     * 构造 <code>AdminCategoryNodeRespond</code> 对象
+     *
+     * @param id        分类 ID
+     * @param parentId  父分类节点 ID
+     * @param name      分类名称
+     * @param slug      分类别名
+     * @param level     分类层级
+     * @param path      分类路径
+     * @param sortOrder 分类排序
+     * @param brand     品牌文案
+     * @param children  子分类节点列表
+     * @param isEnabled 是否启用
+     * @param createdAt 创建时间
+     * @param updatedAt 更新时间
+     * @param i18nList  全量 i18n 列表
      */
-    private List<AdminCategoryNodeRespond> children;
-    /**
-     * 是否启用
-     */
-    private Boolean isEnabled;
-    /**
-     * 创建时间
-     */
-    private LocalDateTime createdAt;
-    /**
-     * 更新时间
-     */
-    private LocalDateTime updatedAt;
+    private AdminCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String brand, List<AdminCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, List<CategoryI18nPayloadRespond> i18nList) {
+        super(id, parentId, name, slug, level, path, sortOrder, brand, children, isEnabled, createdAt, updatedAt);
+        this.i18nList = i18nList;
+    }
 
     /**
      * 从领域层节点转换为响应节点
@@ -103,11 +78,11 @@ public class AdminCategoryNodeRespond {
                 node.getPath(),
                 node.getSortOrder(),
                 displayBrand,
-                i18nListResponds,
                 childNodeList,
                 node.getStatus() == null ? null : node.getStatus() == CategoryStatus.ENABLED,
                 node.getCreatedAt(),
-                node.getUpdatedAt()
+                node.getUpdatedAt(),
+                i18nListResponds
         );
     }
 
