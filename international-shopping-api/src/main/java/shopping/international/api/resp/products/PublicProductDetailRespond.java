@@ -3,12 +3,9 @@ package shopping.international.api.resp.products;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
-import shopping.international.domain.model.vo.products.ProductDetail;
-import shopping.international.domain.model.vo.products.ProductSpecValue;
 
 import java.util.List;
 
@@ -48,44 +45,6 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
     }
 
     /**
-     * 构建用户侧商品详情响应
-     *
-     * @param detail 商品详情
-     * @return 详情响应
-     */
-    public static PublicProductDetailRespond from(ProductDetail detail) {
-        List<ProductImageRespond> gallery = detail.gallery() == null
-                ? List.of()
-                : detail.gallery().stream().map(ProductImageRespond::from).toList();
-        List<PublicSpecRespond> publicSpecResponds = detail.specs() == null
-                ? List.of()
-                : detail.specs().stream().map(PublicSpecRespond::from).toList();
-        List<ProductSkuRespond> productSkuResponds = detail.skus() == null
-                ? List.of()
-                : detail.skus().stream().map(ProductSkuRespond::from).toList();
-        return new PublicProductDetailRespond(
-                detail.id(),
-                detail.slug(),
-                detail.title(),
-                detail.subtitle(),
-                detail.description(),
-                detail.categoryId(),
-                detail.categorySlug(),
-                detail.brand(),
-                detail.coverImageUrl(),
-                detail.stockTotal(),
-                detail.saleCount(),
-                detail.skuType(),
-                detail.status(),
-                detail.tags(),
-                detail.defaultSkuId(),
-                gallery,
-                publicSpecResponds,
-                productSkuResponds
-        );
-    }
-
-    /**
      * 用户侧规格响应 PublicSpecRespond
      */
     @Data
@@ -104,26 +63,6 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
          */
         private PublicSpecRespond(Long specId, String specCode, String specName, SpecType specType, Boolean isRequired, List<? extends AbstractSpecValueRespond> values) {
             super(specId, specCode, specName, specType, isRequired, values);
-        }
-
-        /**
-         * 从规格实体构建响应
-         *
-         * @param spec 规格实体
-         * @return 规格响应
-         */
-        public static PublicSpecRespond from(ProductSpec spec) {
-            String displayName = spec.getI18nName() == null ? spec.getSpecName() : spec.getI18nName();
-            List<PublicSpecValueRespond> valueResponds = spec.getValues() == null ? List.of()
-                    : spec.getValues().stream().map(PublicSpecValueRespond::from).toList();
-            return new PublicSpecRespond(
-                    spec.getId(),
-                    spec.getSpecCode(),
-                    displayName,
-                    spec.getSpecType(),
-                    spec.isRequired(),
-                    valueResponds
-            );
         }
     }
 
@@ -144,22 +83,6 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
          */
         private PublicSpecValueRespond(Long valueId, String valueCode, String valueName, Object attributes) {
             super(valueId, valueCode, valueName, attributes);
-        }
-
-        /**
-         * 从规格值实体构建响应
-         *
-         * @param value 规格值实体
-         * @return 规格值响应
-         */
-        public static PublicSpecValueRespond from(ProductSpecValue value) {
-            String displayName = value.getI18nName() == null ? value.getValueName() : value.getI18nName();
-            return new PublicSpecValueRespond(
-                    value.getId(),
-                    value.getValueCode(),
-                    displayName,
-                    value.getAttributes()
-            );
         }
     }
 }

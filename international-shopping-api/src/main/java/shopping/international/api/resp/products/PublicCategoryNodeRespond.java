@@ -3,8 +3,6 @@ package shopping.international.api.resp.products;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.enums.products.CategoryStatus;
-import shopping.international.domain.model.vo.products.CategoryTreeNode;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,33 +41,5 @@ public class PublicCategoryNodeRespond extends AbstractCategoryNodeRespond {
     public PublicCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String brand, List<PublicCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, String locale) {
         super(id, parentId, name, slug, level, path, sortOrder, brand, children, isEnabled, createdAt, updatedAt);
         this.locale = locale;
-    }
-
-    /**
-     * 将领域层分类树节点转换为响应对象
-     *
-     * @param node 领域层分类树节点
-     * @return 分类树节点响应
-     */
-    public static PublicCategoryNodeRespond from(CategoryTreeNode node) {
-        List<PublicCategoryNodeRespond> childNodes = node.getChildren()
-                .stream()
-                .map(PublicCategoryNodeRespond::from)
-                .toList();
-        return new PublicCategoryNodeRespond(
-                node.getId(),
-                node.getParentId(),
-                node.getName(),
-                node.getSlug(),
-                node.getLevel(),
-                node.getPath(),
-                node.getSortOrder(),
-                node.getBrand(),
-                childNodes,
-                node.getStatus() == null ? null : node.getStatus() == CategoryStatus.ENABLED,
-                node.getCreatedAt(),
-                node.getUpdatedAt(),
-                node.getLocale()
-        );
     }
 }

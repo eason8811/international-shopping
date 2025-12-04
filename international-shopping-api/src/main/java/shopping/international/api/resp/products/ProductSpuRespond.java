@@ -5,8 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
-import shopping.international.domain.model.vo.products.ProductPriceRange;
-import shopping.international.domain.model.vo.products.ProductSummary;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -97,45 +95,6 @@ public class ProductSpuRespond {
      * 收藏时间
      */
     private LocalDateTime likedAt;
-
-    public static ProductSpuRespond from(ProductSummary summary) {
-        ProductPriceRange summaryPriceRange = summary.priceRange();
-        // 构建价格区间响应, 若价格区间为空则返回null
-        ProductPriceRangeRespond productPriceRangeRespond = summaryPriceRange == null ?
-                null :
-                new ProductPriceRangeRespond(
-                        summaryPriceRange.getCurrency(),
-                        summaryPriceRange.getListPriceMin(),
-                        summaryPriceRange.getListPriceMax(),
-                        summaryPriceRange.getSalePriceMin(),
-                        summaryPriceRange.getSalePriceMax()
-                );
-        // 构建图片列表响应
-        List<ProductImageRespond> imageList = summary.gallery() == null ? List.of()
-                : summary.gallery()
-                .stream()
-                .map(ProductImageRespond::from)
-                .toList();
-        return new ProductSpuRespond(
-                summary.id(),
-                summary.slug(),
-                summary.title(),
-                summary.subtitle(),
-                summary.description(),
-                summary.categoryId(),
-                summary.categorySlug(),
-                summary.brand(),
-                summary.coverImageUrl(),
-                summary.stockTotal(),
-                summary.saleCount(),
-                summary.skuType(),
-                summary.status(),
-                summary.tags(),
-                productPriceRangeRespond,
-                imageList,
-                summary.likedAt()
-        );
-    }
 
     /**
      * 价格区间响应

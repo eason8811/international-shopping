@@ -3,9 +3,7 @@ package shopping.international.api.resp.products;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.entity.products.ProductSku;
 import shopping.international.domain.model.enums.products.SkuStatus;
-import shopping.international.domain.model.vo.products.ProductSkuSpec;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -57,49 +55,6 @@ public class ProductSkuRespond {
      * 图片列表
      */
     private List<ProductImageRespond> images;
-
-    /**
-     * 从 SKU 实体构建响应
-     *
-     * @param sku SKU 实体
-     * @return SKU 响应
-     */
-    public static ProductSkuRespond from(ProductSku sku) {
-        List<ProductPriceRespond> priceList = sku.getPrices() == null
-                ? List.of()
-                : sku.getPrices()
-                .stream()
-                .map(price ->
-                        new ProductPriceRespond(
-                                price.getCurrency(),
-                                price.getListPrice(),
-                                price.getSalePrice(),
-                                price.isActive()
-                        ))
-                .toList();
-        List<ProductSkuSpecRespond> specs = sku.getSpecs() == null
-                ? List.of()
-                : sku.getSpecs().stream()
-                .map(ProductSkuSpecRespond::from)
-                .toList();
-        List<ProductImageRespond> images = sku.getImages() == null
-                ? List.of()
-                : sku.getImages().stream()
-                .map(ProductImageRespond::from)
-                .toList();
-        return new ProductSkuRespond(
-                sku.getId(),
-                sku.getSkuCode(),
-                sku.getStock(),
-                sku.getWeight(),
-                sku.getStatus(),
-                sku.isDefault(),
-                sku.getBarcode(),
-                priceList,
-                specs,
-                images
-        );
-    }
 
     /**
      * 用户侧价格响应 ProductPriceRespond
@@ -157,22 +112,5 @@ public class ProductSkuRespond {
          * 规格值名称
          */
         private String valueName;
-
-        /**
-         * 从规格绑定实体构建响应
-         *
-         * @param spec 规格绑定实体
-         * @return 规格绑定响应
-         */
-        public static ProductSkuSpecRespond from(ProductSkuSpec spec) {
-            return new ProductSkuSpecRespond(
-                    spec.getSpecId(),
-                    spec.getSpecCode(),
-                    spec.getSpecName(),
-                    spec.getValueId(),
-                    spec.getValueCode(),
-                    spec.getValueName()
-            );
-        }
     }
 }

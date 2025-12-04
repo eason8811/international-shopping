@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.vo.products.ProductSpecValue;
 
 import java.util.List;
 
@@ -32,26 +31,6 @@ public class AdminSpecValueRespond extends AbstractSpecValueRespond {
     private AdminSpecValueRespond(Long valueId, String valueCode, String valueName, Object attributes, List<SpecValueI18nPayloadRespond> i18nList) {
         super(valueId, valueCode, valueName, attributes);
         this.i18nList = i18nList;
-    }
-
-    /**
-     * 从规格值实体构建响应
-     *
-     * @param value 规格值实体
-     * @return 规格值响应
-     */
-    public static AdminSpecValueRespond from(ProductSpecValue value) {
-        List<SpecValueI18nPayloadRespond> i18nList = value.getI18nList() == null ? List.of()
-                : value.getI18nList().stream()
-                .map(item -> new SpecValueI18nPayloadRespond(item.getLocale(), item.getValueName()))
-                .toList();
-        return new AdminSpecValueRespond(
-                value.getId(),
-                value.getValueCode(),
-                value.getValueName(),
-                value.getAttributes(),
-                i18nList
-        );
     }
 
     /**

@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.SpecType;
 
 import java.util.List;
@@ -35,30 +34,6 @@ public class AdminSpecRespond extends AbstractSpecRespond {
     private AdminSpecRespond(Long specId, String specCode, String specName, SpecType specType, Boolean isRequired, List<? extends AbstractSpecValueRespond> values, List<SpecI18nPayloadRespond> i18nList) {
         super(specId, specCode, specName, specType, isRequired, values);
         this.i18nList = i18nList;
-    }
-
-    /**
-     * 从规格实体构建响应
-     *
-     * @param spec 规格实体
-     * @return 规格响应
-     */
-    public static AdminSpecRespond from(ProductSpec spec) {
-        List<SpecI18nPayloadRespond> i18nResponds = spec.getI18nList() == null ? List.of()
-                : spec.getI18nList().stream()
-                .map(item -> new SpecI18nPayloadRespond(item.getLocale(), item.getSpecName()))
-                .toList();
-        List<AdminSpecValueRespond> valueResponds = spec.getValues() == null ? List.of()
-                : spec.getValues().stream().map(AdminSpecValueRespond::from).toList();
-        return new AdminSpecRespond(
-                spec.getId(),
-                spec.getSpecCode(),
-                spec.getSpecName(),
-                spec.getSpecType(),
-                spec.isRequired(),
-                valueResponds,
-                i18nResponds
-        );
     }
 
     /**

@@ -6,8 +6,6 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
-import shopping.international.domain.model.vo.products.ProductDetail;
-import shopping.international.domain.model.vo.products.ProductI18n;
 
 import java.util.List;
 
@@ -54,44 +52,6 @@ public class AdminProductDetailRespond extends AbstractProductDetailRespond {
     }
 
     /**
-     * 构建管理端商品详情响应
-     *
-     * @param detail 领域层商品详情
-     * @return 详情响应
-     */
-    public static AdminProductDetailRespond from(ProductDetail detail) {
-        List<ProductImageRespond> gallery = detail.gallery() == null ? List.of()
-                : detail.gallery().stream().map(ProductImageRespond::from).toList();
-        List<AdminSpecRespond> adminSpecResponds = detail.specs() == null ? List.of()
-                : detail.specs().stream().map(AdminSpecRespond::from).toList();
-        List<ProductSkuRespond> productSkuResponds = detail.skus() == null ? List.of()
-                : detail.skus().stream().map(ProductSkuRespond::from).toList();
-        List<ProductI18nRespond> i18nResponds = detail.i18nList() == null ? List.of()
-                : detail.i18nList().stream().map(ProductI18nRespond::from).toList();
-        return new AdminProductDetailRespond(
-                detail.id(),
-                detail.slug(),
-                detail.title(),
-                detail.subtitle(),
-                detail.description(),
-                detail.categoryId(),
-                detail.categorySlug(),
-                detail.brand(),
-                detail.coverImageUrl(),
-                detail.stockTotal(),
-                detail.saleCount(),
-                detail.skuType(),
-                detail.status(),
-                detail.tags(),
-                detail.defaultSkuId(),
-                gallery,
-                adminSpecResponds,
-                productSkuResponds,
-                i18nResponds
-        );
-    }
-
-    /**
      * 商品多语言响应 ProductI18nRespond
      */
     @Data
@@ -122,15 +82,5 @@ public class AdminProductDetailRespond extends AbstractProductDetailRespond {
          * 本地化标签
          */
         private List<String> tags;
-
-        /**
-         * 从商品多语言实体构建响应
-         *
-         * @param vo 商品多语言实体
-         * @return 商品多语言响应
-         */
-        public static ProductI18nRespond from(ProductI18n vo) {
-            return new ProductI18nRespond(vo.getLocale(), vo.getTitle(), vo.getSubtitle(), vo.getDescription(), vo.getSlug(), vo.getTags());
-        }
     }
 }
