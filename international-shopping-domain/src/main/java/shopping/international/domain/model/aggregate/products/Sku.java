@@ -12,6 +12,7 @@ import shopping.international.types.utils.Verifiable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -33,7 +34,7 @@ public class Sku implements Verifiable {
     /**
      * 所属 SPU ID, 不可为空
      */
-    private Long productId;
+    private final Long productId;
     /**
      * SKU 编码 (外部/条码)
      */
@@ -73,11 +74,11 @@ public class Sku implements Verifiable {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private final LocalDateTime createdAt;
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private final LocalDateTime updatedAt;
 
     /**
      * 私有构造函数
@@ -214,12 +215,49 @@ public class Sku implements Verifiable {
     }
 
     /**
-     * 替换价格列表
+     * 新增价格 (currency 不可重复)
      *
-     * @param prices 新价格列表
+     * @param price 新价格
      */
-    public void replacePrices(List<ProductPrice> prices) {
-        this.prices = normalizeDistinctList(prices, ProductPrice::validate, ProductPrice::getCurrency, "价格列表 currency 不能重复");
+    public void addPrice(ProductPrice price) {
+        requireNotNull(price, "价格不能为空");
+        price.validate();
+        List<ProductPrice> mutable = prices == null ? new ArrayList<>() : new ArrayList<>(prices);
+        boolean exists = mutable.stream().anyMatch(p -> p.getCurrency().equals(price.getCurrency()));
+        require(!exists, "价格 currency 已存在: " + price.getCurrency());
+        mutable.add(price);
+        this.prices = normalizeDistinctList(mutable, ProductPrice::validate, ProductPrice::getCurrency, "价格列表 currency 不能重复");
+    }
+
+    /**
+     * 更新已有价格 (按 currency 定位, 为空字段不更新)
+     *
+     * @param currency  货币代码, 必填
+     * @param listPrice 标价, null 则保留
+     * @param salePrice 促销价, null 则保留
+     * @param active    是否启用, null 则保留
+     */
+    public void updatePrice(String currency, BigDecimal listPrice, BigDecimal salePrice, Boolean active) {
+        String normalizedCurrency = normalizeCurrency(currency);
+        requireNotNull(normalizedCurrency, "价格 currency 不能为空");
+        List<ProductPrice> mutable = prices == null ? new ArrayList<>() : new ArrayList<>(prices);
+        ProductPrice existing = mutable.stream()
+                .filter(p -> p.getCurrency().equals(normalizedCurrency))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("价格不存在: " + normalizedCurrency));
+        BigDecimal targetList = listPrice != null ? listPrice : existing.getListPrice();
+        requireNotNull(targetList, "标价不能为空");
+        require(targetList.compareTo(BigDecimal.ZERO) > 0, "标价必须大于 0");
+        BigDecimal targetSale = salePrice != null ? salePrice : existing.getSalePrice();
+        if (targetSale != null) {
+            require(targetSale.compareTo(BigDecimal.ZERO) > 0, "促销价必须大于 0");
+            require(targetSale.compareTo(targetList) <= 0, "促销价不能高于标价");
+        }
+        boolean targetActive = active != null ? active : existing.isActive();
+        ProductPrice patched = ProductPrice.of(normalizedCurrency, targetList, targetSale, targetActive);
+        mutable.removeIf(p -> p.getCurrency().equals(normalizedCurrency));
+        mutable.add(patched);
+        this.prices = normalizeDistinctList(mutable, ProductPrice::validate, ProductPrice::getCurrency, "价格列表 currency 不能重复");
     }
 
     /**
@@ -254,6 +292,48 @@ public class Sku implements Verifiable {
      */
     public void unmarkDefault() {
         this.defaultSku = false;
+    }
+
+    /**
+     * 新增规格绑定 (按规格键去重)
+     *
+     * @param relation 规格选择
+     */
+    public void addSpecSelection(SkuSpecRelation relation) {
+        requireNotNull(relation, "规格选择不能为空");
+        relation.validate();
+        List<SkuSpecRelation> mutable = this.specs == null ? new ArrayList<>() : new ArrayList<>(this.specs);
+        Object specKey = relation.getSpecCode() != null ? relation.getSpecCode() : relation.getSpecId();
+        boolean exists = mutable.stream().anyMatch(item -> {
+            Object key = item.getSpecCode() != null ? item.getSpecCode() : item.getSpecId();
+            return Objects.equals(key, specKey);
+        });
+        require(!exists, "SKU 已存在该规格绑定: " + specKey);
+        mutable.add(relation);
+        this.specs = normalizeDistinctList(mutable, Verifiable::validate,
+                sel -> sel.getSpecCode() != null ? sel.getSpecCode() : sel.getSpecId(),
+                "同一规格只能选择一个值");
+    }
+
+    /**
+     * 更新已有规格绑定 (按规格键定位, 完整覆盖该规格的取值)
+     *
+     * @param relation 新的规格选择
+     */
+    public void updateSpecSelection(SkuSpecRelation relation) {
+        requireNotNull(relation, "规格选择不能为空");
+        relation.validate();
+        List<SkuSpecRelation> mutable = this.specs == null ? new ArrayList<>() : new ArrayList<>(this.specs);
+        Object specKey = relation.getSpecCode() != null ? relation.getSpecCode() : relation.getSpecId();
+        boolean removed = mutable.removeIf(item -> {
+            Object key = item.getSpecCode() != null ? item.getSpecCode() : item.getSpecId();
+            return Objects.equals(key, specKey);
+        });
+        require(removed, "SKU 未绑定该规格: " + specKey);
+        mutable.add(relation);
+        this.specs = normalizeDistinctList(mutable, Verifiable::validate,
+                sel -> sel.getSpecCode() != null ? sel.getSpecCode() : sel.getSpecId(),
+                "同一规格只能选择一个值");
     }
 
     /**

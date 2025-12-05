@@ -9,6 +9,7 @@ import shopping.international.types.utils.Verifiable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -32,7 +33,7 @@ public class ProductSpec implements Verifiable {
     /**
      * 规格编码 (稳定唯一, 如 color/capacity)
      */
-    private String specCode;
+    private final String specCode;
     /**
      * 规格名称 (默认语言)
      */
@@ -93,13 +94,11 @@ public class ProductSpec implements Verifiable {
         this.enabled = enabled;
         this.i18nList = normalizeDistinctList(i18nList, ProductSpecI18n::validate, ProductSpecI18n::getLocale, "规格多语言 locale 不能重复");
         this.values = normalizeDistinctList(values, ProductSpecValue::validate, ProductSpecValue::getValueCode, "规格值编码不能重复");
-        if (this.values != null) {
-            this.values.forEach(v -> {
-                v.bindProductId(this.productId);
-                if (this.id != null)
-                    v.bindSpecId(this.id);
-            });
-        }
+        this.values.forEach(v -> {
+            v.bindProductId(this.productId);
+            if (this.id != null)
+                v.bindSpecId(this.id);
+        });
     }
 
     /**
@@ -177,19 +176,76 @@ public class ProductSpec implements Verifiable {
     }
 
     /**
+     * 新增多语言规格名 (locale 不可重复)
+     *
+     * @param i18n 多语言规格名
+     */
+    public void addI18n(ProductSpecI18n i18n) {
+        requireNotNull(i18n, "规格多语言不能为空");
+        i18n.validate();
+        List<ProductSpecI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        boolean exists = mutable.stream().anyMatch(item -> item.getLocale().equals(i18n.getLocale()));
+        require(!exists, "规格多语言 locale 已存在: " + i18n.getLocale());
+        mutable.add(i18n);
+        this.i18nList = normalizeDistinctList(mutable, ProductSpecI18n::validate, ProductSpecI18n::getLocale, "规格多语言 locale 不能重复");
+    }
+
+    /**
+     * 更新已存在的多语言规格名 (locale 必须存在, 为空不更新)
+     *
+     * @param locale   语言代码
+     * @param specName 新名称, 为空则保留原值
+     */
+    public void updateI18n(String locale, String specName) {
+        String normalizedLocale = normalizeLocale(locale);
+        requireNotNull(normalizedLocale, "locale 不能为空");
+        List<ProductSpecI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        ProductSpecI18n existing = mutable.stream()
+                .filter(item -> item.getLocale().equals(normalizedLocale))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("规格多语言不存在: " + normalizedLocale));
+        String mergedName = specName != null ? specName.strip() : existing.getSpecName();
+        requireNotBlank(mergedName, "规格名称不能为空");
+
+        ProductSpecI18n patched = ProductSpecI18n.of(normalizedLocale, mergedName);
+        mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
+        mutable.add(patched);
+        this.i18nList = normalizeDistinctList(mutable, ProductSpecI18n::validate, ProductSpecI18n::getLocale, "规格多语言 locale 不能重复");
+    }
+
+    /**
      * 替换规格值集合 (按 valueCode 去重)
      *
      * @param values 新规格值集合
      */
     public void replaceValues(List<ProductSpecValue> values) {
         this.values = normalizeDistinctList(values, ProductSpecValue::validate, ProductSpecValue::getValueCode, "规格值编码不能重复");
-        if (this.values != null) {
-            this.values.forEach(v -> {
-                v.bindProductId(this.productId);
-                if (this.id != null)
-                    v.bindSpecId(this.id);
-            });
-        }
+        this.values.forEach(v -> {
+            v.bindProductId(this.productId);
+            if (this.id != null)
+                v.bindSpecId(this.id);
+        });
+    }
+
+    /**
+     * 更新指定编码的规格值信息
+     *
+     * @param valueCode  规格值编码, 不可为空
+     * @param valueName  新规格值名称, 可以为空
+     * @param attributes 规格值附加属性, 键值对形式存储
+     * @param sortOrder  排序值, 用于确定规格值显示顺序, 可以为 null
+     * @param enabled    是否启用该规格值, 可以为 null
+     * @throws IllegalStateException 如果规格值不存在或规格值集合为 null 或 valueCode 为 null 或仅包含空白字符
+     */
+    public void updateValue(String valueCode, String valueName, Map<String, Object> attributes, Integer sortOrder, Boolean enabled) {
+        requireNotBlank(valueCode, "规格值编码不能为空");
+        if (values == null)
+            throw new IllegalStateException("规格值不存在: " + valueCode);
+        ProductSpecValue existing = values.stream()
+                .filter(v -> v.getValueCode().equals(valueCode))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("规格值不存在: " + valueCode));
+        existing.update(valueName, attributes, sortOrder, enabled);
     }
 
     /**
@@ -199,15 +255,15 @@ public class ProductSpec implements Verifiable {
      */
     public void addValue(ProductSpecValue newValue) {
         requireNotNull(newValue, "规格值不能为空");
-        if (values == null)
-            values = new ArrayList<>();
-        boolean exists = values.stream().anyMatch(v -> v.getValueCode().equals(newValue.getValueCode()));
+        List<ProductSpecValue> mutable = values == null ? new ArrayList<>() : new ArrayList<>(values);
+        boolean exists = mutable.stream().anyMatch(v -> v.getValueCode().equals(newValue.getValueCode()));
         if (exists)
             throw new IllegalStateException("规格值编码重复: " + newValue.getValueCode());
         newValue.bindProductId(this.productId);
         if (this.id != null)
             newValue.bindSpecId(this.id);
-        values.add(newValue);
+        mutable.add(newValue);
+        this.values = normalizeDistinctList(mutable, ProductSpecValue::validate, ProductSpecValue::getValueCode, "规格值编码不能重复");
     }
 
     /**

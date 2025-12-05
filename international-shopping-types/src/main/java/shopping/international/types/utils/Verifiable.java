@@ -1,7 +1,9 @@
 package shopping.international.types.utils;
 
 /**
+ * <p>定义了可验证对象的基本行为, 任何实现了此接口的类都必须能够通过验证自身状态或属性来确保其符合预设条件</p>
  *
+ * <p>该接口提供了一组默认方法, 用于在创建和更新操作前执行验证, 如果验证失败则抛出异常。这些方法依赖于 {@link #validate()} 方法来完成具体的验证逻辑</p>
  */
 public interface Verifiable {
     /**

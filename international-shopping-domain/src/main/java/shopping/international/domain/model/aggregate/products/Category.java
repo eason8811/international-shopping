@@ -8,6 +8,7 @@ import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
@@ -64,11 +65,11 @@ public class Category implements Verifiable {
     /**
      * 创建时间快照
      */
-    private LocalDateTime createdAt;
+    private final LocalDateTime createdAt;
     /**
      * 更新时间快照
      */
-    private LocalDateTime updatedAt;
+    private final LocalDateTime updatedAt;
 
     /**
      * 私有构造函数
@@ -198,6 +199,49 @@ public class Category implements Verifiable {
         this.parentId = newParentId;
         this.level = newLevel;
         this.path = newPath;
+    }
+
+    /**
+     * 新增多语言条目 (locale 不可重复, name/slug 必填)
+     *
+     * @param i18n 新增多语言
+     */
+    public void addI18n(CategoryI18n i18n) {
+        requireNotNull(i18n, "分类多语言不能为空");
+        i18n.validate();
+        List<CategoryI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        boolean exists = mutable.stream().anyMatch(item -> item.getLocale().equals(i18n.getLocale()));
+        require(!exists, "分类多语言 locale 已存在: " + i18n.getLocale());
+        mutable.add(i18n);
+        this.i18nList = normalizeDistinctList(mutable, CategoryI18n::validate, CategoryI18n::getLocale, "分类多语言 locale 不能重复");
+    }
+
+    /**
+     * 更新已存在的多语言条目 (locale 必须存在, 为空字段不更新)
+     *
+     * @param locale 语言代码
+     * @param name   新名称, null 则保留
+     * @param slug   新 slug, null 则保留
+     * @param brand  新品牌文案, null 则保留
+     */
+    public void updateI18n(String locale, String name, String slug, String brand) {
+        String normalizedLocale = normalizeLocale(locale);
+        requireNotNull(normalizedLocale, "locale 不能为空");
+        List<CategoryI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        CategoryI18n existing = mutable.stream()
+                .filter(item -> item.getLocale().equals(normalizedLocale))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("分类多语言不存在: " + normalizedLocale));
+        String mergedName = name != null ? name.strip() : existing.getName();
+        String mergedSlug = slug != null ? slug.strip() : existing.getSlug();
+        String mergedBrand = brand != null ? brand.strip() : existing.getBrand();
+        requireNotBlank(mergedName, "分类名称不能为空");
+        requireNotBlank(mergedSlug, "分类 slug 不能为空");
+
+        CategoryI18n patched = CategoryI18n.of(normalizedLocale, mergedName, mergedSlug, mergedBrand);
+        mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
+        mutable.add(patched);
+        this.i18nList = normalizeDistinctList(mutable, CategoryI18n::validate, CategoryI18n::getLocale, "分类多语言 locale 不能重复");
     }
 
     /**

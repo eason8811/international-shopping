@@ -21,11 +21,11 @@ public class ProductLike implements Verifiable {
     /**
      * 用户 ID
      */
-    private Long userId;
+    private final Long userId;
     /**
      * 商品 SPU ID
      */
-    private Long productId;
+    private final Long productId;
     /**
      * 点赞时间
      */

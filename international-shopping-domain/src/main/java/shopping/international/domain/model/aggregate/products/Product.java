@@ -6,11 +6,13 @@ import lombok.experimental.Accessors;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
+import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -96,11 +98,11 @@ public class Product implements Verifiable {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private final LocalDateTime createdAt;
     /**
      * 更新时间
      */
-    private LocalDateTime updatedAt;
+    private final LocalDateTime updatedAt;
 
     /**
      * 私有构造函数
@@ -257,9 +259,56 @@ public class Product implements Verifiable {
         if (skuType != null)
             this.skuType = skuType;
         if (status != null)
-            this.status = status;
+            changeStatus(status);
         if (tags != null)
             this.tags = normalizeTags(tags);
+    }
+
+    /**
+     * 新增多语言条目 (locale 不可重复, 标题/slug 必填)
+     *
+     * @param i18n 新增多语言
+     */
+    public void addI18n(ProductI18n i18n) {
+        requireNotNull(i18n, "商品多语言不能为空");
+        i18n.validate();
+        List<ProductI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        boolean exists = mutable.stream().anyMatch(item -> item.getLocale().equals(i18n.getLocale()));
+        require(!exists, "商品多语言 locale 已存在: " + i18n.getLocale());
+        mutable.add(i18n);
+        this.i18nList = normalizeDistinctList(mutable, ProductI18n::validate, ProductI18n::getLocale, "商品多语言 locale 不能重复");
+    }
+
+    /**
+     * 更新已存在的多语言条目 (locale 必须存在, 为空字段不更新)
+     *
+     * @param locale      语言代码
+     * @param title       标题, null 则保留
+     * @param subtitle    副标题, null 则保留
+     * @param description 描述, null 则保留
+     * @param slug        slug, null 则保留
+     * @param tags        标签, null 则保留
+     */
+    public void updateI18n(String locale, String title, String subtitle, String description, String slug, List<String> tags) {
+        String normalizedLocale = normalizeLocale(locale);
+        requireNotNull(normalizedLocale, "locale 不能为空");
+        List<ProductI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        ProductI18n existing = mutable.stream()
+                .filter(item -> item.getLocale().equals(normalizedLocale))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("商品多语言不存在: " + normalizedLocale));
+        String mergedTitle = title != null ? title.strip() : existing.getTitle();
+        String mergedSubtitle = subtitle != null ? subtitle.strip() : existing.getSubtitle();
+        String mergedDescription = description != null ? description.strip() : existing.getDescription();
+        String mergedSlug = slug != null ? slug.strip() : existing.getSlug();
+        List<String> mergedTags = tags != null ? normalizeTags(tags) : existing.getTags();
+        requireNotBlank(mergedTitle, "多语言标题不能为空");
+        requireNotBlank(mergedSlug, "多语言 slug 不能为空");
+
+        ProductI18n patched = ProductI18n.of(normalizedLocale, mergedTitle, mergedSubtitle, mergedDescription, mergedSlug, mergedTags);
+        mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
+        mutable.add(patched);
+        this.i18nList = normalizeDistinctList(mutable, ProductI18n::validate, ProductI18n::getLocale, "商品多语言 locale 不能重复");
     }
 
     /**
@@ -281,12 +330,77 @@ public class Product implements Verifiable {
     }
 
     /**
+     * 新增规格定义 (specCode 不可重复)
+     *
+     * @param spec 规格定义
+     */
+    public void addSpec(ProductSpec spec) {
+        requireNotNull(spec, "规格不能为空");
+        spec.validate();
+        if (this.id != null)
+            require(Objects.equals(this.id, spec.getProductId()), "规格所属商品不匹配");
+        List<ProductSpec> mutable = specs == null ? new ArrayList<>() : new ArrayList<>(specs);
+        boolean exists = mutable.stream().anyMatch(item -> item.getSpecCode().equals(spec.getSpecCode()));
+        require(!exists, "规格编码已存在: " + spec.getSpecCode());
+        mutable.add(spec);
+        this.specs = normalizeDistinctList(mutable, ProductSpec::validate, ProductSpec::getSpecCode, "规格编码不能重复");
+    }
+
+    /**
+     * 更新已有规格 (按 ID 定位, 为空字段不更新)
+     *
+     * @param specId    规格 ID
+     * @param specName  新名称, null 则保留
+     * @param specType  新类型, null 则保留
+     * @param required  是否必选, null 则保留
+     * @param sortOrder 排序, null 则保留
+     * @param enabled   启用状态, null 则保留
+     */
+    public void updateSpec(Long specId, String specName, SpecType specType, Boolean required, Integer sortOrder, Boolean enabled) {
+        requireNotNull(specId, "规格 ID 不能为空");
+        if (specs == null)
+            throw new IllegalStateException("规格不存在: " + specId);
+        List<ProductSpec> mutable = new ArrayList<>(specs);
+        ProductSpec existing = mutable.stream()
+                .filter(item -> Objects.equals(item.getId(), specId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("规格不存在: " + specId));
+        existing.update(specName, specType, required, sortOrder, enabled);
+    }
+
+    /**
      * 替换多语言覆盖
      *
      * @param i18nList 新多语言列表
      */
     public void replaceI18n(List<ProductI18n> i18nList) {
         this.i18nList = normalizeDistinctList(i18nList, ProductI18n::validate, ProductI18n::getLocale, "商品多语言 locale 不能重复");
+    }
+
+    /**
+     * 按合法流转规则更新商品状态
+     *
+     * @param newStatus 目标状态, 不可为空
+     */
+    public void changeStatus(ProductStatus newStatus) {
+        requireNotNull(newStatus, "商品状态不能为空");
+        if (Objects.equals(this.status, newStatus))
+            return;
+        if (this.status == null) {
+            this.status = newStatus;
+            return;
+        }
+        switch (this.status) {
+            case DRAFT -> require(newStatus == ProductStatus.ON_SALE || newStatus == ProductStatus.DELETED,
+                    "草稿商品仅能上架或删除");
+            case ON_SALE -> require(newStatus == ProductStatus.OFF_SHELF || newStatus == ProductStatus.DELETED,
+                    "上架商品仅能下架或删除");
+            case OFF_SHELF -> require(newStatus == ProductStatus.ON_SALE || newStatus == ProductStatus.DELETED,
+                    "下架商品仅能重新上架或删除");
+            case DELETED -> throw new IllegalStateException("已删除商品不能再次流转");
+            default -> throw new IllegalStateException("未知商品状态: " + this.status);
+        }
+        this.status = newStatus;
     }
 
     /**
@@ -308,6 +422,7 @@ public class Product implements Verifiable {
      * @param defaultSkuId 默认 SKU ID, 可空表示取消
      */
     public void setDefaultSkuId(Long defaultSkuId) {
+        requireNotNull(defaultSkuId, "默认 SKU ID 不能为空");
         this.defaultSkuId = defaultSkuId;
     }
 
