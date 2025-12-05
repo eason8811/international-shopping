@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.adapter.repository.user;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.update.UpdateChain;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -38,7 +38,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 基于 MyBatis-Plus 的用户聚合仓储实现
+ * 基于 MyBatis-Flex 的用户聚合仓储实现
  * <p>职责: 按聚合粒度对 {@code user_account / user_auth / user_profile / user_address} 进行组合读写</p>
  */
 @Slf4j
@@ -77,12 +77,13 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public Optional<User> findByLoginAccount(@NotNull String account) {
-        UserAccountPO po = accountMapper.selectOne(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getUsername, account)
-                .or(wrapper -> wrapper.eq(UserAccountPO::getEmail, account))
-                .or(wrapper -> wrapper.eq(UserAccountPO::getPhone, account))
-                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
-                .last("limit 1"));
+        QueryWrapper query = QueryWrapper.create()
+                .and(q -> q.where(UserAccountPO::getUsername).eq(account)
+                        .or(UserAccountPO::getEmail).eq(account)
+                        .or(UserAccountPO::getPhone).eq(account))
+                .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE)
+                .limit(1);
+        UserAccountPO po = accountMapper.selectOneByQuery(query);
         return assembleOptional(po);
     }
 
@@ -94,10 +95,11 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public Optional<User> findByEmail(@NotNull EmailAddress email) {
-        UserAccountPO po = accountMapper.selectOne(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getEmail, email.getValue())
-                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
-                .last("limit 1"));
+        QueryWrapper query = QueryWrapper.create()
+                .where(UserAccountPO::getEmail).eq(email.getValue())
+                .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE)
+                .limit(1);
+        UserAccountPO po = accountMapper.selectOneByQuery(query);
         return assembleOptional(po);
     }
 
@@ -109,7 +111,7 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public Optional<User> findById(@NotNull Long userId) {
-        UserAccountPO po = accountMapper.selectById(userId);
+        UserAccountPO po = accountMapper.selectOneById(userId);
         if (po == null || Boolean.TRUE.equals(po.getIsDeleted()))
             return Optional.empty();
         return assembleOptional(po);
@@ -123,10 +125,10 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public boolean existsByUsername(@NotNull Username username) {
-        Long n = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getUsername, username.getValue())
-                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE));
-        return n != null && n > 0;
+        long n = accountMapper.selectCountByQuery(QueryWrapper.create()
+                .where(UserAccountPO::getUsername).eq(username.getValue())
+                .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE));
+        return n > 0;
     }
 
     /**
@@ -137,10 +139,10 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public boolean existsByEmail(@NotNull EmailAddress email) {
-        Long n = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getEmail, email.getValue())
-                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE));
-        return n != null && n > 0;
+        long n = accountMapper.selectCountByQuery(QueryWrapper.create()
+                .where(UserAccountPO::getEmail).eq(email.getValue())
+                .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE));
+        return n > 0;
     }
 
     /**
@@ -151,10 +153,10 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public boolean existsByPhone(@NotNull PhoneNumber phone) {
-        Long n = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getPhone, phone.getValue())
-                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE));
-        return n != null && n > 0;
+        long n = accountMapper.selectCountByQuery(QueryWrapper.create()
+                .where(UserAccountPO::getPhone).eq(phone.getValue())
+                .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE));
+        return n > 0;
     }
 
     /**
@@ -166,13 +168,13 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public @NotNull Optional<User> findByProviderUid(@NotNull String issuer, @NotNull String providerUid) {
-        UserAuthPO auth = authMapper.selectOne(new LambdaQueryWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getIssuer, issuer)
-                .eq(UserAuthPO::getProviderUid, providerUid)
-                .last("limit 1"));
+        UserAuthPO auth = authMapper.selectOneByQuery(QueryWrapper.create()
+                .where(UserAuthPO::getIssuer).eq(issuer)
+                .and(UserAuthPO::getProviderUid).eq(providerUid)
+                .limit(1));
         if (auth == null)
             return Optional.empty();
-        UserAccountPO account = accountMapper.selectById(auth.getUserId());
+        UserAccountPO account = accountMapper.selectOneById(auth.getUserId());
         if (account == null || Boolean.TRUE.equals(account.getIsDeleted()))
             return Optional.empty();
         return assembleOptional(account);
@@ -203,7 +205,7 @@ public class UserRepository implements IUserRepository {
                 .lastLoginAt(user.getLastLoginAt())
                 .isDeleted(Boolean.FALSE)
                 .build();
-        accountMapper.insert(acc); // 自增主键回填
+        accountMapper.insertSelective(acc); // 自增主键回填, 忽略 null 以保留 DB 默认值
         Long userId = acc.getId();
 
         // 2. 入库 user_profile
@@ -219,10 +221,10 @@ public class UserRepository implements IUserRepository {
                 user.getProfile() == null ? null : user.getProfile().getAddressLine(),
                 user.getProfile() == null ? null : user.getProfile().getZipcode(),
                 user.getProfile() == null ? null : toJsonOrNull(user.getProfile().getExtra()), // Map → JSON
-                java.time.LocalDateTime.now(),
-                java.time.LocalDateTime.now()
+                null,
+                null
         );
-        profileMapper.insert(profile);
+        profileMapper.insertSelective(profile);
 
         // 3. 入库 user_auth (遍历绑定)
         for (AuthBinding binding : user.getBindingsSnapshot()) {
@@ -239,7 +241,7 @@ public class UserRepository implements IUserRepository {
                     .role(binding.getRole())
                     .lastLoginAt(binding.getLastLoginAt())
                     .build();
-            authMapper.insert(authPO);
+            authMapper.insertSelective(authPO);
         }
 
         // 4 入库 user_address
@@ -258,7 +260,7 @@ public class UserRepository implements IUserRepository {
                         .zipcode(a.getZipcode())
                         .isDefault(a.isDefaultAddress())
                         .build();
-                addressMapper.insert(addressPO);
+                addressMapper.insertSelective(addressPO);
             }
         }
 
@@ -274,9 +276,10 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public void updateStatus(@NotNull Long userId, @NotNull AccountStatus status) {
-        accountMapper.update(null, new LambdaUpdateWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getId, userId)
-                .set(UserAccountPO::getStatus, status.name()));
+        UpdateChain.of(accountMapper)
+                .set(UserAccountPO::getStatus, status.name())
+                .where(UserAccountPO::getId).eq(userId)
+                .update();
     }
 
     /**
@@ -289,14 +292,16 @@ public class UserRepository implements IUserRepository {
     @Override
     public void recordLogin(@NotNull Long userId, @NotNull AuthProvider provider, @NotNull LocalDateTime loginTime) {
         // 1) 更新账户最近登录
-        accountMapper.update(null, new LambdaUpdateWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getId, userId)
-                .set(UserAccountPO::getLastLoginAt, loginTime));
+        UpdateChain.of(accountMapper)
+                .set(UserAccountPO::getLastLoginAt, loginTime)
+                .where(UserAccountPO::getId).eq(userId)
+                .update();
         // 2) 更新对应通道最近登录
-        authMapper.update(null, new LambdaUpdateWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getUserId, userId)
-                .eq(UserAuthPO::getProvider, provider.name())
-                .set(UserAuthPO::getLastLoginAt, loginTime));
+        UpdateChain.of(authMapper)
+                .set(UserAuthPO::getLastLoginAt, loginTime)
+                .where(UserAuthPO::getUserId).eq(userId)
+                .and(UserAuthPO::getProvider).eq(provider.name())
+                .update();
     }
 
     // ========================= 增量写入 =========================
@@ -310,11 +315,11 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public boolean existsByPhoneExceptUser(@NotNull Long userId, @NotNull PhoneNumber phone) {
-        Long count = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getPhone, phone.getValue())
-                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
-                .ne(UserAccountPO::getId, userId));
-        return count != null && count > 0;
+        long count = accountMapper.selectCountByQuery(QueryWrapper.create()
+                .where(UserAccountPO::getPhone).eq(phone.getValue())
+                .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE)
+                .and(UserAccountPO::getId).ne(userId));
+        return count > 0;
     }
 
 
@@ -328,25 +333,24 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public void updateNicknameAndPhone(@NotNull Long userId, @Nullable Nickname nickname, @Nullable PhoneNumber phone) {
-        LambdaUpdateWrapper<UserAccountPO> updateWrapper = new LambdaUpdateWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getId, userId)
-                .eq(UserAccountPO::getIsDeleted, Boolean.FALSE);
+        UpdateChain<UserAccountPO> chain = UpdateChain.of(accountMapper)
+                .where(UserAccountPO::getId).eq(userId)
+                .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE);
 
         boolean needUpdate = false;
         if (nickname != null) {
-            updateWrapper.set(UserAccountPO::getNickname, nickname.getValue());
+            chain.set(UserAccountPO::getNickname, nickname.getValue());
             needUpdate = true;
         }
         if (phone != null) {
-            updateWrapper.set(UserAccountPO::getPhone, phone.getValue());
+            chain.set(UserAccountPO::getPhone, phone.getValue());
             needUpdate = true;
         }
         if (!needUpdate)
             // 无字段需要更新, 直接返回
             return;
 
-        int rows = accountMapper.update(null, updateWrapper);
-        if (rows == 0)
+        if (!chain.update())
             throw new IllegalStateException("更新失败, 用户不存在或已删除");
     }
 
@@ -360,17 +364,18 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public void updateEmail(@NotNull Long userId, @NotNull EmailAddress newEmail) {
-        int rows;
+        boolean updated;
         try {
-            rows = accountMapper.update(null, new LambdaUpdateWrapper<UserAccountPO>()
-                    .eq(UserAccountPO::getId, userId)
-                    .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
-                    .set(UserAccountPO::getEmail, newEmail.getValue()));
+            updated = UpdateChain.of(accountMapper)
+                    .set(UserAccountPO::getEmail, newEmail.getValue())
+                    .where(UserAccountPO::getId).eq(userId)
+                    .and(UserAccountPO::getIsDeleted).eq(Boolean.FALSE)
+                    .update();
         } catch (DataIntegrityViolationException ex) {
             // 与并发竞争或唯一约束冲突对齐
             throw new IllegalParamException("邮箱已被使用");
         }
-        if (rows == 0)
+        if (!updated)
             throw new IllegalStateException("更新失败: 用户不存在或已删除");
     }
 
@@ -382,11 +387,12 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public void updateLocalPassword(@NotNull Long userId, @NotNull String newPasswordHash) {
-        int rows = authMapper.update(null, new LambdaUpdateWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getUserId, userId)
-                .eq(UserAuthPO::getProvider, AuthProvider.LOCAL.name())
-                .set(UserAuthPO::getPasswordHash, newPasswordHash));
-        if (rows == 0)
+        boolean updated = UpdateChain.of(authMapper)
+                .set(UserAuthPO::getPasswordHash, newPasswordHash)
+                .where(UserAuthPO::getUserId).eq(userId)
+                .and(UserAuthPO::getProvider).eq(AuthProvider.LOCAL.name())
+                .update();
+        if (!updated)
             throw new IllegalStateException("更新失败: 不存在 LOCAL 绑定或用户不存在");
     }
 
@@ -400,7 +406,7 @@ public class UserRepository implements IUserRepository {
     @Override
     public void upsertProfile(@NotNull Long userId, @NotNull UserProfile profile) {
         // 先取一次, 判断是否存在
-        UserProfilePO existed = profileMapper.selectById(userId);
+        UserProfilePO existed = profileMapper.selectOneById(userId);
 
         String gender = profile.getGender().name();
         if (existed == null) {
@@ -420,11 +426,10 @@ public class UserRepository implements IUserRepository {
                     null, // created_at 交由数据库默认
                     null  // updated_at 交由数据库默认
             );
-            profileMapper.insert(toInsert);
+            profileMapper.insertSelective(toInsert);
         } else {
             // 更新 (仅设置可变字段, created_at/updated_at 交由 DB 维护)
-            profileMapper.update(null, new LambdaUpdateWrapper<UserProfilePO>()
-                    .eq(UserProfilePO::getUserId, userId)
+            UpdateChain.of(profileMapper)
                     .set(UserProfilePO::getDisplayName, profile.getDisplayName())
                     .set(UserProfilePO::getAvatarUrl, profile.getAvatarUrl())
                     .set(UserProfilePO::getGender, gender)
@@ -435,7 +440,8 @@ public class UserRepository implements IUserRepository {
                     .set(UserProfilePO::getAddressLine, profile.getAddressLine())
                     .set(UserProfilePO::getZipcode, profile.getZipcode())
                     .set(UserProfilePO::getExtra, toJsonOrNull(profile.getExtra()))
-            );
+                    .where(UserProfilePO::getUserId).eq(userId)
+                    .update();
         }
     }
 
@@ -449,9 +455,9 @@ public class UserRepository implements IUserRepository {
      */
     @Override
     public @NotNull List<AuthBinding> listBindingsByUserId(@NotNull Long userId) {
-        List<UserAuthPO> list = authMapper.selectList(new LambdaQueryWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getUserId, userId)
-                .orderByAsc(UserAuthPO::getId));
+        List<UserAuthPO> list = authMapper.selectListByQuery(QueryWrapper.create()
+                .where(UserAuthPO::getUserId).eq(userId)
+                .orderBy(UserAuthPO::getId, true));
         return list.stream().map(this::toDomainAuth).toList();
     }
 
@@ -466,10 +472,10 @@ public class UserRepository implements IUserRepository {
     @Override
     public boolean existsBindingByIssuerAndUidExcludingUser(@NotNull String issuer, @NotNull String providerUid,
                                                             @NotNull Long excludeUserId) {
-        UserAuthPO po = authMapper.selectOne(new LambdaQueryWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getIssuer, issuer)
-                .eq(UserAuthPO::getProviderUid, providerUid)
-                .last("limit 1"));
+        UserAuthPO po = authMapper.selectOneByQuery(QueryWrapper.create()
+                .where(UserAuthPO::getIssuer).eq(issuer)
+                .and(UserAuthPO::getProviderUid).eq(providerUid)
+                .limit(1));
         if (po == null)
             return false;
         return !excludeUserId.equals(po.getUserId());
@@ -492,10 +498,10 @@ public class UserRepository implements IUserRepository {
         LocalDateTime expiresAt = binding.getExpiresAt();
         String scope = binding.getScope();
 
-        UserAuthPO existed = authMapper.selectOne(new LambdaQueryWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getUserId, userId)
-                .eq(UserAuthPO::getProvider, provider.name())
-                .last("limit 1"));
+        UserAuthPO existed = authMapper.selectOneByQuery(QueryWrapper.create()
+                .where(UserAuthPO::getUserId).eq(userId)
+                .and(UserAuthPO::getProvider).eq(provider.name())
+                .limit(1));
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -513,17 +519,18 @@ public class UserRepository implements IUserRepository {
                     .role(null)
                     .lastLoginAt(now)
                     .build();
-            authMapper.insert(toInsert);
+            authMapper.insertSelective(toInsert);
         } else {
-            authMapper.update(null, new LambdaUpdateWrapper<UserAuthPO>()
-                    .eq(UserAuthPO::getId, existed.getId())
+            UpdateChain.of(authMapper)
                     .set(UserAuthPO::getIssuer, issuer)
                     .set(UserAuthPO::getProviderUid, providerUid)
                     .set(UserAuthPO::getAccessToken, accessToken == null ? null : accessToken.getBytes())
                     .set(UserAuthPO::getRefreshToken, refreshToken == null ? null : refreshToken.getBytes())
                     .set(UserAuthPO::getExpiresAt, expiresAt)
                     .set(UserAuthPO::getScope, scope)
-                    .set(UserAuthPO::getLastLoginAt, now));
+                    .set(UserAuthPO::getLastLoginAt, now)
+                    .where(UserAuthPO::getId).eq(existed.getId())
+                    .update();
         }
     }
 
@@ -536,9 +543,9 @@ public class UserRepository implements IUserRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteBinding(@NotNull Long userId, @NotNull AuthProvider provider) {
-        authMapper.delete(new LambdaQueryWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getUserId, userId)
-                .eq(UserAuthPO::getProvider, provider.name()));
+        authMapper.deleteByQuery(QueryWrapper.create()
+                .where(UserAuthPO::getUserId).eq(userId)
+                .and(UserAuthPO::getProvider).eq(provider.name()));
     }
 
     // ========================= 地址管理 =========================
@@ -552,11 +559,11 @@ public class UserRepository implements IUserRepository {
      * @return 当前页的地址列表
      */
     public @NotNull List<UserAddress> listAddresses(@NotNull Long userId, int offset, int limit) {
-        List<UserAddressPO> list = addressMapper.selectList(new LambdaQueryWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, userId)
-                .orderByDesc(UserAddressPO::getIsDefault)
-                .orderByDesc(UserAddressPO::getId)
-                .last("limit " + limit + " offset " + offset));
+        List<UserAddressPO> list = addressMapper.selectListByQuery(QueryWrapper.create()
+                .where(UserAddressPO::getUserId).eq(userId)
+                .orderBy(UserAddressPO::getIsDefault, false)
+                .orderBy(UserAddressPO::getId, false)
+                .limit(offset, limit));
         return list.stream().map(this::toDomainAddress).toList();
     }
 
@@ -567,9 +574,8 @@ public class UserRepository implements IUserRepository {
      * @return 地址总数
      */
     public long countAddresses(@NotNull Long userId) {
-        Long n = addressMapper.selectCount(new LambdaQueryWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, userId));
-        return n == null ? 0L : n;
+        return addressMapper.selectCountByQuery(QueryWrapper.create()
+                .where(UserAddressPO::getUserId).eq(userId));
     }
 
     /**
@@ -580,10 +586,10 @@ public class UserRepository implements IUserRepository {
      * @return 若存在则返回 Optional, 否则为 empty
      */
     public @NotNull Optional<UserAddress> findAddressById(@NotNull Long userId, @NotNull Long addressId) {
-        UserAddressPO po = addressMapper.selectOne(new LambdaQueryWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, userId)
-                .eq(UserAddressPO::getId, addressId)
-                .last("limit 1"));
+        UserAddressPO po = addressMapper.selectOneByQuery(QueryWrapper.create()
+                .where(UserAddressPO::getUserId).eq(userId)
+                .and(UserAddressPO::getId).eq(addressId)
+                .limit(1));
         if (po == null)
             return Optional.empty();
         return Optional.of(toDomainAddress(po));
@@ -602,10 +608,8 @@ public class UserRepository implements IUserRepository {
     @Transactional
     public void saveAddresses(@NotNull Long userId, @NotNull List<UserAddress> addressList) {
         // 1. 查当前 DB 中的地址
-        List<UserAddressPO> existing = addressMapper.selectList(
-                new LambdaQueryWrapper<UserAddressPO>()
-                        .eq(UserAddressPO::getUserId, userId)
-        );
+        List<UserAddressPO> existing = addressMapper.selectListByQuery(
+                QueryWrapper.create().where(UserAddressPO::getUserId).eq(userId));
 
         // 2. 以 ID 为 key 做 diff, 决定 insert / update / delete
         Map<Long, UserAddressPO> existingMap = existing.stream()
@@ -639,9 +643,12 @@ public class UserRepository implements IUserRepository {
         for (UserAddressPO toDelete : existingMap.values())
             toDeleteMap.put(toDelete.hashCode(), toDelete.getId());
 
-        addressMapper.insert(toInsertMap.values());
-        addressMapper.updateById(toUpdateMap.values());
-        addressMapper.deleteByIds(toDeleteMap.values());
+        if (!toInsertMap.isEmpty())
+            addressMapper.insertBatchSelective(toInsertMap.values());
+        if (!toUpdateMap.isEmpty())
+            toUpdateMap.values().forEach(addressMapper::update);
+        if (!toDeleteMap.isEmpty())
+            addressMapper.deleteBatchByIds(toDeleteMap.values());
 
         for (UserAddress userAddress : addressList)
             if (userAddress.getId() == null)
@@ -657,9 +664,9 @@ public class UserRepository implements IUserRepository {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deleteAddress(@NotNull Long userId, @NotNull Long addressId) {
-        int rows = addressMapper.delete(new LambdaQueryWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, userId)
-                .eq(UserAddressPO::getId, addressId));
+        int rows = addressMapper.deleteByQuery(QueryWrapper.create()
+                .where(UserAddressPO::getUserId).eq(userId)
+                .and(UserAddressPO::getId).eq(addressId));
         if (rows == 0)
             throw new IllegalParamException("ID 为: " + addressId + " 的地址不存在");
     }
@@ -679,11 +686,11 @@ public class UserRepository implements IUserRepository {
             return Optional.empty();
 
         // 子表装载
-        List<UserAuthPO> authList = authMapper.selectList(new LambdaQueryWrapper<UserAuthPO>()
-                .eq(UserAuthPO::getUserId, account.getId()));
-        List<UserAddressPO> addrList = addressMapper.selectList(new LambdaQueryWrapper<UserAddressPO>()
-                .eq(UserAddressPO::getUserId, account.getId()));
-        UserProfilePO profile = profileMapper.selectById(account.getId());
+        List<UserAuthPO> authList = authMapper.selectListByQuery(QueryWrapper.create()
+                .where(UserAuthPO::getUserId).eq(account.getId()));
+        List<UserAddressPO> addrList = addressMapper.selectListByQuery(QueryWrapper.create()
+                .where(UserAddressPO::getUserId).eq(account.getId()));
+        UserProfilePO profile = profileMapper.selectOneById(account.getId());
 
         // 映射子实体
         List<AuthBinding> bindings = authList.stream().map(this::toDomainAuth).toList();

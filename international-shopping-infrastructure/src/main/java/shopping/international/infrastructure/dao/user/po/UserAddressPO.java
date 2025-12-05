@@ -1,6 +1,9 @@
 package shopping.international.infrastructure.dao.user.po;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.mybatisflex.annotation.Column;
+import com.mybatisflex.annotation.Id;
+import com.mybatisflex.annotation.KeyType;
+import com.mybatisflex.annotation.Table;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -14,76 +17,77 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(exclude = {"createdAt", "updatedAt"})
-@TableName("user_address")
+@Table("user_address")
 public class UserAddressPO {
     /**
      * 主键ID (自增) 
      */
-    @TableId(value = "id", type = IdType.AUTO)
+    @Id(keyType = KeyType.Auto)
+    @Column("id")
     private Long id;
     /**
      * 用户ID
      */
-    @TableField("user_id")
+    @Column("user_id")
     private Long userId;
     /**
      * 收货人
      */
-    @TableField("receiver_name")
+    @Column("receiver_name")
     private String receiverName;
     /**
      * 联系电话 (字符串持久化) 
      */
-    @TableField("phone")
+    @Column("phone")
     private String phone;
     /**
      * 国家
      */
-    @TableField("country")
+    @Column("country")
     private String country;
     /**
      * 省/州
      */
-    @TableField("province")
+    @Column("province")
     private String province;
     /**
      * 城市
      */
-    @TableField("city")
+    @Column("city")
     private String city;
     /**
      * 区/县
      */
-    @TableField("district")
+    @Column("district")
     private String district;
     /**
      * 地址行1
      */
-    @TableField("address_line1")
+    @Column("address_line1")
     private String addressLine1;
     /**
      * 地址行2
      */
-    @TableField("address_line2")
+    @Column("address_line2")
     private String addressLine2;
     /**
      * 邮编
      */
-    @TableField("zipcode")
+    @Column("zipcode")
     private String zipcode;
     /**
      * 是否默认地址
      */
-    @TableField("is_default")
+    @Column("is_default")
     private Boolean isDefault;
     /**
      * 创建时间
      */
-    @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    @Column("created_at")
     private LocalDateTime createdAt;
     /**
      * 更新时间
      */
-    @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }

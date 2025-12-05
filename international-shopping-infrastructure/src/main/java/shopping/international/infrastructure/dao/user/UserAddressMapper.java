@@ -1,7 +1,7 @@
 // UserAddressMapper.java
 package shopping.international.infrastructure.dao.user;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.mybatisflex.core.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import shopping.international.infrastructure.dao.user.po.UserAddressPO;
 

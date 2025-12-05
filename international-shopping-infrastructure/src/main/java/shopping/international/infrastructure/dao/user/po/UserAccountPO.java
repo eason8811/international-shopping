@@ -1,6 +1,9 @@
 package shopping.international.infrastructure.dao.user.po;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.mybatisflex.annotation.Column;
+import com.mybatisflex.annotation.Id;
+import com.mybatisflex.annotation.KeyType;
+import com.mybatisflex.annotation.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,62 +13,63 @@ import java.time.LocalDateTime;
 
 /**
  * 持久化对象: user_account
- * <p>映射用户账户主表 (JWT 认证), 用于 MyBatis-Plus CRUD</p>
+ * <p>映射用户账户主表 (JWT 认证), 用于 MyBatis-Flex CRUD</p>
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("user_account")
+@Table("user_account")
 public class UserAccountPO {
     /**
      * 主键ID (自增)
      */
-    @TableId(value = "id", type = IdType.AUTO)
+    @Id(keyType = KeyType.Auto)
+    @Column("id")
     private Long id;
     /**
      * 用户名(登录名)
      */
-    @TableField("username")
+    @Column("username")
     private String username;
     /**
      * 昵称/显示名
      */
-    @TableField("nickname")
+    @Column("nickname")
     private String nickname;
     /**
      * 邮箱
      */
-    @TableField("email")
+    @Column("email")
     private String email;
     /**
      * 手机号
      */
-    @TableField("phone")
+    @Column("phone")
     private String phone;
     /**
      * 账户状态 (ACTIVE/DISABLED)
      */
-    @TableField("status")
+    @Column("status")
     private String status;
     /**
      * 最近登录时间
      */
-    @TableField("last_login_at")
+    @Column("last_login_at")
     private LocalDateTime lastLoginAt;
     /**
      * 软删除标记(0/1)
      */
-    @TableField("is_deleted")
+    @Column("is_deleted")
     private Boolean isDeleted;
     /**
      * 创建时间
      */
-    @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    @Column("created_at")
     private LocalDateTime createdAt;
     /**
      * 更新时间
      */
-    @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 }
