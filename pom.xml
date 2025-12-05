@@ -36,7 +36,7 @@
     <properties>
         <java.version>17</java.version>
         <jetbrains.version>21.0.1</jetbrains.version>
-        <jwt.version>9.39.3</jwt.version>
+        <jwt.version>10.0.2</jwt.version>
         <retrofit2.version>2.11.0</retrofit2.version>
         <okhttp3.core.version>4.12.0</okhttp3.core.version>
         <okhttp3.logging.intercepter.version>4.12.0</okhttp3.logging.intercepter.version>
