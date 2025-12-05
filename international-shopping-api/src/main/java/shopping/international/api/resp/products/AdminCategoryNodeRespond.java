@@ -1,9 +1,7 @@
 package shopping.international.api.resp.products;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,6 +10,7 @@ import java.util.List;
  * 商品分类树响应节点
  */
 @Data
+@SuperBuilder
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class AdminCategoryNodeRespond extends AbstractCategoryNodeRespond {
@@ -46,6 +45,7 @@ public class AdminCategoryNodeRespond extends AbstractCategoryNodeRespond {
      * 带 locale 的 i18n 响应
      */
     @Data
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CategoryI18nPayloadRespond {

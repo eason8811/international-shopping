@@ -1,9 +1,7 @@
 package shopping.international.api.resp.products;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import shopping.international.domain.model.enums.products.SpecType;
 
 import java.util.List;
@@ -12,6 +10,7 @@ import java.util.List;
  * 规格响应 AdminSpecRespond
  */
 @Data
+@SuperBuilder
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class AdminSpecRespond extends AbstractSpecRespond {
@@ -40,6 +39,7 @@ public class AdminSpecRespond extends AbstractSpecRespond {
      * 规格多语言响应 SpecI18nRespond
      */
     @Data
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SpecI18nPayloadRespond {

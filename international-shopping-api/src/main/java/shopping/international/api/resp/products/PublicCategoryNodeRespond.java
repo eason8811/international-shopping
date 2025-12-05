@@ -3,6 +3,7 @@ package shopping.international.api.resp.products;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
  * <p>返回已经按 locale 做过本地化替换的分类节点, 不包含多语言列表</p>
  */
 @Data
+@SuperBuilder
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class PublicCategoryNodeRespond extends AbstractCategoryNodeRespond {

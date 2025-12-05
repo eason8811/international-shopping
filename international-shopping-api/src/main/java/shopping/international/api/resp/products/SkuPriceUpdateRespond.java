@@ -1,6 +1,7 @@
 package shopping.international.api.resp.products;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,6 +13,7 @@ import java.util.List;
  * <p>返回已更新价格的 SKU 标识与受影响的币种列表</p>
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class SkuPriceUpdateRespond {

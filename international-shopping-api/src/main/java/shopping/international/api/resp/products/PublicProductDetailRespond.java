@@ -3,6 +3,7 @@ package shopping.international.api.resp.products;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
@@ -15,6 +16,7 @@ import java.util.List;
  * <p>字段已经根据 locale 做过本地化替换, 不返回 i18n 信息</p>
  */
 @Data
+@SuperBuilder
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class PublicProductDetailRespond extends AbstractProductDetailRespond {
@@ -48,6 +50,7 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
      * 用户侧规格响应 PublicSpecRespond
      */
     @Data
+    @SuperBuilder
     @NoArgsConstructor
     @EqualsAndHashCode(callSuper = true)
     public static class PublicSpecRespond extends AbstractSpecRespond {
@@ -70,6 +73,7 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
      * 用户侧规格值响应 SpecValueRespond
      */
     @Data
+    @SuperBuilder
     @NoArgsConstructor
     @EqualsAndHashCode(callSuper = true)
     public static class PublicSpecValueRespond extends AbstractSpecValueRespond {

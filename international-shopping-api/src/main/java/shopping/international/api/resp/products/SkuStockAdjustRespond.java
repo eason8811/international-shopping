@@ -1,6 +1,7 @@
 package shopping.international.api.resp.products;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
  * <p>返回调整后的库存与标识信息</p>
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class SkuStockAdjustRespond {

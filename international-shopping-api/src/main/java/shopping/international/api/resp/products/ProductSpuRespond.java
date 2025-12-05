@@ -1,6 +1,7 @@
 package shopping.international.api.resp.products;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.enums.products.ProductStatus;
@@ -14,6 +15,7 @@ import java.util.List;
  * 商品列表响应
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductSpuRespond {
@@ -100,6 +102,7 @@ public class ProductSpuRespond {
      * 价格区间响应
      */
     @Data
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ProductPriceRangeRespond {

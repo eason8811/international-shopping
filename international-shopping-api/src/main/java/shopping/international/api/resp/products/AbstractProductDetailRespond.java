@@ -1,8 +1,10 @@
 package shopping.international.api.resp.products;
 
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 
@@ -12,8 +14,9 @@ import java.util.List;
  * AbstractProductDetailRespond 用于封装商品详细信息的抽象响应类
  */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
+@SuperBuilder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractProductDetailRespond {
     /**
      * 商品 ID

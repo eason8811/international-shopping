@@ -1,15 +1,18 @@
 package shopping.international.api.resp.products;
 
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 /**
  * AbstractSpecValueRespond 规格值的抽象响应类
  */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
+@SuperBuilder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class AbstractSpecValueRespond {
     /**
      * 规格值 ID

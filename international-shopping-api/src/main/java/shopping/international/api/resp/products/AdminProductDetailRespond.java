@@ -1,9 +1,7 @@
 package shopping.international.api.resp.products;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 
@@ -15,6 +13,7 @@ import java.util.List;
  * <p>对应 ProductDetail schema, 包含 i18n_list、多币种价格与完整的规格信息</p>
  */
 @Data
+@SuperBuilder
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class AdminProductDetailRespond extends AbstractProductDetailRespond {
@@ -55,6 +54,7 @@ public class AdminProductDetailRespond extends AbstractProductDetailRespond {
      * 商品多语言响应 ProductI18nRespond
      */
     @Data
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ProductI18nRespond {

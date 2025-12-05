@@ -1,6 +1,7 @@
 package shopping.international.api.resp.products;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
  * <p>用于返回分类更新、删除等操作的简要结果</p>
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryOperationRespond {
