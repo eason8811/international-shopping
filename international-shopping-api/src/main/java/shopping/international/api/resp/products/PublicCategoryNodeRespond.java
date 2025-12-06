@@ -19,6 +19,10 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class PublicCategoryNodeRespond extends AbstractCategoryNodeRespond {
     /**
+     * 子分类节点
+     */
+    protected List<PublicCategoryNodeRespond> children;
+    /**
      * 当前返回语言
      */
     private String locale;
@@ -41,7 +45,8 @@ public class PublicCategoryNodeRespond extends AbstractCategoryNodeRespond {
      * @param locale    当前返回的语言代码
      */
     public PublicCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String brand, List<PublicCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, String locale) {
-        super(id, parentId, name, slug, level, path, sortOrder, brand, children, isEnabled, createdAt, updatedAt);
+        super(id, parentId, name, slug, level, path, sortOrder, brand, isEnabled, createdAt, updatedAt);
+        this.children = children;
         this.locale = locale;
     }
 }

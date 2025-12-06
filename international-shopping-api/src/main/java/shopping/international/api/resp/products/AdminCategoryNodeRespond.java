@@ -15,6 +15,10 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class AdminCategoryNodeRespond extends AbstractCategoryNodeRespond {
     /**
+     * 子分类节点
+     */
+    protected List<AdminCategoryNodeRespond> children;
+    /**
      * 全量 i18n 列表
      */
     private List<CategoryI18nPayloadRespond> i18nList;
@@ -37,7 +41,8 @@ public class AdminCategoryNodeRespond extends AbstractCategoryNodeRespond {
      * @param i18nList  全量 i18n 列表
      */
     private AdminCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String brand, List<AdminCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, List<CategoryI18nPayloadRespond> i18nList) {
-        super(id, parentId, name, slug, level, path, sortOrder, brand, children, isEnabled, createdAt, updatedAt);
+        super(id, parentId, name, slug, level, path, sortOrder, brand, isEnabled, createdAt, updatedAt);
+        this.children = children;
         this.i18nList = i18nList;
     }
 

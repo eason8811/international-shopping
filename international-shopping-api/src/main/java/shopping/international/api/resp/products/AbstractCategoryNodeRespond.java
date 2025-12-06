@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 抽象分类节点响应类
@@ -49,10 +48,6 @@ public abstract class AbstractCategoryNodeRespond {
      * 品牌文案
      */
     protected String brand;
-    /**
-     * 子分类节点
-     */
-    protected List<? extends AbstractCategoryNodeRespond> children;
     /**
      * 是否启用
      */

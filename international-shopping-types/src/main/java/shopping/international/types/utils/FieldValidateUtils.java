@@ -337,4 +337,18 @@ public final class FieldValidateUtils {
         require(distinctKeys.size() == normalizedList.size(), duplicateMsg);
         return normalizedList;
     }
+
+    /**
+     * 获取国际化字符串或默认值, 如果提供的国际化对象为空, 则返回默认的国际化字符串
+     *
+     * @param <T>         国际化对象类型
+     * @param i18n        国际化对象, 可以是任何实现了对应接口的对象, 用于获取特定语言下的文本
+     * @param i18nGetFunc 从国际化对象中提取所需字符串的方法引用或函数
+     * @param defaultI18n 当国际化对象为 {@code null} 时使用的默认国际化字符串
+     * @return 如果国际化对象不为空, 返回通过 {@code i18nGetFunc} 提取的字符串; 否则返回 {@code defaultI18n}
+     */
+    @NotNull
+    public static <T> String getI18nOrDefault(T i18n, Function<T, String> i18nGetFunc, String defaultI18n) {
+        return i18n == null ? defaultI18n : i18nGetFunc.apply(i18n);
+    }
 }
