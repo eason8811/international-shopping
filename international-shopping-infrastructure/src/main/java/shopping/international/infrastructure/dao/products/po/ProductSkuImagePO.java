@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,43 +19,42 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("product_sku_image")
+@TableName("product_sku_image")
 public class ProductSkuImagePO {
 
     /**
      * 主键ID, 自增
      */
-    @Id(keyType = KeyType.Auto)
-    @Column("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**
      * SKU ID, 指向 product_sku.id
      */
-    @Column("sku_id")
+    @TableField("sku_id")
     private Long skuId;
 
     /**
      * 图片URL
      */
-    @Column("url")
+    @TableField("url")
     private String url;
 
     /**
      * 是否为该 SKU 的主图
      */
-    @Column("is_main")
+    @TableField("is_main")
     private Boolean isMain;
 
     /**
      * 排序, 值越小越靠前
      */
-    @Column("sort_order")
+    @TableField("sort_order")
     private Integer sortOrder;
 
     /**
      * 创建时间
      */
-    @Column("created_at")
+    @TableField("created_at")
     private LocalDateTime createdAt;
 }

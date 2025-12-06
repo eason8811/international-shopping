@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,67 +19,66 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("product_spec")
+@TableName("product_spec")
 public class ProductSpecPO {
 
     /**
      * 主键ID, 自增
      */
-    @Id(keyType = KeyType.Auto)
-    @Column("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**
      * 商品ID, 指向 product.id
      */
-    @Column("product_id")
+    @TableField("product_id")
     private Long productId;
 
     /**
      * 规格编码, 如 color、capacity
      */
-    @Column("spec_code")
+    @TableField("spec_code")
     private String specCode;
 
     /**
      * 规格名称, 如 颜色、容量
      */
-    @Column("spec_name")
+    @TableField("spec_name")
     private String specName;
 
     /**
      * 规格类型：COLOR、SIZE、CAPACITY、MATERIAL 或 OTHER
      */
-    @Column("spec_type")
+    @TableField("spec_type")
     private String specType;
 
     /**
      * 是否必选, 决定每个 SKU 是否必须有该规格值
      */
-    @Column("is_required")
+    @TableField("is_required")
     private Boolean isRequired;
 
     /**
      * 排序, 值越小越靠前
      */
-    @Column("sort_order")
+    @TableField("sort_order")
     private Integer sortOrder;
 
     /**
      * 启用状态, ENABLED 或 DISABLED
      */
-    @Column("status")
+    @TableField("status")
     private String status;
 
     /**
      * 创建时间
      */
-    @Column("created_at")
+    @TableField("created_at")
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
-    @Column("updated_at")
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
 }

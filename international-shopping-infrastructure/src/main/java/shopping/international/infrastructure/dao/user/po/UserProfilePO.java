@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.dao.user.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -39,34 +39,33 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("user_profile")
+@TableName("user_profile")
 public final class UserProfilePO {
-    @Id(keyType = KeyType.None)
-    @Column("user_id")
+    @TableId("user_id")
     private Long userId;
-    @Column("display_name")
+    @TableField("display_name")
     private String displayName;
-    @Column("avatar_url")
+    @TableField("avatar_url")
     private String avatarUrl;
-    @Column("gender")
+    @TableField("gender")
     private String gender;
-    @Column("birthday")
+    @TableField("birthday")
     private LocalDate birthday;
-    @Column("country")
+    @TableField("country")
     private String country;
-    @Column("province")
+    @TableField("province")
     private String province;
-    @Column("city")
+    @TableField("city")
     private String city;
-    @Column("address_line")
+    @TableField("address_line")
     private String addressLine;
-    @Column("zipcode")
+    @TableField("zipcode")
     private String zipcode;
-    @Column("extra")
+    @TableField("extra")
     private String extra;
-    @Column("created_at")
+    @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;
-    @Column("updated_at")
+    @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime updatedAt;
 
 }

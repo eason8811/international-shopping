@@ -1,9 +1,6 @@
 package shopping.international.infrastructure.dao.user.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,77 +16,76 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("user_auth")
+@TableName("user_auth")
 public class UserAuthPO {
     /**
      * 主键ID (自增)
      */
-    @Id(keyType = KeyType.Auto)
-    @Column("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     /**
      * 用户ID
      */
-    @Column("user_id")
+    @TableField("user_id")
     private Long userId;
     /**
      * 提供方 (LOCAL/GOOGLE/...)
      */
-    @Column("provider")
+    @TableField("provider")
     private String provider;
     /**
      * 发行方 (OIDC iss)
      */
-    @Column("issuer")
+    @TableField("issuer")
     private String issuer;
     /**
      * 发行方内唯一ID (OIDC sub)
      */
-    @Column("provider_uid")
+    @TableField("provider_uid")
     private String providerUid;
     /**
      * 本地密码哈希 (仅 LOCAL)
      */
-    @Column("password_hash")
+    @TableField("password_hash")
     private String passwordHash;
     /**
      * 访问令牌 (加密后字节)
      */
-    @Column("access_token")
+    @TableField("access_token")
     private byte[] accessToken;
     /**
      * 刷新令牌 (加密后字节)
      */
-    @Column("refresh_token")
+    @TableField("refresh_token")
     private byte[] refreshToken;
     /**
      * 访问令牌过期时间
      */
-    @Column("expires_at")
+    @TableField("expires_at")
     private LocalDateTime expiresAt;
     /**
      * 授权范围 (逗号或空格分隔)
      */
-    @Column("scope")
+    @TableField("scope")
     private String scope;
     /**
      * 角色
      */
-    @Column("role")
+    @TableField("role")
     private String role;
     /**
      * 该通道最近登录时间
      */
-    @Column("last_login_at")
+    @TableField("last_login_at")
     private LocalDateTime lastLoginAt;
     /**
      * 创建时间
      */
-    @Column("created_at")
+    @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;
     /**
      * 更新时间
      */
-    @Column("updated_at")
+    @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime updatedAt;
 }

@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,67 +20,66 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("product_sku")
+@TableName("product_sku")
 public class ProductSkuPO {
 
     /**
      * 主键ID, 自增
      */
-    @Id(keyType = KeyType.Auto)
-    @Column("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**
      * 商品ID, 指向 product.id
      */
-    @Column("product_id")
+    @TableField("product_id")
     private Long productId;
 
     /**
      * SKU 编码或外部条码
      */
-    @Column("sku_code")
+    @TableField("sku_code")
     private String skuCode;
 
     /**
      * 可售库存
      */
-    @Column("stock")
+    @TableField("stock")
     private Integer stock;
 
     /**
      * 重量（公斤）
      */
-    @Column("weight")
+    @TableField("weight")
     private BigDecimal weight;
 
     /**
      * 启用状态, ENABLED 或 DISABLED
      */
-    @Column("status")
+    @TableField("status")
     private String status;
 
     /**
      * 是否为该商品的默认展示 SKU
      */
-    @Column("is_default")
+    @TableField("is_default")
     private Boolean isDefault;
 
     /**
      * 条码, 可为空
      */
-    @Column("barcode")
+    @TableField("barcode")
     private String barcode;
 
     /**
      * 创建时间
      */
-    @Column("created_at")
+    @TableField("created_at")
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
-    @Column("updated_at")
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
 }

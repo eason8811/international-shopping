@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,67 +19,66 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("product_spec_value")
+@TableName("product_spec_value")
 public class ProductSpecValuePO {
 
     /**
      * 主键ID, 自增
      */
-    @Id(keyType = KeyType.Auto)
-    @Column("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**
      * 商品ID, 指向 product.id (冗余便于校验与查询)
      */
-    @Column("product_id")
+    @TableField("product_id")
     private Long productId;
 
     /**
      * 规格类别ID, 指向 product_spec.id
      */
-    @Column("spec_id")
+    @TableField("spec_id")
     private Long specId;
 
     /**
      * 规格值编码, 如 black, gray, 512gb
      */
-    @Column("value_code")
+    @TableField("value_code")
     private String valueCode;
 
     /**
      * 规格值名称
      */
-    @Column("value_name")
+    @TableField("value_name")
     private String valueName;
 
     /**
      * 附加属性 JSON, 如颜色 hex 或展示图等
      */
-    @Column("attributes")
+    @TableField("attributes")
     private String attributes;
 
     /**
      * 排序, 值越小越靠前
      */
-    @Column("sort_order")
+    @TableField("sort_order")
     private Integer sortOrder;
 
     /**
      * 启用状态, ENABLED 或 DISABLED
      */
-    @Column("status")
+    @TableField("status")
     private String status;
 
     /**
      * 创建时间
      */
-    @Column("created_at")
+    @TableField("created_at")
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
-    @Column("updated_at")
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
 }

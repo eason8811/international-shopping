@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,67 +19,66 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("product_category")
+@TableName("product_category")
 public class ProductCategoryPO {
 
     /**
      * 主键ID, 自增
      */
-    @Id(keyType = KeyType.Auto)
-    @Column("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**
      * 父分类ID, 根节点为空
      */
-    @Column("parent_id")
+    @TableField("parent_id")
     private Long parentId;
 
     /**
      * 分类名称
      */
-    @Column("name")
+    @TableField("name")
     private String name;
 
     /**
      * 分类别名, 用于 SEO 或路由
      */
-    @Column("slug")
+    @TableField("slug")
     private String slug;
 
     /**
      * 层级, 根节点从 1 开始
      */
-    @Column("level")
+    @TableField("level")
     private Integer level;
 
     /**
      * 祖先路径, 如 /1/3/5/
      */
-    @Column("path")
+    @TableField("path")
     private String path;
 
     /**
      * 排序, 值越小越靠前
      */
-    @Column("sort_order")
+    @TableField("sort_order")
     private Integer sortOrder;
 
     /**
      * 启用状态, ENABLED 或 DISABLED
      */
-    @Column("status")
+    @TableField("status")
     private String status;
 
     /**
      * 创建时间
      */
-    @Column("created_at")
+    @TableField("created_at")
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
-    @Column("updated_at")
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
 }

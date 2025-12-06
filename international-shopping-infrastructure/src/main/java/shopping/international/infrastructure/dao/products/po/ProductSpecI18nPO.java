@@ -1,9 +1,9 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,32 +19,30 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("product_spec_i18n")
+@TableName("product_spec_i18n")
 public class ProductSpecI18nPO {
 
     /**
      * 规格类别ID, 指向 product_spec.id
      */
-    @Id(keyType = KeyType.None)
-    @Column("spec_id")
+    @TableId(value = "spec_id", type = IdType.INPUT)
     private Long specId;
 
     /**
      * 语言代码, 如 en_US
      */
-    @Id(keyType = KeyType.None)
-    @Column("locale")
+    @TableField("locale")
     private String locale;
 
     /**
      * 规格类别名称 (本地化)
      */
-    @Column("spec_name")
+    @TableField("spec_name")
     private String specName;
 
     /**
      * 创建时间
      */
-    @Column("created_at")
+    @TableField("created_at")
     private LocalDateTime createdAt;
 }
