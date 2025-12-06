@@ -186,7 +186,12 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 更新分类基础信息及可选的 i18n
+     *
+     * @param category    已存在的聚合快照
+     * @param replaceI18n 是否重写 i18n 表 (为 {@code false} 时不改 i18n)
+     * @param moveContext 父级变更时传入, 用于批量调整子节点层级与路径, 可空
+     * @return 更新后的聚合
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -227,7 +232,10 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 判断是否存在子分类
+     *
+     * @param categoryId 分类 ID
+     * @return 是否有子节点
      */
     @Override
     public boolean hasChildren(@NotNull Long categoryId) {
@@ -238,7 +246,10 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 判断分类下是否存在商品
+     *
+     * @param categoryId 分类 ID
+     * @return 是否存在商品引用
      */
     @Override
     public boolean hasProducts(@NotNull Long categoryId) {
@@ -249,7 +260,10 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 新增单条多语言记录
+     *
+     * @param categoryId 分类 ID
+     * @param i18n       多语言值对象
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -271,7 +285,10 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 更新单条多语言记录
+     *
+     * @param categoryId 分类 ID
+     * @param i18n       新值对象
      */
     @Override
     @Transactional(rollbackFor = Exception.class)

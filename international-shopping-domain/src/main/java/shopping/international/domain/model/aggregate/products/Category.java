@@ -5,11 +5,14 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.domain.model.vo.products.CategoryI18n;
+import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -217,6 +220,41 @@ public class Category implements Verifiable {
     }
 
     /**
+     * 批量更新分类的多语言信息
+     *
+     * <p>此方法会根据传入的多语言列表, 更新当前分类下的多语言条目, 如果某个语言代码在当前分类中已存在,
+     * 则会合并新的值与现有值, 如果新值为空, 则保留现有值; 如果不存在, 则忽略该条目</p>
+     *
+     * <p>对于每个多语言条目, 必须提供有效的 locale, 并且 name 和 slug 字段不能为空
+     * 如果提供的 locale 不合法或过长, 将抛出异常</p>
+     *
+     * @param i18nList 待更新的多语言列表
+     * @throws IllegalParamException 如果有无效的参数 (如空的 locale, 空的 name 或 slug)
+     */
+    public void updateI18nBatch(List<CategoryI18n> i18nList) {
+        List<CategoryI18n> mutable = this.i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        Map<String, CategoryI18n> exsistingI18nByLocaleMap = mutable.stream()
+                .collect(Collectors.toMap(CategoryI18n::getLocale, item -> item));
+        for (CategoryI18n i18n : i18nList) {
+            String normalizedLocale = normalizeLocale(i18n.getLocale());
+            requireNotNull(normalizedLocale, "locale 不能为空");
+
+            CategoryI18n existingI18n = exsistingI18nByLocaleMap.get(normalizedLocale);
+            requireNotNull(existingI18n, "分类多语言不存在: " + normalizedLocale);
+            String mergedName = i18n.getName() != null ? i18n.getName().strip() : existingI18n.getName();
+            String mergedSlug = i18n.getSlug() != null ? i18n.getSlug().strip() : existingI18n.getSlug();
+            String mergedBrand = i18n.getBrand() != null ? i18n.getBrand().strip() : existingI18n.getBrand();
+            requireNotBlank(mergedName, "分类名称不能为空");
+            requireNotBlank(mergedSlug, "分类 slug 不能为空");
+
+            CategoryI18n patched = CategoryI18n.of(normalizedLocale, mergedName, mergedSlug, mergedBrand);
+            mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
+            mutable.add(patched);
+        }
+        replaceI18n(mutable);
+    }
+
+    /**
      * 更新已存在的多语言条目 (locale 必须存在, 为空字段不更新)
      *
      * @param locale 语言代码
@@ -241,7 +279,7 @@ public class Category implements Verifiable {
         CategoryI18n patched = CategoryI18n.of(normalizedLocale, mergedName, mergedSlug, mergedBrand);
         mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
         mutable.add(patched);
-        this.i18nList = normalizeDistinctList(mutable, CategoryI18n::validate, CategoryI18n::getLocale, "分类多语言 locale 不能重复");
+        replaceI18n(mutable);
     }
 
     /**

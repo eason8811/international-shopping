@@ -12,13 +12,9 @@ import shopping.international.domain.service.products.ICategoryService;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 商品分类领域服务实现
@@ -151,10 +147,13 @@ public class CategoryService implements ICategoryService {
             current.changeStatus(isEnabled ? CategoryStatus.ENABLED : CategoryStatus.DISABLED);
 
         boolean replaceI18n = i18nPatches != null;
-        if (i18nPatches != null) {
-            List<CategoryI18n> merged = mergeI18n(current.getI18nList(), i18nPatches);
-            current.replaceI18n(merged);
-        }
+        if (replaceI18n)
+            current.updateI18nBatch(
+                    i18nPatches.stream()
+                            .map(item -> CategoryI18n.of(item.locale(), item.name(), item.slug(), item.brand()))
+                            .toList()
+            );
+
 
         ensureUniqueness(categoryId, current.getParentId(),
                 name == null ? current.getName() : name,
@@ -173,7 +172,9 @@ public class CategoryService implements ICategoryService {
     }
 
     /**
-     * {@inheritDoc}
+     * 删除分类
+     *
+     * @param categoryId 分类 ID
      */
     @Override
     public void delete(@NotNull Long categoryId) {
@@ -186,7 +187,11 @@ public class CategoryService implements ICategoryService {
     }
 
     /**
-     * {@inheritDoc}
+     * 新增多语言
+     *
+     * @param categoryId 分类 ID
+     * @param i18n       多语言值对象
+     * @return 新增后的值对象
      */
     @Override
     public @NotNull CategoryI18n addI18n(@NotNull Long categoryId, @NotNull CategoryI18n i18n) {
@@ -197,7 +202,11 @@ public class CategoryService implements ICategoryService {
     }
 
     /**
-     * {@inheritDoc}
+     * 增量更新多语言
+     *
+     * @param categoryId 分类 ID
+     * @param patch      多语言增量
+     * @return 更新后的值对象
      */
     @Override
     public @NotNull CategoryI18n updateI18n(@NotNull Long categoryId, @NotNull CategoryI18nPatch patch) {
@@ -212,7 +221,11 @@ public class CategoryService implements ICategoryService {
     }
 
     /**
-     * {@inheritDoc}
+     * 切换启用状态
+     *
+     * @param categoryId 分类 ID
+     * @param enable     目标是否启用
+     * @return 更新后的聚合
      */
     @Override
     public @NotNull Category toggleStatus(@NotNull Long categoryId, boolean enable) {
@@ -223,33 +236,6 @@ public class CategoryService implements ICategoryService {
             categoryRepository.update(category, false, null);
         }
         return get(categoryId);
-    }
-
-    /**
-     * 合并增量 i18n, 保证 name/slug 完整
-     *
-     * @param existing 现有列表
-     * @param patches  增量指令
-     * @return 合并后的完整列表
-     */
-    private List<CategoryI18n> mergeI18n(@Nullable List<CategoryI18n> existing,
-                                         @NotNull List<CategoryI18nPatch> patches) {
-        List<CategoryI18n> source = existing == null ? new ArrayList<>() : new ArrayList<>(existing);
-        List<CategoryI18n> result = new ArrayList<>();
-        for (CategoryI18nPatch patch : patches) {
-            String locale = normalizeLocale(patch.locale());
-            requireNotNull(locale, "locale 不能为空");
-            Optional<CategoryI18n> current = source.stream()
-                    .filter(item -> item.getLocale().equals(locale))
-                    .findFirst();
-            String name = patch.name() == null && current.isPresent() ? current.get().getName() : patch.name();
-            String slug = patch.slug() == null && current.isPresent() ? current.get().getSlug() : patch.slug();
-            String brand = patch.brand() == null && current.isPresent() ? current.get().getBrand() : patch.brand();
-            requireNotBlank(name, "分类名称不能为空");
-            requireNotBlank(slug, "分类 slug 不能为空");
-            result.add(CategoryI18n.of(locale, name, slug, brand));
-        }
-        return result;
     }
 
     /**
