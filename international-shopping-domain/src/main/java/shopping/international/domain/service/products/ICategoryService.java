@@ -3,6 +3,7 @@ package shopping.international.domain.service.products;
 import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.adapter.repository.products.ICategoryRepository;
 import shopping.international.domain.model.aggregate.products.Category;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 
@@ -11,7 +12,7 @@ import java.util.List;
 /**
  * 商品分类领域服务接口
  *
- * <p>面向用例的分类查询与维护操作, 通过 {@link shopping.international.domain.adapter.repository.product.ICategoryRepository}
+ * <p>面向用例的分类查询与维护操作, 通过 {@link ICategoryRepository}
  * 与持久化层交互, 聚焦领域规则校验与聚合行为编排</p>
  */
 public interface ICategoryService {

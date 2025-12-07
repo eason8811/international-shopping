@@ -8,7 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-import shopping.international.domain.adapter.repository.product.ICategoryRepository;
+import shopping.international.domain.adapter.repository.products.ICategoryRepository;
 import shopping.international.domain.model.aggregate.products.Category;
 import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.domain.model.vo.products.CategoryI18n;

@@ -1,4 +1,4 @@
-package shopping.international.domain.adapter.repository.product;
+package shopping.international.domain.adapter.repository.products;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

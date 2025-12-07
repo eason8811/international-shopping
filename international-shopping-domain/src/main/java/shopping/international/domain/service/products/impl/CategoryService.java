@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import shopping.international.domain.adapter.repository.product.ICategoryRepository;
+import shopping.international.domain.adapter.repository.products.ICategoryRepository;
 import shopping.international.domain.model.aggregate.products.Category;
 import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.domain.model.vo.products.CategoryI18n;
