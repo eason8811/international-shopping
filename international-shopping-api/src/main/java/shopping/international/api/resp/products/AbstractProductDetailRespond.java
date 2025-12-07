@@ -83,10 +83,6 @@ public abstract class AbstractProductDetailRespond {
      */
     private List<ProductImageRespond> gallery;
     /**
-     * 规格列表
-     */
-    private List<? extends AbstractSpecRespond> specs;
-    /**
      * SKU 列表
      */
     private List<ProductSkuRespond> skus;

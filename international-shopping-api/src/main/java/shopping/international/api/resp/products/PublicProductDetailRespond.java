@@ -21,6 +21,11 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class PublicProductDetailRespond extends AbstractProductDetailRespond {
     /**
+     * 规格列表
+     */
+    private List<PublicSpecRespond> specs;
+
+    /**
      * 构造一个公共商品详情响应对象, 用于展示给用户侧的商品详细信息
      *
      * @param id            商品 ID
@@ -42,8 +47,9 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
      * @param specs         规格列表, 每个元素都是 {@code AbstractSpecRespond} 的子类实例
      * @param skus          SKU 列表, 包含多个 {@link ProductSkuRespond} 对象
      */
-    private PublicProductDetailRespond(Long id, String slug, String title, String subtitle, String description, Long categoryId, String categorySlug, String brand, String coverImageUrl, Integer stockTotal, Integer saleCount, SkuType skuType, ProductStatus status, List<String> tags, Long defaultSkuId, List<ProductImageRespond> gallery, List<? extends AbstractSpecRespond> specs, List<ProductSkuRespond> skus) {
-        super(id, slug, title, subtitle, description, categoryId, categorySlug, brand, coverImageUrl, stockTotal, saleCount, skuType, status, tags, defaultSkuId, gallery, specs, skus);
+    private PublicProductDetailRespond(Long id, String slug, String title, String subtitle, String description, Long categoryId, String categorySlug, String brand, String coverImageUrl, Integer stockTotal, Integer saleCount, SkuType skuType, ProductStatus status, List<String> tags, Long defaultSkuId, List<ProductImageRespond> gallery, List<PublicSpecRespond> specs, List<ProductSkuRespond> skus) {
+        super(id, slug, title, subtitle, description, categoryId, categorySlug, brand, coverImageUrl, stockTotal, saleCount, skuType, status, tags, defaultSkuId, gallery, skus);
+        this.specs = specs;
     }
 
     /**

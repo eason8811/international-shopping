@@ -18,6 +18,10 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class AdminProductDetailRespond extends AbstractProductDetailRespond {
     /**
+     * 规格列表
+     */
+    private List<AdminSpecRespond> specs;
+    /**
      * 商品多语言列表
      */
     private List<ProductI18nRespond> i18nList;
@@ -45,8 +49,9 @@ public class AdminProductDetailRespond extends AbstractProductDetailRespond {
      * @param skus          商品 SKU 列表
      * @param i18nList      商品多语言信息列表
      */
-    private AdminProductDetailRespond(Long id, String slug, String title, String subtitle, String description, Long categoryId, String categorySlug, String brand, String coverImageUrl, Integer stockTotal, Integer saleCount, SkuType skuType, ProductStatus status, List<String> tags, Long defaultSkuId, List<ProductImageRespond> gallery, List<? extends AbstractSpecRespond> specs, List<ProductSkuRespond> skus, List<ProductI18nRespond> i18nList) {
-        super(id, slug, title, subtitle, description, categoryId, categorySlug, brand, coverImageUrl, stockTotal, saleCount, skuType, status, tags, defaultSkuId, gallery, specs, skus);
+    private AdminProductDetailRespond(Long id, String slug, String title, String subtitle, String description, Long categoryId, String categorySlug, String brand, String coverImageUrl, Integer stockTotal, Integer saleCount, SkuType skuType, ProductStatus status, List<String> tags, Long defaultSkuId, List<ProductImageRespond> gallery, List<AdminSpecRespond> specs, List<ProductSkuRespond> skus, List<ProductI18nRespond> i18nList) {
+        super(id, slug, title, subtitle, description, categoryId, categorySlug, brand, coverImageUrl, stockTotal, saleCount, skuType, status, tags, defaultSkuId, gallery, skus);
+        this.specs = specs;
         this.i18nList = i18nList;
     }
 
