@@ -3,6 +3,7 @@ package shopping.international.domain.model.aggregate.products;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.StockAdjustMode;
 import shopping.international.domain.model.vo.products.ProductImage;
@@ -62,14 +63,17 @@ public class Sku implements Verifiable {
     /**
      * 多币种价格列表, currency 唯一
      */
+    @NotNull
     private List<ProductPrice> prices;
     /**
      * 规格选择列表, 每规格仅一条
      */
+    @NotNull
     private List<SkuSpecRelation> specs;
     /**
      * SKU 图库
      */
+    @NotNull
     private List<ProductImage> images;
     /**
      * 创建时间

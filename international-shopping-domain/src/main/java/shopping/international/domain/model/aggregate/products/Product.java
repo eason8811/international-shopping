@@ -3,6 +3,7 @@ package shopping.international.domain.model.aggregate.products;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
@@ -86,14 +87,17 @@ public class Product implements Verifiable {
     /**
      * 图库
      */
+    @NotNull
     private List<ProductImage> gallery;
     /**
      * 规格定义列表, specCode 唯一
      */
+    @NotNull
     private List<ProductSpec> specs;
     /**
      * 多语言覆盖
      */
+    @NotNull
     private List<ProductI18n> i18nList;
     /**
      * 创建时间
@@ -272,7 +276,7 @@ public class Product implements Verifiable {
     public void addI18n(ProductI18n i18n) {
         requireNotNull(i18n, "商品多语言不能为空");
         i18n.validate();
-        List<ProductI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        List<ProductI18n> mutable = new ArrayList<>(i18nList);
         boolean exists = mutable.stream().anyMatch(item -> item.getLocale().equals(i18n.getLocale()));
         require(!exists, "商品多语言 locale 已存在: " + i18n.getLocale());
         mutable.add(i18n);
@@ -291,8 +295,8 @@ public class Product implements Verifiable {
      */
     public void updateI18n(String locale, String title, String subtitle, String description, String slug, List<String> tags) {
         String normalizedLocale = normalizeLocale(locale);
-        requireNotNull(normalizedLocale, "locale 不能为空");
-        List<ProductI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        requireNotBlank(normalizedLocale, "locale 不能为空");
+        List<ProductI18n> mutable = new ArrayList<>(i18nList);
         ProductI18n existing = mutable.stream()
                 .filter(item -> item.getLocale().equals(normalizedLocale))
                 .findFirst()
@@ -339,7 +343,7 @@ public class Product implements Verifiable {
         spec.validate();
         if (this.id != null)
             require(Objects.equals(this.id, spec.getProductId()), "规格所属商品不匹配");
-        List<ProductSpec> mutable = specs == null ? new ArrayList<>() : new ArrayList<>(specs);
+        List<ProductSpec> mutable = new ArrayList<>(specs);
         boolean exists = mutable.stream().anyMatch(item -> item.getSpecCode().equals(spec.getSpecCode()));
         require(!exists, "规格编码已存在: " + spec.getSpecCode());
         mutable.add(spec);
@@ -358,8 +362,6 @@ public class Product implements Verifiable {
      */
     public void updateSpec(Long specId, String specName, SpecType specType, Boolean required, Integer sortOrder, Boolean enabled) {
         requireNotNull(specId, "规格 ID 不能为空");
-        if (specs == null)
-            throw new IllegalStateException("规格不存在: " + specId);
         List<ProductSpec> mutable = new ArrayList<>(specs);
         ProductSpec existing = mutable.stream()
                 .filter(item -> Objects.equals(item.getId(), specId))

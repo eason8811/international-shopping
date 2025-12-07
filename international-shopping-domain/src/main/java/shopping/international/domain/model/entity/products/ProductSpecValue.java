@@ -3,14 +3,11 @@ package shopping.international.domain.model.entity.products;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.vo.products.ProductSpecValueI18n;
 import shopping.international.types.utils.Verifiable;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -58,6 +55,7 @@ public class ProductSpecValue implements Verifiable {
     /**
      * 多语言列表, locale 唯一
      */
+    @NotNull
     private List<ProductSpecValueI18n> i18nList;
 
     /**

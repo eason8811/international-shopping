@@ -3,6 +3,7 @@ package shopping.international.domain.model.entity.products;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductSpecI18n;
 import shopping.international.types.utils.Verifiable;
@@ -57,10 +58,12 @@ public class ProductSpec implements Verifiable {
     /**
      * 多语言覆盖列表, locale 唯一
      */
+    @NotNull
     private List<ProductSpecI18n> i18nList;
     /**
      * 规格值集合, valueCode 唯一
      */
+    @NotNull
     private List<ProductSpecValue> values;
 
     /**

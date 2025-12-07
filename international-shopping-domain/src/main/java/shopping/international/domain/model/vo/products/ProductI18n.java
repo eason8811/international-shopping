@@ -3,6 +3,7 @@ package shopping.international.domain.model.vo.products;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.List;
@@ -19,6 +20,7 @@ public class ProductI18n implements Verifiable {
     /**
      * 语言代码
      */
+    @NotNull
     private final String locale;
     /**
      * 本地化标题
@@ -51,7 +53,7 @@ public class ProductI18n implements Verifiable {
      * @param slug        slug
      * @param tags        标签
      */
-    private ProductI18n(String locale, String title, String subtitle, String description, String slug, List<String> tags) {
+    private ProductI18n(@NotNull String locale, String title, String subtitle, String description, String slug, List<String> tags) {
         this.locale = locale;
         this.title = title;
         this.subtitle = subtitle;
