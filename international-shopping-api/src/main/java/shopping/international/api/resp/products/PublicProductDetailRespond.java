@@ -61,6 +61,11 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
     @EqualsAndHashCode(callSuper = true)
     public static class PublicSpecRespond extends AbstractSpecRespond {
         /**
+         * 规格值列表
+         */
+        private List<PublicSpecValueRespond> values;
+
+        /**
          * 构造一个 PublicSpecRespond 实例, 用于表示用户侧规格响应
          *
          * @param specId     规格 ID
@@ -70,8 +75,9 @@ public class PublicProductDetailRespond extends AbstractProductDetailRespond {
          * @param isRequired 是否为必填规格
          * @param values     规格值列表, 其中每个元素都是 {@link AbstractSpecValueRespond} 的子类实例
          */
-        private PublicSpecRespond(Long specId, String specCode, String specName, SpecType specType, Boolean isRequired, List<? extends AbstractSpecValueRespond> values) {
-            super(specId, specCode, specName, specType, isRequired, values);
+        private PublicSpecRespond(Long specId, String specCode, String specName, SpecType specType, Boolean isRequired, List<PublicSpecValueRespond> values) {
+            super(specId, specCode, specName, specType, isRequired);
+            this.values = values;
         }
     }
 

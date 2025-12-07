@@ -7,8 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import shopping.international.domain.model.enums.products.SpecType;
 
-import java.util.List;
-
 /**
  * 抽象规格响应类, 用于表示商品的规格信息
  */
@@ -37,8 +35,4 @@ public abstract class AbstractSpecRespond {
      * 是否必选
      */
     private Boolean isRequired;
-    /**
-     * 规格值列表
-     */
-    private List<? extends AbstractSpecValueRespond> values;
 }
