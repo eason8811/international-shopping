@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 商品分类持久化对象, 对应表 product_category
@@ -69,6 +70,11 @@ public class ProductCategoryPO {
      */
     @TableField("status")
     private String status;
+
+    /**
+     * 分类 I18N 本地化列表
+     */
+    private List<ProductCategoryI18nPO> i18nList;
 
     /**
      * 创建时间

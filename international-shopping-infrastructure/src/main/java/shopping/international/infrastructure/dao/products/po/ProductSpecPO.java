@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 商品规格类别持久化对象, 对应表 product_spec
@@ -69,6 +70,11 @@ public class ProductSpecPO {
      */
     @TableField("status")
     private String status;
+
+    /**
+     * 规格 I18N 本地化信息列表
+     */
+    private List<ProductSpecI18nPO> i18nList;
 
     /**
      * 创建时间

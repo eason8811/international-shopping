@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 商品SKU持久化对象, 对应表 product_sku
@@ -70,6 +71,21 @@ public class ProductSkuPO {
      */
     @TableField("barcode")
     private String barcode;
+
+    /**
+     * SKU 多币种价格列表
+     */
+    private List<ProductPricePO> prices;
+
+    /**
+     * SKU 与规格值关联信息列表
+     */
+    private List<ProductSkuSpecPO> specs;
+
+    /**
+     * SKU 图片列表
+     */
+    private List<ProductImagePO> images;
 
     /**
      * 创建时间

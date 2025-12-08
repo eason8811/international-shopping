@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 商品SPU持久化对象, 对应表 product
@@ -105,6 +106,21 @@ public class ProductPO {
      */
     @TableField("tags")
     private String tags;
+
+    /**
+     * 商品图片列表
+     */
+    private List<ProductImagePO> gallery;
+
+    /**
+     * 商品规格列表
+     */
+    private List<ProductSpecPO> specs;
+
+    /**
+     * 商品多语言列表
+     */
+    private List<ProductI18nPO> i18nList;
 
     /**
      * 创建时间
