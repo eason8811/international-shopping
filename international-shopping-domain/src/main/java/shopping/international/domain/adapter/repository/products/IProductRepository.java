@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * 商品聚合仓储接口
  *
- * <p>封装对商品基础信息、图库、规格及多语言的组合读写, 并提供按 slug 定位商品的能力。</p>
+ * <p>封装对商品基础信息, 图库, 规格及多语言的组合读写, 并提供按 slug 定位商品的能力</p>
  */
 public interface IProductRepository {
 

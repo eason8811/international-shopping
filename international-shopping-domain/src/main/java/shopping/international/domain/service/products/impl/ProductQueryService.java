@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * 商品查询领域服务实现
  *
- * <p>按 slug 聚合商品、规格与 SKU 数据, 并进行必要的状态过滤和本地化准备。</p>
+ * <p>按 slug 聚合商品, 规格与 SKU 数据, 并进行必要的状态过滤和本地化准备</p>
  */
 @Service
 @RequiredArgsConstructor

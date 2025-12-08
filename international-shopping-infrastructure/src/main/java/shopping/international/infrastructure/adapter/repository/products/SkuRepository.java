@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 /**
  * 基于 MyBatis-Plus 的 SKU 聚合仓储实现
  *
- * <p>负责组合加载 SKU 及其价格、规格绑定与图库, 并处理默认 SKU 与库存的持久化逻辑。</p>
+ * <p>负责组合加载 SKU 及其价格, 规格绑定与图库, 并处理默认 SKU 与库存的持久化逻辑</p>
  */
 @Repository
 @RequiredArgsConstructor

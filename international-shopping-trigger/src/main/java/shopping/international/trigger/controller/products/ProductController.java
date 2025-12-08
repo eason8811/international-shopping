@@ -27,7 +27,7 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
 /**
  * 用户侧商品详情接口
  *
- * <p>按 slug 返回包含 SKU、规格与本地化信息的商品详情。</p>
+ * <p>按 slug 返回包含 SKU, 规格与本地化信息的商品详情</p>
  */
 @RestController
 @RequiredArgsConstructor

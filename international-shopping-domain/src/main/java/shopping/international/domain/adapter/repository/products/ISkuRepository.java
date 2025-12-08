@@ -13,7 +13,7 @@ import java.util.Optional;
 /**
  * SKU 聚合仓储接口
  *
- * <p>负责从持久化层读写 {@link Sku} 聚合及其价格、规格绑定、图片等关联数据, 为领域服务提供一致的聚合装配能力。</p>
+ * <p>负责从持久化层读写 {@link Sku} 聚合及其价格, 规格绑定, 图片等关联数据, 为领域服务提供一致的聚合装配能力</p>
  */
 public interface ISkuRepository {
 

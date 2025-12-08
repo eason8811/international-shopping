@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 商品查询领域服务接口
  *
- * <p>面向用户侧商品详情的读取场景, 负责按 slug 聚合商品、规格与 SKU 视图。</p>
+ * <p>面向用户侧商品详情的读取场景, 负责按 slug 聚合商品、规格与 SKU 视图</p>
  */
 public interface IProductQueryService {
 

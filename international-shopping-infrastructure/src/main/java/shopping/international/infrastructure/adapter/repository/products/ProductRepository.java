@@ -34,7 +34,7 @@ import static shopping.international.types.utils.FieldValidateUtils.normalizeTag
 /**
  * 基于 MyBatis-Plus 的商品聚合仓储实现
  *
- * <p>负责组合查询商品基础信息、图库、规格/规格值及多语言数据, 并提供默认 SKU 与库存的持久化操作。</p>
+ * <p>负责组合查询商品基础信息, 图库, 规格/规格值及多语言数据, 并提供默认 SKU 与库存的持久化操作</p>
  */
 @Repository
 @RequiredArgsConstructor
