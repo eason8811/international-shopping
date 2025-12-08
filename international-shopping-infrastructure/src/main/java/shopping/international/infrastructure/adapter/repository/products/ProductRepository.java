@@ -78,7 +78,10 @@ public class ProductRepository implements IProductRepository {
     private final ObjectMapper OBJECT_MAPPER;
 
     /**
-     * {@inheritDoc}
+     * 按 ID 查询商品聚合
+     *
+     * @param productId 商品 ID
+     * @return 商品聚合, 不存在返回空
      */
     @Override
     public @NotNull Optional<Product> findById(@NotNull Long productId) {

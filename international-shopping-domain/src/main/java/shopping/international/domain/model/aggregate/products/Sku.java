@@ -182,18 +182,14 @@ public class Sku implements Verifiable {
      * @param barcode    条码, 为空则忽略
      */
     public void updateBasic(String skuCode, BigDecimal weight, SkuStatus status, Boolean defaultSku, String barcode) {
-        if (skuCode != null) {
-            requireNotBlank(skuCode, "SKU 编码不能为空");
-            this.skuCode = skuCode.strip();
-        }
+        this.skuCode = normalizeNullableField(skuCode, "SKU 编码不能为空", s -> true, null);
         if (weight != null)
             this.weight = weight;
         if (status != null)
             this.status = status;
         if (defaultSku != null)
             this.defaultSku = defaultSku;
-        if (barcode != null)
-            this.barcode = barcode.strip();
+        this.barcode = normalizeNullableField(barcode, "条码不能为空", s -> true, null);
     }
 
     /**
@@ -226,7 +222,7 @@ public class Sku implements Verifiable {
     public void addPrice(ProductPrice price) {
         requireNotNull(price, "价格不能为空");
         price.validate();
-        List<ProductPrice> mutable = prices == null ? new ArrayList<>() : new ArrayList<>(prices);
+        List<ProductPrice> mutable = new ArrayList<>(prices);
         boolean exists = mutable.stream().anyMatch(p -> p.getCurrency().equals(price.getCurrency()));
         require(!exists, "价格 currency 已存在: " + price.getCurrency());
         mutable.add(price);
@@ -244,7 +240,7 @@ public class Sku implements Verifiable {
     public void updatePrice(String currency, BigDecimal listPrice, BigDecimal salePrice, Boolean active) {
         String normalizedCurrency = normalizeCurrency(currency);
         requireNotNull(normalizedCurrency, "价格 currency 不能为空");
-        List<ProductPrice> mutable = prices == null ? new ArrayList<>() : new ArrayList<>(prices);
+        List<ProductPrice> mutable = new ArrayList<>(prices);
         ProductPrice existing = mutable.stream()
                 .filter(p -> p.getCurrency().equals(normalizedCurrency))
                 .findFirst()
@@ -306,7 +302,7 @@ public class Sku implements Verifiable {
     public void addSpecSelection(SkuSpecRelation relation) {
         requireNotNull(relation, "规格选择不能为空");
         relation.validate();
-        List<SkuSpecRelation> mutable = this.specs == null ? new ArrayList<>() : new ArrayList<>(this.specs);
+        List<SkuSpecRelation> mutable = new ArrayList<>(this.specs);
         Object specKey = relation.getSpecCode() != null ? relation.getSpecCode() : relation.getSpecId();
         boolean exists = mutable.stream().anyMatch(item -> {
             Object key = item.getSpecCode() != null ? item.getSpecCode() : item.getSpecId();
@@ -327,7 +323,7 @@ public class Sku implements Verifiable {
     public void updateSpecSelection(SkuSpecRelation relation) {
         requireNotNull(relation, "规格选择不能为空");
         relation.validate();
-        List<SkuSpecRelation> mutable = this.specs == null ? new ArrayList<>() : new ArrayList<>(this.specs);
+        List<SkuSpecRelation> mutable = new ArrayList<>(this.specs);
         Object specKey = relation.getSpecCode() != null ? relation.getSpecCode() : relation.getSpecId();
         boolean removed = mutable.removeIf(item -> {
             Object key = item.getSpecCode() != null ? item.getSpecCode() : item.getSpecId();

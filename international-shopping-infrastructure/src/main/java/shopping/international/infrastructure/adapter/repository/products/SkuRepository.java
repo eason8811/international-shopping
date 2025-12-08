@@ -61,7 +61,11 @@ public class SkuRepository implements ISkuRepository {
     private final ProductMapper productMapper;
 
     /**
-     * {@inheritDoc}
+     * 按主键查询 SKU 聚合
+     *
+     * @param productId 所属商品 ID
+     * @param skuId     SKU ID
+     * @return 聚合快照, 不存在则返回空
      */
     @Override
     public @NotNull Optional<Sku> findById(@NotNull Long productId, @NotNull Long skuId) {
@@ -95,7 +99,10 @@ public class SkuRepository implements ISkuRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 新增 SKU 聚合
+     *
+     * @param sku 待保存的聚合, ID 为空
+     * @return 携带持久化 ID 的聚合
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -124,7 +131,11 @@ public class SkuRepository implements ISkuRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 更新 SKU 基础字段及可选图库
+     *
+     * @param sku           聚合快照
+     * @param replaceImages 是否替换图库
+     * @return 更新后的聚合
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -153,7 +164,11 @@ public class SkuRepository implements ISkuRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 按规格进行增量 upsert
+     *
+     * @param skuId     SKU ID
+     * @param relations 规格绑定列表
+     * @return 受影响的规格 ID 列表
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -180,7 +195,11 @@ public class SkuRepository implements ISkuRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 删除指定规格绑定
+     *
+     * @param skuId  SKU ID
+     * @param specId 规格 ID
+     * @return 是否删除成功
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -192,7 +211,11 @@ public class SkuRepository implements ISkuRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 按币种增量 upsert 价格
+     *
+     * @param skuId  SKU ID
+     * @param prices 价格列表
+     * @return 受影响的币种列表
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -232,7 +255,11 @@ public class SkuRepository implements ISkuRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 覆盖更新库存
+     *
+     * @param skuId SKU ID
+     * @param stock 新库存
+     * @return 更新后的库存值
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -430,8 +457,8 @@ public class SkuRepository implements ISkuRepository {
      * @param skuId  SKU ID
      * @param prices 价格列表
      */
-    private void persistPrices(@NotNull Long skuId, @Nullable List<ProductPrice> prices) {
-        if (prices == null || prices.isEmpty())
+    private void persistPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices) {
+        if (prices.isEmpty())
             return;
         LocalDateTime now = LocalDateTime.now();
         for (ProductPrice price : prices) {
@@ -454,8 +481,8 @@ public class SkuRepository implements ISkuRepository {
      * @param skuId SKU ID
      * @param specs 规格绑定
      */
-    private void persistSpecs(@NotNull Long skuId, @Nullable List<SkuSpecRelation> specs) {
-        if (specs == null || specs.isEmpty())
+    private void persistSpecs(@NotNull Long skuId, @NotNull List<SkuSpecRelation> specs) {
+        if (specs.isEmpty())
             return;
         LocalDateTime now = LocalDateTime.now();
         for (SkuSpecRelation relation : specs) {
@@ -475,8 +502,8 @@ public class SkuRepository implements ISkuRepository {
      * @param skuId  SKU ID
      * @param images 图库列表
      */
-    private void persistImages(@NotNull Long skuId, @Nullable List<ProductImage> images) {
-        if (images == null || images.isEmpty())
+    private void persistImages(@NotNull Long skuId, @NotNull List<ProductImage> images) {
+        if (images.isEmpty())
             return;
         LocalDateTime now = LocalDateTime.now();
         for (ProductImage image : images) {

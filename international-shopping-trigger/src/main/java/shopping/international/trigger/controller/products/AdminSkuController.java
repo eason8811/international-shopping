@@ -237,11 +237,19 @@ public class AdminSkuController {
         return payloads.stream()
                 .filter(Objects::nonNull)
                 .peek(req -> {
-                    if (create) req.createValidate();
-                    else req.updateValidate();
+                    if (create)
+                        req.createValidate();
+                    else
+                        req.updateValidate();
                 })
-                .map(req -> ProductPrice.of(req.getCurrency(), req.getListPrice(), req.getSalePrice(),
-                        req.getIsActive() == null || req.getIsActive()))
+                .map(req ->
+                        ProductPrice.of(
+                                req.getCurrency(),
+                                req.getListPrice(),
+                                req.getSalePrice(),
+                                req.getIsActive() == null || req.getIsActive()
+                        )
+                )
                 .toList();
     }
 
@@ -258,11 +266,21 @@ public class AdminSkuController {
         return payloads.stream()
                 .filter(Objects::nonNull)
                 .peek(req -> {
-                    if (create) req.createValidate();
-                    else req.updateValidate();
+                    if (create)
+                        req.createValidate();
+                    else
+                        req.updateValidate();
                 })
-                .map(req -> SkuSpecRelation.of(req.getSpecId(), req.getSpecCode(), req.getSpecName(),
-                        req.getValueId(), req.getValueCode(), req.getValueName()))
+                .map(req ->
+                        SkuSpecRelation.of(
+                                req.getSpecId(),
+                                req.getSpecCode(),
+                                req.getSpecName(),
+                                req.getValueId(),
+                                req.getValueCode(),
+                                req.getValueName()
+                        )
+                )
                 .toList();
     }
 
@@ -279,11 +297,18 @@ public class AdminSkuController {
         return payloads.stream()
                 .filter(Objects::nonNull)
                 .peek(req -> {
-                    if (create) req.createValidate();
-                    else req.updateValidate();
+                    if (create)
+                        req.createValidate();
+                    else
+                        req.updateValidate();
                 })
-                .map(req -> ProductImage.of(req.getUrl(), req.getIsMain() != null && req.getIsMain(),
-                        req.getSortOrder() == null ? 0 : req.getSortOrder()))
+                .map(req ->
+                        ProductImage.of(
+                                req.getUrl(),
+                                req.getIsMain() != null && req.getIsMain(),
+                                req.getSortOrder() == null ? 0 : req.getSortOrder()
+                        )
+                )
                 .toList();
     }
 }
