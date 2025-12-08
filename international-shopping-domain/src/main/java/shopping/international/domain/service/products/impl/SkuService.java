@@ -18,9 +18,10 @@ import shopping.international.domain.service.products.ISkuService;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * SKU 领域服务实现
@@ -129,17 +130,16 @@ public class SkuService implements ISkuService {
             return List.of();
         for (SkuSpecRelation relation : specs) {
             boolean exists = sku.getSpecs().stream()
-                    .anyMatch(item ->
-                            Objects.equals(item.getSpecId(), relation.getSpecId())
-                                    || item.getSpecCode() != null
-                                    && item.getSpecCode().equalsIgnoreCase(relation.getSpecCode())
-                    );
+                    .anyMatch(item -> Objects.equals(specKey(item), specKey(relation)));
             if (exists)
                 sku.updateSpecSelection(relation);
             else
                 sku.addSpecSelection(relation);
         }
-        return skuRepository.upsertSpecs(skuId, specs);
+        List<SkuSpecRelation> patchedRelations = sku.getSpecs().stream()
+                .filter(rel -> specs.stream().anyMatch(req -> Objects.equals(specKey(rel), specKey(req))))
+                .toList();
+        return skuRepository.upsertSpecs(skuId, patchedRelations);
     }
 
     /**
@@ -169,7 +169,6 @@ public class SkuService implements ISkuService {
         Sku sku = ensureSku(productId, skuId);
         if (prices.isEmpty())
             return List.of();
-        List<ProductPrice> merged = new ArrayList<>(prices.size());
         for (ProductPrice price : prices) {
             boolean exists = sku.getPrices().stream()
                     .anyMatch(item -> item.getCurrency().equals(price.getCurrency()));
@@ -177,9 +176,14 @@ public class SkuService implements ISkuService {
                 sku.updatePrice(price.getCurrency(), price.getListPrice(), price.getSalePrice(), price.isActive());
             else
                 sku.addPrice(price);
-            merged.add(price);
         }
-        return skuRepository.upsertPrices(skuId, merged);
+        Set<String> affected = prices.stream()
+                .map(ProductPrice::getCurrency)
+                .collect(Collectors.toSet());
+        List<ProductPrice> patchedPrices = sku.getPrices().stream()
+                .filter(p -> affected.contains(p.getCurrency()))
+                .toList();
+        return skuRepository.upsertPrices(skuId, patchedPrices);
     }
 
     /**
@@ -235,5 +239,12 @@ public class SkuService implements ISkuService {
     private void refreshProductStock(@NotNull Long productId) {
         int total = skuRepository.sumStockByProduct(productId);
         productRepository.updateStockTotal(productId, total);
+    }
+
+    /**
+     * 提取规格键 (优先 ID, 其次编码)
+     */
+    private Object specKey(@NotNull SkuSpecRelation relation) {
+        return relation.getSpecId() != null ? relation.getSpecId() : relation.getSpecCode();
     }
 }
