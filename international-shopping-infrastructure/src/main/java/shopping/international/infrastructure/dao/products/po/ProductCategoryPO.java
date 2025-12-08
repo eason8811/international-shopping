@@ -74,6 +74,7 @@ public class ProductCategoryPO {
     /**
      * 分类 I18N 本地化列表
      */
+    @TableField(exist = false)
     private List<ProductCategoryI18nPO> i18nList;
 
     /**

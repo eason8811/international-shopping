@@ -75,17 +75,20 @@ public class ProductSkuPO {
     /**
      * SKU 多币种价格列表
      */
+    @TableField(exist = false)
     private List<ProductPricePO> prices;
 
     /**
      * SKU 与规格值关联信息列表
      */
+    @TableField(exist = false)
     private List<ProductSkuSpecPO> specs;
 
     /**
      * SKU 图片列表
      */
-    private List<ProductImagePO> images;
+    @TableField(exist = false)
+    private List<ProductSkuImagePO> images;
 
     /**
      * 创建时间

@@ -1,6 +1,5 @@
 package shopping.international.infrastructure.adapter.repository.products;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,13 +19,13 @@ import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductSpecI18n;
 import shopping.international.domain.model.vo.products.ProductSpecValueI18n;
-import shopping.international.infrastructure.dao.products.*;
+import shopping.international.infrastructure.dao.products.ProductCategoryMapper;
+import shopping.international.infrastructure.dao.products.ProductMapper;
 import shopping.international.infrastructure.dao.products.po.*;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeTags;
@@ -45,30 +44,6 @@ public class ProductRepository implements IProductRepository {
      */
     private final ProductMapper productMapper;
     /**
-     * 商品多语言 Mapper
-     */
-    private final ProductI18nMapper productI18nMapper;
-    /**
-     * 商品图片 Mapper
-     */
-    private final ProductImageMapper productImageMapper;
-    /**
-     * 规格 Mapper
-     */
-    private final ProductSpecMapper productSpecMapper;
-    /**
-     * 规格多语言 Mapper
-     */
-    private final ProductSpecI18nMapper productSpecI18nMapper;
-    /**
-     * 规格值 Mapper
-     */
-    private final ProductSpecValueMapper productSpecValueMapper;
-    /**
-     * 规格值多语言 Mapper
-     */
-    private final ProductSpecValueI18nMapper productSpecValueI18nMapper;
-    /**
      * 分类 Mapper
      */
     private final ProductCategoryMapper productCategoryMapper;
@@ -85,8 +60,8 @@ public class ProductRepository implements IProductRepository {
      */
     @Override
     public @NotNull Optional<Product> findById(@NotNull Long productId) {
-        ProductPO po = productMapper.selectById(productId);
-        if (po == null)
+        ProductPO po = productMapper.selectAggregateById(productId);
+        if (po == null || po.getId() == null)
             return Optional.empty();
         return Optional.of(buildAggregate(po));
     }
@@ -100,19 +75,8 @@ public class ProductRepository implements IProductRepository {
      */
     @Override
     public @NotNull Optional<Product> findOnSaleBySlug(@NotNull String slug, @NotNull String locale) {
-        ProductI18nPO i18n = productI18nMapper.selectOne(new LambdaQueryWrapper<ProductI18nPO>()
-                .eq(ProductI18nPO::getSlug, slug)
-                .eq(ProductI18nPO::getLocale, locale)
-                .last("limit 1"));
-        if (i18n != null) {
-            ProductPO po = productMapper.selectById(i18n.getProductId());
-            if (po != null && ProductStatus.ON_SALE == ProductStatus.from(po.getStatus()))
-                return Optional.of(buildAggregate(po));
-        }
-        ProductPO po = productMapper.selectOne(new LambdaQueryWrapper<ProductPO>()
-                .eq(ProductPO::getSlug, slug)
-                .last("limit 1"));
-        if (po == null || ProductStatus.ON_SALE != ProductStatus.from(po.getStatus()))
+        ProductPO po = productMapper.selectOnSaleAggregateBySlug(slug, locale);
+        if (po == null || po.getId() == null)
             return Optional.empty();
         return Optional.of(buildAggregate(po));
     }
@@ -163,9 +127,9 @@ public class ProductRepository implements IProductRepository {
      */
     private Product buildAggregate(@NotNull ProductPO po) {
         List<String> tags = parseTags(po.getTags());
-        List<ProductImage> gallery = loadGallery(po.getId());
-        List<ProductSpec> specs = loadSpecs(po.getId());
-        List<ProductI18n> i18nList = loadProductI18n(po.getId());
+        List<ProductImage> gallery = toGallery(po.getGallery());
+        List<ProductSpec> specs = toSpecs(po.getSpecs());
+        List<ProductI18n> i18nList = toProductI18n(po.getI18nList());
         return Product.reconstitute(
                 po.getId(), po.getSlug(), po.getTitle(), po.getSubtitle(), po.getDescription(),
                 po.getCategoryId(), po.getBrand(), po.getCoverImageUrl(),
@@ -196,44 +160,26 @@ public class ProductRepository implements IProductRepository {
         }
     }
 
-    /**
-     * 加载商品图库
-     *
-     * @param productId 商品 ID
-     * @return 图库列表
-     */
-    private List<ProductImage> loadGallery(@NotNull Long productId) {
-        List<ProductImagePO> pos = productImageMapper.selectList(new LambdaQueryWrapper<ProductImagePO>()
-                .eq(ProductImagePO::getProductId, productId)
-                .orderByDesc(ProductImagePO::getIsMain)
-                .orderByAsc(ProductImagePO::getSortOrder)
-                .orderByAsc(ProductImagePO::getId));
+    private List<ProductImage> toGallery(@Nullable List<ProductImagePO> pos) {
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
         return pos.stream()
-                .map(po -> ProductImage.of(po.getUrl(), Boolean.TRUE.equals(po.getIsMain()), po.getSortOrder() == null ? 0 : po.getSortOrder()))
+                .filter(Objects::nonNull)
+                .map(po -> ProductImage.of(
+                        po.getUrl(),
+                        Boolean.TRUE.equals(po.getIsMain()),
+                        po.getSortOrder() == null ? 0 : po.getSortOrder()
+                ))
                 .toList();
     }
 
-    /**
-     * 加载规格及规格值
-     *
-     * @param productId 商品 ID
-     * @return 规格列表
-     */
-    private List<ProductSpec> loadSpecs(@NotNull Long productId) {
-        List<ProductSpecPO> specPos = productSpecMapper.selectList(new LambdaQueryWrapper<ProductSpecPO>()
-                .eq(ProductSpecPO::getProductId, productId)
-                .orderByAsc(ProductSpecPO::getSortOrder)
-                .orderByAsc(ProductSpecPO::getId));
+    private List<ProductSpec> toSpecs(@Nullable List<ProductSpecPO> specPos) {
         if (specPos == null || specPos.isEmpty())
             return Collections.emptyList();
-        Map<Long, List<ProductSpecI18n>> specI18nMap = loadSpecI18n(specPos.stream().map(ProductSpecPO::getId).toList());
-        Map<Long, List<ProductSpecValue>> valueMap = loadSpecValues(specPos.stream().map(ProductSpecPO::getId).toList(), productId);
         List<ProductSpec> specs = new ArrayList<>();
         for (ProductSpecPO po : specPos) {
-            List<ProductSpecI18n> i18nList = specI18nMap.getOrDefault(po.getId(), Collections.emptyList());
-            List<ProductSpecValue> values = valueMap.getOrDefault(po.getId(), Collections.emptyList());
+            List<ProductSpecI18n> i18nList = toSpecI18n(po.getI18nList());
+            List<ProductSpecValue> values = toSpecValues(po.getValues());
             ProductSpec spec = ProductSpec.reconstitute(
                     po.getId(), po.getProductId(), po.getSpecCode(), po.getSpecName(),
                     SpecType.from(po.getSpecType()),
@@ -247,47 +193,22 @@ public class ProductRepository implements IProductRepository {
         return specs;
     }
 
-    /**
-     * 加载规格多语言
-     *
-     * @param specIds 规格 ID 列表
-     * @return 规格 ID -> 多语言列表映射
-     */
-    private Map<Long, List<ProductSpecI18n>> loadSpecI18n(@NotNull List<Long> specIds) {
-        if (specIds.isEmpty())
-            return Collections.emptyMap();
-        List<ProductSpecI18nPO> pos = productSpecI18nMapper.selectList(new LambdaQueryWrapper<ProductSpecI18nPO>()
-                .in(ProductSpecI18nPO::getSpecId, specIds));
-        Map<Long, List<ProductSpecI18n>> map = new HashMap<>();
-        for (ProductSpecI18nPO po : pos) {
-            ProductSpecI18n i18n = ProductSpecI18n.of(normalizeLocale(po.getLocale()), po.getSpecName());
-            map.computeIfAbsent(po.getSpecId(), k -> new ArrayList<>()).add(i18n);
-        }
-        return map;
+    private List<ProductSpecI18n> toSpecI18n(@Nullable List<ProductSpecI18nPO> pos) {
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        return pos.stream()
+                .filter(Objects::nonNull)
+                .map(po -> ProductSpecI18n.of(normalizeLocale(po.getLocale()), po.getSpecName()))
+                .toList();
     }
 
-    /**
-     * 加载规格值及其多语言
-     *
-     * @param specIds   规格 ID 列表
-     * @param productId 商品 ID
-     * @return 规格 ID -> 规格值列表映射
-     */
-    private Map<Long, List<ProductSpecValue>> loadSpecValues(@NotNull List<Long> specIds, @NotNull Long productId) {
-        if (specIds.isEmpty())
-            return Collections.emptyMap();
-        List<ProductSpecValuePO> valuePos = productSpecValueMapper.selectList(new LambdaQueryWrapper<ProductSpecValuePO>()
-                .eq(ProductSpecValuePO::getProductId, productId)
-                .in(ProductSpecValuePO::getSpecId, specIds)
-                .orderByAsc(ProductSpecValuePO::getSortOrder)
-                .orderByAsc(ProductSpecValuePO::getId));
-        if (valuePos == null || valuePos.isEmpty())
-            return Collections.emptyMap();
-        Map<Long, List<ProductSpecValueI18n>> valueI18nMap = loadSpecValueI18n(valuePos.stream().map(ProductSpecValuePO::getId).toList());
-        Map<Long, List<ProductSpecValue>> map = new HashMap<>();
-        for (ProductSpecValuePO po : valuePos) {
+    private List<ProductSpecValue> toSpecValues(@Nullable List<ProductSpecValuePO> pos) {
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        List<ProductSpecValue> values = new ArrayList<>();
+        for (ProductSpecValuePO po : pos) {
             Map<String, Object> attributes = parseAttributes(po.getAttributes());
-            List<ProductSpecValueI18n> i18nList = valueI18nMap.getOrDefault(po.getId(), Collections.emptyList());
+            List<ProductSpecValueI18n> i18nList = toSpecValueI18n(po.getI18nList());
             ProductSpecValue value = ProductSpecValue.reconstitute(
                     po.getId(), po.getProductId(), po.getSpecId(),
                     po.getValueCode(), po.getValueName(), attributes,
@@ -295,17 +216,36 @@ public class ProductRepository implements IProductRepository {
                     "ENABLED".equalsIgnoreCase(po.getStatus()),
                     i18nList
             );
-            map.computeIfAbsent(po.getSpecId(), k -> new ArrayList<>()).add(value);
+            values.add(value);
         }
-        return map;
+        return values;
     }
 
-    /**
-     * 解析规格值属性 JSON
-     *
-     * @param json JSON 串
-     * @return 属性映射
-     */
+    private List<ProductSpecValueI18n> toSpecValueI18n(@Nullable List<ProductSpecValueI18nPO> pos) {
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        return pos.stream()
+                .filter(Objects::nonNull)
+                .map(po -> ProductSpecValueI18n.of(normalizeLocale(po.getLocale()), po.getValueName()))
+                .toList();
+    }
+
+    private List<ProductI18n> toProductI18n(@Nullable List<ProductI18nPO> pos) {
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        return pos.stream()
+                .filter(Objects::nonNull)
+                .map(po -> ProductI18n.of(
+                        normalizeLocale(po.getLocale()),
+                        po.getTitle(),
+                        po.getSubtitle(),
+                        po.getDescription(),
+                        po.getSlug(),
+                        parseTags(po.getTags())
+                ))
+                .toList();
+    }
+
     private Map<String, Object> parseAttributes(@Nullable String json) {
         if (json == null || json.isBlank())
             return Collections.emptyMap();
@@ -315,49 +255,5 @@ public class ProductRepository implements IProductRepository {
         } catch (IOException e) {
             return Collections.emptyMap();
         }
-    }
-
-    /**
-     * 加载规格值多语言
-     *
-     * @param valueIds 规格值 ID 列表
-     * @return 规格值 ID -> 多语言列表
-     */
-    private Map<Long, List<ProductSpecValueI18n>> loadSpecValueI18n(@NotNull List<Long> valueIds) {
-        if (valueIds.isEmpty())
-            return Collections.emptyMap();
-        List<ProductSpecValueI18nPO> pos = productSpecValueI18nMapper.selectList(new LambdaQueryWrapper<ProductSpecValueI18nPO>()
-                .in(ProductSpecValueI18nPO::getValueId, valueIds));
-        Map<Long, List<ProductSpecValueI18n>> map = new HashMap<>();
-        for (ProductSpecValueI18nPO po : pos) {
-            ProductSpecValueI18n i18n = ProductSpecValueI18n.of(normalizeLocale(po.getLocale()), po.getValueName());
-            map.computeIfAbsent(po.getValueId(), k -> new ArrayList<>()).add(i18n);
-        }
-        return map;
-    }
-
-    /**
-     * 加载商品多语言
-     *
-     * @param productId 商品 ID
-     * @return 多语言列表
-     */
-    private List<ProductI18n> loadProductI18n(@NotNull Long productId) {
-        List<ProductI18nPO> pos = productI18nMapper.selectList(new LambdaQueryWrapper<ProductI18nPO>()
-                .eq(ProductI18nPO::getProductId, productId));
-        if (pos == null || pos.isEmpty())
-            return Collections.emptyList();
-        return pos.stream()
-                .map(po ->
-                        ProductI18n.of(
-                                normalizeLocale(po.getLocale()),
-                                po.getTitle(),
-                                po.getSubtitle(),
-                                po.getDescription(),
-                                po.getSlug(),
-                                parseTags(po.getTags())
-                        )
-                )
-                .collect(Collectors.toList());
     }
 }

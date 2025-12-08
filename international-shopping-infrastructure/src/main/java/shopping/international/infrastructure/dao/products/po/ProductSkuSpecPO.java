@@ -41,6 +41,30 @@ public class ProductSkuSpecPO {
     private Long valueId;
 
     /**
+     * 规格编码 (冗余读取)
+     */
+    @TableField(exist = false)
+    private String specCode;
+
+    /**
+     * 规格名称 (冗余读取)
+     */
+    @TableField(exist = false)
+    private String specName;
+
+    /**
+     * 规格值编码 (冗余读取)
+     */
+    @TableField(exist = false)
+    private String valueCode;
+
+    /**
+     * 规格值名称 (冗余读取)
+     */
+    @TableField(exist = false)
+    private String valueName;
+
+    /**
      * 创建时间
      */
     @TableField("created_at")

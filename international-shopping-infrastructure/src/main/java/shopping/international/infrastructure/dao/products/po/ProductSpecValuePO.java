@@ -74,6 +74,7 @@ public class ProductSpecValuePO {
     /**
      * 分类取值 I18N 本地化列表
      */
+    @TableField(exist = false)
     private List<ProductSpecValueI18nPO> i18nList;
 
     /**

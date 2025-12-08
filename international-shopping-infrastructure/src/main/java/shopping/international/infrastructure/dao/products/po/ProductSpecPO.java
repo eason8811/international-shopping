@@ -74,7 +74,14 @@ public class ProductSpecPO {
     /**
      * 规格 I18N 本地化信息列表
      */
+    @TableField(exist = false)
     private List<ProductSpecI18nPO> i18nList;
+
+    /**
+     * 规格值列表
+     */
+    @TableField(exist = false)
+    private List<ProductSpecValuePO> values;
 
     /**
      * 创建时间

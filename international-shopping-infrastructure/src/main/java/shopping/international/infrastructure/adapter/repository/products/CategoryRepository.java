@@ -21,8 +21,10 @@ import shopping.international.infrastructure.dao.products.po.ProductPO;
 import shopping.international.types.exceptions.ConflictException;
 
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
 
@@ -56,11 +58,10 @@ public class CategoryRepository implements ICategoryRepository {
      */
     @Override
     public Optional<Category> findById(@NotNull Long categoryId) {
-        ProductCategoryPO po = categoryMapper.selectById(categoryId);
-        if (po == null)
+        ProductCategoryPO po = categoryMapper.selectWithI18nById(categoryId);
+        if (po == null || po.getId() == null)
             return Optional.empty();
-        List<CategoryI18n> i18nList = listI18nByCategoryId(categoryId);
-        return Optional.of(toAggregate(po, i18nList));
+        return Optional.of(toAggregate(po));
     }
 
     /**
@@ -71,11 +72,11 @@ public class CategoryRepository implements ICategoryRepository {
      */
     @Override
     public @NotNull List<Category> listAll(@Nullable CategoryStatus status) {
-        LambdaQueryWrapper<ProductCategoryPO> wrapper = new LambdaQueryWrapper<>();
-        if (status != null)
-            wrapper.eq(ProductCategoryPO::getStatus, status.name());
-        wrapper.orderByAsc(ProductCategoryPO::getSortOrder).orderByAsc(ProductCategoryPO::getId);
-        return getCategories(wrapper);
+        List<ProductCategoryPO> pos = categoryMapper.selectWithI18n(null, false, null,
+                status == null ? null : status.name(), null, null);
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        return pos.stream().map(this::toAggregate).toList();
     }
 
 
@@ -93,10 +94,13 @@ public class CategoryRepository implements ICategoryRepository {
     @Override
     public @NotNull List<Category> list(@Nullable Long parentId, boolean parentSpecified, @Nullable String keyword,
                                         @Nullable CategoryStatus status, int offset, int limit) {
-        LambdaQueryWrapper<ProductCategoryPO> wrapper = buildBaseFilter(parentId, parentSpecified, keyword, status);
-        wrapper.orderByAsc(ProductCategoryPO::getSortOrder).orderByAsc(ProductCategoryPO::getId)
-                .last("limit " + limit + " offset " + offset);
-        return getCategories(wrapper);
+        List<ProductCategoryPO> pos = categoryMapper.selectWithI18n(
+                parentId, parentSpecified, keyword,
+                status == null ? null : status.name(),
+                offset, limit);
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        return pos.stream().map(this::toAggregate).toList();
     }
 
     /**
@@ -313,30 +317,13 @@ public class CategoryRepository implements ICategoryRepository {
      */
     @Override
     public @NotNull List<CategoryI18n> listI18nByCategoryId(@NotNull Long categoryId) {
-        List<ProductCategoryI18nPO> pos = categoryI18nMapper.selectList(new LambdaQueryWrapper<ProductCategoryI18nPO>()
-                .eq(ProductCategoryI18nPO::getCategoryId, categoryId));
-        if (pos == null || pos.isEmpty())
+        ProductCategoryPO po = categoryMapper.selectWithI18nById(categoryId);
+        if (po == null || po.getI18nList() == null || po.getI18nList().isEmpty())
             return Collections.emptyList();
-        return pos.stream()
+        return po.getI18nList().stream()
+                .filter(Objects::nonNull)
                 .map(this::toI18n)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 根据给定的查询条件获取分类列表
-     *
-     * @param wrapper 查询条件包装器, 用于构建数据库查询条件
-     * @return 如果查询结果为空, 返回空列表; 否则返回转换后的 {@link Category} 列表, 其中包含了从 <code>ProductCategoryPO</code> 和对应的多语言信息聚合而来的数据
-     */
-    @NotNull
-    private List<Category> getCategories(LambdaQueryWrapper<ProductCategoryPO> wrapper) {
-        List<ProductCategoryPO> pos = categoryMapper.selectList(wrapper);
-        if (pos.isEmpty())
-            return Collections.emptyList();
-        Map<Long, List<CategoryI18n>> i18nMap = loadI18nMap(pos.stream().map(ProductCategoryPO::getId).collect(Collectors.toList()));
-        return pos.stream()
-                .map(po -> toAggregate(po, i18nMap.get(po.getId())))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -366,11 +353,15 @@ public class CategoryRepository implements ICategoryRepository {
     /**
      * 将主表与 i18n 组合成领域聚合
      *
-     * @param po       主表数据
-     * @param i18nList 多语言列表
+     * @param po 主表数据
      * @return 聚合
      */
-    private Category toAggregate(@NotNull ProductCategoryPO po, @Nullable List<CategoryI18n> i18nList) {
+    private Category toAggregate(@NotNull ProductCategoryPO po) {
+        List<CategoryI18n> i18nList = po.getI18nList() == null ? Collections.emptyList()
+                : po.getI18nList().stream()
+                .filter(Objects::nonNull)
+                .map(this::toI18n)
+                .toList();
         CategoryStatus status = CategoryStatus.from(po.getStatus());
         return Category.reconstitute(
                 po.getId(), po.getParentId(), po.getName(), po.getSlug(),
@@ -388,24 +379,6 @@ public class CategoryRepository implements ICategoryRepository {
      */
     private CategoryI18n toI18n(@NotNull ProductCategoryI18nPO po) {
         return CategoryI18n.of(normalizeLocale(po.getLocale()), po.getName(), po.getSlug(), po.getBrand());
-    }
-
-    /**
-     * 将 ID 列表批量转为 i18n 映射
-     *
-     * @param ids 分类 ID 集合
-     * @return id -> i18n 列表
-     */
-    private Map<Long, List<CategoryI18n>> loadI18nMap(@NotNull List<Long> ids) {
-        if (ids.isEmpty())
-            return Collections.emptyMap();
-        List<ProductCategoryI18nPO> pos = categoryI18nMapper.selectList(new LambdaQueryWrapper<ProductCategoryI18nPO>()
-                .in(ProductCategoryI18nPO::getCategoryId, ids));
-        Map<Long, List<CategoryI18n>> map = new HashMap<>();
-        for (ProductCategoryI18nPO po : pos) {
-            map.computeIfAbsent(po.getCategoryId(), k -> new ArrayList<>()).add(toI18n(po));
-        }
-        return map;
     }
 
     /**

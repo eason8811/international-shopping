@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.products.ProductCategoryMapper">
+
+    <!-- 分类多语言 -->
+    <resultMap id="ProductCategoryI18nResultMap" type="shopping.international.infrastructure.dao.products.po.ProductCategoryI18nPO">
+        <id column="id" property="id"/>
+        <id column="locale" property="locale"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="name" property="name"/>
+        <result column="slug" property="slug"/>
+        <result column="brand" property="brand"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 分类聚合 -->
+    <resultMap id="ProductCategoryAggregateResultMap" type="shopping.international.infrastructure.dao.products.po.ProductCategoryPO">
+        <id column="category_id" property="id"/>
+        <result column="category_parent_id" property="parentId"/>
+        <result column="category_name" property="name"/>
+        <result column="category_slug" property="slug"/>
+        <result column="category_level" property="level"/>
+        <result column="category_path" property="path"/>
+        <result column="category_sort_order" property="sortOrder"/>
+        <result column="category_status" property="status"/>
+        <result column="category_created_at" property="createdAt"/>
+        <result column="category_updated_at" property="updatedAt"/>
+        <collection property="i18nList" resultMap="ProductCategoryI18nResultMap" columnPrefix="category_i18n_"/>
+    </resultMap>
+
+    <!-- 按ID聚合查询分类 -->
+    <select id="selectWithI18nById" resultMap="ProductCategoryAggregateResultMap">
+        SELECT
+            category.id          AS category_id,
+            category.parent_id   AS category_parent_id,
+            category.name        AS category_name,
+            category.slug        AS category_slug,
+            category.level       AS category_level,
+            category.path        AS category_path,
+            category.sort_order  AS category_sort_order,
+            category.status      AS category_status,
+            category.created_at  AS category_created_at,
+            category.updated_at  AS category_updated_at,
+            category_i18n.id     AS category_i18n_id,
+            category_i18n.category_id AS category_i18n_category_id,
+            category_i18n.locale AS category_i18n_locale,
+            category_i18n.name   AS category_i18n_name,
+            category_i18n.slug   AS category_i18n_slug,
+            category_i18n.brand  AS category_i18n_brand,
+            category_i18n.created_at AS category_i18n_created_at,
+            category_i18n.updated_at AS category_i18n_updated_at
+        FROM product_category category
+                 LEFT JOIN product_category_i18n category_i18n ON category_i18n.category_id = category.id
+        WHERE category.id = #{categoryId}
+    </select>
+
+    <!-- 按条件聚合查询分类列表 -->
+    <select id="selectWithI18n" resultMap="ProductCategoryAggregateResultMap">
+        SELECT
+        category.id          AS category_id,
+        category.parent_id   AS category_parent_id,
+        category.name        AS category_name,
+        category.slug        AS category_slug,
+        category.level       AS category_level,
+        category.path        AS category_path,
+        category.sort_order  AS category_sort_order,
+        category.status      AS category_status,
+        category.created_at  AS category_created_at,
+        category.updated_at  AS category_updated_at,
+        category_i18n.id     AS category_i18n_id,
+        category_i18n.category_id AS category_i18n_category_id,
+        category_i18n.locale AS category_i18n_locale,
+        category_i18n.name   AS category_i18n_name,
+        category_i18n.slug   AS category_i18n_slug,
+        category_i18n.brand  AS category_i18n_brand,
+        category_i18n.created_at AS category_i18n_created_at,
+        category_i18n.updated_at AS category_i18n_updated_at
+        FROM product_category category
+        LEFT JOIN product_category_i18n category_i18n ON category_i18n.category_id = category.id
+        <where>
+            <if test="parentSpecified">
+                <if test="parentId == null">
+                    AND category.parent_id IS NULL
+                </if>
+                <if test="parentId != null">
+                    AND category.parent_id = #{parentId}
+                </if>
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (category.name LIKE CONCAT('%', #{keyword}, '%')
+                OR category.slug LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">
+                AND category.status = #{status}
+            </if>
+        </where>
+        ORDER BY category.sort_order , category.id
+        <if test="limit != null">
+            LIMIT #{limit} OFFSET #{offset}
+        </if>
+    </select>
+
+</mapper>

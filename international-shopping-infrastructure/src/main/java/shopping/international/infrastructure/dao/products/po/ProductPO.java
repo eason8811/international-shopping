@@ -110,16 +110,19 @@ public class ProductPO {
     /**
      * 商品图片列表
      */
+    @TableField(exist = false)
     private List<ProductImagePO> gallery;
 
     /**
      * 商品规格列表
      */
+    @TableField(exist = false)
     private List<ProductSpecPO> specs;
 
     /**
      * 商品多语言列表
      */
+    @TableField(exist = false)
     private List<ProductI18nPO> i18nList;
 
     /**
