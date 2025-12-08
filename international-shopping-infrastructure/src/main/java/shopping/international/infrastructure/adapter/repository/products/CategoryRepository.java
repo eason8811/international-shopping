@@ -221,7 +221,9 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 删除分类及其 i18n
+     *
+     * @param categoryId 分类 ID
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -304,7 +306,10 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 列出指定分类的全部多语言
+     *
+     * @param categoryId 分类 ID
+     * @return 多语言列表
      */
     @Override
     public @NotNull List<CategoryI18n> listI18nByCategoryId(@NotNull Long categoryId) {
