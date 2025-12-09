@@ -32,25 +32,24 @@
 
     <!-- 按ID聚合查询分类 -->
     <select id="selectWithI18nById" resultMap="ProductCategoryAggregateResultMap">
-        SELECT
-            category.id          AS category_id,
-            category.parent_id   AS category_parent_id,
-            category.name        AS category_name,
-            category.slug        AS category_slug,
-            category.level       AS category_level,
-            category.path        AS category_path,
-            category.sort_order  AS category_sort_order,
-            category.status      AS category_status,
-            category.created_at  AS category_created_at,
-            category.updated_at  AS category_updated_at,
-            category_i18n.id     AS category_i18n_id,
-            category_i18n.category_id AS category_i18n_category_id,
-            category_i18n.locale AS category_i18n_locale,
-            category_i18n.name   AS category_i18n_name,
-            category_i18n.slug   AS category_i18n_slug,
-            category_i18n.brand  AS category_i18n_brand,
-            category_i18n.created_at AS category_i18n_created_at,
-            category_i18n.updated_at AS category_i18n_updated_at
+        SELECT category.id               AS category_id,
+               category.parent_id        AS category_parent_id,
+               category.name             AS category_name,
+               category.slug             AS category_slug,
+               category.level            AS category_level,
+               category.path             AS category_path,
+               category.sort_order       AS category_sort_order,
+               category.status           AS category_status,
+               category.created_at       AS category_created_at,
+               category.updated_at       AS category_updated_at,
+               category_i18n.id          AS category_i18n_id,
+               category_i18n.category_id AS category_i18n_category_id,
+               category_i18n.locale      AS category_i18n_locale,
+               category_i18n.name        AS category_i18n_name,
+               category_i18n.slug        AS category_i18n_slug,
+               category_i18n.brand       AS category_i18n_brand,
+               category_i18n.created_at  AS category_i18n_created_at,
+               category_i18n.updated_at  AS category_i18n_updated_at
         FROM product_category category
                  LEFT JOIN product_category_i18n category_i18n ON category_i18n.category_id = category.id
         WHERE category.id = #{categoryId}
@@ -58,27 +57,26 @@
 
     <!-- 按条件聚合查询分类列表 -->
     <select id="selectWithI18n" resultMap="ProductCategoryAggregateResultMap">
-        SELECT
-        category.id          AS category_id,
-        category.parent_id   AS category_parent_id,
-        category.name        AS category_name,
-        category.slug        AS category_slug,
-        category.level       AS category_level,
-        category.path        AS category_path,
-        category.sort_order  AS category_sort_order,
-        category.status      AS category_status,
-        category.created_at  AS category_created_at,
-        category.updated_at  AS category_updated_at,
-        category_i18n.id     AS category_i18n_id,
-        category_i18n.category_id AS category_i18n_category_id,
-        category_i18n.locale AS category_i18n_locale,
-        category_i18n.name   AS category_i18n_name,
-        category_i18n.slug   AS category_i18n_slug,
-        category_i18n.brand  AS category_i18n_brand,
-        category_i18n.created_at AS category_i18n_created_at,
-        category_i18n.updated_at AS category_i18n_updated_at
+        SELECT category.id               AS category_id,
+               category.parent_id        AS category_parent_id,
+               category.name             AS category_name,
+               category.slug             AS category_slug,
+               category.level            AS category_level,
+               category.path             AS category_path,
+               category.sort_order       AS category_sort_order,
+               category.status           AS category_status,
+               category.created_at       AS category_created_at,
+               category.updated_at       AS category_updated_at,
+               category_i18n.id          AS category_i18n_id,
+               category_i18n.category_id AS category_i18n_category_id,
+               category_i18n.locale      AS category_i18n_locale,
+               category_i18n.name        AS category_i18n_name,
+               category_i18n.slug        AS category_i18n_slug,
+               category_i18n.brand       AS category_i18n_brand,
+               category_i18n.created_at  AS category_i18n_created_at,
+               category_i18n.updated_at  AS category_i18n_updated_at
         FROM product_category category
-        LEFT JOIN product_category_i18n category_i18n ON category_i18n.category_id = category.id
+                 LEFT JOIN product_category_i18n category_i18n ON category_i18n.category_id = category.id
         <where>
             <if test="parentSpecified">
                 <if test="parentId == null">
