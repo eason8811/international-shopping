@@ -6,11 +6,13 @@ import lombok.experimental.Accessors;
 import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductSpecI18n;
+import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -186,11 +188,44 @@ public class ProductSpec implements Verifiable {
     public void addI18n(ProductSpecI18n i18n) {
         requireNotNull(i18n, "规格多语言不能为空");
         i18n.validate();
-        List<ProductSpecI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        List<ProductSpecI18n> mutable = new ArrayList<>(i18nList);
         boolean exists = mutable.stream().anyMatch(item -> item.getLocale().equals(i18n.getLocale()));
         require(!exists, "规格多语言 locale 已存在: " + i18n.getLocale());
         mutable.add(i18n);
-        this.i18nList = normalizeDistinctList(mutable, ProductSpecI18n::validate, ProductSpecI18n::getLocale, "规格多语言 locale 不能重复");
+        replaceI18n(mutable);
+    }
+
+    /**
+     * 批量更新规格多语言信息
+     *
+     * <p>此方法接收一个 {@link ProductSpecI18n} 对象列表, 并根据其中的 locale 信息更新当前对象中的对应多语言规格名. 如果传入的 locale 在当前对象中已存在,
+     * 则更新其规格名称; 若不存在, 则添加新的多语言规格名. 更新过程中会对 locale 和 specName 进行非空校验</p>
+     *
+     * @param i18nList 待更新或新增的多语言规格名列表
+     * @throws IllegalParamException 当 locale 或规格名称为空时抛出
+     */
+    public void updateI18nBatch(List<ProductSpecI18n> i18nList) {
+        List<ProductSpecI18n> mutable = new ArrayList<>(this.i18nList);
+        Map<String, ProductSpecI18n> exsistingI18nByLocaleMap = this.i18nList.stream()
+                .collect(Collectors.toMap(ProductSpecI18n::getLocale, item -> item));
+        for (ProductSpecI18n i18n : i18nList) {
+            String normalizedLocale = normalizeLocale(i18n.getLocale());
+            requireNotNull(normalizedLocale, "locale 不能为空");
+
+            ProductSpecI18n existing = exsistingI18nByLocaleMap.get(normalizedLocale);
+            if (existing == null) {
+                i18n.validate();
+                mutable.add(i18n);
+                continue;
+            }
+            String mergedName = specName != null ? specName.strip() : existing.getSpecName();
+            requireNotBlank(mergedName, "规格名称不能为空");
+
+            ProductSpecI18n patched = ProductSpecI18n.of(normalizedLocale, mergedName);
+            mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
+            mutable.add(patched);
+        }
+        replaceI18n(mutable);
     }
 
     /**
@@ -202,7 +237,7 @@ public class ProductSpec implements Verifiable {
     public void updateI18n(String locale, String specName) {
         String normalizedLocale = normalizeLocale(locale);
         requireNotNull(normalizedLocale, "locale 不能为空");
-        List<ProductSpecI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        List<ProductSpecI18n> mutable = new ArrayList<>(i18nList);
         ProductSpecI18n existing = mutable.stream()
                 .filter(item -> item.getLocale().equals(normalizedLocale))
                 .findFirst()
@@ -213,7 +248,7 @@ public class ProductSpec implements Verifiable {
         ProductSpecI18n patched = ProductSpecI18n.of(normalizedLocale, mergedName);
         mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
         mutable.add(patched);
-        this.i18nList = normalizeDistinctList(mutable, ProductSpecI18n::validate, ProductSpecI18n::getLocale, "规格多语言 locale 不能重复");
+        replaceI18n(mutable);
     }
 
     /**
@@ -242,8 +277,6 @@ public class ProductSpec implements Verifiable {
      */
     public void updateValue(String valueCode, String valueName, Map<String, Object> attributes, Integer sortOrder, Boolean enabled) {
         requireNotBlank(valueCode, "规格值编码不能为空");
-        if (values == null)
-            throw new IllegalStateException("规格值不存在: " + valueCode);
         ProductSpecValue existing = values.stream()
                 .filter(v -> v.getValueCode().equals(valueCode))
                 .findFirst()
@@ -258,7 +291,7 @@ public class ProductSpec implements Verifiable {
      */
     public void addValue(ProductSpecValue newValue) {
         requireNotNull(newValue, "规格值不能为空");
-        List<ProductSpecValue> mutable = values == null ? new ArrayList<>() : new ArrayList<>(values);
+        List<ProductSpecValue> mutable = new ArrayList<>(values);
         boolean exists = mutable.stream().anyMatch(v -> v.getValueCode().equals(newValue.getValueCode()));
         if (exists)
             throw new IllegalStateException("规格值编码重复: " + newValue.getValueCode());
@@ -291,8 +324,7 @@ public class ProductSpec implements Verifiable {
         if (this.id != null && !this.id.equals(id))
             throw new IllegalStateException("规格已存在 ID, 不允许覆盖, current=" + this.id + ", new=" + id);
         this.id = id;
-        if (this.values != null)
-            this.values.forEach(v -> v.bindSpecId(id));
+        this.values.forEach(v -> v.bindSpecId(id));
     }
 
     /**

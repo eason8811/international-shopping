@@ -3,6 +3,7 @@ package shopping.international.domain.model.aggregate.products;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.types.exceptions.IllegalParamException;
@@ -64,6 +65,7 @@ public class Category implements Verifiable {
     /**
      * 多语言覆盖列表, locale 唯一
      */
+    @NotNull
     private List<CategoryI18n> i18nList;
     /**
      * 创建时间快照
@@ -212,7 +214,7 @@ public class Category implements Verifiable {
     public void addI18n(CategoryI18n i18n) {
         requireNotNull(i18n, "分类多语言不能为空");
         i18n.validate();
-        List<CategoryI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        List<CategoryI18n> mutable = new ArrayList<>(i18nList);
         boolean exists = mutable.stream().anyMatch(item -> item.getLocale().equals(i18n.getLocale()));
         require(!exists, "分类多语言 locale 已存在: " + i18n.getLocale());
         mutable.add(i18n);
@@ -232,7 +234,7 @@ public class Category implements Verifiable {
      * @throws IllegalParamException 如果有无效的参数 (如空的 locale, 空的 name 或 slug)
      */
     public void updateI18nBatch(List<CategoryI18n> i18nList) {
-        List<CategoryI18n> mutable = this.i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        List<CategoryI18n> mutable = new ArrayList<>(this.i18nList);
         Map<String, CategoryI18n> exsistingI18nByLocaleMap = mutable.stream()
                 .collect(Collectors.toMap(CategoryI18n::getLocale, item -> item));
         for (CategoryI18n i18n : i18nList) {
@@ -240,7 +242,11 @@ public class Category implements Verifiable {
             requireNotNull(normalizedLocale, "locale 不能为空");
 
             CategoryI18n existingI18n = exsistingI18nByLocaleMap.get(normalizedLocale);
-            requireNotNull(existingI18n, "分类多语言不存在: " + normalizedLocale);
+            if (existingI18n == null) {
+                i18n.validate();
+                mutable.add(i18n);
+                continue;
+            }
             String mergedName = i18n.getName() != null ? i18n.getName().strip() : existingI18n.getName();
             String mergedSlug = i18n.getSlug() != null ? i18n.getSlug().strip() : existingI18n.getSlug();
             String mergedBrand = i18n.getBrand() != null ? i18n.getBrand().strip() : existingI18n.getBrand();
@@ -265,7 +271,7 @@ public class Category implements Verifiable {
     public void updateI18n(String locale, String name, String slug, String brand) {
         String normalizedLocale = normalizeLocale(locale);
         requireNotNull(normalizedLocale, "locale 不能为空");
-        List<CategoryI18n> mutable = i18nList == null ? new ArrayList<>() : new ArrayList<>(i18nList);
+        List<CategoryI18n> mutable = new ArrayList<>(i18nList);
         CategoryI18n existing = mutable.stream()
                 .filter(item -> item.getLocale().equals(normalizedLocale))
                 .findFirst()

@@ -5,7 +5,8 @@ import lombok.Getter;
 import lombok.ToString;
 import shopping.international.types.utils.Verifiable;
 
-import static shopping.international.types.utils.FieldValidateUtils.*;
+import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
  * 规格类别多语言值对象, 对应表 {@code product_spec_i18n}.
@@ -43,7 +44,7 @@ public class ProductSpecI18n implements Verifiable {
      */
     public static ProductSpecI18n of(String locale, String specName) {
         String normalizedLocale = normalizeLocale(locale);
-        requireNotNull(normalizedLocale, "locale 不能为空");
+        requireNotBlank(normalizedLocale, "locale 不能为空");
         requireNotBlank(specName, "规格名称不能为空");
         return new ProductSpecI18n(normalizedLocale, specName.strip());
     }
@@ -53,7 +54,7 @@ public class ProductSpecI18n implements Verifiable {
      */
     @Override
     public void validate() {
-        requireNotNull(locale, "locale 不能为空");
+        requireNotBlank(locale, "locale 不能为空");
         requireNotBlank(specName, "规格名称不能为空");
     }
 }

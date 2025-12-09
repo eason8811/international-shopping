@@ -3,6 +3,10 @@ package shopping.international.domain.adapter.repository.products;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.products.Product;
+import shopping.international.domain.model.enums.products.ProductStatus;
+import shopping.international.domain.model.enums.products.SkuType;
+import shopping.international.domain.model.vo.products.ProductI18n;
+import shopping.international.domain.model.vo.products.ProductImage;
 
 import java.util.Optional;
 
@@ -56,4 +60,81 @@ public interface IProductRepository {
      * @param stock     新聚合库存
      */
     void updateStockTotal(@NotNull Long productId, int stock);
+
+    /**
+     * 新增商品聚合 (含基础信息与可选图库)
+     *
+     * @param product 待保存的商品聚合, ID 为空
+     * @return 保存后的商品聚合, 携带持久化 ID
+     */
+    @NotNull
+    Product save(@NotNull Product product);
+
+    /**
+     * 增量更新商品基础信息
+     *
+     * @param product       已存在的商品聚合快照
+     * @param replaceGallery 是否需要替换图库
+     * @return 更新后的商品聚合
+     */
+    @NotNull
+    Product updateBasic(@NotNull Product product, boolean replaceGallery);
+
+    /**
+     * 覆盖商品图库
+     *
+     * @param productId 商品 ID
+     * @param gallery   新图库列表
+     */
+    void replaceGallery(@NotNull Long productId, @NotNull java.util.List<ProductImage> gallery);
+
+    /**
+     * 新增一条商品多语言记录
+     *
+     * @param productId 商品 ID
+     * @param i18n      多语言值对象
+     */
+    void saveI18n(@NotNull Long productId, @NotNull ProductI18n i18n);
+
+    /**
+     * 更新已存在的商品多语言记录
+     *
+     * @param productId 商品 ID
+     * @param i18n      多语言值对象
+     */
+    void updateI18n(@NotNull Long productId, @NotNull ProductI18n i18n);
+
+    /**
+     * 分页查询商品基础信息
+     *
+     * @param status         商品状态过滤, 可空
+     * @param skuType        SKU 类型过滤, 可空
+     * @param categoryId     分类过滤, 可空
+     * @param keyword        关键词过滤, 支持标题/slug/品牌, 可空
+     * @param tag            标签过滤, 可空
+     * @param includeDeleted 是否包含已删除商品
+     * @param offset         偏移量, 从 0 开始
+     * @param limit          单页大小
+     * @return 商品列表
+     */
+    @NotNull
+    java.util.List<Product> list(@Nullable ProductStatus status,
+                                  @Nullable SkuType skuType,
+                                  @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag,
+                                  boolean includeDeleted, int offset, int limit);
+
+    /**
+     * 统计分页查询的商品总数
+     *
+     * @param status         商品状态过滤, 可空
+     * @param skuType        SKU 类型过滤, 可空
+     * @param categoryId     分类过滤, 可空
+     * @param keyword        关键词过滤, 可空
+     * @param tag            标签过滤, 可空
+     * @param includeDeleted 是否包含已删除商品
+     * @return 总数量
+     */
+    long count(@Nullable ProductStatus status,
+               @Nullable SkuType skuType,
+               @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted);
 }
