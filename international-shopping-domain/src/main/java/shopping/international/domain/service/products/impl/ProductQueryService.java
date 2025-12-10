@@ -12,6 +12,8 @@ import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuStatus;
+import shopping.international.domain.model.vo.products.ProductPublicSnapshot;
+import shopping.international.domain.model.vo.products.ProductSearchCriteria;
 import shopping.international.domain.service.products.IProductQueryService;
 import shopping.international.types.exceptions.IllegalParamException;
 
@@ -34,6 +36,45 @@ public class ProductQueryService implements IProductQueryService {
      * SKU 仓储
      */
     private final ISkuRepository skuRepository;
+
+    /**
+     * 分页查询上架商品
+     *
+     * @param page     页码, 从 1 开始
+     * @param size     每页数量
+     * @param criteria 查询条件
+     * @return 分页结果
+     */
+    @Override
+    public @NotNull PageResult pageOnSale(int page, int size, @NotNull ProductSearchCriteria criteria) {
+        criteria.validate();
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int offset = (safePage - 1) * safeSize;
+        List<ProductPublicSnapshot> items = productRepository.pageOnSale(criteria, offset, safeSize);
+        long total = productRepository.countOnSale(criteria);
+        return PageResult.builder().items(items).total(total).build();
+    }
+
+    /**
+     * 分页查询用户点赞的商品
+     *
+     * @param userId   用户 ID
+     * @param page     页码, 从 1 开始
+     * @param size     每页数量
+     * @param criteria 查询条件
+     * @return 分页结果
+     */
+    @Override
+    public @NotNull PageResult pageUserLikes(@NotNull Long userId, int page, int size, @NotNull ProductSearchCriteria criteria) {
+        criteria.validate();
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int offset = (safePage - 1) * safeSize;
+        List<ProductPublicSnapshot> items = productRepository.pageUserLikes(userId, criteria, offset, safeSize);
+        long total = productRepository.countUserLikes(userId, criteria);
+        return PageResult.builder().items(items).total(total).build();
+    }
 
     /**
      * 按 slug 查询用户可见的商品详情

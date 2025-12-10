@@ -5,17 +5,17 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import shopping.international.api.req.products.ProductPublicListRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.products.ProductImageRespond;
 import shopping.international.api.resp.products.ProductSkuRespond;
+import shopping.international.api.resp.products.ProductSpuRespond;
 import shopping.international.api.resp.products.PublicProductDetailRespond;
 import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
-import shopping.international.domain.model.vo.products.ProductI18n;
-import shopping.international.domain.model.vo.products.ProductSpecI18n;
-import shopping.international.domain.model.vo.products.ProductSpecValueI18n;
+import shopping.international.domain.model.vo.products.*;
 import shopping.international.domain.service.products.IProductQueryService;
 import shopping.international.types.constant.SecurityConstants;
 
@@ -25,9 +25,9 @@ import java.util.stream.Collectors;
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
- * 用户侧商品详情接口
+ * 用户侧商品接口
  *
- * <p>按 slug 返回包含 SKU, 规格与本地化信息的商品详情</p>
+ * <p>提供商品列表检索与按 slug 的详情查询, 返回包含本地化字段、规格与 SKU 信息</p>
  */
 @RestController
 @RequiredArgsConstructor
@@ -38,6 +38,37 @@ public class ProductController {
      * 商品查询领域服务
      */
     private final IProductQueryService productQueryService;
+
+    /**
+     * 搜索/筛选上架商品列表
+     *
+     * @param req 查询参数
+     * @return 商品列表
+     */
+    @GetMapping
+    public ResponseEntity<Result<List<ProductSpuRespond>>> list(@ModelAttribute ProductPublicListRequest req) {
+        req.validate();
+        ProductSearchCriteria criteria = ProductSearchCriteria.builder()
+                .locale(req.getLocale())
+                .currency(req.getCurrency())
+                .categorySlug(req.getCategorySlug())
+                .keyword(req.getQuery())
+                .tags(req.getParsedTags())
+                .priceMin(req.getPriceMin())
+                .priceMax(req.getPriceMax())
+                .sort(req.getSortBy())
+                .build();
+        IProductQueryService.PageResult pageResult = productQueryService.pageOnSale(req.getPage(), req.getSize(), criteria);
+        List<ProductSpuRespond> data = pageResult.items().stream()
+                .map(this::toSpuRespond)
+                .toList();
+        Result.Meta meta = Result.Meta.builder()
+                .page(req.getPage())
+                .size(req.getSize())
+                .total(pageResult.total())
+                .build();
+        return ResponseEntity.ok(Result.ok(data, meta));
+    }
 
     /**
      * 获取商品详情
@@ -302,5 +333,46 @@ public class ProductController {
             }
         }
         return map;
+    }
+
+    /**
+     * 将商品快照转换为列表响应
+     *
+     * @param snapshot 商品快照
+     * @return 列表响应
+     */
+    private ProductSpuRespond toSpuRespond(@NotNull ProductPublicSnapshot snapshot) {
+        List<ProductImageRespond> gallery = snapshot.getGallery().stream()
+                .map(img -> ProductImageRespond.builder()
+                        .url(img.getUrl())
+                        .isMain(img.isMain())
+                        .sortOrder(img.getSortOrder())
+                        .build())
+                .toList();
+        return ProductSpuRespond.builder()
+                .id(snapshot.getId())
+                .slug(snapshot.getSlug())
+                .title(snapshot.getTitle())
+                .subtitle(snapshot.getSubtitle())
+                .description(snapshot.getDescription())
+                .categoryId(snapshot.getCategoryId())
+                .categorySlug(snapshot.getCategorySlug())
+                .brand(snapshot.getBrand())
+                .coverImageUrl(snapshot.getCoverImageUrl())
+                .stockTotal(snapshot.getStockTotal())
+                .saleCount(snapshot.getSaleCount())
+                .skuType(snapshot.getSkuType())
+                .status(snapshot.getStatus())
+                .tags(snapshot.getTags())
+                .priceRange(ProductSpuRespond.ProductPriceRangeRespond.builder()
+                        .currency(snapshot.getPriceRange().getCurrency())
+                        .listPriceMin(snapshot.getPriceRange().getListPriceMin())
+                        .listPriceMax(snapshot.getPriceRange().getListPriceMax())
+                        .salePriceMin(snapshot.getPriceRange().getSalePriceMin())
+                        .salePriceMax(snapshot.getPriceRange().getSalePriceMax())
+                        .build())
+                .gallery(gallery)
+                .likedAt(snapshot.getLikedAt())
+                .build();
     }
 }

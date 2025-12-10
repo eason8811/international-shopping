@@ -18,10 +18,7 @@ import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
-import shopping.international.domain.model.vo.products.ProductI18n;
-import shopping.international.domain.model.vo.products.ProductImage;
-import shopping.international.domain.model.vo.products.ProductSpecI18n;
-import shopping.international.domain.model.vo.products.ProductSpecValueI18n;
+import shopping.international.domain.model.vo.products.*;
 import shopping.international.infrastructure.dao.products.ProductCategoryMapper;
 import shopping.international.infrastructure.dao.products.ProductI18nMapper;
 import shopping.international.infrastructure.dao.products.ProductImageMapper;
@@ -108,7 +105,84 @@ public class ProductRepository implements IProductRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 分页查询上架商品列表
+     *
+     * @param criteria 检索条件
+     * @param offset   偏移量, 从 0 开始
+     * @param limit    单页条数
+     * @return 商品快照列表
+     */
+    @Override
+    public @NotNull List<ProductPublicSnapshot> pageOnSale(@NotNull ProductSearchCriteria criteria, int offset, int limit) {
+        List<PublicProductSnapshotPO> pos = productMapper.selectPublicList(
+                criteria.getLocale(),
+                criteria.getCurrency(),
+                criteria.getCategorySlug(),
+                criteria.getKeyword(),
+                criteria.getTags(),
+                criteria.getPriceMin(),
+                criteria.getPriceMax(),
+                criteria.getSort().name(),
+                offset,
+                limit
+        );
+        return buildSnapshots(pos, criteria.getCurrency());
+    }
+
+    /**
+     * 统计上架商品数量
+     *
+     * @param criteria 检索条件
+     * @return 满足条件的总数
+     */
+    @Override
+    public long countOnSale(@NotNull ProductSearchCriteria criteria) {
+        Long count = productMapper.countPublicList(
+                criteria.getLocale(),
+                criteria.getCurrency(),
+                criteria.getCategorySlug(),
+                criteria.getKeyword(),
+                criteria.getTags(),
+                criteria.getPriceMin(),
+                criteria.getPriceMax()
+        );
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 分页查询用户点赞的商品
+     *
+     * @param userId   用户 ID
+     * @param criteria 检索条件(主要用于 locale/currency)
+     * @param offset   偏移量, 从 0 开始
+     * @param limit    单页条数
+     * @return 点赞的商品快照列表
+     */
+    @Override
+    public @NotNull List<ProductPublicSnapshot> pageUserLikes(@NotNull Long userId, @NotNull ProductSearchCriteria criteria, int offset, int limit) {
+        List<PublicProductSnapshotPO> pos = productMapper.selectUserLikedList(userId, criteria.getLocale(),
+                criteria.getCurrency(), offset, limit);
+        return buildSnapshots(pos, criteria.getCurrency());
+    }
+
+    /**
+     * 统计用户点赞的商品数量
+     *
+     * @param userId   用户 ID
+     * @param criteria 检索条件
+     * @return 点赞商品总数
+     */
+    @Override
+    public long countUserLikes(@NotNull Long userId, @NotNull ProductSearchCriteria criteria) {
+        Long count = productMapper.countUserLikedList(userId, criteria.getLocale(), criteria.getCurrency());
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 更新商品的默认 SKU ID
+     *
+     * @param productId    商品 ID
+     * @param defaultSkuId 默认 SKU ID, 可为空
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -157,7 +231,7 @@ public class ProductRepository implements IProductRepository {
     /**
      * 增量更新商品基础信息
      *
-     * @param product       已存在的商品聚合快照
+     * @param product        已存在的商品聚合快照
      * @param replaceGallery 是否需要替换图库
      * @return 更新后的商品聚合
      */
@@ -566,5 +640,54 @@ public class ProductRepository implements IProductRepository {
         } catch (IOException e) {
             return Collections.emptyMap();
         }
+    }
+
+    /**
+     * 将数据库快照转换为领域视图
+     *
+     * @param pos      快照列表
+     * @param currency 币种
+     * @return 领域视图列表
+     */
+    private List<ProductPublicSnapshot> buildSnapshots(List<PublicProductSnapshotPO> pos, String currency) {
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        Map<Long, List<ProductImagePO>> galleryMap = pos.stream()
+                .map(PublicProductSnapshotPO::getGallery)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(ProductImagePO::getProductId));
+        List<ProductPublicSnapshot> snapshots = new ArrayList<>();
+        for (PublicProductSnapshotPO po : pos) {
+            List<ProductImage> gallery = toGallery(galleryMap.getOrDefault(po.getId(), Collections.emptyList()));
+            List<String> tags = parseTags(po.getTags());
+            ProductPublicSnapshot snapshot = ProductPublicSnapshot.builder()
+                    .id(po.getId())
+                    .slug(po.getSlug())
+                    .title(po.getTitle())
+                    .subtitle(po.getSubtitle())
+                    .description(po.getDescription())
+                    .categoryId(po.getCategoryId())
+                    .categorySlug(po.getCategorySlug())
+                    .brand(po.getBrand())
+                    .coverImageUrl(po.getCoverImageUrl())
+                    .stockTotal(po.getStockTotal() == null ? 0 : po.getStockTotal())
+                    .saleCount(po.getSaleCount() == null ? 0 : po.getSaleCount())
+                    .skuType(SkuType.from(po.getSkuType()))
+                    .status(ProductStatus.from(po.getStatus()))
+                    .tags(tags)
+                    .gallery(gallery)
+                    .priceRange(ProductPublicSnapshot.ProductPriceRangeView.builder()
+                            .currency(currency)
+                            .listPriceMin(po.getListPriceMin())
+                            .listPriceMax(po.getListPriceMax())
+                            .salePriceMin(po.getSalePriceMin())
+                            .salePriceMax(po.getSalePriceMax())
+                            .build())
+                    .likedAt(po.getLikedAt())
+                    .build();
+            snapshot.validate();
+            snapshots.add(snapshot);
+        }
+        return snapshots;
     }
 }

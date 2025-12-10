@@ -94,7 +94,7 @@ public class CategoryController {
      * @return 匹配项或 null
      */
     private CategoryI18n findI18n(Category category, @Nullable String locale) {
-        if (locale == null || category.getI18nList() == null)
+        if (locale == null)
             return null;
         return category.getI18nList().stream()
                 .filter(item -> locale.equalsIgnoreCase(item.getLocale()))

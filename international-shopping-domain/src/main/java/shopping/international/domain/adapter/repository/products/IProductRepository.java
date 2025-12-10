@@ -7,7 +7,10 @@ import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
+import shopping.international.domain.model.vo.products.ProductPublicSnapshot;
+import shopping.international.domain.model.vo.products.ProductSearchCriteria;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -44,6 +47,46 @@ public interface IProductRepository {
      */
     @Nullable
     String findCategorySlug(@NotNull Long categoryId);
+
+    /**
+     * 分页查询上架商品列表
+     *
+     * @param criteria 检索条件
+     * @param offset   偏移量, 从 0 开始
+     * @param limit    单页条数
+     * @return 商品快照列表
+     */
+    @NotNull
+    List<ProductPublicSnapshot> pageOnSale(@NotNull ProductSearchCriteria criteria, int offset, int limit);
+
+    /**
+     * 统计上架商品数量
+     *
+     * @param criteria 检索条件
+     * @return 满足条件的总数
+     */
+    long countOnSale(@NotNull ProductSearchCriteria criteria);
+
+    /**
+     * 分页查询用户点赞的商品
+     *
+     * @param userId   用户 ID
+     * @param criteria 检索条件(主要用于 locale/currency)
+     * @param offset   偏移量, 从 0 开始
+     * @param limit    单页条数
+     * @return 点赞的商品快照列表
+     */
+    @NotNull
+    List<ProductPublicSnapshot> pageUserLikes(@NotNull Long userId, @NotNull ProductSearchCriteria criteria, int offset, int limit);
+
+    /**
+     * 统计用户点赞的商品数量
+     *
+     * @param userId   用户 ID
+     * @param criteria 检索条件
+     * @return 点赞商品总数
+     */
+    long countUserLikes(@NotNull Long userId, @NotNull ProductSearchCriteria criteria);
 
     /**
      * 更新商品的默认 SKU ID
