@@ -22,7 +22,6 @@ import shopping.international.infrastructure.dao.products.po.*;
 import shopping.international.types.exceptions.ConflictException;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.*;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
@@ -107,8 +106,6 @@ public class ProductSpecRepository implements IProductSpecRepository {
                 .isRequired(spec.isRequired())
                 .sortOrder(spec.getSortOrder())
                 .status(spec.isEnabled() ? "ENABLED" : "DISABLED")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
         try {
             productSpecMapper.insert(po);
@@ -123,7 +120,11 @@ public class ProductSpecRepository implements IProductSpecRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 更新规格基础信息
+     *
+     * @param spec        规格实体
+     * @param replaceI18n 是否覆盖 i18n 表
+     * @return 更新后的规格实体
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -134,8 +135,7 @@ public class ProductSpecRepository implements IProductSpecRepository {
                 .set(ProductSpecPO::getSpecType, spec.getSpecType().name())
                 .set(ProductSpecPO::getIsRequired, spec.isRequired())
                 .set(ProductSpecPO::getSortOrder, spec.getSortOrder())
-                .set(ProductSpecPO::getStatus, spec.isEnabled() ? "ENABLED" : "DISABLED")
-                .set(ProductSpecPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductSpecPO::getStatus, spec.isEnabled() ? "ENABLED" : "DISABLED");
         try {
             productSpecMapper.update(null, wrapper);
         } catch (DataIntegrityViolationException e) {
@@ -203,8 +203,6 @@ public class ProductSpecRepository implements IProductSpecRepository {
                 .attributes(writeAttributes(value.getAttributes()))
                 .sortOrder(value.getSortOrder())
                 .status(value.isEnabled() ? "ENABLED" : "DISABLED")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
         try {
             productSpecValueMapper.insert(po);
@@ -233,8 +231,7 @@ public class ProductSpecRepository implements IProductSpecRepository {
                 .set(ProductSpecValuePO::getValueName, value.getValueName())
                 .set(ProductSpecValuePO::getAttributes, writeAttributes(value.getAttributes()))
                 .set(ProductSpecValuePO::getSortOrder, value.getSortOrder())
-                .set(ProductSpecValuePO::getStatus, value.isEnabled() ? "ENABLED" : "DISABLED")
-                .set(ProductSpecValuePO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductSpecValuePO::getStatus, value.isEnabled() ? "ENABLED" : "DISABLED");
         try {
             productSpecValueMapper.update(null, wrapper);
         } catch (DataIntegrityViolationException e) {
@@ -422,8 +419,6 @@ public class ProductSpecRepository implements IProductSpecRepository {
                 .attributes(writeAttributes(value.getAttributes()))
                 .sortOrder(value.getSortOrder())
                 .status(value.isEnabled() ? "ENABLED" : "DISABLED")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
         try {
             productSpecValueMapper.insert(po);
@@ -448,7 +443,6 @@ public class ProductSpecRepository implements IProductSpecRepository {
                     .specId(specId)
                     .locale(i18n.getLocale())
                     .specName(i18n.getSpecName())
-                    .createdAt(LocalDateTime.now())
                     .build();
             productSpecI18nMapper.insert(po);
         }
@@ -468,7 +462,6 @@ public class ProductSpecRepository implements IProductSpecRepository {
                     .valueId(valueId)
                     .locale(i18n.getLocale())
                     .valueName(i18n.getValueName())
-                    .createdAt(LocalDateTime.now())
                     .build();
             productSpecValueI18nMapper.insert(po);
         }

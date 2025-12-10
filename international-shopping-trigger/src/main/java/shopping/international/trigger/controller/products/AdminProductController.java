@@ -27,6 +27,8 @@ import shopping.international.types.enums.ApiCode;
 
 import java.util.*;
 
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+
 /**
  * 管理端商品接口
  *
@@ -64,8 +66,12 @@ public class AdminProductController {
                                                                 @RequestParam(name = "keyword", required = false) String keyword,
                                                                 @RequestParam(name = "tag", required = false) String tag,
                                                                 @RequestParam(name = "include_deleted", defaultValue = "false") boolean includeDeleted) {
+        if (page < 1)
+            page = 1;
         if (size > 100)
             size = 100;
+        requireNotBlank(keyword, "keyword 不能为空");
+        requireNotBlank(tag, "tag 不能为空");
         IProductService.PageResult pageResult = productService.page(page, size, status, skuType, categoryId, keyword, tag, includeDeleted);
         List<ProductSpuRespond> data = pageResult.items().stream()
                 .map(this::toSpuRespond)
@@ -403,7 +409,7 @@ public class AdminProductController {
             return List.of();
         return payloads.stream()
                 .filter(Objects::nonNull)
-                .peek(ProductImagePayload::validate)
+                .peek(ProductImagePayload::createValidate)
                 .map(req -> ProductImage.of(
                         req.getUrl(),
                         req.getIsMain() != null && req.getIsMain(),

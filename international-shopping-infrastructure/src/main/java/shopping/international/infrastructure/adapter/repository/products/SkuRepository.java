@@ -18,7 +18,6 @@ import shopping.international.infrastructure.dao.products.*;
 import shopping.international.infrastructure.dao.products.po.*;
 import shopping.international.types.exceptions.ConflictException;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -99,8 +98,6 @@ public class SkuRepository implements ISkuRepository {
                 .status(sku.getStatus().name())
                 .isDefault(sku.isDefaultSku())
                 .barcode(sku.getBarcode())
-                .createdAt(sku.getCreatedAt())
-                .updatedAt(sku.getUpdatedAt())
                 .build();
         try {
             productSkuMapper.insert(po);
@@ -131,8 +128,7 @@ public class SkuRepository implements ISkuRepository {
                 .set(ProductSkuPO::getWeight, sku.getWeight())
                 .set(ProductSkuPO::getStatus, sku.getStatus().name())
                 .set(ProductSkuPO::getIsDefault, sku.isDefaultSku())
-                .set(ProductSkuPO::getBarcode, sku.getBarcode())
-                .set(ProductSkuPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductSkuPO::getBarcode, sku.getBarcode());
         try {
             productSkuMapper.update(null, wrapper);
         } catch (DataIntegrityViolationException e) {
@@ -169,7 +165,6 @@ public class SkuRepository implements ISkuRepository {
                         .skuId(skuId)
                         .specId(relation.getSpecId())
                         .valueId(relation.getValueId())
-                        .createdAt(LocalDateTime.now())
                         .build();
                 productSkuSpecMapper.insert(po);
             }
@@ -208,7 +203,6 @@ public class SkuRepository implements ISkuRepository {
                 .eq(ProductPricePO::getSkuId, skuId));
         Map<String, ProductPricePO> existingMap = existing == null ? Collections.emptyMap()
                 : existing.stream().collect(Collectors.toMap(ProductPricePO::getCurrency, po -> po));
-        LocalDateTime now = LocalDateTime.now();
         List<String> currencies = new ArrayList<>();
         for (ProductPrice price : prices) {
             ProductPricePO found = existingMap.get(price.getCurrency());
@@ -219,8 +213,6 @@ public class SkuRepository implements ISkuRepository {
                         .listPrice(price.getListPrice())
                         .salePrice(price.getSalePrice())
                         .isActive(price.isActive())
-                        .createdAt(now)
-                        .updatedAt(now)
                         .build();
                 productPriceMapper.insert(po);
             } else {
@@ -229,8 +221,7 @@ public class SkuRepository implements ISkuRepository {
                         .eq(ProductPricePO::getCurrency, price.getCurrency())
                         .set(ProductPricePO::getListPrice, price.getListPrice())
                         .set(ProductPricePO::getSalePrice, price.getSalePrice())
-                        .set(ProductPricePO::getIsActive, price.isActive())
-                        .set(ProductPricePO::getUpdatedAt, now);
+                        .set(ProductPricePO::getIsActive, price.isActive());
                 productPriceMapper.update(null, wrapper);
             }
             currencies.add(price.getCurrency());
@@ -250,39 +241,41 @@ public class SkuRepository implements ISkuRepository {
     public int updateStock(@NotNull Long skuId, int stock) {
         LambdaUpdateWrapper<ProductSkuPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ProductSkuPO::getId, skuId)
-                .set(ProductSkuPO::getStock, stock)
-                .set(ProductSkuPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductSkuPO::getStock, stock);
         productSkuMapper.update(null, wrapper);
         return stock;
     }
 
     /**
-     * {@inheritDoc}
+     * 统一设置默认 SKU
+     *
+     * @param productId 商品 ID
+     * @param skuId     目标默认 SKU, 为空表示清空默认
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void markDefault(@NotNull Long productId, @Nullable Long skuId) {
         LambdaUpdateWrapper<ProductSkuPO> clearWrapper = new LambdaUpdateWrapper<>();
         clearWrapper.eq(ProductSkuPO::getProductId, productId)
-                .set(ProductSkuPO::getIsDefault, false)
-                .set(ProductSkuPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductSkuPO::getIsDefault, false);
         productSkuMapper.update(null, clearWrapper);
         if (skuId != null) {
             LambdaUpdateWrapper<ProductSkuPO> setWrapper = new LambdaUpdateWrapper<>();
             setWrapper.eq(ProductSkuPO::getId, skuId)
-                    .set(ProductSkuPO::getIsDefault, true)
-                    .set(ProductSkuPO::getUpdatedAt, LocalDateTime.now());
+                    .set(ProductSkuPO::getIsDefault, true);
             productSkuMapper.update(null, setWrapper);
         }
         LambdaUpdateWrapper<ProductPO> productWrapper = new LambdaUpdateWrapper<>();
         productWrapper.eq(ProductPO::getId, productId)
-                .set(ProductPO::getDefaultSkuId, skuId)
-                .set(ProductPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductPO::getDefaultSkuId, skuId);
         productMapper.update(null, productWrapper);
     }
 
     /**
-     * {@inheritDoc}
+     * 汇总某商品下的库存总和
+     *
+     * @param productId 商品 ID
+     * @return 库存合计
      */
     @Override
     public int sumStockByProduct(@NotNull Long productId) {
@@ -376,7 +369,6 @@ public class SkuRepository implements ISkuRepository {
     private void persistPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices) {
         if (prices.isEmpty())
             return;
-        LocalDateTime now = LocalDateTime.now();
         for (ProductPrice price : prices) {
             ProductPricePO po = ProductPricePO.builder()
                     .skuId(skuId)
@@ -384,8 +376,6 @@ public class SkuRepository implements ISkuRepository {
                     .listPrice(price.getListPrice())
                     .salePrice(price.getSalePrice())
                     .isActive(price.isActive())
-                    .createdAt(now)
-                    .updatedAt(now)
                     .build();
             productPriceMapper.insert(po);
         }
@@ -400,13 +390,11 @@ public class SkuRepository implements ISkuRepository {
     private void persistSpecs(@NotNull Long skuId, @NotNull List<SkuSpecRelation> specs) {
         if (specs.isEmpty())
             return;
-        LocalDateTime now = LocalDateTime.now();
         for (SkuSpecRelation relation : specs) {
             ProductSkuSpecPO po = ProductSkuSpecPO.builder()
                     .skuId(skuId)
                     .specId(relation.getSpecId())
                     .valueId(relation.getValueId())
-                    .createdAt(now)
                     .build();
             productSkuSpecMapper.insert(po);
         }
@@ -421,14 +409,12 @@ public class SkuRepository implements ISkuRepository {
     private void persistImages(@NotNull Long skuId, @NotNull List<ProductImage> images) {
         if (images.isEmpty())
             return;
-        LocalDateTime now = LocalDateTime.now();
         for (ProductImage image : images) {
             ProductSkuImagePO po = ProductSkuImagePO.builder()
                     .skuId(skuId)
                     .url(image.getUrl())
                     .isMain(image.isMain())
                     .sortOrder(image.getSortOrder())
-                    .createdAt(now)
                     .build();
             productSkuImageMapper.insert(po);
         }

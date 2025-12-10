@@ -37,21 +37,48 @@ public class ProductService implements IProductService {
     private final ISkuRepository skuRepository;
 
     /**
-     * {@inheritDoc}
+     * 分页查询商品
+     *
+     * @param page           页码, 从 1 开始
+     * @param size           页大小
+     * @param status         状态过滤, 可空
+     * @param skuType        规格类型过滤, 可空
+     * @param categoryId     分类过滤, 可空
+     * @param keyword        关键词, 匹配标题/slug/品牌, 可空
+     * @param tag            标签过滤, 可空
+     * @param includeDeleted 是否包含已删除商品
+     * @return 分页结果
      */
     @Override
     public @NotNull PageResult page(int page, int size, @Nullable ProductStatus status, @Nullable SkuType skuType,
                                     @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted) {
         int offset = Math.max(0, (page - 1) * size);
-        List<Product> items = productRepository.list(status, skuType, categoryId, keyword == null ? null : keyword.strip(),
-                tag == null ? null : tag.strip(), includeDeleted, offset, size);
-        long total = productRepository.count(status, skuType, categoryId, keyword == null ? null : keyword.strip(),
-                tag == null ? null : tag.strip(), includeDeleted);
+        List<Product> items = productRepository.list(
+                status,
+                skuType,
+                categoryId,
+                keyword == null ? null : keyword.strip(),
+                tag == null ? null : tag.strip(),
+                includeDeleted,
+                offset,
+                size
+        );
+        long total = productRepository.count(
+                status,
+                skuType,
+                categoryId,
+                keyword == null ? null : keyword.strip(),
+                tag == null ? null : tag.strip(),
+                includeDeleted
+        );
         return new PageResult(items, total);
     }
 
     /**
-     * {@inheritDoc}
+     * 查询管理侧商品详情
+     *
+     * @param productId 商品 ID
+     * @return 商品详情读模型
      */
     @Override
     public @NotNull ProductDetail detail(@NotNull Long productId) {
@@ -62,7 +89,19 @@ public class ProductService implements IProductService {
     }
 
     /**
-     * {@inheritDoc}
+     * 创建商品基础信息
+     *
+     * @param slug          商品 slug
+     * @param title         标题
+     * @param subtitle      副标题
+     * @param description   描述
+     * @param categoryId    分类 ID
+     * @param brand         品牌
+     * @param coverImageUrl 主图
+     * @param skuType       规格类型
+     * @param status        状态
+     * @param tags          标签
+     * @return 新建商品聚合
      */
     @Override
     public @NotNull Product createBasic(@NotNull String slug, @NotNull String title, @Nullable String subtitle,
@@ -75,7 +114,20 @@ public class ProductService implements IProductService {
     }
 
     /**
-     * {@inheritDoc}
+     * 更新商品基础信息
+     *
+     * @param productId     商品 ID
+     * @param slug          新 slug, 可空
+     * @param title         新标题, 可空
+     * @param subtitle      新副标题, 可空
+     * @param description   新描述, 可空
+     * @param categoryId    新分类, 可空
+     * @param brand         新品牌, 可空
+     * @param coverImageUrl 新主图, 可空
+     * @param skuType       新规格类型, 可空
+     * @param status        新状态, 可空
+     * @param tags          新标签, 可空
+     * @return 更新后的商品聚合
      */
     @Override
     public @NotNull Product updateBasic(@NotNull Long productId, @Nullable String slug, @Nullable String title,
@@ -88,7 +140,11 @@ public class ProductService implements IProductService {
     }
 
     /**
-     * {@inheritDoc}
+     * 按合法状态机流转商品状态
+     *
+     * @param productId 商品 ID
+     * @param status    目标状态
+     * @return 更新后的状态
      */
     @Override
     public @NotNull ProductStatus changeStatus(@NotNull Long productId, @NotNull ProductStatus status) {
@@ -99,7 +155,11 @@ public class ProductService implements IProductService {
     }
 
     /**
-     * {@inheritDoc}
+     * 新增商品多语言
+     *
+     * @param productId 商品 ID
+     * @param i18n      多语言值对象
+     * @return 新增后的多语言
      */
     @Override
     public @NotNull ProductI18n addI18n(@NotNull Long productId, @NotNull ProductI18n i18n) {
@@ -110,7 +170,16 @@ public class ProductService implements IProductService {
     }
 
     /**
-     * {@inheritDoc}
+     * 更新商品多语言
+     *
+     * @param productId  商品 ID
+     * @param locale     语言代码
+     * @param title      新标题, 可空
+     * @param subtitle   新副标题, 可空
+     * @param description 新描述, 可空
+     * @param slug       新 slug, 可空
+     * @param tags       新标签, 可空
+     * @return 更新后的多语言
      */
     @Override
     public @NotNull ProductI18n updateI18n(@NotNull Long productId, @NotNull String locale, @Nullable String title,
@@ -127,7 +196,11 @@ public class ProductService implements IProductService {
     }
 
     /**
-     * {@inheritDoc}
+     * 覆盖商品图库
+     *
+     * @param productId 商品 ID
+     * @param gallery   新图库
+     * @return 新图库数量
      */
     @Override
     public int replaceGallery(@NotNull Long productId, @NotNull List<ProductImage> gallery) {

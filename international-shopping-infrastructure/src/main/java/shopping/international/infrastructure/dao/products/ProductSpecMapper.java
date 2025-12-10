@@ -5,6 +5,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import shopping.international.infrastructure.dao.products.po.ProductSpecPO;
 
+import java.util.List;
+
 /**
  * Mapper: product_spec
  * <p>基于 MyBatis-Plus 的通用 CRUD 接口</p>
@@ -18,7 +20,7 @@ public interface ProductSpecMapper extends BaseMapper<ProductSpecPO> {
      * @param productId 商品 ID
      * @return 规格列表
      */
-    java.util.List<ProductSpecPO> selectAggregateByProductId(@Param("productId") Long productId);
+    List<ProductSpecPO> selectAggregateByProductId(@Param("productId") Long productId);
 
     /**
      * 按 ID 聚合读取规格, 包含规格值与多语言

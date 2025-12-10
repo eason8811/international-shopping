@@ -20,7 +20,6 @@ import shopping.international.infrastructure.dao.products.po.ProductCategoryPO;
 import shopping.international.infrastructure.dao.products.po.ProductPO;
 import shopping.international.types.exceptions.ConflictException;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -176,8 +175,6 @@ public class CategoryRepository implements ICategoryRepository {
                 .path(category.getPath())
                 .sortOrder(category.getSortOrder())
                 .status(category.getStatus().name())
-                .createdAt(category.getCreatedAt())
-                .updatedAt(category.getUpdatedAt())
                 .build();
         try {
             categoryMapper.insert(po);
@@ -280,8 +277,6 @@ public class CategoryRepository implements ICategoryRepository {
                 .name(i18n.getName())
                 .slug(i18n.getSlug())
                 .brand(i18n.getBrand())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
         try {
             categoryI18nMapper.insert(po);
@@ -304,8 +299,7 @@ public class CategoryRepository implements ICategoryRepository {
                 .eq(ProductCategoryI18nPO::getLocale, i18n.getLocale())
                 .set(ProductCategoryI18nPO::getName, i18n.getName())
                 .set(ProductCategoryI18nPO::getSlug, i18n.getSlug())
-                .set(ProductCategoryI18nPO::getBrand, i18n.getBrand())
-                .set(ProductCategoryI18nPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductCategoryI18nPO::getBrand, i18n.getBrand());
         categoryI18nMapper.update(null, wrapper);
     }
 
@@ -392,7 +386,6 @@ public class CategoryRepository implements ICategoryRepository {
                 .eq(ProductCategoryI18nPO::getCategoryId, categoryId));
         if (i18nList == null || i18nList.isEmpty())
             return;
-        LocalDateTime now = LocalDateTime.now();
         for (CategoryI18n i18n : i18nList) {
             ProductCategoryI18nPO po = ProductCategoryI18nPO.builder()
                     .categoryId(categoryId)
@@ -400,8 +393,6 @@ public class CategoryRepository implements ICategoryRepository {
                     .name(i18n.getName())
                     .slug(i18n.getSlug())
                     .brand(i18n.getBrand())
-                    .createdAt(now)
-                    .updatedAt(now)
                     .build();
             categoryI18nMapper.insert(po);
         }

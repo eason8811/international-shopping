@@ -347,7 +347,7 @@ public class Product implements Verifiable {
         boolean exists = mutable.stream().anyMatch(item -> item.getSpecCode().equals(spec.getSpecCode()));
         require(!exists, "规格编码已存在: " + spec.getSpecCode());
         mutable.add(spec);
-        this.specs = normalizeDistinctList(mutable, ProductSpec::validate, ProductSpec::getSpecCode, "规格编码不能重复");
+        replaceSpecs(mutable);
     }
 
     /**

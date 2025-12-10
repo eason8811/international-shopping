@@ -30,7 +30,6 @@ import shopping.international.infrastructure.dao.products.po.*;
 import shopping.international.types.exceptions.ConflictException;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -116,26 +115,30 @@ public class ProductRepository implements IProductRepository {
     public void updateDefaultSkuId(@NotNull Long productId, @Nullable Long defaultSkuId) {
         LambdaUpdateWrapper<ProductPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ProductPO::getId, productId)
-                .set(ProductPO::getDefaultSkuId, defaultSkuId)
-                .set(ProductPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductPO::getDefaultSkuId, defaultSkuId);
         productMapper.update(null, wrapper);
     }
 
     /**
-     * {@inheritDoc}
+     * 覆盖更新商品聚合库存
+     *
+     * @param productId 商品 ID
+     * @param stock     新聚合库存
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateStockTotal(@NotNull Long productId, int stock) {
         LambdaUpdateWrapper<ProductPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ProductPO::getId, productId)
-                .set(ProductPO::getStockTotal, stock)
-                .set(ProductPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductPO::getStockTotal, stock);
         productMapper.update(null, wrapper);
     }
 
     /**
-     * {@inheritDoc}
+     * 新增商品聚合 (含基础信息与可选图库)
+     *
+     * @param product 待保存的商品聚合, ID 为空
+     * @return 保存后的商品聚合, 携带持久化 ID
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -152,7 +155,11 @@ public class ProductRepository implements IProductRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 增量更新商品基础信息
+     *
+     * @param product       已存在的商品聚合快照
+     * @param replaceGallery 是否需要替换图库
+     * @return 更新后的商品聚合
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -168,8 +175,7 @@ public class ProductRepository implements IProductRepository {
                 .set(ProductPO::getCoverImageUrl, product.getCoverImageUrl())
                 .set(ProductPO::getSkuType, product.getSkuType().name())
                 .set(ProductPO::getStatus, product.getStatus().name())
-                .set(ProductPO::getTags, writeTags(product.getTags()))
-                .set(ProductPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductPO::getTags, writeTags(product.getTags()));
         try {
             productMapper.update(null, wrapper);
         } catch (DataIntegrityViolationException e) {
@@ -183,7 +189,10 @@ public class ProductRepository implements IProductRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 覆盖商品图库
+     *
+     * @param productId 商品 ID
+     * @param gallery   新图库列表
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -193,7 +202,10 @@ public class ProductRepository implements IProductRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 新增一条商品多语言记录
+     *
+     * @param productId 商品 ID
+     * @param i18n      多语言值对象
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -206,8 +218,6 @@ public class ProductRepository implements IProductRepository {
                 .description(i18n.getDescription())
                 .slug(i18n.getSlug())
                 .tags(writeTags(i18n.getTags()))
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
         try {
             productI18nMapper.insert(po);
@@ -217,7 +227,10 @@ public class ProductRepository implements IProductRepository {
     }
 
     /**
-     * {@inheritDoc}
+     * 更新已存在的商品多语言记录
+     *
+     * @param productId 商品 ID
+     * @param i18n      多语言值对象
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -229,51 +242,79 @@ public class ProductRepository implements IProductRepository {
                 .set(ProductI18nPO::getSubtitle, i18n.getSubtitle())
                 .set(ProductI18nPO::getDescription, i18n.getDescription())
                 .set(ProductI18nPO::getSlug, i18n.getSlug())
-                .set(ProductI18nPO::getTags, writeTags(i18n.getTags()))
-                .set(ProductI18nPO::getUpdatedAt, LocalDateTime.now());
+                .set(ProductI18nPO::getTags, writeTags(i18n.getTags()));
         productI18nMapper.update(null, wrapper);
     }
 
     /**
-     * {@inheritDoc}
+     * 分页查询商品基础信息
+     *
+     * @param status         商品状态过滤, 可空
+     * @param skuType        SKU 类型过滤, 可空
+     * @param categoryId     分类过滤, 可空
+     * @param keyword        关键词过滤, 支持标题/slug/品牌, 可空
+     * @param tag            标签过滤, 可空
+     * @param includeDeleted 是否包含已删除商品
+     * @param offset         偏移量, 从 0 开始
+     * @param limit          单页大小
+     * @return 商品列表
      */
     @Override
     public @NotNull List<Product> list(@Nullable ProductStatus status, @Nullable SkuType skuType,
                                        @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag,
                                        boolean includeDeleted, int offset, int limit) {
-        LambdaQueryWrapper<ProductPO> wrapper = buildListWrapper(status, skuType, categoryId, keyword, tag, includeDeleted);
-        wrapper.last("LIMIT " + offset + "," + limit);
-        List<ProductPO> pos = productMapper.selectList(wrapper);
+        List<ProductPO> pos = productMapper.selectAdminAggregatePage(status, skuType, categoryId, keyword, tag, includeDeleted, offset, limit);
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
-        Map<Long, List<ProductImagePO>> galleryMap = loadGallery(pos.stream().map(ProductPO::getId).toList());
+        Map<Long, List<ProductImagePO>> galleryMap = pos.stream()
+                .map(ProductPO::getGallery)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(ProductImagePO::getProductId));
         List<Product> result = new ArrayList<>();
         for (ProductPO po : pos) {
             List<ProductImagePO> imagePOs = galleryMap.getOrDefault(po.getId(), Collections.emptyList());
             List<ProductImage> gallery = toGallery(imagePOs);
             List<String> tags = parseTags(po.getTags());
             result.add(Product.reconstitute(
-                    po.getId(), po.getSlug(), po.getTitle(), po.getSubtitle(), po.getDescription(),
-                    po.getCategoryId(), po.getBrand(), po.getCoverImageUrl(),
+                    po.getId(),
+                    po.getSlug(),
+                    po.getTitle(),
+                    po.getSubtitle(),
+                    po.getDescription(),
+                    po.getCategoryId(),
+                    po.getBrand(),
+                    po.getCoverImageUrl(),
                     po.getStockTotal() == null ? 0 : po.getStockTotal(),
                     po.getSaleCount() == null ? 0 : po.getSaleCount(),
                     SkuType.from(po.getSkuType()),
                     ProductStatus.from(po.getStatus()),
-                    po.getDefaultSkuId(), tags, gallery, Collections.emptyList(), Collections.emptyList(),
-                    po.getCreatedAt(), po.getUpdatedAt()
+                    po.getDefaultSkuId(),
+                    tags,
+                    gallery,
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    po.getCreatedAt(),
+                    po.getUpdatedAt()
             ));
         }
         return result;
     }
 
     /**
-     * {@inheritDoc}
+     * 统计分页查询的商品总数
+     *
+     * @param status         商品状态过滤, 可空
+     * @param skuType        SKU 类型过滤, 可空
+     * @param categoryId     分类过滤, 可空
+     * @param keyword        关键词过滤, 可空
+     * @param tag            标签过滤, 可空
+     * @param includeDeleted 是否包含已删除商品
+     * @return 总数量
      */
     @Override
     public long count(@Nullable ProductStatus status, @Nullable SkuType skuType,
                       @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted) {
-        LambdaQueryWrapper<ProductPO> wrapper = buildListWrapper(status, skuType, categoryId, keyword, tag, includeDeleted);
-        Long total = productMapper.selectCount(wrapper);
+        Long total = productMapper.countAdminAggregatePage(status, skuType, categoryId, keyword, tag, includeDeleted);
         return total == null ? 0 : total;
     }
 
@@ -299,54 +340,7 @@ public class ProductRepository implements IProductRepository {
                 .status(product.getStatus().name())
                 .defaultSkuId(product.getDefaultSkuId())
                 .tags(writeTags(product.getTags()))
-                .createdAt(product.getCreatedAt() == null ? LocalDateTime.now() : product.getCreatedAt())
-                .updatedAt(product.getUpdatedAt() == null ? LocalDateTime.now() : product.getUpdatedAt())
                 .build();
-    }
-
-    /**
-     * 构建分页查询条件
-     */
-    private LambdaQueryWrapper<ProductPO> buildListWrapper(@Nullable ProductStatus status, @Nullable SkuType skuType,
-                                                           @Nullable Long categoryId, @Nullable String keyword,
-                                                           @Nullable String tag, boolean includeDeleted) {
-        LambdaQueryWrapper<ProductPO> wrapper = new LambdaQueryWrapper<>();
-        if (status != null)
-            wrapper.eq(ProductPO::getStatus, status.name());
-        else if (!includeDeleted)
-            wrapper.ne(ProductPO::getStatus, ProductStatus.DELETED.name());
-        if (skuType != null)
-            wrapper.eq(ProductPO::getSkuType, skuType.name());
-        if (categoryId != null)
-            wrapper.eq(ProductPO::getCategoryId, categoryId);
-        if (keyword != null && !keyword.isBlank()) {
-            String kw = keyword.strip();
-            wrapper.and(q -> q.like(ProductPO::getTitle, kw)
-                    .or().like(ProductPO::getSlug, kw)
-                    .or().like(ProductPO::getBrand, kw));
-        }
-        if (tag != null && !tag.isBlank())
-            wrapper.like(ProductPO::getTags, tag.strip());
-        wrapper.orderByDesc(ProductPO::getUpdatedAt);
-        return wrapper;
-    }
-
-    /**
-     * 批量加载商品图库
-     *
-     * @param productIds 商品 ID 列表
-     * @return 商品 ID -> 图库映射
-     */
-    private Map<Long, List<ProductImagePO>> loadGallery(@NotNull List<Long> productIds) {
-        if (productIds.isEmpty())
-            return Collections.emptyMap();
-        return productImageMapper.selectList(new LambdaQueryWrapper<ProductImagePO>()
-                        .in(ProductImagePO::getProductId, productIds)
-                        .orderByDesc(ProductImagePO::getIsMain)
-                        .orderByAsc(ProductImagePO::getSortOrder)
-                        .orderByAsc(ProductImagePO::getId))
-                .stream()
-                .collect(Collectors.groupingBy(ProductImagePO::getProductId));
     }
 
     /**
@@ -364,7 +358,6 @@ public class ProductRepository implements IProductRepository {
                     .url(image.getUrl())
                     .isMain(image.isMain())
                     .sortOrder(image.getSortOrder())
-                    .createdAt(LocalDateTime.now())
                     .build();
             productImageMapper.insert(po);
         }
@@ -427,6 +420,12 @@ public class ProductRepository implements IProductRepository {
         }
     }
 
+    /**
+     * 将商品图片持久化对象列表转换为商品图片值对象列表
+     *
+     * @param pos 商品图片持久化对象列表, 可为空或空列表
+     * @return 转换后的商品图片值对象列表, 若输入为空或空列表则返回空列表
+     */
     private List<ProductImage> toGallery(@Nullable List<ProductImagePO> pos) {
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
@@ -440,6 +439,12 @@ public class ProductRepository implements IProductRepository {
                 .toList();
     }
 
+    /**
+     * 将商品规格持久化对象列表转换为商品规格值对象列表
+     *
+     * @param specPos 商品规格持久化对象列表, 可为空或空列表
+     * @return 转换后的商品规格值对象列表, 若输入为空或空列表则返回空列表
+     */
     private List<ProductSpec> toSpecs(@Nullable List<ProductSpecPO> specPos) {
         if (specPos == null || specPos.isEmpty())
             return Collections.emptyList();
@@ -460,6 +465,15 @@ public class ProductRepository implements IProductRepository {
         return specs;
     }
 
+    /**
+     * 将规格类别多语言持久化对象列表转换为规格类别多语言值对象列表
+     *
+     * <p>此方法接收一个 {@code ProductSpecI18nPO} 对象列表, 并将其转换为 {@link ProductSpecI18n} 对象列表, 如果输入为空或空列表,
+     * 则返回空列表</p>
+     *
+     * @param pos 规格类别多语言持久化对象列表, 可为空或空列表
+     * @return 转换后的规格类别多语言值对象列表, 若输入为空或空列表则返回空列表
+     */
     private List<ProductSpecI18n> toSpecI18n(@Nullable List<ProductSpecI18nPO> pos) {
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
@@ -469,6 +483,12 @@ public class ProductRepository implements IProductRepository {
                 .toList();
     }
 
+    /**
+     * 将商品规格值持久化对象列表转换为商品规格值对象列表
+     *
+     * @param pos 商品规格值持久化对象列表, 可为空或空列表
+     * @return 转换后的商品规格值对象列表, 若输入为空或空列表则返回空列表
+     */
     private List<ProductSpecValue> toSpecValues(@Nullable List<ProductSpecValuePO> pos) {
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
@@ -488,6 +508,15 @@ public class ProductRepository implements IProductRepository {
         return values;
     }
 
+    /**
+     * 将规格值多语言持久化对象列表转换为规格值多语言值对象列表
+     *
+     * <p>此方法接收一个 {@code ProductSpecValueI18nPO} 对象列表, 并将其转换为 {@link ProductSpecValueI18n} 对象列表,
+     * 如果输入为空或空列表, 则返回空列表</p>
+     *
+     * @param pos 规格值多语言持久化对象列表, 可为空或空列表
+     * @return 转换后的规格值多语言值对象列表, 若输入为空或空列表则返回空列表
+     */
     private List<ProductSpecValueI18n> toSpecValueI18n(@Nullable List<ProductSpecValueI18nPO> pos) {
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
@@ -497,6 +526,12 @@ public class ProductRepository implements IProductRepository {
                 .toList();
     }
 
+    /**
+     * 将商品多语言持久化对象列表转换为商品多语言值对象列表
+     *
+     * @param pos 商品多语言持久化对象列表, 可为空或空列表
+     * @return 转换后的商品多语言值对象列表, 若输入为空或空列表则返回空列表
+     */
     private List<ProductI18n> toProductI18n(@Nullable List<ProductI18nPO> pos) {
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
@@ -513,6 +548,15 @@ public class ProductRepository implements IProductRepository {
                 .toList();
     }
 
+    /**
+     * 解析 JSON 字符串为属性映射
+     *
+     * <p>此方法尝试将给定的 JSON 字符串解析为一个键值对映射, 其中键为字符串类型, 值可以是任何对象类型,
+     * 如果输入的 JSON 字符串为空或空白, 则返回一个空映射. 在解析过程中如果遇到异常, 也将返回一个空映射</p>
+     *
+     * @param json 待解析的 JSON 字符串, 可以为空
+     * @return 解析后的属性映射, 如果解析失败则返回空映射
+     */
     private Map<String, Object> parseAttributes(@Nullable String json) {
         if (json == null || json.isBlank())
             return Collections.emptyMap();

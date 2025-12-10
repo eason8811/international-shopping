@@ -87,7 +87,6 @@ public class ProductSpecService implements IProductSpecService {
         Product product = ensureProduct(productId);
         ProductSpec spec = ensureSpec(productId, specId);
         product.updateSpec(specId, specName, specType, required, sortOrder, enabled);
-        spec.update(specName, specType, required, sortOrder, enabled);
         if (patchI18n && i18nList != null)
             spec.updateI18nBatch(i18nList);
         ProductSpec updated = productSpecRepository.update(spec, patchI18n);
