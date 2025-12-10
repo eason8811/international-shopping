@@ -56,9 +56,9 @@ class ProductSpecServiceTest {
 
     @Test
     void updateShouldPatchSpecAndI18n() {
-        Product product = TestDataFactory.product(1L, 2L, SkuType.VARIANT, ProductStatus.ON_SALE, List.of());
         ProductSpec spec = ProductSpec.reconstitute(5L, 1L, "color", "Color", SpecType.COLOR, true, 1, true,
                 List.of(ProductSpecI18n.of("en-US", "Color")), List.of());
+        Product product = TestDataFactory.product(1L, 2L, SkuType.VARIANT, ProductStatus.ON_SALE, List.of(spec));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productSpecRepository.findById(1L, 5L)).thenReturn(Optional.of(spec));
         when(productSpecRepository.update(any(ProductSpec.class), eq(true))).thenAnswer(invocation -> invocation.getArgument(0));
