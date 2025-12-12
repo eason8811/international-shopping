@@ -94,4 +94,53 @@ class AdminProductApiIntegrationTest extends ProductApiIntegrationTestBase {
         Assertions.assertThat(data(detail).path("slug").asText()).isEqualTo("sport-shoe");
         Assertions.assertThat(data(detail).path("categoryId").asLong()).isEqualTo(categoryId);
     }
+
+    @Test
+    @DisplayName("商品列表缺少 keyword/tag 返回 400")
+    void listProductsRequireKeywordAndTag() {
+        HttpHeaders headers = authHeaders(13L, true, false);
+        JsonNode root = doRequest(
+                url("/api/v1/admin/products?page=1&size=10"),
+                HttpMethod.GET,
+                null,
+                headers,
+                HttpStatus.BAD_REQUEST
+        );
+        Assertions.assertThat(root.path("code").asText()).isEqualTo("BAD_REQUEST");
+    }
+
+    @Test
+    @DisplayName("更新状态缺少 CSRF 返回 403")
+    void updateStatusRequiresCsrf() {
+        HttpHeaders adminHeaders = authHeaders(14L, true, true);
+        long categoryId = createCategory(adminHeaders, "Bags", "bags", "zh-CN", "bao");
+        long productId = createProduct(adminHeaders, categoryId, "bag-slug", "Bag Title");
+
+        JsonNode root = doRequest(
+                url("/api/v1/admin/products/" + productId + "/status"),
+                HttpMethod.PATCH,
+                Map.of("status", "ON_SALE"),
+                authHeaders(14L, true, false),
+                HttpStatus.FORBIDDEN
+        );
+        Assertions.assertThat(root.path("code").asText()).isEqualTo("FORBIDDEN");
+    }
+
+    @Test
+    @DisplayName("更新基础信息时 slug 为空返回 400")
+    void updateBasicRejectsEmptySlug() {
+        HttpHeaders adminHeaders = authHeaders(15L, true, true);
+        long categoryId = createCategory(adminHeaders, "Hats", "hats", "zh-CN", "maozi");
+        long productId = createProduct(adminHeaders, categoryId, "hat-slug", "Hat Title");
+
+        JsonNode root = doRequest(
+                url("/api/v1/admin/products/" + productId),
+                HttpMethod.PATCH,
+                Map.of("slug", " "),
+                adminHeaders,
+                HttpStatus.BAD_REQUEST
+        );
+        Assertions.assertThat(root.path("success").asBoolean()).isFalse();
+        Assertions.assertThat(root.path("code").asText()).isEqualTo("BAD_REQUEST");
+    }
 }

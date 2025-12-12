@@ -14,10 +14,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
-import shopping.international.app.security.service.IJwtTokenService;
 import shopping.international.app.security.filter.CookieJwtAuthenticationFilter;
 import shopping.international.app.security.handler.RestAuthErrorHandlers;
 import shopping.international.app.security.handler.RestLogoutSuccessHandler;
+import shopping.international.app.security.service.IJwtTokenService;
 
 import static shopping.international.types.constant.SecurityConstants.API_PREFIX;
 
@@ -92,8 +92,8 @@ public class SecurityConfig {
 
         // ========== 授权规则 ==========
         http.authorizeHttpRequests(registry ->
-                        // 匿名接口允许访问
                 {
+                    // 匿名接口允许访问
                     registry.requestMatchers(
                             API_PREFIX + "/auth/register",
                             API_PREFIX + "/auth/email-status",
@@ -104,7 +104,10 @@ public class SecurityConfig {
                             API_PREFIX + "/auth/login",
                             API_PREFIX + "/oauth2/*/authorize",
                             API_PREFIX + "/oauth2/*/callback",
-                            API_PREFIX + "/users/me/bindings/oauth2/*/callback"
+                            API_PREFIX + "/users/me/bindings/oauth2/*/callback",
+                            API_PREFIX + "/products/categories/tree",
+                            API_PREFIX + "/products",
+                            API_PREFIX + "/products/**"
                     ).permitAll();
 
                     registry.requestMatchers(API_PREFIX + "/users/me/**").authenticated();

@@ -9,23 +9,16 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 
@@ -40,44 +33,9 @@ import java.util.*;
  *   <li>在每个用例前清空相关表，避免数据串扰</li>
  * </ul>
  */
-@Testcontainers
-@ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
+@ActiveProfiles("dev")
 public abstract class ProductApiIntegrationTestBase {
-
-    private static final String TEST_JWT_SECRET = Base64.getEncoder()
-            .encodeToString("test-jwt-secret-key-should-be-long".getBytes(StandardCharsets.UTF_8));
-
-    @Container
-    protected static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:9.0")
-            .withDatabaseName("shopdb")
-            .withUsername("test_user")
-            .withPassword("test_pass")
-            .withInitScript("sql/init-products.sql");
-
-    @DynamicPropertySource
-    static void registerProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
-        registry.add("spring.datasource.username", MYSQL::getUsername);
-        registry.add("spring.datasource.password", MYSQL::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "com.mysql.cj.jdbc.Driver");
-        registry.add("spring.data.redis.host", () -> "localhost");
-        registry.add("spring.data.redis.port", () -> "6379");
-        registry.add("spring.data.redis.database", () -> "0");
-        registry.add("security.jwt.secret-base64", () -> TEST_JWT_SECRET);
-        registry.add("security.jwt.issuer", () -> "test-issuer");
-        registry.add("security.jwt.audience", () -> "test-audience");
-        registry.add("security.jwt.clock-skew-seconds", () -> "60");
-        registry.add("security.jwt.access-token-validity-seconds", () -> "3600");
-        registry.add("security.jwt.refresh-token-validity-seconds", () -> "86400");
-        registry.add("security.cookie.secure", () -> "false");
-        registry.add("security.cookie.sameSite", () -> "Lax");
-        registry.add("security.cookie.path", () -> "/");
-        registry.add("security.cookie.httpOnly", () -> "false");
-        registry.add("spring.main.allow-bean-definition-overriding", () -> "true");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
-    }
 
     @LocalServerPort
     protected int port;
@@ -90,6 +48,18 @@ public abstract class ProductApiIntegrationTestBase {
 
     @Autowired
     protected JdbcTemplate jdbcTemplate;
+
+    @Value("${security.jwt.secret-base64}")
+    private String jwtSecretBase64;
+
+    @Value("${security.jwt.issuer}")
+    private String jwtIssuer;
+
+    @Value("${security.jwt.audience}")
+    private String jwtAudience;
+
+    @Value("${security.jwt.access-token-validity-seconds:3600}")
+    private long accessTokenValiditySeconds;
 
     @BeforeEach
     void truncateTables() {
@@ -145,6 +115,11 @@ public abstract class ProductApiIntegrationTestBase {
         Assertions.assertThat(root.path("code").asText()).isEqualTo("OK");
     }
 
+    protected void assertCreated(JsonNode root) {
+        Assertions.assertThat(root.path("success").asBoolean()).isTrue();
+        Assertions.assertThat(root.path("code").asText()).isEqualTo("CREATED");
+    }
+
     protected JsonNode data(JsonNode root) {
         return root.path("data");
     }
@@ -156,7 +131,7 @@ public abstract class ProductApiIntegrationTestBase {
                 Map.of(
                         "name", name,
                         "slug", slug,
-                        "parentId", null,
+//                        "parentId", null,
                         "sortOrder", 1,
                         "isEnabled", true,
                         "i18n", List.of(Map.of(
@@ -169,7 +144,7 @@ public abstract class ProductApiIntegrationTestBase {
                 adminHeaders,
                 HttpStatus.CREATED
         );
-        assertSuccess(root);
+        assertCreated(root);
         return data(root).path("id").asLong();
     }
 
@@ -192,7 +167,7 @@ public abstract class ProductApiIntegrationTestBase {
                 adminHeaders,
                 HttpStatus.CREATED
         );
-        assertSuccess(root);
+        assertCreated(root);
         return data(root).path("id").asLong();
     }
 
@@ -258,10 +233,13 @@ public abstract class ProductApiIntegrationTestBase {
 
     protected long createSku(HttpHeaders adminHeaders, long productId, long specId, long valueId,
                              String skuCode, BigDecimal price, String specCode, String valueCode) {
+        // request DTO 校验要求 id 非空且大于 0, 但领域层会忽略该值并使用数据库自增 ID
+        long requestSkuId = Math.abs(Objects.hash(productId, skuCode, System.nanoTime())) + 1;
         JsonNode root = doRequest(
                 url("/api/v1/admin/products/" + productId + "/skus"),
                 HttpMethod.POST,
                 Map.of(
+                        "id", requestSkuId,
                         "skuCode", skuCode,
                         "stock", 30,
                         "weight", new BigDecimal("1.20"),
@@ -311,15 +289,15 @@ public abstract class ProductApiIntegrationTestBase {
                     .subject(String.valueOf(userId))
                     .claim("uid", userId)
                     .claim("roles", asAdmin ? List.of("ADMIN") : List.of("USER"))
-                    .issuer("test-issuer")
-                    .audience("test-audience")
+                    .issuer(jwtIssuer)
+                    .audience(jwtAudience)
                     .issueTime(new Date())
                     .notBeforeTime(new Date())
-                    .expirationTime(Date.from(Instant.now().plusSeconds(3600)))
+                    .expirationTime(Date.from(Instant.now().plusSeconds(accessTokenValiditySeconds)))
                     .claim("typ", "access")
                     .build();
             SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
-            jwt.sign(new MACSigner(Base64.getDecoder().decode(TEST_JWT_SECRET)));
+            jwt.sign(new MACSigner(Base64.getDecoder().decode(jwtSecretBase64)));
             return jwt.serialize();
         } catch (Exception e) {
             throw new IllegalStateException("JWT 创建失败", e);

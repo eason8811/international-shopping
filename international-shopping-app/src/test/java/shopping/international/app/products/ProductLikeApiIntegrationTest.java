@@ -90,4 +90,48 @@ class ProductLikeApiIntegrationTest extends ProductApiIntegrationTestBase {
         );
         Assertions.assertThat(afterCancel).isZero();
     }
+
+    @Test
+    @DisplayName("点赞接口需要登录")
+    void likeRequiresAuthentication() {
+        JsonNode root = doRequest(
+                url("/api/v1/products/1/like"),
+                HttpMethod.PUT,
+                null,
+                new HttpHeaders(),
+                HttpStatus.UNAUTHORIZED
+        );
+        Assertions.assertThat(root.path("code").asText()).isEqualTo("UNAUTHORIZED");
+    }
+
+    @Test
+    @DisplayName("点赞缺少 CSRF 返回 403")
+    void likeRequiresCsrf() {
+        HttpHeaders adminHeaders = authHeaders(30L, true, true);
+        ProductFixture fixture = seedVariantProduct(adminHeaders, "csfr-like", "csrf-like-zh", new BigDecimal("20.00"));
+        HttpHeaders userHeaders = authHeaders(3030L, false, false);
+
+        JsonNode root = doRequest(
+                url("/api/v1/products/" + fixture.productId() + "/like"),
+                HttpMethod.PUT,
+                null,
+                userHeaders,
+                HttpStatus.FORBIDDEN
+        );
+        Assertions.assertThat(root.path("code").asText()).isEqualTo("FORBIDDEN");
+    }
+
+    @Test
+    @DisplayName("点赞列表缺少 locale/currency 返回 400")
+    void myLikesRequiresLocaleAndCurrency() {
+        HttpHeaders userHeaders = authHeaders(3031L, false, false);
+        JsonNode root = doRequest(
+                url("/api/v1/users/me/likes/products"),
+                HttpMethod.GET,
+                null,
+                userHeaders,
+                HttpStatus.BAD_REQUEST
+        );
+        Assertions.assertThat(root.path("code").asText()).isEqualTo("BAD_REQUEST");
+    }
 }
