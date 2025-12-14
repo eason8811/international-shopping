@@ -67,8 +67,7 @@ public class ProductSkuCreateRequest {
      * @throws IllegalParamException 当必填字段缺失或格式非法时抛出 IllegalParamException
      */
     public void validate() {
-        requireNotNull(id, "SKU ID 不能为空");
-        require(id > 0, "SKU ID 必须大于 0");
+        require(id == null, "SKU ID 不能在创建时指定");
         skuCode = normalizeNotNullField(skuCode, "SKU 编码不能为空", c -> c.length() <= 64, "SKU 编码长度不能超过 64 个字符");
 
         requireNotNull(stock, "SKU 库存不能为空");

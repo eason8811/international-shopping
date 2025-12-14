@@ -48,7 +48,7 @@ public class ProductSkuRespond {
     /**
      * 价格列表
      */
-    private List<ProductPriceRespond> price;
+    private List<ProductPriceRespond> prices;
     /**
      * 规格绑定
      */

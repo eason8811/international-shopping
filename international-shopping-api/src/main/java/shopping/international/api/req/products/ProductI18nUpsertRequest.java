@@ -1,6 +1,8 @@
 package shopping.international.api.req.products;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
@@ -17,6 +19,8 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * 商品多语言 upsert 请求 (ProductI18nUpsertRequest)
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductI18nUpsertRequest implements Verifiable {
     /**
      * 语言代码, 如 en-US

@@ -1,15 +1,20 @@
 package shopping.international.api.req.products;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
-import static shopping.international.types.utils.FieldValidateUtils.*;
+import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
+import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
 
 /**
  * 规格值多语言载荷 ProductSpecValueI18nPayload
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductSpecValueI18nPayload implements Verifiable {
     /**
      * 语言代码, 例如 en-US

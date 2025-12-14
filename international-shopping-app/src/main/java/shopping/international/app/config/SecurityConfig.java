@@ -107,7 +107,7 @@ public class SecurityConfig {
                             API_PREFIX + "/users/me/bindings/oauth2/*/callback",
                             API_PREFIX + "/products/categories/tree",
                             API_PREFIX + "/products",
-                            API_PREFIX + "/products/**"
+                            API_PREFIX + "/products/*"
                     ).permitAll();
 
                     registry.requestMatchers(API_PREFIX + "/users/me/**").authenticated();

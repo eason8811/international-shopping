@@ -68,7 +68,7 @@ public class CategoryController {
         CategoryI18n localized = findI18n(category, locale);
         String name = getI18nOrDefault(localized, CategoryI18n::getName, category.getName());
         String slug = getI18nOrDefault(localized, CategoryI18n::getSlug, category.getSlug());
-        String brand = getI18nOrDefault(localized, CategoryI18n::getBrand, category.getBrand());
+        String brand = localized == null ? category.getBrand() : localized.getBrand();
         return PublicCategoryNodeRespond.builder()
                 .id(category.getId())
                 .parentId(category.getParentId())

@@ -311,7 +311,7 @@ public class AdminProductController {
                 .status(sku.getStatus())
                 .isDefault(sku.isDefaultSku())
                 .barcode(sku.getBarcode())
-                .price(prices)
+                .prices(prices)
                 .specs(specs)
                 .images(images)
                 .build();

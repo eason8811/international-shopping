@@ -2,7 +2,9 @@ package shopping.international.api.req.products;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.products.ProductSort;
@@ -21,6 +23,8 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * <p>承载 /products 接口的查询条件, 负责完成参数默认值处理与基础校验</p>
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductPublicListRequest implements Verifiable {
     /**
      * Jackson 映射器, 用于解析标签 JSON
@@ -75,7 +79,7 @@ public class ProductPublicListRequest implements Verifiable {
      * 排序方式
      */
     @Nullable
-    private ProductSort sortBy = ProductSort.LATEST;
+    private ProductSort sortBy;
     /**
      * 解析后的标签列表
      */
@@ -128,5 +132,49 @@ public class ProductPublicListRequest implements Verifiable {
             rawTags.addAll(Arrays.asList(trimmed.split(",")));
         }
         return normalizeTags(rawTags);
+    }
+
+    public void setPage(@Nullable Integer page) {
+        this.page = page;
+    }
+
+    public void setSize(@Nullable Integer size) {
+        this.size = size;
+    }
+
+    public void setLocale(@Nullable String locale) {
+        this.locale = locale;
+    }
+
+    public void setCurrency(@Nullable String currency) {
+        this.currency = currency;
+    }
+
+    public void setCategory_slug(@Nullable String categorySlug) {
+        this.categorySlug = categorySlug;
+    }
+
+    public void setQuery(@Nullable String query) {
+        this.query = query;
+    }
+
+    public void setTags(@Nullable String tags) {
+        this.tags = tags;
+    }
+
+    public void setPrice_min(@Nullable BigDecimal priceMin) {
+        this.priceMin = priceMin;
+    }
+
+    public void setPrice_max(@Nullable BigDecimal priceMax) {
+        this.priceMax = priceMax;
+    }
+
+    public void setSort_by(@Nullable ProductSort sortBy) {
+        this.sortBy = sortBy;
+    }
+
+    public void setParsed_tags(@NotNull List<String> parsedTags) {
+        this.parsedTags = parsedTags;
     }
 }

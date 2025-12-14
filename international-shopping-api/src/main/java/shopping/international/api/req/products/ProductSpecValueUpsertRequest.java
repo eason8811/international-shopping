@@ -1,11 +1,14 @@
 package shopping.international.api.req.products;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -13,6 +16,8 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * 规格值增量维护请求 ProductSpecValueUpsertRequest
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductSpecValueUpsertRequest implements Verifiable {
     /**
      * 规格值 ID, 仅更新时填写
