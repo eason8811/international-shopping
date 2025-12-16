@@ -57,7 +57,7 @@ public class OrderRefundRequest implements Verifiable {
             require(trimmed.length() <= 500, "attachments 中的 URL 长度不能超过 500 个字符");
             normalized.add(trimmed);
         }
-        attachments = normalized.isEmpty() ? null : List.copyOf(normalized);
+        attachments = List.copyOf(normalized);
     }
 }
 

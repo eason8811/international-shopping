@@ -75,6 +75,7 @@ public class OrderCreateRequest implements Verifiable {
             items = normalizeFieldList(items);
         } else if (source == OrderSource.CART) {
             require(items == null || items.isEmpty(), "source=CART 时不需要 items");
+            items = List.of();
         }
     }
 }

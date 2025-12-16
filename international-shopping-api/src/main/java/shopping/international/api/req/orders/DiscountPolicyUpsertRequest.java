@@ -88,7 +88,6 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
         } else if (strategyType == DiscountStrategyType.AMOUNT) {
             amountOff = normalizeNotNullField(amountOff, "strategyType=AMOUNT 时 amountOff 不能为空",
                     s -> s.length() <= 64, "amountOff 长度不能超过 64 个字符");
-            requireNotNull(currency, "strategyType=AMOUNT 时 currency 不能为空");
             require(percentOff == null, "strategyType=AMOUNT 时不允许提供 percentOff");
         }
     }
@@ -110,8 +109,6 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
 
         if (strategyType == null) {
             require(!(percentOff != null && amountOff != null), "percentOff 与 amountOff 不能同时提供");
-            if (amountOff != null)
-                require(currency != null, "更新 amountOff 时必须同时提供 currency");
             return;
         }
 
@@ -120,7 +117,6 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
             require(amountOff == null, "strategyType=PERCENT 时不允许提供 amountOff");
         } else if (strategyType == DiscountStrategyType.AMOUNT) {
             requireNotNull(amountOff, "strategyType=AMOUNT 时 amountOff 不能为空");
-            requireNotNull(currency, "strategyType=AMOUNT 时 currency 不能为空");
             require(percentOff == null, "strategyType=AMOUNT 时不允许提供 percentOff");
         }
     }
