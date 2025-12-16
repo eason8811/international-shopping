@@ -1,5 +1,6 @@
 package shopping.international.api.resp.orders;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,10 +19,12 @@ public class OrderStatsOverviewRespond {
     /**
      * 统计开始时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime from;
     /**
      * 统计结束时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime to;
     /**
      * 币种 (可为空)

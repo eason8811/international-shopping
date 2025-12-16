@@ -1,5 +1,6 @@
 package shopping.international.api.resp.orders;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,6 +36,7 @@ public class DiscountAppliedViewRespond {
     /**
      * 发生时间 (可为空)
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 }
 

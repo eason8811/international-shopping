@@ -1,5 +1,6 @@
 package shopping.international.api.resp.orders;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,6 +35,7 @@ public class CartItemRespond {
     /**
      * 加购时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime addedAt;
     /**
      * 商品 ID (可选冗余展示字段)
