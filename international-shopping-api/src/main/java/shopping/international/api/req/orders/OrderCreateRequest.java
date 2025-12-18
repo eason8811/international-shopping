@@ -72,7 +72,7 @@ public class OrderCreateRequest implements Verifiable {
         if (source == OrderSource.DIRECT) {
             requireNotNull(items, "source=DIRECT 时 items 不能为空");
             require(!items.isEmpty(), "source=DIRECT 时 items 不能为空");
-            items = normalizeFieldList(items);
+            items = normalizeDistinctList(items, OrderPreviewItemInputRequest::getSkuId, "下单的 SKU 不能重复");
         } else if (source == OrderSource.CART) {
             require(items == null || items.isEmpty(), "source=CART 时不需要 items");
             items = List.of();

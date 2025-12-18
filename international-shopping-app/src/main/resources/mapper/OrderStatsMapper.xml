@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.orders.OrderStatsMapper">
+
+    <resultMap id="OrderStatsOverviewResultMap" type="shopping.international.infrastructure.dao.orders.po.OrderStatsOverviewPO">
+        <result column="orders_count" property="ordersCount"/>
+        <result column="paid_orders_count" property="paidOrdersCount"/>
+        <result column="items_count" property="itemsCount"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="shipping_amount" property="shippingAmount"/>
+        <result column="pay_amount" property="payAmount"/>
+    </resultMap>
+
+    <select id="selectOverview" resultMap="OrderStatsOverviewResultMap">
+        SELECT
+            COUNT(*) AS orders_count,
+            COALESCE(SUM(CASE WHEN o.pay_status = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS paid_orders_count,
+            COALESCE(SUM(o.items_count), 0) AS items_count,
+            COALESCE(SUM(o.total_amount), 0) AS total_amount,
+            COALESCE(SUM(o.discount_amount), 0) AS discount_amount,
+            COALESCE(SUM(o.shipping_amount), 0) AS shipping_amount,
+            COALESCE(SUM(o.pay_amount), 0) AS pay_amount
+        FROM orders o
+        WHERE o.created_at &gt;= #{from}
+          AND o.created_at &lt;= #{to}
+        <if test="status != null and status != ''">
+            AND o.status = #{status}
+        </if>
+        <if test="currency != null and currency != ''">
+            AND o.currency = #{currency}
+        </if>
+    </select>
+
+    <resultMap id="OrderStatsRowResultMap" type="shopping.international.infrastructure.dao.orders.po.OrderStatsRowPO">
+        <result column="dimension_key" property="dimensionKey"/>
+        <result column="orders_count" property="ordersCount"/>
+        <result column="items_count" property="itemsCount"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="discount_amount" property="discountAmount"/>
+        <result column="shipping_amount" property="shippingAmount"/>
+        <result column="pay_amount" property="payAmount"/>
+    </resultMap>
+
+    <select id="selectStats" resultMap="OrderStatsRowResultMap">
+        <choose>
+            <when test="dimension == 'USER'">
+                SELECT
+                    CAST(o.user_id AS CHAR) AS dimension_key,
+                    COUNT(*) AS orders_count,
+                    COALESCE(SUM(o.items_count), 0) AS items_count,
+                    COALESCE(SUM(o.total_amount), 0) AS total_amount,
+                    COALESCE(SUM(o.discount_amount), 0) AS discount_amount,
+                    COALESCE(SUM(o.shipping_amount), 0) AS shipping_amount,
+                    COALESCE(SUM(o.pay_amount), 0) AS pay_amount
+                FROM orders o
+                WHERE o.created_at &gt;= #{from}
+                  AND o.created_at &lt;= #{to}
+                <if test="status != null and status != ''">
+                    AND o.status = #{status}
+                </if>
+                <if test="currency != null and currency != ''">
+                    AND o.currency = #{currency}
+                </if>
+                GROUP BY o.user_id
+                ORDER BY pay_amount DESC
+                LIMIT #{top}
+            </when>
+
+            <when test="dimension == 'SPU'">
+                SELECT
+                    CAST(oi.product_id AS CHAR) AS dimension_key,
+                    COUNT(DISTINCT oi.order_id) AS orders_count,
+                    COALESCE(SUM(oi.quantity), 0) AS items_count,
+                    COALESCE(SUM(oi.subtotal_amount), 0) AS total_amount,
+                    0 AS discount_amount,
+                    0 AS shipping_amount,
+                    COALESCE(SUM(oi.subtotal_amount), 0) AS pay_amount
+                FROM order_item oi
+                         JOIN orders o ON o.id = oi.order_id
+                WHERE o.created_at &gt;= #{from}
+                  AND o.created_at &lt;= #{to}
+                <if test="status != null and status != ''">
+                    AND o.status = #{status}
+                </if>
+                <if test="currency != null and currency != ''">
+                    AND o.currency = #{currency}
+                </if>
+                GROUP BY oi.product_id
+                ORDER BY pay_amount DESC
+                LIMIT #{top}
+            </when>
+
+            <when test="dimension == 'SKU'">
+                SELECT
+                    CAST(oi.sku_id AS CHAR) AS dimension_key,
+                    COUNT(DISTINCT oi.order_id) AS orders_count,
+                    COALESCE(SUM(oi.quantity), 0) AS items_count,
+                    COALESCE(SUM(oi.subtotal_amount), 0) AS total_amount,
+                    0 AS discount_amount,
+                    0 AS shipping_amount,
+                    COALESCE(SUM(oi.subtotal_amount), 0) AS pay_amount
+                FROM order_item oi
+                         JOIN orders o ON o.id = oi.order_id
+                WHERE o.created_at &gt;= #{from}
+                  AND o.created_at &lt;= #{to}
+                <if test="status != null and status != ''">
+                    AND o.status = #{status}
+                </if>
+                <if test="currency != null and currency != ''">
+                    AND o.currency = #{currency}
+                </if>
+                GROUP BY oi.sku_id
+                ORDER BY pay_amount DESC
+                LIMIT #{top}
+            </when>
+
+            <when test="dimension == 'DISCOUNT_CODE'">
+                SELECT
+                    CAST(t.discount_code_id AS CHAR) AS dimension_key,
+                    COUNT(*) AS orders_count,
+                    COALESCE(SUM(o.items_count), 0) AS items_count,
+                    COALESCE(SUM(o.total_amount), 0) AS total_amount,
+                    COALESCE(SUM(o.discount_amount), 0) AS discount_amount,
+                    COALESCE(SUM(o.shipping_amount), 0) AS shipping_amount,
+                    COALESCE(SUM(o.pay_amount), 0) AS pay_amount
+                FROM (
+                         SELECT DISTINCT
+                             oda.discount_code_id AS discount_code_id,
+                             oda.order_id AS order_id
+                         FROM order_discount_applied oda
+                                  JOIN orders o0 ON o0.id = oda.order_id
+                         WHERE o0.created_at &gt;= #{from}
+                           AND o0.created_at &lt;= #{to}
+                         <if test="status != null and status != ''">
+                             AND o0.status = #{status}
+                         </if>
+                         <if test="currency != null and currency != ''">
+                             AND o0.currency = #{currency}
+                         </if>
+                     ) t
+                         JOIN orders o ON o.id = t.order_id
+                GROUP BY t.discount_code_id
+                ORDER BY pay_amount DESC
+                LIMIT #{top}
+            </when>
+
+            <when test="dimension == 'DISCOUNT_POLICY'">
+                SELECT
+                    CAST(t.policy_id AS CHAR) AS dimension_key,
+                    COUNT(*) AS orders_count,
+                    COALESCE(SUM(o.items_count), 0) AS items_count,
+                    COALESCE(SUM(o.total_amount), 0) AS total_amount,
+                    COALESCE(SUM(o.discount_amount), 0) AS discount_amount,
+                    COALESCE(SUM(o.shipping_amount), 0) AS shipping_amount,
+                    COALESCE(SUM(o.pay_amount), 0) AS pay_amount
+                FROM (
+                         SELECT DISTINCT
+                             dc.policy_id AS policy_id,
+                             oda.order_id AS order_id
+                         FROM order_discount_applied oda
+                                  JOIN discount_code dc ON dc.id = oda.discount_code_id
+                                  JOIN orders o0 ON o0.id = oda.order_id
+                         WHERE o0.created_at &gt;= #{from}
+                           AND o0.created_at &lt;= #{to}
+                         <if test="status != null and status != ''">
+                             AND o0.status = #{status}
+                         </if>
+                         <if test="currency != null and currency != ''">
+                             AND o0.currency = #{currency}
+                         </if>
+                     ) t
+                         JOIN orders o ON o.id = t.order_id
+                GROUP BY t.policy_id
+                ORDER BY pay_amount DESC
+                LIMIT #{top}
+            </when>
+
+            <otherwise>
+                SELECT
+                    '' AS dimension_key,
+                    0 AS orders_count,
+                    0 AS items_count,
+                    0 AS total_amount,
+                    0 AS discount_amount,
+                    0 AS shipping_amount,
+                    0 AS pay_amount
+                LIMIT 0
+            </otherwise>
+        </choose>
+    </select>
+
+</mapper>

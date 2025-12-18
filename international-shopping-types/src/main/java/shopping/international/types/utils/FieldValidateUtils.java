@@ -117,10 +117,10 @@ public final class FieldValidateUtils {
      */
     public static String normalizeCurrency(String currency) {
         if (currency == null)
-            return null;
+            return "USD";
         String trimmed = currency.strip().toUpperCase(Locale.ROOT);
         if (trimmed.isEmpty())
-            return null;
+            return "USD";
         if (!CURRENCY_PATTERN.matcher(trimmed).matches())
             throw new IllegalParamException("currency 需为 3 位字母代码");
         return trimmed;

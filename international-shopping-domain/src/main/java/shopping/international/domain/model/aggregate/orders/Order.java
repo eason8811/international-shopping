@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.entity.orders.OrderItem;
 import shopping.international.domain.model.enums.orders.*;
 import shopping.international.domain.model.vo.orders.*;
+import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
@@ -280,8 +281,8 @@ public class Order implements Verifiable {
     public void changeAddress(@NotNull AddressSnapshot newAddress, @Nullable String note) {
         requireNotNull(newAddress, "收货地址不能为空");
         if (addressChanged)
-            throw IllegalParamException.of("订单已修改过地址");
-        require(canChangeAddressStatus(status), "状态不允许修改地址");
+            throw new ConflictException("订单已修改过地址");
+        requireStatus(canChangeAddressStatus(status), "状态不允许修改地址");
         this.addressSnapshot = newAddress;
         this.addressChanged = true;
     }
@@ -295,7 +296,7 @@ public class Order implements Verifiable {
      * @throws IllegalParamException 如果当前订单状态不允许转换到待支付状态
      */
     public void markPendingPayment() {
-        require(this.status == OrderStatus.CREATED, this.status + " 状态不允许进入待支付");
+        requireStatus(this.status == OrderStatus.CREATED, this.status + " 状态不允许进入待支付");
         this.status = OrderStatus.PENDING_PAYMENT;
     }
 
@@ -309,7 +310,7 @@ public class Order implements Verifiable {
     public void markPaymentInitiated(@NotNull PayChannel channel, @NotNull String paymentExternalId) {
         requireNotNull(channel, "支付通道不能为空");
         requireNotNull(paymentExternalId, "支付 externalId 不能为空");
-        require(canPayStatus(status), status + " 状态不允许发起支付");
+        requireStatus(canPayStatus(status), status + " 状态不允许发起支付");
         if (this.status == OrderStatus.CREATED)
             this.status = OrderStatus.PENDING_PAYMENT;
         this.payChannel = channel;
@@ -332,7 +333,7 @@ public class Order implements Verifiable {
         requireNotNull(paymentExternalId, "支付 externalId 不能为空");
         requireNotNull(channel, "支付通道不能为空");
         requireNotNull(payTime, "支付时间不能为空");
-        require(canMarkPaid(status), status + " 状态不允许标记已支付");
+        requireStatus(canMarkPaid(status), status + " 状态不允许标记已支付");
         this.paymentExternalId = paymentExternalId.strip();
         this.payChannel = channel;
         this.payStatus = PayStatus.SUCCESS;
@@ -352,7 +353,7 @@ public class Order implements Verifiable {
     public void cancel(@NotNull CancelReason reason, @NotNull OrderStatusEventSource source) {
         requireNotNull(reason, "取消原因不能为空");
         requireNotNull(source, "事件来源不能为空");
-        require(canCancel(status), status + " 状态不允许取消");
+        requireStatus(canCancel(status), status + " 状态不允许取消");
         this.cancelReason = reason;
         this.cancelTime = LocalDateTime.now();
         this.status = OrderStatus.CANCELLED;
@@ -370,7 +371,7 @@ public class Order implements Verifiable {
      */
     public void requestRefund(@NotNull OrderRefundReasonCode reasonCode, @Nullable String reasonText, @Nullable List<String> attachments) {
         requireNotNull(reasonCode, "退款原因不能为空");
-        require(canRequestRefund(status), status + " 状态不允许申请退款");
+        requireStatus(canRequestRefund(status), status + " 状态不允许申请退款");
         this.lastRefundReason = OrderRefundReason.of(reasonCode, reasonText, attachments);
         this.status = OrderStatus.REFUNDING;
     }
@@ -385,7 +386,7 @@ public class Order implements Verifiable {
      * @throws IllegalStateException 当前订单状态不是 {@code REFUNDING} 时抛出此异常
      */
     public void confirmRefund(@Nullable String note) {
-        require(this.status == OrderStatus.REFUNDING, "状态不允许确认退款");
+        requireStatus(this.status == OrderStatus.REFUNDING, "状态不允许确认退款");
         this.status = OrderStatus.REFUNDED;
     }
 
@@ -397,7 +398,7 @@ public class Order implements Verifiable {
      */
     public void close(@NotNull String reason) {
         requireNotNull(reason, "关单原因不能为空");
-        require(canClose(status), "状态不允许关闭");
+        requireStatus(canClose(status), "状态不允许关闭");
         this.status = OrderStatus.CLOSED;
     }
 
@@ -410,8 +411,26 @@ public class Order implements Verifiable {
      * @throws IllegalStateException 如果当前订单状态不是 {@code PAID}
      */
     public void markFulfilled() {
-        require(this.status == OrderStatus.PAID, "状态不允许履约完成");
+        requireStatus(this.status == OrderStatus.PAID, "状态不允许履约完成");
         this.status = OrderStatus.FULFILLED;
+    }
+
+    /**
+     * 断言“状态机约束”满足, 不满足则抛出冲突异常
+     *
+     * <p>用于区分:</p>
+     * <ul>
+     *     <li>字段/参数不合法 → {@link IllegalParamException} (HTTP 400)</li>
+     *     <li>状态机/并发语义冲突 → {@link ConflictException} (HTTP 409)</li>
+     * </ul>
+     *
+     * @param ok  状态机约束是否满足
+     * @param msg 不满足时的提示信息
+     * @throws ConflictException 当 ok 为 false 时抛出
+     */
+    private static void requireStatus(boolean ok, String msg) {
+        if (!ok)
+            throw new ConflictException(msg);
     }
 
     /**

@@ -6,7 +6,10 @@ import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
+import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
+
+import java.math.BigDecimal;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -36,7 +39,7 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
      * 百分比折扣 (strategyType=PERCENT 时必填)
      */
     @Nullable
-    private Double percentOff;
+    private String percentOff;
     /**
      * 固定金额折扣 (strategyType=AMOUNT 时必填, 金额字符串)
      */
@@ -66,8 +69,14 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
     @Override
     public void validate() {
         currency = normalizeCurrency(currency);
-        if (percentOff != null)
-            require(percentOff > 0 && percentOff <= 100, "percentOff 需在 (0, 100] 区间内");
+        if (percentOff != null) {
+            try {
+                BigDecimal percentOffNumber = new BigDecimal(percentOff);
+                require(percentOffNumber.compareTo(BigDecimal.ZERO) > 0 && percentOffNumber.compareTo(BigDecimal.valueOf(100L)) <= 0, "percentOff 需在 (0, 100] 区间内");
+            } catch (Exception e) {
+                throw new IllegalParamException("percentOff 折扣百分比不合法");
+            }
+        }
     }
 
     /**
