@@ -25,7 +25,6 @@ import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchC
 import shopping.international.domain.service.orders.IAdminDiscountService;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.enums.ApiCode;
-import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
@@ -236,14 +235,15 @@ public class AdminDiscountController {
     public ResponseEntity<Result<DiscountCodeRespond>> updateCode(@PathVariable("code_id") Long codeId,
                                                                   @RequestBody DiscountCodeUpsertRequest req) {
         req.updateValidate();
-        DiscountCode updated = adminDiscountService.updateCode(codeId, code -> {
-            if (req.getCode() != null) {
-                String normalized = req.getCode().strip().toUpperCase();
-                if (!normalized.equals(code.getCode().getValue()))
-                    throw new ConflictException("折扣码不支持修改");
-            }
-            code.update(req.getPolicyId(), req.getName(), req.getScopeMode(), req.getExpiresAt());
-        });
+
+        DiscountCode toUpdate = DiscountCode.create(
+                DiscountCodeText.ofNullable(req.getCode()),
+                req.getPolicyId(),
+                req.getName(),
+                req.getScopeMode(),
+                req.getExpiresAt()
+        );
+        DiscountCode updated = adminDiscountService.updateCode(codeId, toUpdate);
         return ResponseEntity.ok(Result.ok(toRespond(updated)));
     }
 
@@ -315,13 +315,18 @@ public class AdminDiscountController {
                 .build();
         criteria.validate();
         PageResult<IAdminDiscountService.OrderDiscountAppliedView> pageData = adminDiscountService.listOrderDiscountApplied(pageQuery, criteria);
-        List<DiscountAppliedViewRespond> data = pageData.items().stream().map(v -> DiscountAppliedViewRespond.builder()
-                .discountCodeId(v.discountCodeId())
-                .orderItemId(v.orderItemId())
-                .appliedScope(v.appliedScope())
-                .appliedAmount(v.appliedAmount())
-                .createdAt(v.createdAt())
-                .build()).toList();
+        List<DiscountAppliedViewRespond> data = pageData.items().stream()
+                .map(v ->
+                        DiscountAppliedViewRespond.builder()
+                                .orderNo(v.orderNo())
+                                .orderItemId(v.orderItemId())
+                                .discountCodeId(v.discountCodeId())
+                                .appliedScope(v.appliedScope())
+                                .appliedAmount(v.appliedAmount())
+                                .createdAt(v.createdAt())
+                                .build()
+                )
+                .toList();
         return ResponseEntity.ok(Result.ok(
                 data,
                 Result.Meta.builder()

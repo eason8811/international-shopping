@@ -16,7 +16,6 @@ import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * 管理侧折扣管理领域服务默认实现
@@ -63,7 +62,7 @@ public class AdminDiscountService implements IAdminDiscountService {
      * 更新折扣策略
      *
      * @param policyId 策略 ID
-     * @param toUpdate  用于更新的 Policy 对象
+     * @param toUpdate 用于更新的 Policy 对象
      * @return 更新后的策略
      */
     @Override
@@ -127,15 +126,22 @@ public class AdminDiscountService implements IAdminDiscountService {
     /**
      * 更新折扣码
      *
-     * @param codeId  折扣码 ID
-     * @param updater 更新回调
+     * @param codeId   折扣码 ID
+     * @param toUpdate 用于跟新的 Code 对象
      * @return 更新后的折扣码
      */
     @Override
-    public @NotNull DiscountCode updateCode(@NotNull Long codeId, @NotNull Consumer<DiscountCode> updater) {
+    public @NotNull DiscountCode updateCode(@NotNull Long codeId, @NotNull DiscountCode toUpdate) {
         DiscountCode code = discountRepository.findCodeById(codeId)
                 .orElseThrow(() -> new IllegalParamException("折扣码不存在"));
-        updater.accept(code);
+        if (toUpdate.getCode() != null && !toUpdate.getCode().equals(code.getCode()))
+            throw new ConflictException("折扣码不支持修改");
+        code.update(
+                toUpdate.getPolicyId(),
+                toUpdate.getName(),
+                toUpdate.getScopeMode(),
+                toUpdate.getExpiresAt()
+        );
         return discountRepository.updateCode(code);
     }
 

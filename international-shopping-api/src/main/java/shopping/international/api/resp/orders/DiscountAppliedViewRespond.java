@@ -18,13 +18,17 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class DiscountAppliedViewRespond {
     /**
-     * 折扣码 ID
+     * 所属订单号
      */
-    private Long discountCodeId;
+    private String orderNo;
     /**
      * 订单明细 ID (可为空, 明细级折扣时使用)
      */
     private Long orderItemId;
+    /**
+     * 折扣码 ID
+     */
+    private Long discountCodeId;
     /**
      * 应用范围
      */

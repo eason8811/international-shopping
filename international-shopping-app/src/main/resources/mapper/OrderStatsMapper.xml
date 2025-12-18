@@ -23,8 +23,7 @@
             COALESCE(SUM(o.shipping_amount), 0) AS shipping_amount,
             COALESCE(SUM(o.pay_amount), 0) AS pay_amount
         FROM orders o
-        WHERE o.created_at &gt;= #{from}
-          AND o.created_at &lt;= #{to}
+        WHERE o.created_at BETWEEN #{from} AND #{to}
         <if test="status != null and status != ''">
             AND o.status = #{status}
         </if>
@@ -55,8 +54,7 @@
                     COALESCE(SUM(o.shipping_amount), 0) AS shipping_amount,
                     COALESCE(SUM(o.pay_amount), 0) AS pay_amount
                 FROM orders o
-                WHERE o.created_at &gt;= #{from}
-                  AND o.created_at &lt;= #{to}
+                WHERE o.created_at BETWEEN #{from} AND #{to}
                 <if test="status != null and status != ''">
                     AND o.status = #{status}
                 </if>
@@ -74,11 +72,28 @@
                     COUNT(DISTINCT oi.order_id) AS orders_count,
                     COALESCE(SUM(oi.quantity), 0) AS items_count,
                     COALESCE(SUM(oi.subtotal_amount), 0) AS total_amount,
-                    0 AS discount_amount,
+                    COALESCE(SUM(odx.item_discount_amount), 0) AS discount_amount,
                     0 AS shipping_amount,
-                    COALESCE(SUM(oi.subtotal_amount), 0) AS pay_amount
+                    COALESCE(SUM(oi.subtotal_amount), 0) - COALESCE(SUM(odx.item_discount_amount), 0) AS pay_amount
                 FROM order_item oi
                          JOIN orders o ON o.id = oi.order_id
+                         LEFT JOIN (
+                             SELECT
+                                 oda.order_item_id AS order_item_id,
+                                 SUM(oda.applied_amount) AS item_discount_amount
+                             FROM order_discount_applied oda
+                                      JOIN orders o2 ON o2.id = oda.order_id
+                             WHERE oda.applied_scope = 'ITEM'
+                               AND oda.order_item_id IS NOT NULL
+                               AND o2.created_at BETWEEN #{from} AND #{to}
+                             <if test="status != null and status != ''">
+                                 AND o2.status = #{status}
+                             </if>
+                             <if test="currency != null and currency != ''">
+                                 AND o2.currency = #{currency}
+                             </if>
+                             GROUP BY oda.order_item_id
+                         ) odx ON odx.order_item_id = oi.id
                 WHERE o.created_at &gt;= #{from}
                   AND o.created_at &lt;= #{to}
                 <if test="status != null and status != ''">
@@ -98,11 +113,28 @@
                     COUNT(DISTINCT oi.order_id) AS orders_count,
                     COALESCE(SUM(oi.quantity), 0) AS items_count,
                     COALESCE(SUM(oi.subtotal_amount), 0) AS total_amount,
-                    0 AS discount_amount,
+                    COALESCE(SUM(odx.item_discount_amount), 0) AS discount_amount,
                     0 AS shipping_amount,
-                    COALESCE(SUM(oi.subtotal_amount), 0) AS pay_amount
+                    COALESCE(SUM(oi.subtotal_amount), 0) - COALESCE(SUM(odx.item_discount_amount), 0) AS pay_amount
                 FROM order_item oi
                          JOIN orders o ON o.id = oi.order_id
+                         LEFT JOIN (
+                             SELECT
+                                 oda.order_item_id AS order_item_id,
+                                 SUM(oda.applied_amount) AS item_discount_amount
+                             FROM order_discount_applied oda
+                                      JOIN orders o2 ON o2.id = oda.order_id
+                             WHERE oda.applied_scope = 'ITEM'
+                               AND oda.order_item_id IS NOT NULL
+                               AND o2.created_at BETWEEN #{from} AND #{to}
+                             <if test="status != null and status != ''">
+                                 AND o2.status = #{status}
+                             </if>
+                             <if test="currency != null and currency != ''">
+                                 AND o2.currency = #{currency}
+                             </if>
+                             GROUP BY oda.order_item_id
+                         ) odx ON odx.order_item_id = oi.id
                 WHERE o.created_at &gt;= #{from}
                   AND o.created_at &lt;= #{to}
                 <if test="status != null and status != ''">
@@ -131,8 +163,7 @@
                              oda.order_id AS order_id
                          FROM order_discount_applied oda
                                   JOIN orders o0 ON o0.id = oda.order_id
-                         WHERE o0.created_at &gt;= #{from}
-                           AND o0.created_at &lt;= #{to}
+                         WHERE o0.created_at BETWEEN #{from} AND #{to}
                          <if test="status != null and status != ''">
                              AND o0.status = #{status}
                          </if>
@@ -162,8 +193,7 @@
                          FROM order_discount_applied oda
                                   JOIN discount_code dc ON dc.id = oda.discount_code_id
                                   JOIN orders o0 ON o0.id = oda.order_id
-                         WHERE o0.created_at &gt;= #{from}
-                           AND o0.created_at &lt;= #{to}
+                         WHERE o0.created_at BETWEEN #{from} AND #{to}
                          <if test="status != null and status != ''">
                              AND o0.status = #{status}
                          </if>

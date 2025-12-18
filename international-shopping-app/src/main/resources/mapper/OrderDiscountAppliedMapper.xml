@@ -26,22 +26,23 @@
             oda.created_at
         FROM order_discount_applied oda
                  JOIN orders o ON o.id = oda.order_id
-        WHERE 1 = 1
-        <if test="orderNo != null and orderNo != ''">
-            AND o.order_no = #{orderNo}
-        </if>
-        <if test="discountCodeId != null">
-            AND oda.discount_code_id = #{discountCodeId}
-        </if>
-        <if test="appliedScope != null and appliedScope != ''">
-            AND oda.applied_scope = #{appliedScope}
-        </if>
-        <if test="from != null">
-            AND oda.created_at &gt;= #{from}
-        </if>
-        <if test="to != null">
-            AND oda.created_at &lt;= #{to}
-        </if>
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="discountCodeId != null">
+                AND oda.discount_code_id = #{discountCodeId}
+            </if>
+            <if test="appliedScope != null and appliedScope != ''">
+                AND oda.applied_scope = #{appliedScope}
+            </if>
+            <if test="from != null">
+                AND oda.created_at &gt;= #{from}
+            </if>
+            <if test="to != null">
+                AND oda.created_at &lt;= #{to}
+            </if>
+        </where>
         ORDER BY oda.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
@@ -50,22 +51,23 @@
         SELECT COUNT(1)
         FROM order_discount_applied oda
                  JOIN orders o ON o.id = oda.order_id
-        WHERE 1 = 1
-        <if test="orderNo != null and orderNo != ''">
-            AND o.order_no = #{orderNo}
-        </if>
-        <if test="discountCodeId != null">
-            AND oda.discount_code_id = #{discountCodeId}
-        </if>
-        <if test="appliedScope != null and appliedScope != ''">
-            AND oda.applied_scope = #{appliedScope}
-        </if>
-        <if test="from != null">
-            AND oda.created_at &gt;= #{from}
-        </if>
-        <if test="to != null">
-            AND oda.created_at &lt;= #{to}
-        </if>
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="discountCodeId != null">
+                AND oda.discount_code_id = #{discountCodeId}
+            </if>
+            <if test="appliedScope != null and appliedScope != ''">
+                AND oda.applied_scope = #{appliedScope}
+            </if>
+            <if test="from != null">
+                AND oda.created_at &gt;= #{from}
+            </if>
+            <if test="to != null">
+                AND oda.created_at &lt;= #{to}
+            </if>
+        </where>
     </select>
 
 </mapper>

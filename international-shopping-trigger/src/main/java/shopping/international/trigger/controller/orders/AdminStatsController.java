@@ -3,7 +3,10 @@ package shopping.international.trigger.controller.orders;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.orders.OrderStatsOverviewRespond;
 import shopping.international.api.resp.orders.OrderStatsRowRespond;
@@ -95,6 +98,8 @@ public class AdminStatsController {
         LocalDateTime fromTime = requireDateTime(from, "from");
         LocalDateTime toTime = requireDateTime(to, "to");
         OrderStatsDimension dimensionEnum = parseEnum(dimension, OrderStatsDimension.class);
+        if (dimensionEnum == null)
+            throw new IllegalParamException("维度值不能为空");
         OrderStatus statusEnum = parseEnum(status, OrderStatus.class);
         OrderStatsQuery query = OrderStatsQuery.builder()
                 .from(fromTime)

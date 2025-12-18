@@ -71,7 +71,7 @@ public interface IAdminDiscountService {
      * 更新折扣策略
      *
      * @param policyId 策略 ID
-     * @param toUpdate  用于更新的 Policy 对象
+     * @param toUpdate 用于更新的 Policy 对象
      * @return 更新后的策略
      */
     @NotNull
@@ -106,12 +106,12 @@ public interface IAdminDiscountService {
     /**
      * 更新折扣码
      *
-     * @param codeId  折扣码 ID
-     * @param updater 更新回调
+     * @param codeId   折扣码 ID
+     * @param toUpdate 用于跟新的 Code 对象
      * @return 更新后的折扣码
      */
     @NotNull
-    DiscountCode updateCode(@NotNull Long codeId, @NotNull java.util.function.Consumer<DiscountCode> updater);
+    DiscountCode updateCode(@NotNull Long codeId, @NotNull DiscountCode toUpdate);
 
     /**
      * 删除折扣码

@@ -303,13 +303,17 @@ public class DiscountRepository implements IDiscountRepository {
     public @NotNull List<Long> replaceCodeProducts(@NotNull Long codeId, @NotNull List<Long> productIds) {
         discountCodeProductMapper.delete(new LambdaQueryWrapper<DiscountCodeProductPO>()
                 .eq(DiscountCodeProductPO::getDiscountCodeId, codeId));
-        for (Long productId : productIds) {
-            DiscountCodeProductPO po = DiscountCodeProductPO.builder()
-                    .discountCodeId(codeId)
-                    .productId(productId)
-                    .build();
-            discountCodeProductMapper.insert(po);
-        }
+
+        List<DiscountCodeProductPO> toUpdatePOList = productIds.stream()
+                .map(id ->
+                        DiscountCodeProductPO.builder()
+                                .discountCodeId(codeId)
+                                .productId(id)
+                                .build()
+                )
+                .toList();
+        discountCodeProductMapper.insert(toUpdatePOList);
+
         return listCodeProductIds(codeId);
     }
 
