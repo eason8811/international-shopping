@@ -321,11 +321,13 @@ public class CategoryRepository implements ICategoryRepository {
         if (descendants == null || descendants.isEmpty())
             return List.of(categoryId);
 
-        return descendants.stream()
+        List<Long> resultIdList = new ArrayList<>(descendants.stream()
                 .filter(d -> d != null && d.getId() != null)
                 .map(ProductCategoryPO::getId)
                 .distinct()
-                .toList();
+                .toList());
+        resultIdList.add(categoryId);
+        return resultIdList;
     }
 
     /**
