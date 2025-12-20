@@ -6,6 +6,7 @@ import shopping.international.domain.model.aggregate.products.Category;
 import shopping.international.domain.model.enums.products.CategoryStatus;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -80,6 +81,25 @@ public interface ICategoryRepository {
     boolean existsByParentAndName(@Nullable Long parentId, @NotNull String name, @Nullable Long excludeCategoryId);
 
     /**
+     * 检查同一 locale 下 slug 是否重复
+     *
+     * @param i18nList          分类 i18n 信息列表
+     * @param excludeCategoryId 需要排除的分类 ID, 可空
+     * @return 如果存在重复则返回重复的 locale, 否则返回 null
+     */
+    String existsByI18nSlugInLocale(@NotNull List<CategoryI18n> i18nList, @Nullable Long excludeCategoryId);
+
+    /**
+     * 检查同一父级同一 locale 下名称是否重复
+     *
+     * @param parentId          父分类 ID, 可空表示根
+     * @param i18nList          分类 i18n 信息列表
+     * @param excludeCategoryId 需要排除的分类 ID, 可空
+     * @return 如果存在重复则返回重复的 locale, 否则返回 null
+     */
+    String existsByParentAndI18nNameInLocale(@Nullable Long parentId, @NotNull List<CategoryI18n> i18nList, @Nullable Long excludeCategoryId);
+
+    /**
      * 新增分类 (含 i18n)
      *
      * @param category 待保存的新聚合, ID 为空
@@ -107,6 +127,16 @@ public interface ICategoryRepository {
     void delete(@NotNull Long categoryId);
 
     /**
+     * 列出待删除的分类子树 ID（包含自身）, 按删除安全顺序排列（子节点优先）
+     *
+     * @param categoryId 分类 ID
+     * @param descendantPrefix 后代路径前缀, 用于匹配子节点 path
+     * @return 子树 ID 列表, 子节点在前, 自身在后
+     */
+    @NotNull
+    List<Long> listSubtreeIdsForDelete(@NotNull Long categoryId, @NotNull String descendantPrefix);
+
+    /**
      * 判断是否存在子分类
      *
      * @param categoryId 分类 ID
@@ -123,6 +153,21 @@ public interface ICategoryRepository {
     boolean hasProducts(@NotNull Long categoryId);
 
     /**
+     * 判断指定分类集合中是否存在商品引用
+     *
+     * @param categoryIds 分类 ID 集合
+     * @return 是否存在商品引用
+     */
+    boolean hasProductsInCategories(@NotNull Collection<Long> categoryIds);
+
+    /**
+     * 级联删除指定分类集合（包含 i18n）, 需要确保集合顺序为「子节点优先」
+     *
+     * @param categoryIdsForDelete 待删除分类 ID 列表
+     */
+    void deleteCascade(@NotNull List<Long> categoryIdsForDelete);
+
+    /**
      * 新增单条多语言记录
      *
      * @param categoryId 分类 ID
@@ -137,6 +182,14 @@ public interface ICategoryRepository {
      * @param i18n       新值对象
      */
     void updateI18n(@NotNull Long categoryId, @NotNull CategoryI18n i18n);
+
+    /**
+     * 删除指定分类下的特定语言的多语言记录
+     *
+     * @param categoryId 分类 ID
+     * @param locale     语言环境代码, 如 "en_US"
+     */
+    void deleteI18n(@NotNull Long categoryId, @NotNull String locale);
 
     /**
      * 列出指定分类的全部多语言

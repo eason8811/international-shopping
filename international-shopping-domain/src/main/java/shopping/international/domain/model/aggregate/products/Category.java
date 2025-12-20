@@ -298,6 +298,20 @@ public class Category implements Verifiable {
     }
 
     /**
+     * 从当前分类的多语言列表中移除指定 locale 的条目
+     *
+     * @param locale 要移除的语言代码, 必须提供有效的值
+     * @throws IllegalParamException 如果提供的 locale 为空或不合法
+     */
+    public void removeI18n(String locale) {
+        String normalizedLocale = normalizeLocale(locale);
+        requireNotNull(normalizedLocale, "locale 不能为空");
+        List<CategoryI18n> mutable = new ArrayList<>(i18nList);
+        mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
+        replaceI18n(mutable);
+    }
+
+    /**
      * 为分类分配 ID (幂等)
      *
      * @param id 新 ID

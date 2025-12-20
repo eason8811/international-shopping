@@ -100,7 +100,13 @@ public class CategoryService implements ICategoryService {
         if (!isEnabled)
             category.changeStatus(CategoryStatus.DISABLED);
 
-        ensureUniqueness(category.getId(), category.getParentId(), category.getName(), category.getSlug());
+        ensureUniqueness(
+                category.getId(),
+                category.getParentId(),
+                category.getName(),
+                category.getSlug(),
+                category.getI18nList()
+        );
 
         return categoryRepository.save(category);
     }
@@ -155,9 +161,13 @@ public class CategoryService implements ICategoryService {
             );
 
 
-        ensureUniqueness(categoryId, current.getParentId(),
+        ensureUniqueness(
+                categoryId,
+                current.getParentId(),
                 name == null ? current.getName() : name,
-                slug == null ? current.getSlug() : slug);
+                slug == null ? current.getSlug() : slug,
+                current.getI18nList()
+        );
 
         ICategoryRepository.MoveContext moveContext = null;
         if (parentChanged) {
@@ -179,11 +189,11 @@ public class CategoryService implements ICategoryService {
     @Override
     public void delete(@NotNull Long categoryId) {
         Category category = get(categoryId);
-        if (categoryRepository.hasChildren(categoryId))
-            throw new ConflictException("存在子分类, 无法删除");
-        if (categoryRepository.hasProducts(categoryId))
+        String descendantPrefix = buildDescendantPrefix(category.getPath(), category.getId());
+        List<Long> subtreeIds = categoryRepository.listSubtreeIdsForDelete(categoryId, descendantPrefix);
+        if (categoryRepository.hasProductsInCategories(subtreeIds))
             throw new ConflictException("分类下存在商品引用, 无法删除");
-        categoryRepository.delete(category.getId());
+        categoryRepository.deleteCascade(subtreeIds);
     }
 
     /**
@@ -218,6 +228,21 @@ public class CategoryService implements ICategoryService {
                 .orElseThrow(() -> new IllegalParamException("指定语言不存在"));
         categoryRepository.updateI18n(categoryId, updated);
         return updated;
+    }
+
+    /**
+     * 删除指定分类下的特定语言版本信息
+     *
+     * @param categoryId 分类 ID
+     * @param locale     语言环境标识, 如 "en_US"
+     * @return 返回删除成功的 locale
+     */
+    @Override
+    public @NotNull String deleteI18n(@NotNull Long categoryId, @NotNull String locale) {
+        Category category = get(categoryId);
+        category.removeI18n(locale);
+        categoryRepository.deleteI18n(categoryId, locale);
+        return locale;
     }
 
     /**
@@ -283,18 +308,40 @@ public class CategoryService implements ICategoryService {
     }
 
     /**
-     * 校验 slug 与“同父同名”的唯一性
+     * 确保 category slug 全局唯一. category 的 i18n 中的 slug 在同 locale 下唯一<br/>
+     * 同时确保 category 名称在同级下唯一, category 的 i18n 中的名称在 同级同 locale 下唯一
      *
-     * @param categoryId 当前分类 ID, 可空
-     * @param parentId   父 ID
-     * @param name       名称
-     * @param slug       slug
+     * @param excludeCategoryId 当前分类 ID, 可空
+     * @param parentId          父 ID
+     * @param name              名称
+     * @param slug              slug
+     * @param i18nList          i18n 列表
      */
-    private void ensureUniqueness(@Nullable Long categoryId, @Nullable Long parentId,
-                                  @NotNull String name, @NotNull String slug) {
-        if (categoryRepository.existsBySlug(slug, categoryId))
-            throw new ConflictException("分类 slug 已存在");
-        if (categoryRepository.existsByParentAndName(parentId, name, categoryId))
+    private void ensureUniqueness(@Nullable Long excludeCategoryId,
+                                  @Nullable Long parentId,
+                                  @NotNull String name,
+                                  @NotNull String slug,
+                                  @NotNull List<CategoryI18n> i18nList) {
+        if (categoryRepository.existsBySlug(slug, excludeCategoryId))
+            throw new ConflictException("分类的 slug 已存在");
+        if (categoryRepository.existsByParentAndName(parentId, name, excludeCategoryId))
             throw new ConflictException("同级下分类名称重复");
+        ensureI18nUniqueness(excludeCategoryId, excludeCategoryId, i18nList);
+    }
+
+    /**
+     * category 的 i18n 中的 slug 在同 locale 下唯一且 category 的 i18n 中的名称在 同级同 locale 下唯一
+     *
+     * @param excludeCategoryId 当前分类 ID, 可空
+     * @param i18nList          i18n 列表
+     * @throws IllegalArgumentException 违反唯一约束
+     */
+    private void ensureI18nUniqueness(@Nullable Long excludeCategoryId, @Nullable Long parentId, @NotNull List<CategoryI18n> i18nList) {
+        String slugLocale = categoryRepository.existsByI18nSlugInLocale(i18nList, excludeCategoryId);
+        if (slugLocale != null)
+            throw new ConflictException("'" + slugLocale + "' 语言中分类 i18n slug 已存在");
+        String nameLocale = categoryRepository.existsByParentAndI18nNameInLocale(parentId, i18nList, excludeCategoryId);
+        if (nameLocale != null)
+            throw new ConflictException("'" + nameLocale + "' 语言中同级分类 i18n 名称重复");
     }
 }

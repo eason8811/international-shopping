@@ -132,6 +132,16 @@ public interface ICategoryService {
     CategoryI18n updateI18n(@NotNull Long categoryId, @NotNull CategoryI18nPatch patch);
 
     /**
+     * 删除指定分类下的特定语言版本信息
+     *
+     * @param categoryId 分类 ID
+     * @param locale     语言环境标识, 如 "en_US"
+     * @return 返回删除成功的 locale
+     */
+    @NotNull
+    String deleteI18n(@NotNull Long categoryId, @NotNull String locale);
+
+    /**
      * 切换启用状态
      *
      * @param categoryId 分类 ID

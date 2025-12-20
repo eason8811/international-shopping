@@ -75,29 +75,104 @@
                category_i18n.brand       AS category_i18n_brand,
                category_i18n.created_at  AS category_i18n_created_at,
                category_i18n.updated_at  AS category_i18n_updated_at
-        FROM product_category category
+        FROM (SELECT c.id,
+                     c.parent_id,
+                     c.name,
+                     c.slug,
+                     c.level,
+                     c.path,
+                     c.sort_order,
+                     c.status,
+                     c.created_at,
+                     c.updated_at
+              FROM product_category c
+              <where>
+                  <if test="parentSpecified">
+                      <if test="parentId == null">
+                          AND c.parent_id IS NULL
+                      </if>
+                      <if test="parentId != null">
+                          AND c.parent_id = #{parentId}
+                      </if>
+                  </if>
+                  <if test="keyword != null and keyword != ''">
+                      AND (c.name LIKE CONCAT('%', #{keyword}, '%')
+                      OR c.slug LIKE CONCAT('%', #{keyword}, '%')
+                      OR EXISTS (SELECT 1
+                                 FROM product_category_i18n ci
+                                 WHERE ci.category_id = c.id
+                                   AND (ci.name LIKE CONCAT('%', #{keyword}, '%')
+                                   OR ci.slug LIKE CONCAT('%', #{keyword}, '%'))))
+                  </if>
+                  <if test="status != null">
+                      AND c.status = #{status}
+                  </if>
+              </where>
+              <if test="limit != null">
+                  ORDER BY c.sort_order , c.id
+                  LIMIT #{limit} OFFSET #{offset}
+              </if>) category
                  LEFT JOIN product_category_i18n category_i18n ON category_i18n.category_id = category.id
+        ORDER BY category.sort_order , category.id
+    </select>
+
+    <!-- 统计分类数量 (keyword 同时匹配主表与 i18n) -->
+    <select id="countWithI18nKeyword" resultType="long">
+        SELECT COUNT(1)
+        FROM product_category c
         <where>
             <if test="parentSpecified">
                 <if test="parentId == null">
-                    AND category.parent_id IS NULL
+                    AND c.parent_id IS NULL
                 </if>
                 <if test="parentId != null">
-                    AND category.parent_id = #{parentId}
+                    AND c.parent_id = #{parentId}
                 </if>
             </if>
             <if test="keyword != null and keyword != ''">
-                AND (category.name LIKE CONCAT('%', #{keyword}, '%')
-                OR category.slug LIKE CONCAT('%', #{keyword}, '%'))
+                AND (c.name LIKE CONCAT('%', #{keyword}, '%')
+                OR c.slug LIKE CONCAT('%', #{keyword}, '%')
+                OR EXISTS (SELECT 1
+                           FROM product_category_i18n ci
+                           WHERE ci.category_id = c.id
+                             AND (ci.name LIKE CONCAT('%', #{keyword}, '%')
+                             OR ci.slug LIKE CONCAT('%', #{keyword}, '%'))))
             </if>
             <if test="status != null">
-                AND category.status = #{status}
+                AND c.status = #{status}
             </if>
         </where>
-        ORDER BY category.sort_order , category.id
-        <if test="limit != null">
-            LIMIT #{limit} OFFSET #{offset}
-        </if>
+    </select>
+
+    <!-- 查询同一父级同一 locale 下的 i18n 名称冲突的 locale -->
+    <select id="selectConflictingLocaleByParentAndI18nNameInLocale" resultType="string">
+        SELECT ci.locale
+        FROM product_category c
+        INNER JOIN product_category_i18n ci ON ci.category_id = c.id
+        <where>
+            <if test="parentId == null">
+                AND c.parent_id IS NULL
+            </if>
+            <if test="parentId != null">
+                AND c.parent_id = #{parentId}
+            </if>
+            <if test="excludeCategoryId != null">
+                AND c.id != #{excludeCategoryId}
+            </if>
+            <choose>
+                <when test="pairs != null and pairs.size() > 0">
+                    AND (
+                    <foreach collection="pairs" item="p" separator=" OR ">
+                        (ci.locale = #{p.locale} AND ci.name = #{p.name})
+                    </foreach>
+                    )
+                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
+            </choose>
+        </where>
+        LIMIT 1
     </select>
 
 </mapper>

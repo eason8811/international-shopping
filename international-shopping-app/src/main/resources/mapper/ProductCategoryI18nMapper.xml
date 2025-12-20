@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.products.ProductCategoryI18nMapper">
+
+    <!-- 查询同一 locale 下的 i18n slug 冲突的 locale -->
+    <select id="selectConflictingLocaleBySlugInLocale" resultType="string">
+        SELECT locale
+        FROM product_category_i18n
+        <where>
+            <if test="excludeCategoryId != null">
+                AND category_id != #{excludeCategoryId}
+            </if>
+            <choose>
+                <when test="pairs != null and pairs.size() > 0">
+                    AND (
+                    <foreach collection="pairs" item="p" separator=" OR ">
+                        (locale = #{p.locale} AND slug = #{p.slug})
+                    </foreach>
+                    )
+                </when>
+                <otherwise>
+                    AND 1 = 0
+                </otherwise>
+            </choose>
+        </where>
+        LIMIT 1
+    </select>
+
+</mapper>
+

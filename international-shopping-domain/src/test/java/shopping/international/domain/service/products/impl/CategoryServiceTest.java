@@ -69,12 +69,25 @@ class CategoryServiceTest {
     }
 
     @Test
-    void deleteShouldBlockWhenChildrenExist() {
+    void deleteShouldCascadeWhenChildrenExist() {
         Category current = TestDataFactory.category(2L, null, 1, "Name", "slug");
         when(categoryRepository.findById(2L)).thenReturn(Optional.of(current));
-        when(categoryRepository.hasChildren(2L)).thenReturn(true);
+        when(categoryRepository.listSubtreeIdsForDelete(2L, "/2")).thenReturn(List.of(3L, 2L));
+        when(categoryRepository.hasProductsInCategories(any())).thenReturn(false);
+
+        assertDoesNotThrow(() -> categoryService.delete(2L));
+        verify(categoryRepository).deleteCascade(List.of(3L, 2L));
+    }
+
+    @Test
+    void deleteShouldBlockWhenProductsExistInSubtree() {
+        Category current = TestDataFactory.category(2L, null, 1, "Name", "slug");
+        when(categoryRepository.findById(2L)).thenReturn(Optional.of(current));
+        when(categoryRepository.listSubtreeIdsForDelete(2L, "/2")).thenReturn(List.of(3L, 2L));
+        when(categoryRepository.hasProductsInCategories(any())).thenReturn(true);
 
         assertThrows(ConflictException.class, () -> categoryService.delete(2L));
+        verify(categoryRepository, Mockito.never()).deleteCascade(anyList());
     }
 
     @Test

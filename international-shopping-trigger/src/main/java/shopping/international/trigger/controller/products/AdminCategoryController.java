@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
+
 /**
  * 管理端分类接口
  *
@@ -166,6 +168,21 @@ public class AdminCategoryController {
                 payload.getLocale(), payload.getName(), payload.getSlug(), payload.getBrand());
         CategoryI18n updated = categoryService.updateI18n(categoryId, patch);
         return ResponseEntity.ok(Result.ok(Collections.singletonMap("locale", updated.getLocale())));
+    }
+
+    /**
+     * 删除指定分类下的特定语言国际化信息
+     *
+     * @param categoryId 分类的唯一标识符, 用于确定要删除国际化信息的具体分类
+     * @param locale     要被删除的语言环境代码, 如 "en_US" 或 "zh_CN"
+     * @return 删除成功的 locale
+     */
+    @DeleteMapping("/{category_id}/i18n/{locale}")
+    public ResponseEntity<Result<Map<String, String>>> deleteI18n(@PathVariable("category_id") Long categoryId,
+                                                                  @PathVariable("locale") String locale) {
+        locale = normalizeLocale(locale);
+        String deletedLocale = categoryService.deleteI18n(categoryId, locale);
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("locale", deletedLocale)));
     }
 
     /**

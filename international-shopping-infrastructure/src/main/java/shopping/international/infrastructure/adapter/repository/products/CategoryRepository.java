@@ -20,10 +20,7 @@ import shopping.international.infrastructure.dao.products.po.ProductCategoryPO;
 import shopping.international.infrastructure.dao.products.po.ProductPO;
 import shopping.international.types.exceptions.ConflictException;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
 
@@ -94,9 +91,12 @@ public class CategoryRepository implements ICategoryRepository {
     public @NotNull List<Category> list(@Nullable Long parentId, boolean parentSpecified, @Nullable String keyword,
                                         @Nullable CategoryStatus status, int offset, int limit) {
         List<ProductCategoryPO> pos = categoryMapper.selectWithI18n(
-                parentId, parentSpecified, keyword,
+                parentId,
+                parentSpecified,
+                keyword,
                 status == null ? null : status.name(),
-                offset, limit);
+                offset,
+                limit);
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
         return pos.stream().map(this::toAggregate).toList();
@@ -114,9 +114,12 @@ public class CategoryRepository implements ICategoryRepository {
     @Override
     public long count(@Nullable Long parentId, boolean parentSpecified, @Nullable String keyword,
                       @Nullable CategoryStatus status) {
-        LambdaQueryWrapper<ProductCategoryPO> wrapper = buildBaseFilter(parentId, parentSpecified, keyword, status);
-        Long total = categoryMapper.selectCount(wrapper);
-        return total == null ? 0 : total;
+        return categoryMapper.countWithI18nKeyword(
+                parentId,
+                parentSpecified,
+                keyword,
+                status == null ? null : status.name()
+        );
     }
 
     /**
@@ -156,6 +159,69 @@ public class CategoryRepository implements ICategoryRepository {
             wrapper.ne(ProductCategoryPO::getId, excludeCategoryId);
         Long n = categoryMapper.selectCount(wrapper);
         return n != null && n > 0;
+    }
+
+    /**
+     * 检查同一 locale 下 slug 是否重复
+     *
+     * @param i18nList          分类 i18n 信息列表
+     * @param excludeCategoryId 需要排除的分类 ID, 可空
+     * @return 如果存在重复则返回重复的 locale, 否则返回 null
+     */
+    @Override
+    public String existsByI18nSlugInLocale(@NotNull List<CategoryI18n> i18nList, @Nullable Long excludeCategoryId) {
+        if (i18nList.isEmpty())
+            return null;
+
+        Map<String, String> localeSlugPairs = new LinkedHashMap<>();
+        for (CategoryI18n i18n : i18nList) {
+            if (i18n == null)
+                continue;
+            String locale = normalizeLocale(i18n.getLocale());
+            if (locale == null || locale.isBlank())
+                continue;
+            localeSlugPairs.putIfAbsent(locale, i18n.getSlug());
+        }
+        if (localeSlugPairs.isEmpty())
+            return null;
+
+        List<Map<String, String>> pairs = localeSlugPairs.entrySet().stream()
+                .map(e -> Map.of("locale", e.getKey(), "slug", e.getValue()))
+                .toList();
+        String locale = categoryI18nMapper.selectConflictingLocaleBySlugInLocale(pairs, excludeCategoryId);
+        return locale == null ? null : normalizeLocale(locale);
+    }
+
+    /**
+     * 检查同一父级同一 locale 下名称是否重复
+     *
+     * @param parentId          父分类 ID, 可空表示根
+     * @param i18nList          分类 i18n 信息列表
+     * @param excludeCategoryId 需要排除的分类 ID, 可空
+     * @return 如果存在重复则返回重复的 locale, 否则返回 null
+     */
+    @Override
+    public String existsByParentAndI18nNameInLocale(@Nullable Long parentId, @NotNull List<CategoryI18n> i18nList, @Nullable Long excludeCategoryId) {
+        if (i18nList.isEmpty())
+            return null;
+
+        Map<String, String> localeNamePairs = new LinkedHashMap<>();
+        for (CategoryI18n i18n : i18nList) {
+            if (i18n == null)
+                continue;
+            String locale = normalizeLocale(i18n.getLocale());
+            if (locale == null || locale.isBlank())
+                continue;
+            localeNamePairs.putIfAbsent(locale, i18n.getName());
+        }
+        if (localeNamePairs.isEmpty())
+            return null;
+
+        List<Map<String, String>> pairs = localeNamePairs.entrySet().stream()
+                .map(e -> Map.of("locale", e.getKey(), "name", e.getValue()))
+                .toList();
+        String locale = categoryMapper.selectConflictingLocaleByParentAndI18nNameInLocale(parentId, pairs, excludeCategoryId);
+        return locale == null ? null : normalizeLocale(locale);
     }
 
     /**
@@ -235,6 +301,34 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
+     * 列出待删除的分类子树 ID（包含自身）, 按删除安全顺序排列（子节点优先）
+     *
+     * @param categoryId 分类 ID
+     * @return 子树 ID 列表, 子节点在前, 自身在后
+     */
+    @Override
+    public @NotNull List<Long> listSubtreeIdsForDelete(@NotNull Long categoryId, @NotNull String descendantPrefix) {
+        ProductCategoryPO root = categoryMapper.selectById(categoryId);
+        if (root == null || root.getId() == null)
+            return Collections.emptyList();
+
+        List<ProductCategoryPO> descendants = categoryMapper.selectList(new LambdaQueryWrapper<ProductCategoryPO>()
+                .select(ProductCategoryPO::getId, ProductCategoryPO::getLevel)
+                .likeRight(ProductCategoryPO::getPath, descendantPrefix)
+                .orderByDesc(ProductCategoryPO::getLevel)
+                .orderByDesc(ProductCategoryPO::getId));
+
+        if (descendants == null || descendants.isEmpty())
+            return List.of(categoryId);
+
+        return descendants.stream()
+                .filter(d -> d != null && d.getId() != null)
+                .map(ProductCategoryPO::getId)
+                .distinct()
+                .toList();
+    }
+
+    /**
      * 判断是否存在子分类
      *
      * @param categoryId 分类 ID
@@ -260,6 +354,37 @@ public class CategoryRepository implements ICategoryRepository {
                 .eq(ProductPO::getCategoryId, categoryId)
                 .last("limit 1"));
         return n != null && n > 0;
+    }
+
+    /**
+     * 判断指定分类集合中是否存在商品
+     *
+     * @param categoryIds 分类 ID 集合
+     * @return 是否存在商品引用
+     */
+    @Override
+    public boolean hasProductsInCategories(@NotNull Collection<Long> categoryIds) {
+        if (categoryIds.isEmpty())
+            return false;
+        Long n = productMapper.selectCount(new LambdaQueryWrapper<ProductPO>()
+                .in(ProductPO::getCategoryId, categoryIds)
+                .last("limit 1"));
+        return n != null && n > 0;
+    }
+
+    /**
+     * 级联删除指定分类集合（包含 i18n）
+     *
+     * @param categoryIdsForDelete 待删除分类 ID 列表, 需要确保顺序为「子节点优先」
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteCascade(@NotNull List<Long> categoryIdsForDelete) {
+        if (categoryIdsForDelete.isEmpty())
+            return;
+        categoryI18nMapper.delete(new LambdaQueryWrapper<ProductCategoryI18nPO>()
+                .in(ProductCategoryI18nPO::getCategoryId, categoryIdsForDelete));
+        categoryMapper.deleteByIds(categoryIdsForDelete);
     }
 
     /**
@@ -304,6 +429,21 @@ public class CategoryRepository implements ICategoryRepository {
     }
 
     /**
+     * 删除指定分类下的特定语言的多语言记录
+     *
+     * @param categoryId 分类 ID
+     * @param locale     语言环境代码, 如 "en_US"
+     */
+    @Override
+    public void deleteI18n(@NotNull Long categoryId, @NotNull String locale) {
+        categoryI18nMapper.delete(
+                new LambdaQueryWrapper<ProductCategoryI18nPO>()
+                        .eq(ProductCategoryI18nPO::getCategoryId, categoryId)
+                        .eq(ProductCategoryI18nPO::getLocale, locale)
+        );
+    }
+
+    /**
      * 列出指定分类的全部多语言
      *
      * @param categoryId 分类 ID
@@ -318,30 +458,6 @@ public class CategoryRepository implements ICategoryRepository {
                 .filter(Objects::nonNull)
                 .map(this::toI18n)
                 .toList();
-    }
-
-    /**
-     * 构造基础查询条件
-     *
-     * @param parentId        父分类 ID
-     * @param parentSpecified 是否过滤 parent
-     * @param keyword         关键词
-     * @param status          状态
-     * @return 查询 wrapper
-     */
-    private LambdaQueryWrapper<ProductCategoryPO> buildBaseFilter(@Nullable Long parentId, boolean parentSpecified,
-                                                                  @Nullable String keyword, @Nullable CategoryStatus status) {
-        LambdaQueryWrapper<ProductCategoryPO> wrapper = new LambdaQueryWrapper<>();
-        if (parentSpecified && parentId == null)
-            wrapper.isNull(ProductCategoryPO::getParentId);
-        if (parentSpecified && parentId != null)
-            wrapper.eq(ProductCategoryPO::getParentId, parentId);
-        if (keyword != null && !keyword.isBlank())
-            wrapper.and(q -> q.like(ProductCategoryPO::getName, keyword)
-                    .or().like(ProductCategoryPO::getSlug, keyword));
-        if (status != null)
-            wrapper.eq(ProductCategoryPO::getStatus, status.name());
-        return wrapper;
     }
 
     /**
