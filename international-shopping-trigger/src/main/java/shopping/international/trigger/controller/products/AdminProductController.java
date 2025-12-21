@@ -70,8 +70,10 @@ public class AdminProductController {
             page = 1;
         if (size > 100)
             size = 100;
-        requireNotBlank(keyword, "keyword 不能为空");
-        requireNotBlank(tag, "tag 不能为空");
+        if (keyword != null)
+            requireNotBlank(keyword, "keyword 不能为空");
+        if (tag != null)
+            requireNotBlank(tag, "tag 不能为空");
         IProductService.PageResult pageResult = productService.page(page, size, status, skuType, categoryId, keyword, tag, includeDeleted);
         List<ProductSpuRespond> data = pageResult.items().stream()
                 .map(this::toSpuRespond)

@@ -43,6 +43,10 @@ import static shopping.international.types.utils.FieldValidateUtils.normalizeTag
 public class ProductRepository implements IProductRepository {
 
     /**
+     * 商品分类 Repository
+     */
+    private final CategoryRepository categoryRepository;
+    /**
      * 商品主表 Mapper
      */
     private final ProductMapper productMapper;
@@ -217,6 +221,8 @@ public class ProductRepository implements IProductRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Product save(@NotNull Product product) {
+        categoryRepository.findById(product.getCategoryId())
+                .orElseThrow(() -> new ConflictException("分类不存在"));
         ProductPO po = toProductPO(product);
         try {
             productMapper.insert(po);
