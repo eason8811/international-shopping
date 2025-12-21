@@ -4,11 +4,13 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.products.IProductRepository;
 import shopping.international.domain.adapter.repository.products.ISkuRepository;
 import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.enums.products.ProductStatus;
+import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
@@ -104,6 +106,7 @@ public class ProductService implements IProductService {
      * @return 新建商品聚合
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public @NotNull Product createBasic(@NotNull String slug, @NotNull String title, @Nullable String subtitle,
                                         @Nullable String description, @NotNull Long categoryId, @Nullable String brand,
                                         @Nullable String coverImageUrl, @NotNull SkuType skuType,
@@ -130,13 +133,23 @@ public class ProductService implements IProductService {
      * @return 更新后的商品聚合
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public @NotNull Product updateBasic(@NotNull Long productId, @Nullable String slug, @Nullable String title,
                                         @Nullable String subtitle, @Nullable String description, @Nullable Long categoryId,
                                         @Nullable String brand, @Nullable String coverImageUrl, @Nullable SkuType skuType,
                                         @Nullable ProductStatus status, @Nullable List<String> tags) {
         Product product = ensureProduct(productId);
-        product.updateBasic(slug, title, subtitle, description, categoryId, brand, coverImageUrl, skuType, status, tags);
-        return productRepository.updateBasic(product, false);
+        product.updateBasic(slug, title, subtitle, description, categoryId, brand, coverImageUrl, skuType, null, tags);
+        if (status != null) {
+            List<Sku> skus = skuRepository.listByProductId(productId, null);
+            product.changeStatus(status, skus);
+        }
+        Product updated = productRepository.updateBasic(product, false);
+        if (status != null && (product.getStatus() == ProductStatus.OFF_SHELF || product.getStatus() == ProductStatus.DELETED)) {
+            skuRepository.updateStatusByProductId(productId, SkuStatus.DISABLED);
+            skuRepository.markDefault(productId, null);
+        }
+        return updated;
     }
 
     /**
@@ -147,10 +160,16 @@ public class ProductService implements IProductService {
      * @return 更新后的状态
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public @NotNull ProductStatus changeStatus(@NotNull Long productId, @NotNull ProductStatus status) {
         Product product = ensureProduct(productId);
-        product.changeStatus(status);
+        List<Sku> skus = skuRepository.listByProductId(productId, null);
+        product.changeStatus(status, skus);
         productRepository.updateBasic(product, false);
+        if (status == ProductStatus.OFF_SHELF || status == ProductStatus.DELETED) {
+            skuRepository.updateStatusByProductId(productId, SkuStatus.DISABLED);
+            skuRepository.markDefault(productId, null);
+        }
         return product.getStatus();
     }
 

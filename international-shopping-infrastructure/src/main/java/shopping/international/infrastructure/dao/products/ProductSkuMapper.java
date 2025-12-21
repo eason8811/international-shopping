@@ -5,6 +5,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import shopping.international.infrastructure.dao.products.po.ProductSkuPO;
 
+import java.util.List;
+
 /**
  * Mapper: product_sku
  * <p>基于 MyBatis-Plus 的通用 CRUD 接口</p>
@@ -28,5 +30,5 @@ public interface ProductSkuMapper extends BaseMapper<ProductSkuPO> {
      * @param status    状态过滤, 可空
      * @return SKU 聚合列表
      */
-    java.util.List<ProductSkuPO> selectAggregateByProductId(@Param("productId") Long productId, @Param("status") String status);
+    List<ProductSkuPO> selectAggregateByProductId(@Param("productId") Long productId, @Param("status") String status);
 }

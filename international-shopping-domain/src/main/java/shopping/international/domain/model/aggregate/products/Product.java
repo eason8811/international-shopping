@@ -6,6 +6,7 @@ import lombok.experimental.Accessors;
 import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.enums.products.ProductStatus;
+import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductI18n;
@@ -185,6 +186,7 @@ public class Product implements Verifiable {
                                  Long categoryId, String brand, String coverImageUrl,
                                  SkuType skuType, ProductStatus status, List<String> tags,
                                  List<ProductImage> gallery, List<ProductSpec> specs, List<ProductI18n> i18nList) {
+        require(status != ProductStatus.ON_SALE, "新建商品不能直接上架, 请先创建至少一个启用 SKU 后再上架");
         return new Product(null, slug, title, subtitle, description, categoryId, brand, coverImageUrl,
                 0, 0, skuType == null ? SkuType.SINGLE : skuType,
                 status == null ? ProductStatus.DRAFT : status, null, tags, gallery, specs, i18nList,
@@ -403,6 +405,75 @@ public class Product implements Verifiable {
             default -> throw new IllegalStateException("未知商品状态: " + this.status);
         }
         this.status = newStatus;
+    }
+
+    /**
+     * 按合法状态机流转商品状态, 并维护与 SKU 相关的不变式
+     *
+     * <p>该方法负责维护以下不变式:</p>
+     * <ul>
+     *     <li>上架（ON_SALE）时至少存在一个启用 SKU</li>
+     *     <li>上架时 defaultSkuId 要么为空, 要么指向启用 SKU</li>
+     *     <li>下架/删除（OFF_SHELF/DELETED）时清空 defaultSkuId, 并要求 SKU 全部不可售（禁用）</li>
+     * </ul>
+     *
+     * @param newStatus 目标状态
+     * @param skus      商品下的 SKU 列表（用于校验/同步）
+     */
+    public void changeStatus(@NotNull ProductStatus newStatus, @NotNull List<Sku> skus) {
+        requireNotNull(skus, "skus 不能为空");
+        if (newStatus == ProductStatus.ON_SALE) {
+            boolean hasEnabledSku = skus.stream().anyMatch(sku -> sku != null && sku.getStatus() == SkuStatus.ENABLED);
+            require(hasEnabledSku, "上架商品至少需要一个启用 SKU");
+            if (defaultSkuId != null) {
+                boolean defaultOk = skus.stream().anyMatch(
+                        sku -> sku != null
+                                && Objects.equals(sku.getId(), defaultSkuId)
+                                && sku.getStatus() == SkuStatus.ENABLED
+                );
+                require(defaultOk, "默认 SKU 不可用, 请重新设置默认 SKU");
+            }
+        }
+
+        // 先通过状态机约束
+        changeStatus(newStatus);
+
+        // OFF_SHELF/DELETED: 归一化为“不可售 + 无默认 SKU”
+        if (newStatus == ProductStatus.OFF_SHELF || newStatus == ProductStatus.DELETED) {
+            this.defaultSkuId = null;
+            skus.stream()
+                    .filter(Objects::nonNull)
+                    .forEach(sku -> sku.updateBasic(null, null, SkuStatus.DISABLED, false, null));
+        }
+    }
+
+    /**
+     * SKU 更新后, 维护 defaultSkuId 与 ON_SALE 可售性不变式
+     *
+     * @param sku                被更新的 SKU 聚合
+     * @param hasEnabledSkuAfter 更新后该商品是否仍存在启用 SKU
+     * @return defaultSkuId 是否发生变更
+     */
+    public boolean onSkuUpdated(@NotNull Sku sku, boolean hasEnabledSkuAfter) {
+        requireNotNull(sku, "sku 不能为空");
+        requireNotNull(sku.getId(), "skuId 不能为空");
+
+        if (this.status == ProductStatus.ON_SALE)
+            require(hasEnabledSkuAfter, "上架商品至少需要一个启用 SKU");
+
+        Long before = this.defaultSkuId;
+
+        // 若该 SKU 自身标记为默认且可用, 则将 defaultSkuId 对齐到它
+        if (sku.isDefaultSku() && sku.getStatus() == SkuStatus.ENABLED)
+            this.defaultSkuId = sku.getId();
+
+        // 若 defaultSkuId 指向该 SKU 但该 SKU 不可用/不再默认, 则清空
+        if (this.defaultSkuId != null
+                && Objects.equals(this.defaultSkuId, sku.getId())
+                && (sku.getStatus() != SkuStatus.ENABLED || !sku.isDefaultSku()))
+            this.defaultSkuId = null;
+
+        return !Objects.equals(before, this.defaultSkuId);
     }
 
     /**

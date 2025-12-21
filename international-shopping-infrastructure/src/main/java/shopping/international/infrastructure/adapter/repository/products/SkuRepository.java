@@ -262,8 +262,12 @@ public class SkuRepository implements ISkuRepository {
         if (skuId != null) {
             LambdaUpdateWrapper<ProductSkuPO> setWrapper = new LambdaUpdateWrapper<>();
             setWrapper.eq(ProductSkuPO::getId, skuId)
+                    .eq(ProductSkuPO::getProductId, productId)
+                    .eq(ProductSkuPO::getStatus, SkuStatus.ENABLED.name())
                     .set(ProductSkuPO::getIsDefault, true);
-            productSkuMapper.update(null, setWrapper);
+            int updated = productSkuMapper.update(null, setWrapper);
+            if (updated <= 0)
+                throw new ConflictException("默认 SKU 不存在或不可用");
         }
         LambdaUpdateWrapper<ProductPO> productWrapper = new LambdaUpdateWrapper<>();
         productWrapper.eq(ProductPO::getId, productId)
@@ -288,6 +292,37 @@ public class SkuRepository implements ISkuRepository {
                 .filter(Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
+    }
+
+    /**
+     * 批量更新某商品下所有 SKU 状态
+     *
+     * @param productId 商品 ID
+     * @param status    目标状态
+     * @return 受影响行数
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int updateStatusByProductId(@NotNull Long productId, @NotNull SkuStatus status) {
+        LambdaUpdateWrapper<ProductSkuPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ProductSkuPO::getProductId, productId)
+                .set(ProductSkuPO::getStatus, status.name());
+        return productSkuMapper.update(null, wrapper);
+    }
+
+    /**
+     * 判断某商品下是否存在指定状态的 SKU
+     *
+     * @param productId 商品 ID
+     * @param status    状态
+     * @return 是否存在
+     */
+    @Override
+    public boolean existsByProductIdAndStatus(@NotNull Long productId, @NotNull SkuStatus status) {
+        Long count = productSkuMapper.selectCount(new LambdaQueryWrapper<ProductSkuPO>()
+                .eq(ProductSkuPO::getProductId, productId)
+                .eq(ProductSkuPO::getStatus, status.name()));
+        return count != null && count > 0;
     }
 
     /**

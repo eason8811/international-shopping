@@ -59,18 +59,38 @@ class SkuServiceTest {
 
     @Test
     void updateBasicShouldAdjustStockAndDefault() {
+        Product product = TestDataFactory.product(1L, 2L, SkuType.SINGLE, ProductStatus.OFF_SHELF, List.of());
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         Sku existing = TestDataFactory.sku(10L, 1L, 5, false);
         when(skuRepository.findById(1L, 10L)).thenReturn(Optional.of(existing));
         when(skuRepository.updateBasic(any(Sku.class), eq(true))).thenAnswer(invocation -> invocation.getArgument(0));
         when(skuRepository.sumStockByProduct(1L)).thenReturn(8);
 
         Sku updated = skuService.updateBasic(1L, 10L, " new ", 8, new BigDecimal("2.2"),
-                SkuStatus.DISABLED, true, " new-bar ", List.of(TestDataFactory.image("img", true, 0)));
+                SkuStatus.ENABLED, true, " new-bar ", List.of(TestDataFactory.image("img", true, 0)));
 
         assertEquals(8, updated.getStock());
-        assertEquals(SkuStatus.DISABLED, updated.getStatus());
+        assertEquals(SkuStatus.ENABLED, updated.getStatus());
         verify(skuRepository).markDefault(1L, 10L);
         verify(productRepository).updateStockTotal(1L, 8);
+    }
+
+    @Test
+    void disableDefaultSkuShouldClearProductDefault() {
+        Product product = Product.reconstitute(1L, "slug-1", "Title-1", "Sub-1", "Desc-1",
+                2L, "Brand", "cover.jpg", 10, 5, SkuType.SINGLE, ProductStatus.ON_SALE, 10L,
+                List.of("tag1"), List.of(TestDataFactory.image("cover.jpg", true, 0)),
+                List.of(), List.of(),
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        Sku existing = TestDataFactory.sku(10L, 1L, 5, true);
+        when(skuRepository.findById(1L, 10L)).thenReturn(Optional.of(existing));
+        when(skuRepository.updateBasic(any(Sku.class), eq(false))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(skuRepository.existsByProductIdAndStatus(1L, SkuStatus.ENABLED)).thenReturn(true);
+
+        skuService.updateBasic(1L, 10L, null, null, null, SkuStatus.DISABLED, null, null, null);
+
+        verify(skuRepository).markDefault(1L, null);
     }
 
     @Test

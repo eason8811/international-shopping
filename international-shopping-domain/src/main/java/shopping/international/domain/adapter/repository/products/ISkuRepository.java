@@ -109,4 +109,24 @@ public interface ISkuRepository {
      * @return 库存合计
      */
     int sumStockByProduct(@NotNull Long productId);
+
+    /**
+     * 批量更新某商品下所有 SKU 的状态
+     *
+     * <p>典型用例: 商品下架/删除时同步禁用全部 SKU, 以避免“仅校验 SKU 状态”的下单窗口。</p>
+     *
+     * @param productId 商品 ID
+     * @param status    目标状态
+     * @return 受影响行数
+     */
+    int updateStatusByProductId(@NotNull Long productId, @NotNull SkuStatus status);
+
+    /**
+     * 判断某商品下是否存在指定状态的 SKU
+     *
+     * @param productId 商品 ID
+     * @param status    目标状态
+     * @return 是否存在
+     */
+    boolean existsByProductIdAndStatus(@NotNull Long productId, @NotNull SkuStatus status);
 }

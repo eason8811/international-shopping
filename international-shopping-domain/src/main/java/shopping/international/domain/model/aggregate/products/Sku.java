@@ -143,6 +143,8 @@ public class Sku implements Verifiable {
                              List<SkuSpecRelation> specs, List<ProductImage> images) {
         if (skuCode != null)
             requireNotBlank(skuCode, "SKU 编码不能为空");
+        SkuStatus effectiveStatus = status == null ? SkuStatus.ENABLED : status;
+        require(!defaultSku || effectiveStatus == SkuStatus.ENABLED, "默认 SKU 必须为启用状态");
         return new Sku(null, productId, skuCode, stock, weight, status, defaultSku, barcode, prices, specs, images,
                 LocalDateTime.now(), LocalDateTime.now());
     }
@@ -182,14 +184,24 @@ public class Sku implements Verifiable {
      * @param barcode    条码, 为空则忽略
      */
     public void updateBasic(String skuCode, BigDecimal weight, SkuStatus status, Boolean defaultSku, String barcode) {
-        this.skuCode = normalizeNullableField(skuCode, "SKU 编码不能为空", s -> true, null);
+        String normalizedSkuCode = skuCode != null ? normalizeNullableField(skuCode, "SKU 编码不能为空", s -> true, null) : null;
+        String normalizedBarcode = barcode != null ? normalizeNullableField(barcode, "条码不能为空", s -> true, null) : null;
+
+        SkuStatus targetStatus = status != null ? status : this.status;
+        boolean targetDefaultSku = defaultSku != null ? defaultSku : this.defaultSku;
+        if (targetStatus == SkuStatus.DISABLED)
+            targetDefaultSku = false;
+        require(!targetDefaultSku || targetStatus == SkuStatus.ENABLED, "默认 SKU 必须为启用状态");
+
+        if (normalizedSkuCode != null)
+            this.skuCode = normalizedSkuCode;
         if (weight != null)
             this.weight = weight;
         if (status != null)
             this.status = status;
-        if (defaultSku != null)
-            this.defaultSku = defaultSku;
-        this.barcode = normalizeNullableField(barcode, "条码不能为空", s -> true, null);
+        this.defaultSku = targetDefaultSku;
+        if (normalizedBarcode != null)
+            this.barcode = normalizedBarcode;
     }
 
     /**

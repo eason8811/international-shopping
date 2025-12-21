@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import shopping.international.domain.adapter.repository.products.IProductRepository;
+import shopping.international.domain.adapter.repository.products.ISkuRepository;
 import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
@@ -18,9 +19,9 @@ import shopping.international.domain.support.TestDataFactory;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +30,8 @@ class ProductServiceTest {
 
     @Mock
     private IProductRepository productRepository;
+    @Mock
+    private ISkuRepository skuRepository;
     @InjectMocks
     private ProductService productService;
 
@@ -38,14 +41,14 @@ class ProductServiceTest {
         when(productRepository.save(any(Product.class))).thenReturn(saved);
 
         Product result = productService.createBasic(" slug ", " Title ", null, null, 2L, null, " cover ",
-                SkuType.VARIANT, ProductStatus.ON_SALE, List.of(" t1 ", ""));
+                SkuType.VARIANT, ProductStatus.DRAFT, List.of(" t1 ", ""));
 
         assertSame(saved, result);
         ArgumentCaptor<Product> captor = ArgumentCaptor.forClass(Product.class);
         verify(productRepository).save(captor.capture());
         Product captured = captor.getValue();
         assertEquals("slug", captured.getSlug());
-        assertEquals(ProductStatus.ON_SALE, captured.getStatus());
+        assertEquals(ProductStatus.DRAFT, captured.getStatus());
         assertEquals(SkuType.VARIANT, captured.getSkuType());
         assertEquals(List.of("t1"), captured.getTags());
     }
@@ -55,6 +58,7 @@ class ProductServiceTest {
         Product product = TestDataFactory.product(1L, 2L, SkuType.SINGLE, ProductStatus.DRAFT, List.of());
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productRepository.updateBasic(any(Product.class), eq(false))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(skuRepository.listByProductId(eq(1L), isNull())).thenReturn(List.of(TestDataFactory.sku(10L, 1L, 5, false)));
 
         ProductStatus status = productService.changeStatus(1L, ProductStatus.ON_SALE);
 
@@ -65,7 +69,7 @@ class ProductServiceTest {
     @Test
     void updateI18nShouldPatchExistingLocale() {
         Product product = Product.create("slug", "Title", null, null, 2L, null, null, SkuType.SINGLE,
-                ProductStatus.ON_SALE, List.of(), List.of(ProductImage.of("url", true, 0)), List.of(), List.of(ProductI18n.of("en-US", "Title", null, null, "slug", List.of("tag1"))));
+                ProductStatus.DRAFT, List.of(), List.of(ProductImage.of("url", true, 0)), List.of(), List.of(ProductI18n.of("en-US", "Title", null, null, "slug", List.of("tag1"))));
         product.assignId(2L);
         when(productRepository.findById(2L)).thenReturn(Optional.of(product));
 

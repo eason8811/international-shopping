@@ -738,6 +738,7 @@ public class OrderRepository implements IOrderRepository {
         LambdaUpdateWrapper<ProductSkuPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ProductSkuPO::getId, skuId)
                 .eq(ProductSkuPO::getStatus, "ENABLED")
+                .inSql(ProductSkuPO::getProductId, "select id from product where status = 'ON_SALE'")
                 .ge(ProductSkuPO::getStock, qty)
                 .setSql("stock = stock - " + qty);
         int updated = productSkuMapper.update(null, wrapper);

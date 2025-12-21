@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.products.IProductRepository;
 import shopping.international.domain.adapter.repository.products.ISkuRepository;
 import shopping.international.domain.model.aggregate.products.Product;
@@ -98,18 +99,29 @@ public class SkuService implements ISkuService {
      * @return 更新后的聚合
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public @NotNull Sku updateBasic(@NotNull Long productId, @NotNull Long skuId, @Nullable String skuCode,
                                     @Nullable Integer stock, @Nullable BigDecimal weight, @Nullable SkuStatus status,
                                     @Nullable Boolean isDefault, @Nullable String barcode, @Nullable List<ProductImage> images) {
+        Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
         sku.updateBasic(skuCode, weight, status, isDefault, barcode);
         if (stock != null)
             sku.adjustStock(StockAdjustMode.SET, stock);
         if (images != null)
             sku.replaceImages(images);
-        Sku updated = skuRepository.updateBasic(sku, images != null);
-        if (isDefault != null)
+
+        boolean hasEnabledSkuAfter = product.getStatus() != ProductStatus.ON_SALE
+                || skuRepository.existsByProductIdAndStatus(productId, SkuStatus.ENABLED);
+        boolean defaultChanged = product.onSkuUpdated(sku, hasEnabledSkuAfter);
+
+        if (isDefault != null) {
             skuRepository.markDefault(productId, isDefault ? skuId : null);
+        } else if (defaultChanged) {
+            skuRepository.markDefault(productId, product.getDefaultSkuId());
+        }
+
+        Sku updated = skuRepository.updateBasic(sku, images != null);
         if (stock != null)
             refreshProductStock(productId);
         return updated;
