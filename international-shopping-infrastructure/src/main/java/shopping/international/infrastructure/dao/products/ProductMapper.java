@@ -5,7 +5,6 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.products.ProductStatus;
-import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.infrastructure.dao.products.po.ProductPO;
 import shopping.international.infrastructure.dao.products.po.PublicProductSnapshotPO;
 
@@ -49,7 +48,7 @@ public interface ProductMapper extends BaseMapper<ProductPO> {
      * @param limit          每页数量限制
      * @return 符合条件的商品列表
      */
-    List<ProductPO> selectAdminAggregatePage(@Nullable ProductStatus status, @Nullable SkuType skuType,
+    List<ProductPO> selectAdminAggregatePage(@Nullable ProductStatus status, @Nullable String skuType,
                                              @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag,
                                              boolean includeDeleted, int offset, int limit);
 
@@ -64,7 +63,7 @@ public interface ProductMapper extends BaseMapper<ProductPO> {
      * @param includeDeleted 是否包含已删除的商品
      * @return 符合条件的商品总数
      */
-    Long countAdminAggregatePage(@Nullable ProductStatus status, @Nullable SkuType skuType,
+    Long countAdminAggregatePage(@Nullable ProductStatus status, @Nullable String skuType,
                                  @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag,
                                  boolean includeDeleted);
 

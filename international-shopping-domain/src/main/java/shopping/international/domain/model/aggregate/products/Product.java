@@ -11,6 +11,7 @@ import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
+import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
@@ -303,7 +304,7 @@ public class Product implements Verifiable {
         ProductI18n existing = mutable.stream()
                 .filter(item -> item.getLocale().equals(normalizedLocale))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("商品多语言不存在: " + normalizedLocale));
+                .orElseThrow(() -> new IllegalParamException("商品多语言不存在: " + normalizedLocale));
         String mergedTitle = title != null ? title.strip() : existing.getTitle();
         String mergedSubtitle = subtitle != null ? subtitle.strip() : existing.getSubtitle();
         String mergedDescription = description != null ? description.strip() : existing.getDescription();
@@ -324,6 +325,11 @@ public class Product implements Verifiable {
      * @param gallery 新图库
      */
     public void replaceGallery(List<ProductImage> gallery) {
+        boolean isMainCountValid = gallery.stream()
+                .filter(ProductImage::isMain)
+                .count() <= 1;
+        if (!isMainCountValid)
+            throw new IllegalParamException("主图数量不能超过 1 个");
         this.gallery = normalizeFieldList(gallery, ProductImage::validate);
     }
 
@@ -369,7 +375,7 @@ public class Product implements Verifiable {
         ProductSpec existing = mutable.stream()
                 .filter(item -> Objects.equals(item.getId(), specId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("规格不存在: " + specId));
+                .orElseThrow(() -> new IllegalParamException("规格不存在: " + specId));
         existing.update(specName, specType, required, sortOrder, enabled);
     }
 
@@ -402,8 +408,8 @@ public class Product implements Verifiable {
                     "上架商品仅能下架或删除");
             case OFF_SHELF -> require(newStatus == ProductStatus.ON_SALE || newStatus == ProductStatus.DELETED,
                     "下架商品仅能重新上架或删除");
-            case DELETED -> throw new IllegalStateException("已删除商品不能再次流转");
-            default -> throw new IllegalStateException("未知商品状态: " + this.status);
+            case DELETED -> throw new IllegalParamException("已删除商品不能再次流转");
+            default -> throw new IllegalParamException("未知商品状态: " + this.status);
         }
         this.status = newStatus;
     }
@@ -508,7 +514,7 @@ public class Product implements Verifiable {
     public void assignId(Long id) {
         requireNotNull(id, "商品 ID 不能为空");
         if (this.id != null && !Objects.equals(this.id, id))
-            throw new IllegalStateException("商品已存在 ID, 不允许覆盖, current=" + this.id + ", new=" + id);
+            throw new IllegalParamException("商品已存在 ID, 不允许覆盖, current=" + this.id + ", new=" + id);
         this.id = id;
     }
 

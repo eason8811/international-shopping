@@ -356,7 +356,15 @@ public class ProductRepository implements IProductRepository {
     public @NotNull List<Product> list(@Nullable ProductStatus status, @Nullable SkuType skuType,
                                        @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag,
                                        boolean includeDeleted, int offset, int limit) {
-        List<ProductPO> pos = productMapper.selectAdminAggregatePage(status, skuType, categoryId, keyword, tag, includeDeleted, offset, limit);
+        List<ProductPO> pos = productMapper.selectAdminAggregatePage(
+                status,
+                skuType == null ? null : skuType.name(),
+                categoryId,
+                keyword,
+                tag,
+                includeDeleted,
+                offset,
+                limit);
         if (pos == null || pos.isEmpty())
             return Collections.emptyList();
         Map<Long, List<ProductImagePO>> galleryMap = pos.stream()
@@ -407,7 +415,13 @@ public class ProductRepository implements IProductRepository {
     @Override
     public long count(@Nullable ProductStatus status, @Nullable SkuType skuType,
                       @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted) {
-        Long total = productMapper.countAdminAggregatePage(status, skuType, categoryId, keyword, tag, includeDeleted);
+        Long total = productMapper.countAdminAggregatePage(
+                status,
+                skuType == null ? null : skuType.name(),
+                categoryId,
+                keyword,
+                tag,
+                includeDeleted);
         return total == null ? 0 : total;
     }
 
