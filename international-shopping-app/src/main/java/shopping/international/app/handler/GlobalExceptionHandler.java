@@ -68,7 +68,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.TOO_MANY_REQUESTS, ApiCode.TOO_MANY_REQUESTS, ex.getMessage(), request);
     }
@@ -92,7 +92,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.UNAUTHORIZED, ApiCode.UNAUTHORIZED, ex.getMessage(), request);
     }
@@ -116,7 +116,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.UNPROCESSABLE_ENTITY, ApiCode.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
@@ -140,7 +140,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.CONFLICT, ApiCode.CONFLICT, ex.getMessage(), request);
     }
@@ -165,7 +165,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.BAD_REQUEST, ApiCode.BAD_REQUEST, ex.getMessage(), request);
     }
@@ -231,7 +231,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 400 状态码
      */
     @Override
-    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(@NotNull MissingServletRequestParameterException ex,
                                                                           @NotNull HttpHeaders headers,
                                                                           @NotNull HttpStatusCode status,
                                                                           @NotNull WebRequest request) {
@@ -244,7 +244,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 null,
                 ((ServletWebRequest) request).getHttpMethod(),
                 null,
-                resolveTraceId(null));
+                resolveTraceId(null), ex);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Result.<Void>error(ApiCode.BAD_REQUEST, ex.getMessage()));
     }
@@ -262,7 +262,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 404 状态码
      */
     @Override
-    protected ResponseEntity<Object> handleNoResourceFoundException(NoResourceFoundException ex,
+    protected ResponseEntity<Object> handleNoResourceFoundException(@NotNull NoResourceFoundException ex,
                                                                     @NotNull HttpHeaders headers,
                                                                     @NotNull HttpStatusCode status,
                                                                     @NotNull WebRequest request) {
@@ -275,7 +275,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 null,
                 ((ServletWebRequest) request).getHttpMethod(),
                 null,
-                resolveTraceId(null));
+                resolveTraceId(null), ex);
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.<Void>error(ApiCode.NOT_FOUND, ex.getMessage()));
     }
