@@ -208,6 +208,8 @@ public class AdminSpecController {
                 .specName(spec.getSpecName())
                 .specType(spec.getSpecType())
                 .isRequired(spec.isRequired())
+                .sortOrder(spec.getSortOrder())
+                .enabled(spec.isEnabled())
                 .values(values)
                 .i18nList(i18n)
                 .build();

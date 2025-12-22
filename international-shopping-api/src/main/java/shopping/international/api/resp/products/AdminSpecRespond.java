@@ -15,6 +15,14 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class AdminSpecRespond extends AbstractSpecRespond {
     /**
+     * 排序值 (小在前)
+     */
+    private int sortOrder;
+    /**
+     * 是否启用
+     */
+    private boolean enabled;
+    /**
      * 规格值列表
      */
     private List<AdminSpecValueRespond> values;
@@ -22,23 +30,6 @@ public class AdminSpecRespond extends AbstractSpecRespond {
      * 规格多语言列表
      */
     private List<SpecI18nPayloadRespond> i18nList;
-
-    /**
-     * 构造一个 AdminSpecRespond 实例
-     *
-     * @param specId     规格 ID
-     * @param specCode   规格代码
-     * @param specName   规格名称
-     * @param specType   规格类型, 可以是 {@code COLOR}, {@code SIZE}, {@code CAPACITY}, {@code MATERIAL} 或 {@code OTHER}
-     * @param isRequired 是否为必填规格
-     * @param values     规格值列表
-     * @param i18nList   规格多语言信息列表
-     */
-    private AdminSpecRespond(Long specId, String specCode, String specName, SpecType specType, Boolean isRequired, List<AdminSpecValueRespond> values, List<SpecI18nPayloadRespond> i18nList) {
-        super(specId, specCode, specName, specType, isRequired);
-        this.values = values;
-        this.i18nList = i18nList;
-    }
 
     /**
      * 规格多语言响应 SpecI18nRespond
