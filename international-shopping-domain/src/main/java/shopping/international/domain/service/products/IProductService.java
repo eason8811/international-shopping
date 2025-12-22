@@ -126,6 +126,16 @@ public interface IProductService {
                            @Nullable List<String> tags);
 
     /**
+     * 删除指定商品的特定语言版本信息
+     *
+     * @param productId 商品 ID
+     * @param locale    语言代码, 如 "en_US"
+     * @return 成功删除返回确认信息, 否则抛出异常
+     */
+    @NotNull
+    String deleteI18n(@NotNull Long productId, @NotNull String locale);
+
+    /**
      * 覆盖商品图库
      *
      * @param productId 商品 ID

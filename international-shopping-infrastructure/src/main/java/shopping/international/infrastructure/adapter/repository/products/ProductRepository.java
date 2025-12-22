@@ -327,6 +327,19 @@ public class ProductRepository implements IProductRepository {
     }
 
     /**
+     * 删除指定商品的特定语言版本信息
+     *
+     * @param productId 商品 ID, 用于定位要删除多语言信息的商品
+     * @param locale    语言标识, 指定要删除的具体语言版本
+     */
+    @Override
+    public void deleteI18n(@NotNull Long productId, @NotNull String locale) {
+        productI18nMapper.delete(new LambdaQueryWrapper<ProductI18nPO>()
+                .eq(ProductI18nPO::getProductId, productId)
+                .eq(ProductI18nPO::getLocale, normalizeLocale(locale)));
+    }
+
+    /**
      * 分页查询商品基础信息
      *
      * @param status         商品状态过滤, 可空

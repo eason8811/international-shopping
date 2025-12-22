@@ -216,6 +216,24 @@ public class ProductService implements IProductService {
     }
 
     /**
+     * 删除指定商品的特定语言版本信息
+     *
+     * @param productId 商品 ID
+     * @param locale    语言代码, 如 "en_US"
+     * @return 成功删除返回确认信息, 否则抛出异常
+     */
+    @Override
+    public @NotNull String deleteI18n(@NotNull Long productId, @NotNull String locale) {
+        Product product = ensureProduct(productId);
+        boolean hasThisLocale = product.getI18nList().stream()
+                .anyMatch(i18n -> locale.equals(i18n.getLocale()));
+        if (!hasThisLocale)
+            return locale;
+        productRepository.deleteI18n(productId, locale);
+        return locale;
+    }
+
+    /**
      * 覆盖商品图库
      *
      * @param productId 商品 ID

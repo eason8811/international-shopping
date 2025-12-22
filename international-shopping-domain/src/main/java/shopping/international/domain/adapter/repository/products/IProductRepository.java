@@ -148,6 +148,14 @@ public interface IProductRepository {
     void updateI18n(@NotNull Long productId, @NotNull ProductI18n i18n);
 
     /**
+     * 删除指定商品的特定语言版本信息
+     *
+     * @param productId 商品 ID, 用于定位要删除多语言信息的商品
+     * @param locale    语言标识, 指定要删除的具体语言版本
+     */
+    void deleteI18n(@NotNull Long productId, @NotNull String locale);
+
+    /**
      * 分页查询商品基础信息
      *
      * @param status         商品状态过滤, 可空
@@ -161,7 +169,7 @@ public interface IProductRepository {
      * @return 商品列表
      */
     @NotNull
-    java.util.List<Product> list(@Nullable ProductStatus status,
+    List<Product> list(@Nullable ProductStatus status,
                                   @Nullable SkuType skuType,
                                   @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag,
                                   boolean includeDeleted, int offset, int limit);

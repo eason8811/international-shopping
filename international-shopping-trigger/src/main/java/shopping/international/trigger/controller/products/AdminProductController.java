@@ -29,6 +29,7 @@ import shopping.international.types.enums.ApiCode;
 
 import java.util.*;
 
+import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
@@ -176,6 +177,22 @@ public class AdminProductController {
         ProductI18n updated = productService.updateI18n(productId, req.getLocale(), req.getTitle(), req.getSubtitle(),
                 req.getDescription(), req.getSlug(), req.getTags());
         return ResponseEntity.ok(Result.ok(Collections.singletonMap("locale", updated.getLocale())));
+    }
+
+    /**
+     * 删除指定产品在特定语言环境下的国际化信息
+     *
+     * @param productId 产品的唯一标识符
+     * @param locale    指定的语言环境代码, 如 en_US, zh_CN 等
+     * @return 包含成功删除的语言环境代码的响应实体
+     */
+    @DeleteMapping("/{product_id}/i18n/{locale}")
+    public ResponseEntity<Result<Map<String, String>>> deleteI18n(@PathVariable("product_id") Long productId,
+                                                                  @PathVariable String locale) {
+        locale = normalizeLocale(locale);
+        requireNotBlank(locale, "locale 不能为空");
+        String deletedI18n = productService.deleteI18n(productId, locale);
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("locale", deletedI18n)));
     }
 
     /**
