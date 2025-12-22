@@ -61,17 +61,13 @@ public class AdminSpecController {
      * @return 规格 ID
      */
     @PostMapping
-    public ResponseEntity<Result<SpecOperationRespond>> create(@PathVariable("product_id") Long productId,
+    public ResponseEntity<Result<Map<String, Long>>> create(@PathVariable("product_id") Long productId,
                                                                @RequestBody ProductSpecUpsertRequest req) {
         req.createValidate();
         ProductSpec spec = ProductSpec.create(productId, req.getSpecCode(), req.getSpecName(), req.getSpecType(),
                 Boolean.TRUE.equals(req.getIsRequired()), 0, true, buildSpecI18n(req.getI18nList()), List.of());
         Long specId = productSpecService.create(productId, spec);
-        SpecOperationRespond respond = SpecOperationRespond.builder()
-                .productId(productId)
-                .specIds(List.of(specId))
-                .build();
-        return ResponseEntity.ok(Result.ok(respond));
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("spec_id", specId)));
     }
 
     /**
@@ -82,18 +78,14 @@ public class AdminSpecController {
      * @return 规格 ID
      */
     @PatchMapping
-    public ResponseEntity<Result<SpecOperationRespond>> update(@PathVariable("product_id") Long productId,
+    public ResponseEntity<Result<Map<String, Long>>> update(@PathVariable("product_id") Long productId,
                                                                @RequestBody ProductSpecUpsertRequest req) {
         req.updateValidate();
         List<ProductSpecI18n> i18nList = req.getI18nList() == null ? null : buildSpecI18n(req.getI18nList());
         boolean patchI18n = i18nList != null;
         Long specId = productSpecService.update(productId, req.getSpecId(), req.getSpecName(), req.getSpecType(),
                 req.getIsRequired(), null, null, i18nList, patchI18n);
-        SpecOperationRespond respond = SpecOperationRespond.builder()
-                .productId(productId)
-                .specIds(List.of(specId))
-                .build();
-        return ResponseEntity.ok(Result.ok(respond));
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("spec_id", specId)));
     }
 
     /**
