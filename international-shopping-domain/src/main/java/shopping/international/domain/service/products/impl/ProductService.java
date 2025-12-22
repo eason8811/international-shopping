@@ -12,6 +12,8 @@ import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.SkuType;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.service.products.IProductService;
@@ -41,8 +43,7 @@ public class ProductService implements IProductService {
     /**
      * 分页查询商品
      *
-     * @param page           页码, 从 1 开始
-     * @param size           页大小
+     * @param pageQuery      分页查询条件
      * @param status         状态过滤, 可空
      * @param skuType        规格类型过滤, 可空
      * @param categoryId     分类过滤, 可空
@@ -52,9 +53,9 @@ public class ProductService implements IProductService {
      * @return 分页结果
      */
     @Override
-    public @NotNull PageResult page(int page, int size, @Nullable ProductStatus status, @Nullable SkuType skuType,
-                                    @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted) {
-        int offset = Math.max(0, (page - 1) * size);
+    public @NotNull PageResult<Product> page(PageQuery pageQuery, @Nullable ProductStatus status, @Nullable SkuType skuType,
+                                             @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted) {
+        pageQuery.validate();
         List<Product> items = productRepository.list(
                 status,
                 skuType,
@@ -62,8 +63,8 @@ public class ProductService implements IProductService {
                 keyword == null ? null : keyword.strip(),
                 tag == null ? null : tag.strip(),
                 includeDeleted,
-                offset,
-                size
+                pageQuery.offset(),
+                pageQuery.limit()
         );
         long total = productRepository.count(
                 status,
@@ -73,7 +74,10 @@ public class ProductService implements IProductService {
                 tag == null ? null : tag.strip(),
                 includeDeleted
         );
-        return new PageResult(items, total);
+        return PageResult.<Product>builder()
+                .items(items)
+                .total(total)
+                .build();
     }
 
     /**
@@ -188,13 +192,13 @@ public class ProductService implements IProductService {
     /**
      * 更新商品多语言
      *
-     * @param productId  商品 ID
-     * @param locale     语言代码
-     * @param title      新标题, 可空
-     * @param subtitle   新副标题, 可空
+     * @param productId   商品 ID
+     * @param locale      语言代码
+     * @param title       新标题, 可空
+     * @param subtitle    新副标题, 可空
      * @param description 新描述, 可空
-     * @param slug       新 slug, 可空
-     * @param tags       新标签, 可空
+     * @param slug        新 slug, 可空
+     * @param tags        新标签, 可空
      * @return 更新后的多语言
      */
     @Override

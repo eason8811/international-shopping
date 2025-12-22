@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import shopping.international.domain.adapter.repository.products.ICategoryRepository;
 import shopping.international.domain.model.aggregate.products.Category;
 import shopping.international.domain.model.enums.products.CategoryStatus;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.domain.service.products.ICategoryService;
 import shopping.international.types.exceptions.ConflictException;
@@ -43,8 +45,7 @@ public class CategoryService implements ICategoryService {
     /**
      * 分页筛选分类 (管理侧)
      *
-     * @param page            页码, 从 1 开始
-     * @param size            页大小
+     * @param pageQuery       分页查询条件
      * @param parentSpecified 是否按父级过滤
      * @param parentId        父级 ID, 可空
      * @param keyword         关键词, 可空
@@ -52,15 +53,18 @@ public class CategoryService implements ICategoryService {
      * @return 分页结果
      */
     @Override
-    public @NotNull PageResult list(int page, int size, boolean parentSpecified, @Nullable Long parentId,
-                                    @Nullable String keyword, @Nullable Boolean isEnabled) {
-        int offset = (page - 1) * size;
+    public @NotNull PageResult<Category> list(PageQuery pageQuery, boolean parentSpecified, @Nullable Long parentId,
+                                              @Nullable String keyword, @Nullable Boolean isEnabled) {
+        pageQuery.validate();
         CategoryStatus status = isEnabled == null ? null : (isEnabled ? CategoryStatus.ENABLED : CategoryStatus.DISABLED);
         String trimmedKeyword = keyword == null ? null : keyword.strip();
 
-        List<Category> items = categoryRepository.list(parentId, parentSpecified, trimmedKeyword, status, offset, size);
+        List<Category> items = categoryRepository.list(parentId, parentSpecified, trimmedKeyword, status, pageQuery.offset(), pageQuery.limit());
         long total = categoryRepository.count(parentId, parentSpecified, trimmedKeyword, status);
-        return new PageResult(items, total);
+        return PageResult.<Category>builder()
+                .items(items)
+                .total(total)
+                .build();
     }
 
     /**

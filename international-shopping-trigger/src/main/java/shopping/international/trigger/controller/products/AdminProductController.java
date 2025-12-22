@@ -17,6 +17,8 @@ import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
@@ -66,21 +68,18 @@ public class AdminProductController {
                                                                 @RequestParam(name = "keyword", required = false) String keyword,
                                                                 @RequestParam(name = "tag", required = false) String tag,
                                                                 @RequestParam(name = "include_deleted", defaultValue = "false") boolean includeDeleted) {
-        if (page < 1)
-            page = 1;
-        if (size > 100)
-            size = 100;
+        PageQuery pageQuery = PageQuery.of(page, size, 100);
         if (keyword != null)
             requireNotBlank(keyword, "keyword 不能为空");
         if (tag != null)
             requireNotBlank(tag, "tag 不能为空");
-        IProductService.PageResult pageResult = productService.page(page, size, status, skuType, categoryId, keyword, tag, includeDeleted);
+        PageResult<Product> pageResult = productService.page(pageQuery, status, skuType, categoryId, keyword, tag, includeDeleted);
         List<ProductSpuRespond> data = pageResult.items().stream()
                 .map(this::toSpuRespond)
                 .toList();
         Result.Meta meta = Result.Meta.builder()
-                .page(page)
-                .size(size)
+                .page(pageQuery.page())
+                .size(pageQuery.size())
                 .total(pageResult.total())
                 .build();
         return ResponseEntity.ok(Result.ok(data, meta));

@@ -12,6 +12,8 @@ import shopping.international.api.resp.products.LikeStateRespond;
 import shopping.international.api.resp.products.ProductImageRespond;
 import shopping.international.api.resp.products.ProductSpuRespond;
 import shopping.international.domain.model.enums.products.ProductSort;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.ProductPublicSnapshot;
 import shopping.international.domain.model.vo.products.ProductSearchCriteria;
 import shopping.international.domain.service.products.IProductLikeService;
@@ -98,7 +100,8 @@ public class ProductLikeController {
                 .sort(ProductSort.LATEST)
                 .tags(Collections.emptyList())
                 .build();
-        IProductQueryService.PageResult pageResult = productQueryService.pageUserLikes(userId, req.getPage(), req.getSize(), criteria);
+        PageQuery pageQuery = PageQuery.of(req.getPage(), req.getSize(), 200);
+        PageResult<ProductPublicSnapshot> pageResult = productQueryService.pageUserLikes(userId, pageQuery, criteria);
         List<ProductSpuRespond> data = pageResult.items().stream()
                 .map(this::toSpuRespond)
                 .toList();

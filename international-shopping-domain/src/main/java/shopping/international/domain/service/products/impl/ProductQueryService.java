@@ -12,6 +12,8 @@ import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuStatus;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.ProductPublicSnapshot;
 import shopping.international.domain.model.vo.products.ProductSearchCriteria;
 import shopping.international.domain.service.products.IProductQueryService;
@@ -40,40 +42,40 @@ public class ProductQueryService implements IProductQueryService {
     /**
      * 分页查询上架商品
      *
-     * @param page     页码, 从 1 开始
-     * @param size     每页数量
-     * @param criteria 查询条件
+     * @param pageQuery 分页查询条件
+     * @param criteria  查询条件
      * @return 分页结果
      */
     @Override
-    public @NotNull PageResult pageOnSale(int page, int size, @NotNull ProductSearchCriteria criteria) {
+    public @NotNull PageResult<ProductPublicSnapshot> pageOnSale(PageQuery pageQuery, @NotNull ProductSearchCriteria criteria) {
         criteria.validate();
-        int safePage = Math.max(page, 1);
-        int safeSize = Math.min(Math.max(size, 1), 100);
-        int offset = (safePage - 1) * safeSize;
-        List<ProductPublicSnapshot> items = productRepository.pageOnSale(criteria, offset, safeSize);
+        pageQuery.validate();
+        List<ProductPublicSnapshot> items = productRepository.pageOnSale(criteria, pageQuery.offset(), pageQuery.limit());
         long total = productRepository.countOnSale(criteria);
-        return PageResult.builder().items(items).total(total).build();
+        return PageResult.<ProductPublicSnapshot>builder()
+                .items(items)
+                .total(total)
+                .build();
     }
 
     /**
      * 分页查询用户点赞的商品
      *
-     * @param userId   用户 ID
-     * @param page     页码, 从 1 开始
-     * @param size     每页数量
-     * @param criteria 查询条件
+     * @param userId    用户 ID
+     * @param pageQuery 分页查询条件
+     * @param criteria  查询条件
      * @return 分页结果
      */
     @Override
-    public @NotNull PageResult pageUserLikes(@NotNull Long userId, int page, int size, @NotNull ProductSearchCriteria criteria) {
+    public @NotNull PageResult<ProductPublicSnapshot> pageUserLikes(@NotNull Long userId, PageQuery pageQuery, @NotNull ProductSearchCriteria criteria) {
         criteria.validate();
-        int safePage = Math.max(page, 1);
-        int safeSize = Math.min(Math.max(size, 1), 100);
-        int offset = (safePage - 1) * safeSize;
-        List<ProductPublicSnapshot> items = productRepository.pageUserLikes(userId, criteria, offset, safeSize);
+        pageQuery.validate();
+        List<ProductPublicSnapshot> items = productRepository.pageUserLikes(userId, criteria, pageQuery.offset(), pageQuery.limit());
         long total = productRepository.countUserLikes(userId, criteria);
-        return PageResult.builder().items(items).total(total).build();
+        return PageResult.<ProductPublicSnapshot>builder()
+                .items(items)
+                .total(total)
+                .build();
     }
 
     /**

@@ -6,6 +6,8 @@ import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuType;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
 
@@ -21,8 +23,7 @@ public interface IProductService {
     /**
      * 分页查询商品
      *
-     * @param page           页码, 从 1 开始
-     * @param size           页大小
+     * @param pageQuery      分页查询条件
      * @param status         状态过滤, 可空
      * @param skuType        规格类型过滤, 可空
      * @param categoryId     分类过滤, 可空
@@ -32,8 +33,8 @@ public interface IProductService {
      * @return 分页结果
      */
     @NotNull
-    PageResult page(int page, int size, @Nullable ProductStatus status, @Nullable SkuType skuType,
-                    @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted);
+    PageResult<Product> page(PageQuery pageQuery, @Nullable ProductStatus status, @Nullable SkuType skuType,
+                             @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted);
 
     /**
      * 查询管理侧商品详情
@@ -110,13 +111,13 @@ public interface IProductService {
     /**
      * 更新商品多语言
      *
-     * @param productId  商品 ID
-     * @param locale     语言代码
-     * @param title      新标题, 可空
-     * @param subtitle   新副标题, 可空
+     * @param productId   商品 ID
+     * @param locale      语言代码
+     * @param title       新标题, 可空
+     * @param subtitle    新副标题, 可空
      * @param description 新描述, 可空
-     * @param slug       新 slug, 可空
-     * @param tags       新标签, 可空
+     * @param slug        新 slug, 可空
+     * @param tags        新标签, 可空
      * @return 更新后的多语言
      */
     @NotNull
@@ -141,14 +142,5 @@ public interface IProductService {
      * @param skus         SKU 列表
      */
     record ProductDetail(@NotNull Product product, @Nullable String categorySlug, @NotNull List<Sku> skus) {
-    }
-
-    /**
-     * 简单分页结果
-     *
-     * @param items 当前页元素
-     * @param total 总数
-     */
-    record PageResult(@NotNull List<Product> items, long total) {
     }
 }

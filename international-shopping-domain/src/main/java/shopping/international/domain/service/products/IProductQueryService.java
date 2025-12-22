@@ -1,10 +1,11 @@
 package shopping.international.domain.service.products;
 
-import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.aggregate.products.Sku;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.ProductPublicSnapshot;
 import shopping.international.domain.model.vo.products.ProductSearchCriteria;
 
@@ -18,37 +19,25 @@ import java.util.List;
 public interface IProductQueryService {
 
     /**
-     * 分页结果
-     *
-     * @param items 商品快照列表
-     * @param total 总数
-     */
-    @Builder
-    record PageResult(@NotNull List<ProductPublicSnapshot> items, long total) {
-    }
-
-    /**
      * 分页查询上架商品
      *
-     * @param page     页码, 从 1 开始
-     * @param size     每页数量
-     * @param criteria 查询条件
+     * @param pageQuery 分页查询条件
+     * @param criteria  查询条件
      * @return 分页结果
      */
     @NotNull
-    PageResult pageOnSale(int page, int size, @NotNull ProductSearchCriteria criteria);
+    PageResult<ProductPublicSnapshot> pageOnSale(PageQuery pageQuery, @NotNull ProductSearchCriteria criteria);
 
     /**
      * 分页查询用户点赞的商品
      *
-     * @param userId   用户 ID
-     * @param page     页码, 从 1 开始
-     * @param size     每页数量
-     * @param criteria 查询条件
+     * @param userId    用户 ID
+     * @param pageQuery 分页查询条件
+     * @param criteria  查询条件
      * @return 分页结果
      */
     @NotNull
-    PageResult pageUserLikes(@NotNull Long userId, int page, int size, @NotNull ProductSearchCriteria criteria);
+    PageResult<ProductPublicSnapshot> pageUserLikes(@NotNull Long userId, PageQuery pageQuery, @NotNull ProductSearchCriteria criteria);
 
     /**
      * 商品详情读模型

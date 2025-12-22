@@ -1,5 +1,6 @@
 package shopping.international.domain.model.vo;
 
+import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
  * @param total 总数
  * @param <T>   元素类型
  */
+@Builder
 public record PageResult<T>(@NotNull List<T> items, long total) {
 
     /**

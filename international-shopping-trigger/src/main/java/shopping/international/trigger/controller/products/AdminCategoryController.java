@@ -14,6 +14,8 @@ import shopping.international.api.resp.products.AdminCategoryNodeRespond;
 import shopping.international.api.resp.products.CategoryOperationRespond;
 import shopping.international.domain.model.aggregate.products.Category;
 import shopping.international.domain.model.enums.products.CategoryStatus;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 import shopping.international.domain.service.products.ICategoryService;
 import shopping.international.types.constant.SecurityConstants;
@@ -62,15 +64,14 @@ public class AdminCategoryController {
             @RequestParam(value = "is_enabled", required = false) @Nullable Boolean isEnabled,
             HttpServletRequest request) {
         boolean parentSpecified = request.getParameterMap().containsKey("parent_id");
-        int safePage = page <= 0 ? 1 : page;
-        int safeSize = size <= 0 ? 20 : size;
-        ICategoryService.PageResult result = categoryService.list(safePage, safeSize, parentSpecified, parentId, keyword, isEnabled);
+        PageQuery pageQuery = PageQuery.of(page, size, 100);
+        PageResult<Category> result = categoryService.list(pageQuery, parentSpecified, parentId, keyword, isEnabled);
         List<AdminCategoryNodeRespond> nodes = result.items().stream()
                 .map(this::toAdminNode)
                 .collect(Collectors.toList());
         Result.Meta meta = Result.Meta.builder()
-                .page(safePage)
-                .size(safeSize)
+                .page(pageQuery.page())
+                .size(pageQuery.size())
                 .total(result.total())
                 .build();
         return ResponseEntity.ok(Result.ok(nodes, meta));

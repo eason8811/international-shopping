@@ -15,6 +15,8 @@ import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.*;
 import shopping.international.domain.service.products.IProductQueryService;
 import shopping.international.types.constant.SecurityConstants;
@@ -58,13 +60,14 @@ public class ProductController {
                 .priceMax(req.getPriceMax())
                 .sort(req.getSortBy())
                 .build();
-        IProductQueryService.PageResult pageResult = productQueryService.pageOnSale(req.getPage(), req.getSize(), criteria);
+        PageQuery pageQuery = PageQuery.of(req.getPage(), req.getSize(), 200);
+        PageResult<ProductPublicSnapshot> pageResult = productQueryService.pageOnSale(pageQuery, criteria);
         List<ProductSpuRespond> data = pageResult.items().stream()
                 .map(this::toSpuRespond)
                 .toList();
         Result.Meta meta = Result.Meta.builder()
-                .page(req.getPage())
-                .size(req.getSize())
+                .page(pageQuery.page())
+                .size(pageQuery.size())
                 .total(pageResult.total())
                 .build();
         return ResponseEntity.ok(Result.ok(data, meta));

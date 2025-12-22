@@ -5,6 +5,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.adapter.repository.products.ICategoryRepository;
 import shopping.international.domain.model.aggregate.products.Category;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.CategoryI18n;
 
 import java.util.List;
@@ -16,16 +18,6 @@ import java.util.List;
  * 与持久化层交互, 聚焦领域规则校验与聚合行为编排</p>
  */
 public interface ICategoryService {
-
-    /**
-     * 简单分页结构
-     *
-     * @param items 当前页的分类列表
-     * @param total 满足筛选条件的总数
-     */
-    @Builder
-    record PageResult(List<Category> items, long total) {
-    }
 
     /**
      * 多语言增量更新命令
@@ -50,8 +42,7 @@ public interface ICategoryService {
     /**
      * 分页筛选分类 (管理侧)
      *
-     * @param page            页码, 从 1 开始
-     * @param size            页大小
+     * @param pageQuery       分页查询条件
      * @param parentSpecified 是否按父级过滤
      * @param parentId        父级 ID, 可空
      * @param keyword         关键词, 可空
@@ -59,8 +50,8 @@ public interface ICategoryService {
      * @return 分页结果
      */
     @NotNull
-    PageResult list(int page, int size, boolean parentSpecified, @Nullable Long parentId,
-                    @Nullable String keyword, @Nullable Boolean isEnabled);
+    PageResult<Category> list(PageQuery pageQuery, boolean parentSpecified, @Nullable Long parentId,
+                              @Nullable String keyword, @Nullable Boolean isEnabled);
 
     /**
      * 获取分类详情
