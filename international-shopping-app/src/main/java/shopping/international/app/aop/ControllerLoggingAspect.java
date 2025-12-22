@@ -3,6 +3,7 @@ package shopping.international.app.aop;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -13,20 +14,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Aspect
 @Component
+@RequiredArgsConstructor
 public class ControllerLoggingAspect {
 
     /**
      * <p>对象映射器, 用于序列化和反序列化 Java 对象到 JSON 格式以及从 JSON 格式转换回 Java 对象</p>
      */
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     /**
      * 匹配 trigger.controller 包及其子包内的所有公共方法
@@ -45,6 +44,8 @@ public class ControllerLoggingAspect {
     @Around("controllerMethods()")
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
+        List<String> methodClassNamePartList = Arrays.asList(joinPoint.getSignature().getDeclaringType().getName().split("\\."));
+        String methodClassSimpledName = String.join(".", methodClassNamePartList.subList(2, methodClassNamePartList.size()));
         Method method = methodSignature.getMethod();
         String methodName = method.getName();
 
@@ -54,7 +55,7 @@ public class ControllerLoggingAspect {
         // 入参日志
         String inKv = buildInKv(paramNames, args);
         if (log.isInfoEnabled())
-            log.debug("正在执行 [{}] 方法, 参数为: {}", methodName, inKv.isEmpty() ? "-" : inKv);
+            log.debug("正在执行 [{} # {}] 方法, 参数为: {}", methodClassSimpledName, methodName, inKv.isEmpty() ? "-" : inKv);
 
         long start = System.currentTimeMillis();
         Object ret = joinPoint.proceed();
@@ -63,7 +64,7 @@ public class ControllerLoggingAspect {
         // 出参日志（统一以 result=... 打印）
         String outKv = "result=" + toStringSafe(sanitize(ret));
         if (log.isInfoEnabled()) {
-            log.debug("方法结束 [{}] 耗时 {} ms, 输出参数为: {}", methodName, end - start, outKv);
+            log.debug("方法结束 [{} # {}] 耗时 {} ms, 输出参数为: {}", methodClassSimpledName, methodName, end - start, outKv);
         }
         return ret;
     }
