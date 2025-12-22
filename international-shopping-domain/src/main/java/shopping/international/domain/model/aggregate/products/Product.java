@@ -409,7 +409,7 @@ public class Product implements Verifiable {
                     "上架商品仅能下架或删除");
             case OFF_SHELF -> require(newStatus == ProductStatus.ON_SALE || newStatus == ProductStatus.DELETED,
                     "下架商品仅能重新上架或删除");
-            case DELETED -> throw new IllegalParamException("已删除商品不能再次流转");
+            case DELETED -> require(newStatus == ProductStatus.DRAFT, "已删除商品仅能还原为草稿");
             default -> throw new IllegalParamException("未知商品状态: " + this.status);
         }
         this.status = newStatus;
