@@ -244,6 +244,8 @@ public class ProductRepository implements IProductRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Product updateBasic(@NotNull Product product, boolean replaceGallery) {
+        categoryRepository.findById(product.getCategoryId())
+                .orElseThrow(() -> new ConflictException("分类不存在"));
         LambdaUpdateWrapper<ProductPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ProductPO::getId, product.getId())
                 .set(ProductPO::getSlug, product.getSlug())
@@ -357,7 +359,7 @@ public class ProductRepository implements IProductRepository {
                                        @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag,
                                        boolean includeDeleted, int offset, int limit) {
         List<ProductPO> pos = productMapper.selectAdminAggregatePage(
-                status,
+                status == null ? null : status.name(),
                 skuType == null ? null : skuType.name(),
                 categoryId,
                 keyword,
@@ -416,7 +418,7 @@ public class ProductRepository implements IProductRepository {
     public long count(@Nullable ProductStatus status, @Nullable SkuType skuType,
                       @Nullable Long categoryId, @Nullable String keyword, @Nullable String tag, boolean includeDeleted) {
         Long total = productMapper.countAdminAggregatePage(
-                status,
+                status == null ? null : status.name(),
                 skuType == null ? null : skuType.name(),
                 categoryId,
                 keyword,

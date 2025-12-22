@@ -188,6 +188,7 @@ public class Product implements Verifiable {
                                  SkuType skuType, ProductStatus status, List<String> tags,
                                  List<ProductImage> gallery, List<ProductSpec> specs, List<ProductI18n> i18nList) {
         require(status != ProductStatus.ON_SALE, "新建商品不能直接上架, 请先创建至少一个启用 SKU 后再上架");
+        require(status != ProductStatus.DELETED, "不能新建一个已删除的商品");
         return new Product(null, slug, title, subtitle, description, categoryId, brand, coverImageUrl,
                 0, 0, skuType == null ? SkuType.SINGLE : skuType,
                 status == null ? ProductStatus.DRAFT : status, null, tags, gallery, specs, i18nList,
