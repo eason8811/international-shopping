@@ -111,19 +111,15 @@ public class SkuService implements ISkuService {
         if (images != null)
             sku.replaceImages(images);
 
-        boolean hasEnabledSkuAfter = product.getStatus() != ProductStatus.ON_SALE
-                || skuRepository.existsByProductIdAndStatus(productId, SkuStatus.ENABLED);
-        boolean defaultChanged = product.onSkuUpdated(sku, hasEnabledSkuAfter);
-
-        if (isDefault != null) {
-            skuRepository.markDefault(productId, isDefault ? skuId : null);
-        } else if (defaultChanged) {
-            skuRepository.markDefault(productId, product.getDefaultSkuId());
-        }
-
         Sku updated = skuRepository.updateBasic(sku, images != null);
         if (stock != null)
             refreshProductStock(productId);
+
+        boolean hasEnabledSkuAfter = skuRepository.existsByProductIdAndStatus(productId, SkuStatus.ENABLED);
+        boolean defaultChanged = product.onSkuUpdated(sku, hasEnabledSkuAfter);
+
+        if (defaultChanged)
+            skuRepository.markDefault(productId, product.getDefaultSkuId());
         return updated;
     }
 

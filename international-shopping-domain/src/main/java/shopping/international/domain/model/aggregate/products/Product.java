@@ -240,10 +240,11 @@ public class Product implements Verifiable {
      * @param skuType       新规格类型, 为空则忽略
      * @param status        新商品状态, 为空则忽略
      * @param tags          新标签列表, 为空则忽略
+     * @param skus          商品下的 SKU 列表（用于校验/同步）
      */
     public void updateBasic(String slug, String title, String subtitle, String description,
                             Long categoryId, String brand, String coverImageUrl,
-                            SkuType skuType, ProductStatus status, List<String> tags) {
+                            SkuType skuType, ProductStatus status, List<String> tags, List<Sku> skus) {
         if (slug != null) {
             requireNotBlank(slug, "商品 slug 不能为空");
             this.slug = slug.strip();
@@ -265,7 +266,7 @@ public class Product implements Verifiable {
         if (skuType != null)
             this.skuType = skuType;
         if (status != null)
-            changeStatus(status);
+            changeStatus(status, skus);
         if (tags != null)
             this.tags = normalizeTags(tags);
     }

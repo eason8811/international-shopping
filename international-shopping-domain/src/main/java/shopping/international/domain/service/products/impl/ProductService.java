@@ -139,11 +139,8 @@ public class ProductService implements IProductService {
                                         @Nullable String brand, @Nullable String coverImageUrl, @Nullable SkuType skuType,
                                         @Nullable ProductStatus status, @Nullable List<String> tags) {
         Product product = ensureProduct(productId);
-        product.updateBasic(slug, title, subtitle, description, categoryId, brand, coverImageUrl, skuType, null, tags);
-        if (status != null) {
-            List<Sku> skus = skuRepository.listByProductId(productId, null);
-            product.changeStatus(status, skus);
-        }
+        List<Sku> skus = skuRepository.listByProductId(productId, null);
+        product.updateBasic(slug, title, subtitle, description, categoryId, brand, coverImageUrl, skuType, status, tags, skus);
         Product updated = productRepository.updateBasic(product, false);
         if (status != null && (product.getStatus() == ProductStatus.OFF_SHELF || product.getStatus() == ProductStatus.DELETED)) {
             skuRepository.updateStatusByProductId(productId, SkuStatus.DISABLED);

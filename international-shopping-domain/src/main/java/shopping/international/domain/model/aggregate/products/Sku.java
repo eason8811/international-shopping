@@ -184,22 +184,22 @@ public class Sku implements Verifiable {
      * @param barcode    条码, 为空则忽略
      */
     public void updateBasic(String skuCode, BigDecimal weight, SkuStatus status, Boolean defaultSku, String barcode) {
-        String normalizedSkuCode = skuCode != null ? normalizeNullableField(skuCode, "SKU 编码不能为空", s -> true, null) : null;
-        String normalizedBarcode = barcode != null ? normalizeNullableField(barcode, "条码不能为空", s -> true, null) : null;
-
-        SkuStatus targetStatus = status != null ? status : this.status;
-        boolean targetDefaultSku = defaultSku != null ? defaultSku : this.defaultSku;
-        if (targetStatus == SkuStatus.DISABLED)
-            targetDefaultSku = false;
-        require(!targetDefaultSku || targetStatus == SkuStatus.ENABLED, "默认 SKU 必须为启用状态");
+        String normalizedSkuCode = normalizeNullableField(skuCode, "SKU 编码不能为空", s -> true, null);
+        String normalizedBarcode = normalizeNullableField(barcode, "条码不能为空", s -> true, null);
 
         if (normalizedSkuCode != null)
             this.skuCode = normalizedSkuCode;
         if (weight != null)
             this.weight = weight;
-        if (status != null)
+        if (status != null) {
+            if (SkuStatus.DISABLED.equals(status))
+                defaultSku = false;
             this.status = status;
-        this.defaultSku = targetDefaultSku;
+        }
+        if (defaultSku != null) {
+            require(!defaultSku || !SkuStatus.DISABLED.equals(this.status), "默认 SKU 必须为启用状态");
+            this.defaultSku = defaultSku;
+        }
         if (normalizedBarcode != null)
             this.barcode = normalizedBarcode;
     }
