@@ -40,6 +40,10 @@ public class ProductSpecValueUpsertRequest implements Verifiable {
     @Nullable
     private Map<String, Object> attributes;
     /**
+     * 排序值 (小在前)
+     */
+    private Integer sortOrder;
+    /**
      * 是否启用规格值
      */
     @Nullable
@@ -80,7 +84,8 @@ public class ProductSpecValueUpsertRequest implements Verifiable {
         require(valueId == null, "新增时规格值 ID 不能指定");
         valueCode = normalizeNotNullField(valueCode, "规格值编码不能为空", v -> v.length() <= 64, "规格值编码长度不能超过 64 个字符");
         valueName = normalizeNotNullField(valueName, "规格值名称不能为空", v -> v.length() <= 64, "规格值名称长度不能超过 64 个字符");
-        requireNotNull(isEnabled, "是否启用规格值不能为空");
+        sortOrder = sortOrder == null || sortOrder < 0 ? 0 : sortOrder;
+        isEnabled = isEnabled == null || isEnabled;
         validate();
     }
 
@@ -102,6 +107,8 @@ public class ProductSpecValueUpsertRequest implements Verifiable {
         require(valueId > 0, "更新时规格值 ID 必须大于 0");
         valueCode = normalizeNullableField(valueCode, "valueCode 不能为空", v -> v.length() <= 64, "规格值编码长度不能超过 64 个字符");
         valueName = normalizeNullableField(valueName, "valueName 不能为空", v -> v.length() <= 64, "规格值名称长度不能超过 64 个字符");
+        if (sortOrder != null)
+            sortOrder = sortOrder < 0 ? 0 : sortOrder;
         validate();
     }
 }

@@ -14,23 +14,17 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class AdminSpecValueRespond extends AbstractSpecValueRespond {
     /**
+     * 排序值 (小在前)
+     */
+    private int sortOrder;
+    /**
+     * 是否启用
+     */
+    private boolean enabled;
+    /**
      * 规格值多语言列表
      */
     private List<SpecValueI18nPayloadRespond> i18nList;
-
-    /**
-     * 构造一个 AdminSpecValueRespond 实例, 该实例用于表示规格值的响应信息, 包括多语言支持
-     *
-     * @param valueId    规格值 ID
-     * @param valueCode  规规值代码
-     * @param valueName  规格值名称
-     * @param attributes 规格值属性, 可以是任何对象
-     * @param i18nList   规格值的多语言信息列表, 每个元素为 {@link AdminSpecValueRespond.SpecValueI18nPayloadRespond} 类型
-     */
-    private AdminSpecValueRespond(Long valueId, String valueCode, String valueName, Object attributes, List<SpecValueI18nPayloadRespond> i18nList) {
-        super(valueId, valueCode, valueName, attributes);
-        this.i18nList = i18nList;
-    }
 
     /**
      * 规格值多语言响应 SpecValueI18nRespond

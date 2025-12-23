@@ -389,6 +389,8 @@ public class AdminProductController {
                 .specName(spec.getSpecName())
                 .specType(spec.getSpecType())
                 .isRequired(spec.isRequired())
+                .sortOrder(spec.getSortOrder())
+                .enabled(spec.isEnabled())
                 .values(values)
                 .i18nList(i18n)
                 .build();
@@ -412,6 +414,8 @@ public class AdminProductController {
                 .valueCode(value.getValueCode())
                 .valueName(value.getValueName())
                 .attributes(value.getAttributes())
+                .sortOrder(value.getSortOrder())
+                .enabled(value.isEnabled())
                 .i18nList(i18n)
                 .build();
     }

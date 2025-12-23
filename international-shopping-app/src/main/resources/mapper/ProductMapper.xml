@@ -33,7 +33,7 @@
         <result column="status" property="status"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
-        <collection property="i18nList" resultMap="ProductSpecValueI18nResultMap" columnPrefix="value_i18n_"/>
+        <collection property="i18nList" resultMap="ProductSpecValueI18nResultMap" columnPrefix="i18n_"/>
     </resultMap>
 
     <!-- 规格多语言 -->
@@ -46,16 +46,16 @@
 
     <!-- 规格 -->
     <resultMap id="ProductSpecResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecPO">
-        <id column="id" property="id"/>
-        <result column="product_id" property="productId"/>
-        <result column="spec_code" property="specCode"/>
-        <result column="spec_name" property="specName"/>
-        <result column="spec_type" property="specType"/>
-        <result column="is_required" property="isRequired"/>
-        <result column="sort_order" property="sortOrder"/>
-        <result column="status" property="status"/>
-        <result column="created_at" property="createdAt"/>
-        <result column="updated_at" property="updatedAt"/>
+        <id column="spec_id" property="id"/>
+        <result column="spec_product_id" property="productId"/>
+        <result column="spec_spec_code" property="specCode"/>
+        <result column="spec_spec_name" property="specName"/>
+        <result column="spec_spec_type" property="specType"/>
+        <result column="spec_is_required" property="isRequired"/>
+        <result column="spec_sort_order" property="sortOrder"/>
+        <result column="spec_status" property="status"/>
+        <result column="spec_created_at" property="createdAt"/>
+        <result column="spec_updated_at" property="updatedAt"/>
         <collection property="i18nList" resultMap="ProductSpecI18nResultMap" columnPrefix="spec_i18n_"/>
         <collection property="values" resultMap="ProductSpecValueResultMap" columnPrefix="value_"/>
     </resultMap>
@@ -93,7 +93,7 @@
         <result column="product_created_at" property="createdAt"/>
         <result column="product_updated_at" property="updatedAt"/>
         <collection property="gallery" resultMap="ProductImageResultMap" columnPrefix="image_"/>
-        <collection property="specs" resultMap="ProductSpecResultMap" columnPrefix="spec_"/>
+        <collection property="specs" resultMap="ProductSpecResultMap"/>
         <collection property="i18nList" resultMap="ProductI18nResultMap" columnPrefix="product_i18n_"/>
     </resultMap>
 

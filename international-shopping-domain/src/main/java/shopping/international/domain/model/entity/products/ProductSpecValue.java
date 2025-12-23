@@ -36,7 +36,7 @@ public class ProductSpecValue implements Verifiable {
     /**
      * 规格值编码 (稳定唯一)
      */
-    private final String valueCode;
+    private String valueCode;
     /**
      * 规格值名称
      */
@@ -131,12 +131,17 @@ public class ProductSpecValue implements Verifiable {
     /**
      * 更新规格值基础信息
      *
+     * @param valueCode  规格值编码, null 时忽略
      * @param valueName  新名称, null 时忽略
      * @param attributes 新属性, null 时忽略
      * @param sortOrder  新排序, null 时忽略
      * @param enabled    新启用状态, null 时忽略
      */
-    public void update(String valueName, Map<String, Object> attributes, Integer sortOrder, Boolean enabled) {
+    public void update(String valueCode, String valueName, Map<String, Object> attributes, Integer sortOrder, Boolean enabled) {
+        if (valueCode != null) {
+            requireNotBlank(valueCode, "规格值编码不能为空");
+            this.valueCode = valueCode.strip();
+        }
         if (valueName != null) {
             requireNotBlank(valueName, "规格值名称不能为空");
             this.valueName = valueName.strip();

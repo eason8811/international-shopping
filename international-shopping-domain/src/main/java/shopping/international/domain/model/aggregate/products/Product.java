@@ -11,13 +11,16 @@ import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
+import shopping.international.domain.model.vo.products.ProductSpecI18n;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -351,11 +354,24 @@ public class Product implements Verifiable {
     public void addSpec(ProductSpec spec) {
         requireNotNull(spec, "规格不能为空");
         spec.validate();
+        for (ProductSpec productSpec : specs) {
+            require(!productSpec.getSpecCode().equalsIgnoreCase(spec.getSpecCode()), "规格编码已存在: " + spec.getSpecCode());
+            require(!productSpec.getSpecName().equalsIgnoreCase(spec.getSpecName()), "规格名称已存在: " + spec.getSpecName());
+        }
+        Map<String, List<String>> localeSpecI18nNameMap = specs.stream()
+                .map(ProductSpec::getI18nList)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(
+                        ProductSpecI18n::getLocale,
+                        Collectors.mapping(ProductSpecI18n::getSpecName, Collectors.toList())
+                ));
+        for (ProductSpecI18n i18n : spec.getI18nList())
+            require(!localeSpecI18nNameMap.get(i18n.getLocale()).contains(i18n.getSpecName()),
+                    i18n.getLocale() + " 语言的本地化的规格名称已存在: " + i18n.getSpecName());
+
         if (this.id != null)
             require(Objects.equals(this.id, spec.getProductId()), "规格所属商品不匹配");
         List<ProductSpec> mutable = new ArrayList<>(specs);
-        boolean exists = mutable.stream().anyMatch(item -> item.getSpecCode().equals(spec.getSpecCode()));
-        require(!exists, "规格编码已存在: " + spec.getSpecCode());
         mutable.add(spec);
         replaceSpecs(mutable);
     }
@@ -364,20 +380,40 @@ public class Product implements Verifiable {
      * 更新已有规格 (按 ID 定位, 为空字段不更新)
      *
      * @param specId    规格 ID
+     * @param specCode  新规格代码, null 则保留
      * @param specName  新名称, null 则保留
      * @param specType  新类型, null 则保留
      * @param required  是否必选, null 则保留
      * @param sortOrder 排序, null 则保留
      * @param enabled   启用状态, null 则保留
+     * @param i18nList  多语言列表, 可空
      */
-    public void updateSpec(Long specId, String specName, SpecType specType, Boolean required, Integer sortOrder, Boolean enabled) {
+    public void updateSpec(Long specId, String specCode, String specName, SpecType specType, Boolean required,
+                           Integer sortOrder, Boolean enabled, List<ProductSpecI18n> i18nList) {
         requireNotNull(specId, "规格 ID 不能为空");
         List<ProductSpec> mutable = new ArrayList<>(specs);
         ProductSpec existing = mutable.stream()
                 .filter(item -> Objects.equals(item.getId(), specId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalParamException("规格不存在: " + specId));
-        existing.update(specName, specType, required, sortOrder, enabled);
+        for (ProductSpec productSpec : mutable) {
+            if (Objects.equals(productSpec.getId(), specId))
+                continue;
+            require(!productSpec.getSpecCode().equalsIgnoreCase(specCode), "规格编码已存在: " + specCode);
+            require(!productSpec.getSpecName().equalsIgnoreCase(specName), "规格名称已存在: " + specName);
+        }
+        Map<String, List<String>> localeSpecI18nNameMap = specs.stream()
+                .map(ProductSpec::getI18nList)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(
+                        ProductSpecI18n::getLocale,
+                        Collectors.mapping(ProductSpecI18n::getSpecName, Collectors.toList())
+                ));
+        for (ProductSpecI18n i18n : i18nList)
+            require(!localeSpecI18nNameMap.get(i18n.getLocale()).contains(i18n.getSpecName()),
+                    i18n.getLocale() + " 语言的本地化的规格名称已存在: " + i18n.getSpecName());
+        existing.update(specCode, specName, specType, required, sortOrder, enabled);
+        existing.replaceI18n(i18nList);
     }
 
     /**

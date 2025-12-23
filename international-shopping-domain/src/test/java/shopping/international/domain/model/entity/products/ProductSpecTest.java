@@ -54,7 +54,7 @@ class ProductSpecTest {
         ProductSpec spec = ProductSpec.reconstitute(10L, 1L, "color", "Color", SpecType.COLOR, true, 1, true,
                 List.of(ProductSpecI18n.of("en-US", "Color")), new ArrayList<>(List.of(value)));
 
-        spec.updateValue("v1", "NewValue", Map.of("tone", "dark"), 3, false);
+        spec.updateValue(spec.getId(), "v1", "NewValue", Map.of("tone", "dark"), 3, false, value.getI18nList());
         ProductSpecValue updated = spec.getValues().get(0);
         assertEquals("NewValue", updated.getValueName());
         assertEquals(3, updated.getSortOrder());

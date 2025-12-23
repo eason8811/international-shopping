@@ -6,12 +6,14 @@ import lombok.experimental.Accessors;
 import org.jetbrains.annotations.NotNull;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductSpecI18n;
+import shopping.international.domain.model.vo.products.ProductSpecValueI18n;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
@@ -36,7 +38,7 @@ public class ProductSpec implements Verifiable {
     /**
      * 规格编码 (稳定唯一, 如 color/capacity)
      */
-    private final String specCode;
+    private String specCode;
     /**
      * 规格名称 (默认语言)
      */
@@ -150,13 +152,18 @@ public class ProductSpec implements Verifiable {
     /**
      * 更新规格基本信息
      *
+     * @param specCode  新规格代码, null 则保留
      * @param specName  新名称, null 时忽略
      * @param specType  新类型, null 时忽略
      * @param required  是否必选, null 时忽略
      * @param sortOrder 排序值, null 时忽略
      * @param enabled   启用状态, null 时忽略
      */
-    public void update(String specName, SpecType specType, Boolean required, Integer sortOrder, Boolean enabled) {
+    public void update(String specCode, String specName, SpecType specType, Boolean required, Integer sortOrder, Boolean enabled) {
+        if (specCode != null) {
+            requireNotBlank(specCode, "规格代码不能为空");
+            this.specCode = specCode.strip();
+        }
         if (specName != null) {
             requireNotBlank(specName, "规格名称不能为空");
             this.specName = specName.strip();
@@ -268,20 +275,40 @@ public class ProductSpec implements Verifiable {
     /**
      * 更新指定编码的规格值信息
      *
+     * @param valueId    规格值 ID
      * @param valueCode  规格值编码, 不可为空
      * @param valueName  新规格值名称, 可以为空
      * @param attributes 规格值附加属性, 键值对形式存储
      * @param sortOrder  排序值, 用于确定规格值显示顺序, 可以为 null
      * @param enabled    是否启用该规格值, 可以为 null
+     * @param i18nList   多语言列表, 可空
      * @throws IllegalStateException 如果规格值不存在或规格值集合为 null 或 valueCode 为 null 或仅包含空白字符
      */
-    public void updateValue(String valueCode, String valueName, Map<String, Object> attributes, Integer sortOrder, Boolean enabled) {
-        requireNotBlank(valueCode, "规格值编码不能为空");
+    public void updateValue(Long valueId, String valueCode, String valueName, Map<String, Object> attributes,
+                            Integer sortOrder, Boolean enabled, List<ProductSpecValueI18n> i18nList) {
+        requireNotNull(valueId, "规格值 ID 不能为空");
         ProductSpecValue existing = values.stream()
-                .filter(v -> v.getValueCode().equals(valueCode))
+                .filter(v -> v.getId().equals(valueId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("规格值不存在: " + valueCode));
-        existing.update(valueName, attributes, sortOrder, enabled);
+        for (ProductSpecValue value : values) {
+            if (Objects.equals(value.getId(), valueId))
+                continue;
+            require(!value.getValueCode().equalsIgnoreCase(valueCode), "规格值编码已存在: " + valueCode);
+            require(!value.getValueName().equalsIgnoreCase(valueName), "规格值名称已存在: " + valueName);
+        }
+        Map<String, List<String>> localeSpecValueI18nNameMap = values.stream()
+                .map(ProductSpecValue::getI18nList)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(
+                        ProductSpecValueI18n::getLocale,
+                        Collectors.mapping(ProductSpecValueI18n::getValueName, Collectors.toList())
+                ));
+        for (ProductSpecValueI18n i18n : i18nList)
+            require(!localeSpecValueI18nNameMap.get(i18n.getLocale()).contains(i18n.getValueName()),
+                    i18n.getLocale() + " 语言的本地化的规格值名称已存在: " + i18n.getValueName());
+        existing.update(valueCode, valueName, attributes, sortOrder, enabled);
+        existing.replaceI18n(i18nList);
     }
 
     /**
@@ -292,9 +319,20 @@ public class ProductSpec implements Verifiable {
     public void addValue(ProductSpecValue newValue) {
         requireNotNull(newValue, "规格值不能为空");
         List<ProductSpecValue> mutable = new ArrayList<>(values);
-        boolean exists = mutable.stream().anyMatch(v -> v.getValueCode().equals(newValue.getValueCode()));
-        if (exists)
-            throw new IllegalStateException("规格值编码重复: " + newValue.getValueCode());
+        for (ProductSpecValue value : values) {
+            require(!value.getValueCode().equalsIgnoreCase(newValue.getValueCode()), "规格值编码已存在: " + newValue.getValueCode());
+            require(!value.getValueName().equalsIgnoreCase(newValue.getValueName()), "规格值名称已存在: " + newValue.getValueName());
+        }
+        Map<String, List<String>> localeSpecValueI18nNameMap = values.stream()
+                .map(ProductSpecValue::getI18nList)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(
+                        ProductSpecValueI18n::getLocale,
+                        Collectors.mapping(ProductSpecValueI18n::getValueName, Collectors.toList())
+                ));
+        for (ProductSpecValueI18n i18n : newValue.getI18nList())
+            require(!localeSpecValueI18nNameMap.get(i18n.getLocale()).contains(i18n.getValueName()),
+                    i18n.getLocale() + " 语言的本地化的规格值名称已存在: " + i18n.getValueName());
         newValue.bindProductId(this.productId);
         if (this.id != null)
             newValue.bindSpecId(this.id);

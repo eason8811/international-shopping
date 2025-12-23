@@ -43,6 +43,16 @@ public class ProductSpecUpsertRequest implements Verifiable {
     @Nullable
     private Boolean isRequired;
     /**
+     * 排序值 (小在前)
+     */
+    @Nullable
+    private Integer sortOrder;
+    /**
+     * 是否启用
+     */
+    @Nullable
+    private Boolean enabled;
+    /**
      * 规格多语言列表
      */
     @Nullable
@@ -81,6 +91,8 @@ public class ProductSpecUpsertRequest implements Verifiable {
         specName = normalizeNotNullField(specName, "规格名称不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
         requireNotNull(specType, "规格类型不能为空");
         requireNotNull(isRequired, "是否必选不能为空");
+        sortOrder = sortOrder == null || sortOrder < 0 ? 0 : sortOrder;
+        enabled = enabled == null || enabled;
         validate();
     }
 
@@ -103,6 +115,8 @@ public class ProductSpecUpsertRequest implements Verifiable {
         require(specId > 0, "规格 ID 非法");
         specCode = normalizeNullableField(specCode, "规格编码不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
         specName = normalizeNullableField(specName, "规格名称不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
+        if (sortOrder != null)
+            sortOrder = sortOrder < 0 ? 0 : sortOrder;
         validate();
     }
 }

@@ -62,10 +62,19 @@ public class AdminSpecController {
      */
     @PostMapping
     public ResponseEntity<Result<Map<String, Long>>> create(@PathVariable("product_id") Long productId,
-                                                               @RequestBody ProductSpecUpsertRequest req) {
+                                                            @RequestBody ProductSpecUpsertRequest req) {
         req.createValidate();
-        ProductSpec spec = ProductSpec.create(productId, req.getSpecCode(), req.getSpecName(), req.getSpecType(),
-                Boolean.TRUE.equals(req.getIsRequired()), 0, true, buildSpecI18n(req.getI18nList()), List.of());
+        ProductSpec spec = ProductSpec.create(
+                productId,
+                req.getSpecCode(),
+                req.getSpecName(),
+                req.getSpecType(),
+                Boolean.TRUE.equals(req.getIsRequired()),
+                req.getSortOrder(),
+                req.getEnabled(),
+                buildSpecI18n(req.getI18nList()),
+                List.of()
+        );
         Long specId = productSpecService.create(productId, spec);
         return ResponseEntity.ok(Result.ok(Collections.singletonMap("spec_id", specId)));
     }
@@ -79,12 +88,20 @@ public class AdminSpecController {
      */
     @PatchMapping
     public ResponseEntity<Result<Map<String, Long>>> update(@PathVariable("product_id") Long productId,
-                                                               @RequestBody ProductSpecUpsertRequest req) {
+                                                            @RequestBody ProductSpecUpsertRequest req) {
         req.updateValidate();
         List<ProductSpecI18n> i18nList = req.getI18nList() == null ? null : buildSpecI18n(req.getI18nList());
-        boolean patchI18n = i18nList != null;
-        Long specId = productSpecService.update(productId, req.getSpecId(), req.getSpecName(), req.getSpecType(),
-                req.getIsRequired(), null, null, i18nList, patchI18n);
+        Long specId = productSpecService.update(
+                productId,
+                req.getSpecId(),
+                req.getSpecCode(),
+                req.getSpecName(),
+                req.getSpecType(),
+                req.getIsRequired(),
+                req.getSortOrder(),
+                req.getEnabled(),
+                i18nList
+        );
         return ResponseEntity.ok(Result.ok(Collections.singletonMap("spec_id", specId)));
     }
 
@@ -137,9 +154,15 @@ public class AdminSpecController {
                                                                  @PathVariable("spec_id") Long specId,
                                                                  @RequestBody ProductSpecValueUpsertRequest req) {
         req.createValidate();
-        ProductSpecValue value = ProductSpecValue.create(productId, specId, req.getValueCode(), req.getValueName(),
-                req.getAttributes() == null ? Collections.emptyMap() : req.getAttributes(), 0,
-                Boolean.TRUE.equals(req.getIsEnabled()), buildSpecValueI18n(req.getI18nList()));
+        ProductSpecValue value = ProductSpecValue.create(
+                productId, specId,
+                req.getValueCode(),
+                req.getValueName(),
+                req.getAttributes() == null ? Collections.emptyMap() : req.getAttributes(),
+                req.getSortOrder(),
+                Boolean.TRUE.equals(req.getIsEnabled()),
+                buildSpecValueI18n(req.getI18nList())
+        );
         Long valueId = productSpecService.createValue(productId, specId, value);
         return ResponseEntity.ok(Result.ok(Collections.singletonMap("value_id", valueId)));
     }
@@ -158,9 +181,17 @@ public class AdminSpecController {
                                                                  @RequestBody ProductSpecValueUpsertRequest req) {
         req.updateValidate();
         List<ProductSpecValueI18n> i18nList = req.getI18nList() == null ? null : buildSpecValueI18n(req.getI18nList());
-        boolean patchI18n = i18nList != null;
-        Long valueId = productSpecService.updateValue(productId, specId, req.getValueId(), req.getValueCode(),
-                req.getValueName(), req.getAttributes(), null, req.getIsEnabled(), i18nList, patchI18n);
+        Long valueId = productSpecService.updateValue(
+                productId,
+                specId,
+                req.getValueId(),
+                req.getValueCode(),
+                req.getValueName(),
+                req.getAttributes(),
+                req.getSortOrder(),
+                req.getIsEnabled(),
+                i18nList
+        );
         return ResponseEntity.ok(Result.ok(Collections.singletonMap("value_id", valueId)));
     }
 
@@ -233,6 +264,8 @@ public class AdminSpecController {
                 .valueCode(value.getValueCode())
                 .valueName(value.getValueName())
                 .attributes(value.getAttributes())
+                .sortOrder(value.getSortOrder())
+                .enabled(value.isEnabled())
                 .i18nList(i18n)
                 .build();
     }

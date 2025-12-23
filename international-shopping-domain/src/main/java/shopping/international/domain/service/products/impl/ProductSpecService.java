@@ -69,27 +69,28 @@ public class ProductSpecService implements IProductSpecService {
     /**
      * 更新规格
      *
-     * @param productId   商品 ID
-     * @param specId      规格 ID
-     * @param specName    新规格名, 可空
-     * @param specType    新规格类型, 可空
-     * @param required    是否必选, 可空
-     * @param sortOrder   排序, 可空
-     * @param enabled     是否启用, 可空
-     * @param i18nList    多语言列表, 可空
-     * @param patchI18n 是否覆盖 i18n
+     * @param productId 商品 ID
+     * @param specId    规格 ID
+     * @param specCode  新规格代码, 可空
+     * @param specName  新规格名, 可空
+     * @param specType  新规格类型, 可空
+     * @param required  是否必选, 可空
+     * @param sortOrder 排序, 可空
+     * @param enabled   是否启用, 可空
+     * @param i18nList  多语言列表, 可空
      * @return 规格 ID
      */
     @Override
-    public @NotNull Long update(@NotNull Long productId, @NotNull Long specId, @Nullable String specName,
+    public @NotNull Long update(@NotNull Long productId, @NotNull Long specId, @Nullable String specCode, @Nullable String specName,
                                 @Nullable SpecType specType, @Nullable Boolean required, @Nullable Integer sortOrder,
-                                @Nullable Boolean enabled, @Nullable List<ProductSpecI18n> i18nList, boolean patchI18n) {
+                                @Nullable Boolean enabled, @Nullable List<ProductSpecI18n> i18nList) {
         Product product = ensureProduct(productId);
-        ProductSpec spec = ensureSpec(productId, specId);
-        product.updateSpec(specId, specName, specType, required, sortOrder, enabled);
-        if (patchI18n && i18nList != null)
-            spec.updateI18nBatch(i18nList);
-        ProductSpec updated = productSpecRepository.update(spec, patchI18n);
+        product.updateSpec(specId, specCode, specName, specType, required, sortOrder, enabled, i18nList);
+        ProductSpec spec = product.getSpecs().stream()
+                .filter(item -> Objects.equals(item.getId(), specId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("规格不存在"));
+        ProductSpec updated = productSpecRepository.update(spec, i18nList != null);
         return updated.getId();
     }
 
@@ -149,24 +150,20 @@ public class ProductSpecService implements IProductSpecService {
      * @param sortOrder   新排序, 可空
      * @param enabled     是否启用, 可空
      * @param i18nList    多语言列表, 可空
-     * @param patchI18n 是否覆盖 i18n
      * @return 规格值 ID
      */
     @Override
     public @NotNull Long updateValue(@NotNull Long productId, @NotNull Long specId, @NotNull Long valueId,
                                      @Nullable String valueCode, @Nullable String valueName, @Nullable Map<String, Object> attributes,
                                      @Nullable Integer sortOrder, @Nullable Boolean enabled,
-                                     @Nullable List<ProductSpecValueI18n> i18nList, boolean patchI18n) {
+                                     @Nullable List<ProductSpecValueI18n> i18nList) {
         ProductSpec spec = ensureSpec(productId, specId);
+        spec.updateValue(valueId, valueCode, valueName, attributes, sortOrder, enabled, i18nList);
         ProductSpecValue specValue = spec.getValues().stream()
                 .filter(item -> Objects.equals(item.getId(), valueId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalParamException("规格值不存在"));
-        String targetCode = valueCode == null ? specValue.getValueCode() : valueCode;
-        spec.updateValue(targetCode, valueName, attributes, sortOrder, enabled);
-        if (patchI18n && i18nList != null)
-            specValue.updateI18nBatch(i18nList);
-        ProductSpecValue updated = productSpecRepository.updateValue(specValue, patchI18n);
+        ProductSpecValue updated = productSpecRepository.updateValue(specValue, i18nList != null);
         return updated.getId();
     }
 

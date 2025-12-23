@@ -1,7 +1,6 @@
 package shopping.international.infrastructure.adapter.repository.products;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -86,7 +85,7 @@ public class ProductSpecRepository implements IProductSpecRepository {
         List<ProductSpecPO> specs = productSpecMapper.selectAggregateByProductId(productId);
         if (specs == null || specs.isEmpty())
             return Collections.emptyList();
-        return specs.stream().map(this::toSpec).toList();
+        return specs.stream().map(this::toSpec).sorted(Comparator.comparingInt(ProductSpec::getSortOrder)).toList();
     }
 
     /**
@@ -129,15 +128,18 @@ public class ProductSpecRepository implements IProductSpecRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull ProductSpec update(@NotNull ProductSpec spec, boolean replaceI18n) {
-        LambdaUpdateWrapper<ProductSpecPO> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ProductSpecPO::getId, spec.getId())
-                .set(ProductSpecPO::getSpecName, spec.getSpecName())
-                .set(ProductSpecPO::getSpecType, spec.getSpecType().name())
-                .set(ProductSpecPO::getIsRequired, spec.isRequired())
-                .set(ProductSpecPO::getSortOrder, spec.getSortOrder())
-                .set(ProductSpecPO::getStatus, spec.isEnabled() ? "ENABLED" : "DISABLED");
+        ProductSpecPO specPO = ProductSpecPO.builder()
+                .id(spec.getId())
+                .productId(spec.getProductId())
+                .specCode(spec.getSpecCode())
+                .specName(spec.getSpecName())
+                .specType(spec.getSpecType().name())
+                .isRequired(spec.isRequired())
+                .sortOrder(spec.getSortOrder())
+                .status(spec.isEnabled() ? "ENABLED" : "DISABLED")
+                .build();
         try {
-            productSpecMapper.update(null, wrapper);
+            productSpecMapper.updateById(specPO);
         } catch (DataIntegrityViolationException e) {
             throw new ConflictException("规格唯一约束冲突", e);
         }
@@ -183,7 +185,10 @@ public class ProductSpecRepository implements IProductSpecRepository {
     public @NotNull List<ProductSpecValue> listValues(@NotNull Long productId, @NotNull Long specId) {
         return findById(productId, specId)
                 .map(ProductSpec::getValues)
-                .orElse(Collections.emptyList());
+                .orElse(Collections.emptyList())
+                .stream()
+                .sorted(Comparator.comparingInt(ProductSpecValue::getSortOrder))
+                .toList();
     }
 
     /**
@@ -226,14 +231,19 @@ public class ProductSpecRepository implements IProductSpecRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull ProductSpecValue updateValue(@NotNull ProductSpecValue value, boolean replaceI18n) {
-        LambdaUpdateWrapper<ProductSpecValuePO> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ProductSpecValuePO::getId, value.getId())
-                .set(ProductSpecValuePO::getValueName, value.getValueName())
-                .set(ProductSpecValuePO::getAttributes, writeAttributes(value.getAttributes()))
-                .set(ProductSpecValuePO::getSortOrder, value.getSortOrder())
-                .set(ProductSpecValuePO::getStatus, value.isEnabled() ? "ENABLED" : "DISABLED");
+        ProductSpecValuePO valuePO = ProductSpecValuePO.builder()
+                .id(value.getId())
+                .productId(value.getProductId())
+                .specId(value.getSpecId())
+                .valueCode(value.getValueCode())
+                .valueName(value.getValueName())
+                .attributes(writeAttributes(value.getAttributes()))
+                .sortOrder(value.getSortOrder())
+                .status(value.isEnabled() ? "ENABLED" : "DISABLED")
+                .build();
+
         try {
-            productSpecValueMapper.update(null, wrapper);
+            productSpecValueMapper.updateById(valuePO);
         } catch (DataIntegrityViolationException e) {
             throw new ConflictException("规格值唯一约束冲突", e);
         }
