@@ -9,6 +9,8 @@ import shopping.international.domain.adapter.repository.products.IProductReposit
 import shopping.international.domain.adapter.repository.products.ISkuRepository;
 import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.aggregate.products.Sku;
+import shopping.international.domain.model.entity.products.ProductSpec;
+import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.StockAdjustMode;
@@ -16,12 +18,12 @@ import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
 import shopping.international.domain.service.products.ISkuService;
+import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -75,7 +77,50 @@ public class SkuService implements ISkuService {
                                @Nullable BigDecimal weight, @NotNull SkuStatus status, boolean isDefault,
                                @Nullable String barcode, @NotNull List<ProductPrice> prices,
                                @NotNull List<SkuSpecRelation> specs, @NotNull List<ProductImage> images) {
-        ensureProduct(productId);
+        Product product = ensureProduct(productId);
+        List<Sku> skuList = skuRepository.listByProductId(productId, null);
+
+        List<List<Long>> specValueGroupList = new ArrayList<>();
+        for (Sku sku : skuList) {
+            List<Long> valueList = sku.getSpecs().stream()
+                    .map(SkuSpecRelation::getValueId)
+                    .toList();
+            specValueGroupList.add(valueList);
+        }
+        List<Long> newSpecRelationValueIdList = specs.stream()
+                .map(SkuSpecRelation::getValueId)
+                .toList();
+        List<ProductSpec> requiredSpecList = product.getSpecs().stream()
+                .filter(ProductSpec::isRequired)
+                .toList();
+        Map<Long, ProductSpecValue> specValueByValueIdMap = product.getSpecs().stream()
+                .map(ProductSpec::getValues)
+                .flatMap(List::stream)
+                .collect(Collectors.toMap(ProductSpecValue::getId, Function.identity()));
+        if (requiredSpecList.size() > newSpecRelationValueIdList.size()) {
+            requiredSpecList.stream()
+                    .filter(spec -> !newSpecRelationValueIdList.contains(spec.getId()))
+                    .findFirst()
+                    .ifPresent(spec -> {
+                        throw new ConflictException("规格 '" + spec.getSpecName() + "' 必填");
+                    });
+        }
+        specValueGroupList.stream()
+                .filter(item -> item.equals(newSpecRelationValueIdList))
+                .findFirst()
+                .ifPresent(item -> {
+
+                });
+        for (List<Long> specValueIdList : specValueGroupList) {
+            if (specValueIdList.equals(newSpecRelationValueIdList)) {
+                String existingSpecValueMsg = specValueIdList.stream()
+                        .map(specValueByValueIdMap::get)
+                        .map(ProductSpecValue::getValueName)
+                        .collect(Collectors.joining(", "));
+                throw new ConflictException("规格组合: [" + existingSpecValueMsg + "] 已被占用");
+            }
+        }
+
         Sku sku = Sku.create(productId, skuCode, stock, weight, status, isDefault, barcode, prices, specs, images);
         Sku saved = skuRepository.save(sku);
         if (isDefault)
@@ -133,12 +178,56 @@ public class SkuService implements ISkuService {
      */
     @Override
     public @NotNull List<Long> upsertSpecs(@NotNull Long productId, @NotNull Long skuId, @NotNull List<SkuSpecRelation> specs) {
+        Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
         if (specs.isEmpty())
             return List.of();
+
+        List<Sku> skuList = skuRepository.listByProductId(productId, null);
+        List<List<Long>> specValueGroupList = new ArrayList<>();
+        for (Sku s : skuList) {
+            List<Long> valueList = s.getSpecs().stream()
+                    .map(SkuSpecRelation::getValueId)
+                    .toList();
+            specValueGroupList.add(valueList);
+        }
+        List<Long> newSpecRelationValueIdList = specs.stream()
+                .map(SkuSpecRelation::getValueId)
+                .toList();
+        List<ProductSpec> requiredSpecList = product.getSpecs().stream()
+                .filter(ProductSpec::isRequired)
+                .toList();
+        Map<Long, ProductSpecValue> specValueByValueIdMap = product.getSpecs().stream()
+                .map(ProductSpec::getValues)
+                .flatMap(List::stream)
+                .collect(Collectors.toMap(ProductSpecValue::getId, Function.identity()));
+        if (requiredSpecList.size() > newSpecRelationValueIdList.size()) {
+            requiredSpecList.stream()
+                    .filter(spec -> !newSpecRelationValueIdList.contains(spec.getId()))
+                    .findFirst()
+                    .ifPresent(spec -> {
+                        throw new ConflictException("规格 '" + spec.getSpecName() + "' 必填");
+                    });
+        }
+        specValueGroupList.stream()
+                .filter(item -> item.equals(newSpecRelationValueIdList))
+                .findFirst()
+                .ifPresent(item -> {
+
+                });
+        for (List<Long> specValueIdList : specValueGroupList) {
+            if (specValueIdList.equals(newSpecRelationValueIdList)) {
+                String existingSpecValueMsg = specValueIdList.stream()
+                        .map(specValueByValueIdMap::get)
+                        .map(ProductSpecValue::getValueName)
+                        .collect(Collectors.joining(", "));
+                throw new ConflictException("规格组合: [" + existingSpecValueMsg + "] 已被占用");
+            }
+        }
+
         for (SkuSpecRelation relation : specs) {
             boolean exists = sku.getSpecs().stream()
-                    .anyMatch(item -> Objects.equals(specKey(item), specKey(relation)));
+                    .anyMatch(item -> Objects.equals(item.getSpecId(), relation.getSpecId()));
             if (exists)
                 sku.updateSpecSelection(relation);
             else

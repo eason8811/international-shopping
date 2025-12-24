@@ -336,12 +336,8 @@ public class Sku implements Verifiable {
         requireNotNull(relation, "规格选择不能为空");
         relation.validate();
         List<SkuSpecRelation> mutable = new ArrayList<>(this.specs);
-        Object specKey = relation.getSpecCode() != null ? relation.getSpecCode() : relation.getSpecId();
-        boolean removed = mutable.removeIf(item -> {
-            Object key = item.getSpecCode() != null ? item.getSpecCode() : item.getSpecId();
-            return Objects.equals(key, specKey);
-        });
-        require(removed, "SKU 未绑定该规格: " + specKey);
+        boolean removed = mutable.removeIf(item -> Objects.equals(item.getSpecId(), relation.getSpecId()));
+        require(removed, "SKU 未绑定该规格: " + relation.getSpecId());
         mutable.add(relation);
         this.specs = normalizeDistinctList(mutable, Verifiable::validate,
                 sel -> sel.getSpecCode() != null ? sel.getSpecCode() : sel.getSpecId(),

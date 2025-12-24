@@ -49,11 +49,10 @@ public class ProductSkuSpecUpsertRequest implements Verifiable {
     public void validate() {
         requireNotNull(specId, "规格 ID 不能为空");
         require(specId > 0, "规格 ID 非法");
-        requireNotBlank(specCode, "规格编码不能为空");
-        normalizeNullableField(specCode, "specCode 不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
-        normalizeNullableField(specName, "specName 不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
-        normalizeNullableField(valueCode, "规格值编码不能为空", s -> s.length() <= 64, "规格值编码长度不能超过 64 个字符");
-        normalizeNullableField(valueName, "规格值名称不能为空", s -> s.length() <= 64, "规格值名称长度不能超过 64 个字符");
+        specCode = normalizeNullableField(specCode, "规格编码不能为空", s -> s.length() <= 64, "规格编码长度不能超过 64 个字符");
+        specName = normalizeNullableField(specName, "规格名称不能为空", s -> s.length() <= 64, "规格名称长度不能超过 64 个字符");
+        valueCode = normalizeNullableField(valueCode, "规格值编码不能为空", s -> s.length() <= 64, "规格值编码长度不能超过 64 个字符");
+        valueName = normalizeNullableField(valueName, "规格值名称不能为空", s -> s.length() <= 64, "规格值名称长度不能超过 64 个字符");
     }
 
     /**

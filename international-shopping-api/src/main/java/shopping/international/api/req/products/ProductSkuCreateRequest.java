@@ -87,8 +87,8 @@ public class ProductSkuCreateRequest {
         specs = normalizeDistinctList(
                 specs,
                 ProductSkuSpecUpsertRequest::createValidate,
-                ProductSkuSpecUpsertRequest::getSpecCode,
-                "同一 SKU 的规格编码不可重复"
+                ProductSkuSpecUpsertRequest::getSpecId,
+                "一个 SKU 不能关联同一个规格的两个规格值"
         );
         images = normalizeFieldList(images, ProductImagePayload::createValidate);
     }
