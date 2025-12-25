@@ -111,6 +111,8 @@ public class SkuService implements ISkuService {
         Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
         sku.updateBasic(skuCode, weight, status, isDefault, barcode);
+        if (SkuStatus.ENABLED == status)
+            ensureSkuSpecRelationValidate(productId, sku.getSpecs());
         if (stock != null)
             sku.adjustStock(StockAdjustMode.SET, stock);
         if (images != null)

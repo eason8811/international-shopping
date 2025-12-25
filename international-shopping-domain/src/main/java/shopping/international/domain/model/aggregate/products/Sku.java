@@ -146,7 +146,7 @@ public class Sku implements Verifiable {
                              List<SkuSpecRelation> specs, List<ProductImage> images) {
         if (skuCode != null)
             requireNotBlank(skuCode, "SKU 编码不能为空");
-        SkuStatus effectiveStatus = status == null ? SkuStatus.ENABLED : status;
+        SkuStatus effectiveStatus = status == null ? SkuStatus.DISABLED : status;
         require(!defaultSku || effectiveStatus == SkuStatus.ENABLED, "默认 SKU 必须为启用状态");
         return new Sku(null, productId, skuCode, stock, weight, status, defaultSku, barcode, prices, specs, images,
                 LocalDateTime.now(), LocalDateTime.now());
