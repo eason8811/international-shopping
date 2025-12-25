@@ -403,15 +403,20 @@ public class Product implements Verifiable {
             require(!productSpec.getSpecName().equalsIgnoreCase(specName), "规格名称已存在: " + specName);
         }
         Map<String, List<String>> localeSpecI18nNameMap = specs.stream()
+                .filter(item -> !item.getId().equals(specId))
                 .map(ProductSpec::getI18nList)
                 .flatMap(List::stream)
                 .collect(Collectors.groupingBy(
                         ProductSpecI18n::getLocale,
                         Collectors.mapping(ProductSpecI18n::getSpecName, Collectors.toList())
                 ));
-        for (ProductSpecI18n i18n : i18nList)
-            require(!localeSpecI18nNameMap.get(i18n.getLocale()).contains(i18n.getSpecName()),
+        for (ProductSpecI18n i18n : i18nList) {
+            List<String> specI18nName = localeSpecI18nNameMap.get(i18n.getLocale());
+            if (specI18nName == null)
+                continue;
+            require(!specI18nName.contains(i18n.getSpecName()),
                     i18n.getLocale() + " 语言的本地化的规格名称已存在: " + i18n.getSpecName());
+        }
         existing.update(specCode, specName, specType, required, sortOrder, enabled);
         existing.replaceI18n(i18nList);
     }
