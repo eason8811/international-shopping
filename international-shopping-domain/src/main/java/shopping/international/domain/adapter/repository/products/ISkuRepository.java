@@ -95,6 +95,15 @@ public interface ISkuRepository {
     int updateStock(@NotNull Long skuId, int stock);
 
     /**
+     * 删除指定商品下的特定 SKU 聚合
+     *
+     * @param productId 所属商品 ID
+     * @param skuId     待删除的 SKU ID
+     * @return 是否删除成功
+     */
+    boolean delete(Long productId, Long skuId);
+
+    /**
      * 统一设置默认 SKU
      *
      * @param productId 商品 ID

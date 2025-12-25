@@ -240,6 +240,29 @@ public class SkuRepository implements ISkuRepository {
     }
 
     /**
+     * 删除指定商品下的特定 SKU 聚合
+     *
+     * @param productId 所属商品 ID
+     * @param skuId     待删除的 SKU ID
+     * @return 是否删除成功
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean delete(Long productId, Long skuId) {
+        int skuDeletedRow = productSkuMapper.deleteById(skuId);
+        int imageSkuDeleteRow = productSkuImageMapper.delete(
+                new LambdaQueryWrapper<ProductSkuImagePO>().eq(ProductSkuImagePO::getSkuId, skuId)
+        );
+        int priceDeleteRow = productPriceMapper.delete(
+                new LambdaQueryWrapper<ProductPricePO>().eq(ProductPricePO::getSkuId, skuId)
+        );
+        int skuSpecDeleteRow = productSkuSpecMapper.delete(
+                new LambdaQueryWrapper<ProductSkuSpecPO>().eq(ProductSkuSpecPO::getSkuId, skuId)
+        );
+        return skuDeletedRow == 1 && imageSkuDeleteRow > 0 && priceDeleteRow > 0 && skuSpecDeleteRow > 0;
+    }
+
+    /**
      * 统一设置默认 SKU
      *
      * @param productId 商品 ID

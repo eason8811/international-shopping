@@ -112,4 +112,13 @@ public interface ISkuService {
      */
     int adjustStock(@NotNull Long productId, @NotNull Long skuId,
                     @NotNull StockAdjustMode mode, int quantity);
+
+    /**
+     * 删除指定商品下的 SKU
+     *
+     * @param productId 所属商品 ID
+     * @param skuId     要删除的 SKU ID
+     * @return 如果删除成功返回 <code>true</code>, 否则返回 <code>false</code>
+     */
+    boolean delete(Long productId, Long skuId);
 }

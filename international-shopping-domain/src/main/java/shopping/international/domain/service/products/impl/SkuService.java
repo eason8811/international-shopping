@@ -22,7 +22,10 @@ import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -207,6 +210,28 @@ public class SkuService implements ISkuService {
         int stock = skuRepository.updateStock(skuId, sku.getStock());
         refreshProductStock(productId);
         return stock;
+    }
+
+    /**
+     * 删除指定商品下的 SKU
+     *
+     * @param productId 所属商品 ID
+     * @param skuId     要删除的 SKU ID
+     * @return 如果删除成功返回 <code>true</code>, 否则返回 <code>false</code>
+     */
+    @Override
+    public boolean delete(Long productId, Long skuId) {
+        Product product = ensureProduct(productId);
+        Sku sku = ensureSku(productId, skuId);
+        List<Sku> skuList = skuRepository.listByProductId(productId, null);
+        Map<Long, SkuStatus> statusBySkuIdMap = skuList.stream().collect(Collectors.toMap(Sku::getId, Sku::getStatus));
+        statusBySkuIdMap.put(skuId, SkuStatus.DISABLED);
+        boolean hasEnabledSkuAfter = statusBySkuIdMap.values().stream().anyMatch(status -> status == SkuStatus.ENABLED);
+        boolean defaultChanged = product.onSkuUpdated(sku, hasEnabledSkuAfter);
+        if (defaultChanged)
+            skuRepository.markDefault(productId, product.getDefaultSkuId());
+
+        return skuRepository.delete(productId, skuId);
     }
 
     /**

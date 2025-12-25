@@ -179,6 +179,20 @@ public class AdminSkuController {
     }
 
     /**
+     * 通过产品ID和SKU ID删除特定的SKU
+     *
+     * @param productId 产品ID, 用于指定要从哪个产品中删除SKU
+     * @param skuId     SKU ID, 指定要删除的具体SKU
+     * @return 删除结果
+     */
+    @DeleteMapping("/{sku_id}")
+    public ResponseEntity<Result<Map<String, Boolean>>> delete(@PathVariable("product_id") Long productId,
+                                                               @PathVariable("sku_id") Long skuId) {
+        boolean deleted = skuService.delete(productId, skuId);
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("deleted", deleted)));
+    }
+
+    /**
      * 将 SKU 聚合转换为响应
      *
      * @param sku 聚合
