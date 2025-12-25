@@ -153,24 +153,17 @@ public class SkuRepository implements ISkuRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull List<Long> upsertSpecs(@NotNull Long skuId, @NotNull List<SkuSpecRelation> relations) {
-        List<Long> affected = new ArrayList<>();
-        for (SkuSpecRelation relation : relations) {
-            LambdaUpdateWrapper<ProductSkuSpecPO> wrapper = new LambdaUpdateWrapper<>();
-            wrapper.eq(ProductSkuSpecPO::getSkuId, skuId)
-                    .eq(ProductSkuSpecPO::getSpecId, relation.getSpecId())
-                    .set(ProductSkuSpecPO::getValueId, relation.getValueId());
-            int updated = productSkuSpecMapper.update(null, wrapper);
-            if (updated == 0) {
-                ProductSkuSpecPO po = ProductSkuSpecPO.builder()
+        List<ProductSkuSpecPO> poList = relations.stream()
+                .map(r -> ProductSkuSpecPO.builder()
                         .skuId(skuId)
-                        .specId(relation.getSpecId())
-                        .valueId(relation.getValueId())
-                        .build();
-                productSkuSpecMapper.insert(po);
-            }
-            affected.add(relation.getSpecId());
-        }
-        return affected;
+                        .specId(r.getSpecId())
+                        .valueId(r.getValueId())
+                        .build()
+                )
+                .toList();
+        productSkuSpecMapper.delete(new LambdaQueryWrapper<ProductSkuSpecPO>().eq(ProductSkuSpecPO::getSkuId, skuId));
+        productSkuSpecMapper.insert(poList);
+        return relations.stream().map(SkuSpecRelation::getSpecId).toList();
     }
 
     /**

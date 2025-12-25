@@ -288,7 +288,7 @@ public class Product implements Verifiable {
         boolean exists = mutable.stream().anyMatch(item -> item.getLocale().equals(i18n.getLocale()));
         require(!exists, "商品多语言 locale 已存在: " + i18n.getLocale());
         mutable.add(i18n);
-        this.i18nList = normalizeDistinctList(mutable, ProductI18n::validate, ProductI18n::getLocale, "商品多语言 locale 不能重复");
+        replaceI18n(mutable);
     }
 
     /**
@@ -320,7 +320,7 @@ public class Product implements Verifiable {
         ProductI18n patched = ProductI18n.of(normalizedLocale, mergedTitle, mergedSubtitle, mergedDescription, mergedSlug, mergedTags);
         mutable.removeIf(item -> item.getLocale().equals(normalizedLocale));
         mutable.add(patched);
-        this.i18nList = normalizeDistinctList(mutable, ProductI18n::validate, ProductI18n::getLocale, "商品多语言 locale 不能重复");
+        replaceI18n(mutable);
     }
 
     /**

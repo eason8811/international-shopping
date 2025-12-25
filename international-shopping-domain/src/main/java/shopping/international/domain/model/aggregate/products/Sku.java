@@ -15,7 +15,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -278,9 +281,7 @@ public class Sku implements Verifiable {
      * @param specs 新规格选择
      */
     public void replaceSpecs(List<SkuSpecRelation> specs) {
-        this.specs = normalizeDistinctList(specs, Verifiable::validate,
-                selection -> selection.getSpecCode() != null ? selection.getSpecCode() : selection.getSpecId(),
-                "同一规格只能选择一个值");
+        this.specs = normalizeDistinctList(specs, SkuSpecRelation::getSpecId, "同一规格只能选择一个值");
     }
 
     /**
@@ -307,41 +308,29 @@ public class Sku implements Verifiable {
     }
 
     /**
-     * 新增规格绑定 (按规格键去重)
+     * 增量更新 SKU 的规格选择, 如果这个选择不存在, 则新增; 如果已存在, 则更新
      *
-     * @param relation 规格选择
+     * @param relationList 规格选择关系列表
      */
-    public void addSpecSelection(SkuSpecRelation relation) {
-        requireNotNull(relation, "规格选择不能为空");
-        relation.validate();
+    public void patchSpecSelection(List<SkuSpecRelation> relationList) {
+        require(relationList.stream().noneMatch(Objects::isNull), "规格选择不能为空");
+        relationList = normalizeFieldList(relationList);
         List<SkuSpecRelation> mutable = new ArrayList<>(this.specs);
-        Object specKey = relation.getSpecCode() != null ? relation.getSpecCode() : relation.getSpecId();
-        boolean exists = mutable.stream().anyMatch(item -> {
-            Object key = item.getSpecCode() != null ? item.getSpecCode() : item.getSpecId();
-            return Objects.equals(key, specKey);
-        });
-        require(!exists, "SKU 已存在该规格绑定: " + specKey);
-        mutable.add(relation);
-        this.specs = normalizeDistinctList(mutable, Verifiable::validate,
-                sel -> sel.getSpecCode() != null ? sel.getSpecCode() : sel.getSpecId(),
-                "同一规格只能选择一个值");
-    }
-
-    /**
-     * 更新已有规格绑定 (按规格键定位, 完整覆盖该规格的取值)
-     *
-     * @param relation 新的规格选择
-     */
-    public void updateSpecSelection(SkuSpecRelation relation) {
-        requireNotNull(relation, "规格选择不能为空");
-        relation.validate();
-        List<SkuSpecRelation> mutable = new ArrayList<>(this.specs);
-        boolean removed = mutable.removeIf(item -> Objects.equals(item.getSpecId(), relation.getSpecId()));
-        require(removed, "SKU 未绑定该规格: " + relation.getSpecId());
-        mutable.add(relation);
-        this.specs = normalizeDistinctList(mutable, Verifiable::validate,
-                sel -> sel.getSpecCode() != null ? sel.getSpecCode() : sel.getSpecId(),
-                "同一规格只能选择一个值");
+        Map<Long, SkuSpecRelation> relationBySpecIdMap = mutable.stream()
+                .collect(Collectors.toMap(
+                        SkuSpecRelation::getSpecId,
+                        Function.identity()
+                ));
+        for (SkuSpecRelation relation : relationList) {
+            SkuSpecRelation existing = relationBySpecIdMap.get(relation.getSpecId());
+            if (existing == null) {
+                mutable.add(relation);
+                continue;
+            }
+            mutable.remove(existing);
+            mutable.add(relation);
+        }
+        replaceSpecs(mutable);
     }
 
     /**

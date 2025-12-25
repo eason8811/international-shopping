@@ -11,6 +11,7 @@ import shopping.international.domain.support.LoggingTestWatcher;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,7 +60,7 @@ class SkuAggregateTest {
                 List.of(ProductImage.of("url", true, 0)));
 
         IllegalParamException ex = assertThrows(IllegalParamException.class,
-                () -> sku.addSpecSelection(SkuSpecRelation.of(1L, "color", "Color", 12L, "blue", "Blue")));
+                () -> sku.patchSpecSelection(Collections.singletonList(SkuSpecRelation.of(1L, "color", "Color", 12L, "blue", "Blue"))));
         assertTrue(ex.getMessage().contains("SKU 已存在该规格绑定"));
     }
 
