@@ -80,7 +80,8 @@ public class SkuService implements ISkuService {
                                @Nullable BigDecimal weight, @NotNull SkuStatus status, boolean isDefault,
                                @Nullable String barcode, @NotNull List<ProductPrice> prices,
                                @NotNull List<SkuSpecRelation> specs, @NotNull List<ProductImage> images) {
-        ensureSkuSpecRelationValidate(productId, specs);
+        if (status == SkuStatus.ENABLED)
+            ensureSkuSpecRelationValidate(productId, specs);
         Sku sku = Sku.create(productId, skuCode, stock, weight, status, isDefault, barcode, prices, specs, images);
         Sku saved = skuRepository.save(sku);
         if (isDefault)
