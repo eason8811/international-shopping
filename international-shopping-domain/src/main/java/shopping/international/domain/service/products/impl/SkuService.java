@@ -29,6 +29,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static shopping.international.types.utils.FieldValidateUtils.require;
+
 /**
  * SKU 领域服务实现
  *
@@ -80,8 +82,7 @@ public class SkuService implements ISkuService {
                                @Nullable BigDecimal weight, @NotNull SkuStatus status, boolean isDefault,
                                @Nullable String barcode, @NotNull List<ProductPrice> prices,
                                @NotNull List<SkuSpecRelation> specs, @NotNull List<ProductImage> images) {
-        if (status == SkuStatus.ENABLED)
-            ensureSkuSpecRelationValidate(productId, specs);
+        ensureSkuSpecRelationValidate(productId, null, specs);
         Sku sku = Sku.create(productId, skuCode, stock, weight, status, isDefault, barcode, prices, specs, images);
         Sku saved = skuRepository.save(sku);
         if (isDefault)
@@ -112,8 +113,7 @@ public class SkuService implements ISkuService {
         Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
         sku.updateBasic(skuCode, weight, status, isDefault, barcode);
-        if (SkuStatus.ENABLED == status)
-            ensureSkuSpecRelationValidate(productId, sku.getSpecs());
+        ensureSkuSpecRelationValidate(productId, skuId, sku.getSpecs());
         if (stock != null)
             sku.adjustStock(StockAdjustMode.SET, stock);
         if (images != null)
@@ -147,7 +147,7 @@ public class SkuService implements ISkuService {
 
         sku.patchSpecSelection(specs);
         List<SkuSpecRelation> newSpecRelationList = sku.getSpecs();
-        ensureSkuSpecRelationValidate(productId, newSpecRelationList);
+        ensureSkuSpecRelationValidate(productId, skuId, newSpecRelationList);
 
         return skuRepository.upsertSpecs(skuId, sku.getSpecs());
     }
@@ -162,7 +162,10 @@ public class SkuService implements ISkuService {
      */
     @Override
     public boolean deleteSpec(@NotNull Long productId, @NotNull Long skuId, @NotNull Long specId) {
-        ensureSku(productId, skuId);
+        Sku sku = ensureSku(productId, skuId);
+        sku.removeSpecSelection(specId);
+        if (sku.getStatus() == SkuStatus.ENABLED)
+            ensureSkuSpecRelationValidate(productId, skuId, sku.getSpecs());
         return skuRepository.deleteSpec(skuId, specId);
     }
 
@@ -234,7 +237,9 @@ public class SkuService implements ISkuService {
         if (defaultChanged)
             skuRepository.markDefault(productId, product.getDefaultSkuId());
 
-        return skuRepository.delete(productId, skuId);
+        boolean delete = skuRepository.delete(productId, skuId);
+        refreshProductStock(productId);
+        return delete;
     }
 
     /**
@@ -267,14 +272,31 @@ public class SkuService implements ISkuService {
      * 确保新的 SKU 选择的规格值组合不与同 SPU 下的其他 SKU 重复
      *
      * @param productId           产品 ID
+     * @param skuId               SKU ID, 可空 (不为空则排除这一 SKU)
      * @param newSpecRelationList 新规格绑定列表
      */
-    private void ensureSkuSpecRelationValidate(@NotNull Long productId, @NotNull List<SkuSpecRelation> newSpecRelationList) {
+    private void ensureSkuSpecRelationValidate(@NotNull Long productId, @Nullable Long skuId, @NotNull List<SkuSpecRelation> newSpecRelationList) {
         Product product = ensureProduct(productId);
         List<Sku> skuList = skuRepository.listByProductId(productId, null);
+        Map<Long, List<ProductSpecValue>> specValueIdBySpecIdMap = product.getSpecs().stream()
+                .map(ProductSpec::getValues)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(ProductSpecValue::getSpecId));
+        for (SkuSpecRelation skuSpecRelation : newSpecRelationList) {
+            require(specValueIdBySpecIdMap.containsKey(skuSpecRelation.getSpecId()), "规格 ID '" + skuSpecRelation.getSpecId() + "' 不存在");
+            require(
+                    specValueIdBySpecIdMap.get(skuSpecRelation.getSpecId()).stream()
+                            .map(ProductSpecValue::getId)
+                            .toList()
+                            .contains(skuSpecRelation.getValueId()),
+                    "规格值 ID '" + skuSpecRelation.getValueId() + "' 不存在"
+            );
+        }
         // 获取本 SPU 下所有已存在的 SKU 选择的规格值组合
         List<List<Long>> specValueGroupList = new ArrayList<>();
         for (Sku s : skuList) {
+            if (skuId != null && skuId.equals(s.getId()))
+                continue;
             List<Long> valueList = s.getSpecs().stream()
                     .map(SkuSpecRelation::getValueId)
                     .toList();

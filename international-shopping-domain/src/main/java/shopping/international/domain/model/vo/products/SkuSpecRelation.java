@@ -92,7 +92,7 @@ public class SkuSpecRelation implements Verifiable {
      */
     @Override
     public void validate() {
-        require(specId != null || specCode != null, "规格类别必须提供 ID 或编码");
-        require(valueId != null || valueCode != null, "规格值必须提供 ID 或编码");
+        require(specId != null, "规格类别必须提供 ID");
+        require(valueId != null, "规格值必须提供 ID");
     }
 }
