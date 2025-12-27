@@ -394,16 +394,16 @@ public class SkuRepository implements ISkuRepository {
     private void persistPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices) {
         if (prices.isEmpty())
             return;
-        for (ProductPrice price : prices) {
-            ProductPricePO po = ProductPricePO.builder()
-                    .skuId(skuId)
-                    .currency(price.getCurrency())
-                    .listPrice(price.getListPrice())
-                    .salePrice(price.getSalePrice())
-                    .isActive(price.isActive())
-                    .build();
-            productPriceMapper.insert(po);
-        }
+        List<ProductPricePO> poList = prices.stream()
+                .map(price -> ProductPricePO.builder()
+                        .skuId(skuId)
+                        .currency(price.getCurrency())
+                        .listPrice(price.getListPrice())
+                        .salePrice(price.getSalePrice())
+                        .isActive(price.isActive())
+                        .build())
+                .toList();
+        productPriceMapper.insert(poList);
     }
 
     /**
@@ -415,14 +415,14 @@ public class SkuRepository implements ISkuRepository {
     private void persistSpecs(@NotNull Long skuId, @NotNull List<SkuSpecRelation> specs) {
         if (specs.isEmpty())
             return;
-        for (SkuSpecRelation relation : specs) {
-            ProductSkuSpecPO po = ProductSkuSpecPO.builder()
-                    .skuId(skuId)
-                    .specId(relation.getSpecId())
-                    .valueId(relation.getValueId())
-                    .build();
-            productSkuSpecMapper.insert(po);
-        }
+        List<ProductSkuSpecPO> poList = specs.stream()
+                .map(relation -> ProductSkuSpecPO.builder()
+                        .skuId(skuId)
+                        .specId(relation.getSpecId())
+                        .valueId(relation.getValueId())
+                        .build())
+                .toList();
+        productSkuSpecMapper.insert(poList);
     }
 
     /**
@@ -434,14 +434,14 @@ public class SkuRepository implements ISkuRepository {
     private void persistImages(@NotNull Long skuId, @NotNull List<ProductImage> images) {
         if (images.isEmpty())
             return;
-        for (ProductImage image : images) {
-            ProductSkuImagePO po = ProductSkuImagePO.builder()
-                    .skuId(skuId)
-                    .url(image.getUrl())
-                    .isMain(image.isMain())
-                    .sortOrder(image.getSortOrder())
-                    .build();
-            productSkuImageMapper.insert(po);
-        }
+        List<ProductSkuImagePO> poList = images.stream()
+                .map(image -> ProductSkuImagePO.builder()
+                        .skuId(skuId)
+                        .url(image.getUrl())
+                        .isMain(image.isMain())
+                        .sortOrder(image.getSortOrder())
+                        .build())
+                .toList();
+        productSkuImageMapper.insert(poList);
     }
 }
