@@ -3,6 +3,7 @@ package shopping.international.types.utils;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
@@ -347,7 +348,7 @@ public final class FieldValidateUtils {
      * @param defaultI18n 当国际化对象为 {@code null} 时使用的默认国际化字符串
      * @return 如果国际化对象不为空, 返回通过 {@code i18nGetFunc} 提取的字符串; 否则返回 {@code defaultI18n}
      */
-    @NotNull
+    @Nullable
     public static <T> String getI18nOrDefault(T i18n, Function<T, String> i18nGetFunc, String defaultI18n) {
         return i18n == null ? defaultI18n : i18nGetFunc.apply(i18n);
     }
