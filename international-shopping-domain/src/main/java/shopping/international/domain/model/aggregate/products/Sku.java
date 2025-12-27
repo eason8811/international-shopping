@@ -299,7 +299,6 @@ public class Sku implements Verifiable {
                 mutable.add(productPrice);
                 continue;
             }
-
             mutable.remove(existing);
             mutable.add(productPrice);
         }

@@ -76,5 +76,11 @@ public class ProductPrice implements Verifiable {
     public void validate() {
         requireNotNull(currency, "currency 不能为空");
         requireNotNull(listPrice, "标价不能为空");
+        require(listPrice.compareTo(BigDecimal.ZERO) > 0, "标价必须大于 0");
+        if (salePrice != null) {
+            require(salePrice.compareTo(BigDecimal.ZERO) > 0, "促销价必须大于 0");
+            require(salePrice.compareTo(listPrice) <= 0, "促销价不能高于标价");
+        }
+        requireNotNull(active, "active 不能为空");
     }
 }

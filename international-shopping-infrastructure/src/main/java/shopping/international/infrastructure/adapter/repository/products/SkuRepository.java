@@ -19,7 +19,6 @@ import shopping.international.infrastructure.dao.products.po.*;
 import shopping.international.types.exceptions.ConflictException;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 基于 MyBatis-Plus 的 SKU 聚合仓储实现
@@ -192,34 +191,9 @@ public class SkuRepository implements ISkuRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull List<String> upsertPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices) {
-        List<ProductPricePO> existing = productPriceMapper.selectList(new LambdaQueryWrapper<ProductPricePO>()
-                .eq(ProductPricePO::getSkuId, skuId));
-        Map<String, ProductPricePO> existingMap = existing == null ? Collections.emptyMap()
-                : existing.stream().collect(Collectors.toMap(ProductPricePO::getCurrency, po -> po));
-        List<String> currencies = new ArrayList<>();
-        for (ProductPrice price : prices) {
-            ProductPricePO found = existingMap.get(price.getCurrency());
-            if (found == null) {
-                ProductPricePO po = ProductPricePO.builder()
-                        .skuId(skuId)
-                        .currency(price.getCurrency())
-                        .listPrice(price.getListPrice())
-                        .salePrice(price.getSalePrice())
-                        .isActive(price.isActive())
-                        .build();
-                productPriceMapper.insert(po);
-            } else {
-                LambdaUpdateWrapper<ProductPricePO> wrapper = new LambdaUpdateWrapper<>();
-                wrapper.eq(ProductPricePO::getSkuId, skuId)
-                        .eq(ProductPricePO::getCurrency, price.getCurrency())
-                        .set(ProductPricePO::getListPrice, price.getListPrice())
-                        .set(ProductPricePO::getSalePrice, price.getSalePrice())
-                        .set(ProductPricePO::getIsActive, price.isActive());
-                productPriceMapper.update(null, wrapper);
-            }
-            currencies.add(price.getCurrency());
-        }
-        return currencies;
+        productPriceMapper.delete(new LambdaQueryWrapper<ProductPricePO>().eq(ProductPricePO::getSkuId, skuId));
+        persistPrices(skuId, prices);
+        return prices.stream().map(ProductPrice::getCurrency).toList();
     }
 
     /**

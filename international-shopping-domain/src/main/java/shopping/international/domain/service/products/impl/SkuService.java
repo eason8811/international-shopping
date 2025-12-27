@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -182,21 +181,9 @@ public class SkuService implements ISkuService {
         Sku sku = ensureSku(productId, skuId);
         if (prices.isEmpty())
             return List.of();
-        for (ProductPrice price : prices) {
-            boolean exists = sku.getPrices().stream()
-                    .anyMatch(item -> item.getCurrency().equals(price.getCurrency()));
-            if (exists)
-                sku.updatePrice(price.getCurrency(), price.getListPrice(), price.getSalePrice(), price.isActive());
-            else
-                sku.addPrice(price);
-        }
-        Set<String> affected = prices.stream()
-                .map(ProductPrice::getCurrency)
-                .collect(Collectors.toSet());
-        List<ProductPrice> patchedPrices = sku.getPrices().stream()
-                .filter(p -> affected.contains(p.getCurrency()))
-                .toList();
-        return skuRepository.upsertPrices(skuId, patchedPrices);
+
+        sku.patchPrice(prices);
+        return skuRepository.upsertPrices(skuId, sku.getPrices());
     }
 
     /**
