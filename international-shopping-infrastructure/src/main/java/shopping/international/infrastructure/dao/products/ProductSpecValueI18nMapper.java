@@ -6,7 +6,9 @@ import shopping.international.infrastructure.dao.products.po.ProductSpecValueI18
 
 /**
  * Mapper: product_spec_value_i18n
+ * <p>基于 MyBatis-Plus 的通用 CRUD 接口</p>
  */
 @Mapper
 public interface ProductSpecValueI18nMapper extends BaseMapper<ProductSpecValueI18nPO> {
 }
+

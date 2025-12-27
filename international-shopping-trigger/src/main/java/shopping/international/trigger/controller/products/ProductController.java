@@ -1,167 +1,381 @@
 package shopping.international.trigger.controller.products;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import shopping.international.api.req.products.ProductPublicListRequest;
 import shopping.international.api.resp.Result;
-import shopping.international.api.resp.products.ProductDetailRespond;
-import shopping.international.api.resp.products.ProductRespond;
-import shopping.international.domain.model.enums.products.ProductSort;
-import shopping.international.domain.model.vo.products.ProductDetail;
-import shopping.international.domain.model.vo.products.ProductListQuery;
-import shopping.international.domain.model.vo.products.ProductSummary;
+import shopping.international.api.resp.products.ProductImageRespond;
+import shopping.international.api.resp.products.ProductSkuRespond;
+import shopping.international.api.resp.products.ProductSpuRespond;
+import shopping.international.api.resp.products.PublicProductDetailRespond;
+import shopping.international.domain.model.aggregate.products.Product;
+import shopping.international.domain.model.aggregate.products.Sku;
+import shopping.international.domain.model.entity.products.ProductSpec;
+import shopping.international.domain.model.entity.products.ProductSpecValue;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.products.*;
 import shopping.international.domain.service.products.IProductQueryService;
 import shopping.international.types.constant.SecurityConstants;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
- * 商品查询接口
+ * 用户侧商品接口
+ *
+ * <p>提供商品列表检索与按 slug 的详情查询, 返回包含本地化字段、规格与 SKU 信息</p>
  */
-@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(SecurityConstants.API_PREFIX + "/products")
 public class ProductController {
 
     /**
-     * JSON序列化/反序列化工具
-     */
-    private final ObjectMapper objectMapper;
-    /**
-     * 商品查询服务
+     * 商品查询领域服务
      */
     private final IProductQueryService productQueryService;
 
     /**
-     * 搜索/筛选商品列表 根据给定的参数条件返回分页的商品列表数据
+     * 搜索/筛选上架商品列表
      *
-     * @param page         当前页码, 默认值 1
-     * @param size         每页显示的数量, 默认值 20, 最大不超过 100
-     * @param locale       地区标识, 可选参数
-     * @param currency     货币类型, 可选参数
-     * @param categorySlug 商品分类 slug, 可选参数
-     * @param keyword      搜索关键词, 可选参数
-     * @param tags         商品标签, 支持 JSON 数组格式或逗号分隔字符串, 可选参数
-     * @param priceMin     最低价格, 可选参数
-     * @param priceMax     最高价格, 可选参数
-     * @param sortBy       排序方式, 可选参数
-     * @return 包含分页信息和商品列表的结果集 {@link ResponseEntity} 包裹着 {@link Result}, 其中包含 {@code List<ProductRespond>} 和元数据
+     * @param req 查询参数
+     * @return 商品列表
      */
     @GetMapping
-    public ResponseEntity<Result<List<ProductRespond>>> list(@RequestParam(defaultValue = "1") int page,
-                                                             @RequestParam(defaultValue = "20") int size,
-                                                             @RequestParam(value = "locale", required = false) String locale,
-                                                             @RequestParam(value = "currency", required = false) String currency,
-                                                             @RequestParam(value = "category_slug", required = false) String categorySlug,
-                                                             @RequestParam(value = "query", required = false) String keyword,
-                                                             @RequestParam(value = "tags", required = false) String tags,
-                                                             @RequestParam(value = "price_min", required = false) BigDecimal priceMin,
-                                                             @RequestParam(value = "price_max", required = false) BigDecimal priceMax,
-                                                             @RequestParam(value = "sort_by", required = false) String sortBy) {
-        // page 和 size 不合法时, 取默认 1 和 20, 最大不超过 100
-        if (page <= 0)
-            page = 1;
-        if (size <= 0)
-            size = 20;
-        if (size > 100)
-            size = 100;
-        List<String> tagList = parseTags(tags);
-        // 构建查询条件
-        ProductListQuery query = new ProductListQuery(page, size, locale, currency, categorySlug, keyword, tagList,
-                priceMin, priceMax, ProductSort.from(sortBy), resolveCurrentUserId());
-        IProductQueryService.PageResult<ProductSummary> productSummaryPageResult = productQueryService.list(query);
-        List<ProductRespond> data = productSummaryPageResult.items()
-                .stream()
-                .map(ProductRespond::from)
+    public ResponseEntity<Result<List<ProductSpuRespond>>> list(@ModelAttribute ProductPublicListRequest req) {
+        req.validate();
+        ProductSearchCriteria criteria = ProductSearchCriteria.builder()
+                .locale(req.getLocale())
+                .currency(req.getCurrency())
+                .categorySlug(req.getCategorySlug())
+                .keyword(req.getQuery())
+                .tags(req.getParsedTags())
+                .priceMin(req.getPriceMin())
+                .priceMax(req.getPriceMax())
+                .sort(req.getSortBy())
+                .build();
+        PageQuery pageQuery = PageQuery.of(req.getPage(), req.getSize(), 200);
+        PageResult<ProductPublicSnapshot> pageResult = productQueryService.pageOnSale(pageQuery, criteria);
+        List<ProductSpuRespond> data = pageResult.items().stream()
+                .map(this::toSpuRespond)
                 .toList();
         Result.Meta meta = Result.Meta.builder()
-                .page(page)
-                .size(size)
-                .total(productSummaryPageResult.total())
+                .page(pageQuery.page())
+                .size(pageQuery.size())
+                .total(pageResult.total())
                 .build();
         return ResponseEntity.ok(Result.ok(data, meta));
     }
 
     /**
-     * 获取指定商品的详细信息
+     * 获取商品详情
      *
-     * @param slug  商品标识符, 用于唯一确定一个商品
-     * @param locale 地区标识, 可选参数, 用于指定返回数据的语言版本
-     * @param currency 货币类型, 可选参数, 用于指定价格展示的货币单位
-     * @return 包含商品详情的结果集 {@link ResponseEntity} 包裹着 {@link Result}, 其中包含 {@code ProductDetailRespond} 对象
+     * @param slug     商品 slug
+     * @param locale   语言代码
+     * @param currency 价格币种
+     * @return 商品详情
      */
     @GetMapping("/{slug}")
-    public ResponseEntity<Result<ProductDetailRespond>> detail(@PathVariable("slug") String slug,
-                                                               @RequestParam(value = "locale", required = false) String locale,
-                                                               @RequestParam(value = "currency", required = false) String currency) {
-        ProductDetail detail = productQueryService.detail(slug, locale, currency, resolveCurrentUserId());
-        return ResponseEntity.ok(Result.ok(ProductDetailRespond.from(detail, locale)));
+    public ResponseEntity<Result<PublicProductDetailRespond>> detail(@PathVariable("slug") String slug,
+                                                                     @RequestParam(value = "locale", required = false) @Nullable String locale,
+                                                                     @RequestParam(value = "currency", required = false) @Nullable String currency) {
+        requireNotBlank(slug, "商品 slug 不能为空");
+        requireNotBlank(locale, "本地化 locale 不能为空");
+        requireNotBlank(currency, "货币 currency 不能为空");
+        slug = slug.strip();
+        locale = normalizeLocale(locale);
+        currency = normalizeCurrency(currency);
+        IProductQueryService.ProductDetail detail = productQueryService.getPublicDetail(slug, locale, currency);
+        PublicProductDetailRespond respond = toPublicRespond(detail, locale);
+        return ResponseEntity.ok(Result.ok(respond));
     }
 
-    // =========================== 私有方法 ===========================
+    /**
+     * 将领域读模型转换为用户侧响应
+     *
+     * @param detail 读模型
+     * @param locale 语言
+     * @return 响应体
+     */
+    private PublicProductDetailRespond toPublicRespond(@NotNull IProductQueryService.ProductDetail detail, @NotNull String locale) {
+        Product product = detail.product();
+        ProductI18n productI18n = findProductI18n(product, locale);
+
+        String title = getI18nOrDefault(productI18n, ProductI18n::getTitle, product.getTitle());
+        String subtitle = getI18nOrDefault(productI18n, ProductI18n::getSubtitle, product.getSubtitle());
+        String description = getI18nOrDefault(productI18n, ProductI18n::getDescription, product.getDescription());
+        String slug = getI18nOrDefault(productI18n, ProductI18n::getSlug, product.getSlug());
+        List<String> tags = productI18n == null ? product.getTags() : Optional.ofNullable(productI18n.getTags()).orElse(product.getTags());
+
+        Map<Long, String> specIdNameMap = buildSpecNameMap(product.getSpecs(), locale);
+        Map<Long, String> valueIdNameMap = buildSpecValueNameMap(product.getSpecs(), locale);
+
+        List<ProductImageRespond> gallery = product.getGallery().stream()
+                .map(img -> ProductImageRespond.builder()
+                        .url(img.getUrl())
+                        .isMain(img.isMain())
+                        .sortOrder(img.getSortOrder())
+                        .build())
+                .toList();
+
+        List<PublicProductDetailRespond.PublicSpecRespond> specs = buildSpecResponds(product.getSpecs(), locale);
+        List<ProductSkuRespond> skus = detail.skus().stream()
+                .map(sku -> toSkuRespond(sku, specIdNameMap, valueIdNameMap))
+                .collect(Collectors.toList());
+
+        return PublicProductDetailRespond.builder()
+                .id(product.getId())
+                .slug(slug)
+                .title(title)
+                .subtitle(subtitle)
+                .description(description)
+                .categoryId(product.getCategoryId())
+                .categorySlug(detail.categorySlug())
+                .brand(product.getBrand())
+                .coverImageUrl(product.getCoverImageUrl())
+                .stockTotal(product.getStockTotal())
+                .saleCount(product.getSaleCount())
+                .skuType(product.getSkuType())
+                .status(product.getStatus())
+                .tags(tags)
+                .defaultSkuId(product.getDefaultSkuId())
+                .gallery(gallery)
+                .specs(specs)
+                .skus(skus)
+                .build();
+    }
 
     /**
-     * 解析传入的原始标签字符串, 并将其转换为字符串列表
+     * 构建用户侧规格响应
      *
-     * <p>此方法支持两种格式的输入:
-     * <ul>
-     *     <li>JSON 数组格式: 例如 "[tag1, tag2, tag3]", 如果输入符合 JSON 数组格式, 则尝试使用 {@link ObjectMapper} 进行解析</li>
-     *     <li>逗号分隔的字符串: 例如 "tag1, tag2, tag3", 如果不是 JSON 格式或 JSON 解析失败, 则将字符串按逗号分割, 并去除每个标签前后的空白字符</li>
-     * </ul>
-     *
-     * @param raw 待解析的原始标签字符串. 可以为 null 或空格组成的字符串.
-     * @return 返回一个包含解析后标签的列表. 如果输入为 null 或仅由空白字符组成, 返回空列表.
+     * @param specs  规格列表
+     * @param locale 语言
+     * @return 响应列表
      */
-    private List<String> parseTags(String raw) {
-        if (raw == null || raw.isBlank())
-            return Collections.emptyList();
-        String trimmed = raw.trim();
-        try {
-            if (trimmed.startsWith("["))
-                return objectMapper.readValue(trimmed, new TypeReference<>() {
-                });
-        } catch (Exception ex) {
-            log.warn("标签 JSON 解析失败, 改用逗号分隔, 原始输入: {}", trimmed, ex);
-        }
-        return Arrays.stream(trimmed.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
+    private List<PublicProductDetailRespond.PublicSpecRespond> buildSpecResponds(@Nullable List<ProductSpec> specs, @NotNull String locale) {
+        if (specs == null)
+            return List.of();
+        return specs.stream()
+                .map(spec -> {
+                    ProductSpecI18n specI18n = findSpecI18n(spec, locale);
+                    String specName = getI18nOrDefault(specI18n, ProductSpecI18n::getSpecName, spec.getSpecName());
+                    List<PublicProductDetailRespond.PublicSpecValueRespond> values = buildSpecValues(spec.getValues(), locale);
+                    return (PublicProductDetailRespond.PublicSpecRespond) PublicProductDetailRespond.PublicSpecRespond.builder()
+                            .specId(spec.getId())
+                            .specCode(spec.getSpecCode())
+                            .specName(specName)
+                            .specType(spec.getSpecType())
+                            .isRequired(spec.isRequired())
+                            .values(values)
+                            .build();
+                })
                 .toList();
     }
 
     /**
-     * 从当前安全上下文中解析并返回已认证用户的 ID
+     * 构建用户侧规格值响应
      *
-     * <p>该方法尝试从 Spring Security 的 {@link SecurityContextHolder} 中获取当前的认证信息, 并从中提取用户 ID.
-     * 用户 ID 可以是 {@code Long} 类型或 {@code String} 类型, 如果为字符串则尝试转换成 {@code Long}.
-     * 若无法获取到有效的认证信息或在提取过程中发生异常, 则返回 null.
-     *
-     * @return 当前已认证用户的 ID, 如果没有可用的认证信息或者提取失败, 返回 null
+     * @param values 规格值列表
+     * @param locale 语言
+     * @return 响应列表
      */
-    private Long resolveCurrentUserId() {
-        try {
-            Authentication authentication = null;
-            if (SecurityContextHolder.getContext() != null)
-                authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated())
-                return null;
-            Object principal = authentication.getPrincipal();
-            if (principal instanceof Long longUserId)
-                return longUserId;
-            if (principal instanceof String stringUserId)
-                return Long.parseLong(stringUserId);
-        } catch (Exception ex) {
-            log.warn("从安全上下文解析用户ID失败, 视为未登录访问", ex);
+    private List<PublicProductDetailRespond.PublicSpecValueRespond> buildSpecValues(@Nullable List<ProductSpecValue> values, @Nullable String locale) {
+        if (values == null)
+            return List.of();
+        return values.stream()
+                .map(value -> {
+                    ProductSpecValueI18n i18n = findSpecValueI18n(value, locale);
+                    String valueName = getI18nOrDefault(i18n, ProductSpecValueI18n::getValueName, value.getValueName());
+                    return (PublicProductDetailRespond.PublicSpecValueRespond) PublicProductDetailRespond.PublicSpecValueRespond.builder()
+                            .valueId(value.getId())
+                            .valueCode(value.getValueCode())
+                            .valueName(valueName)
+                            .attributes(value.getAttributes())
+                            .build();
+                })
+                .toList();
+    }
+
+    /**
+     * 将 SKU 转换为响应, 并覆盖规格名称
+     *
+     * @param sku          SKU 聚合
+     * @param specNameMap  规格名称映射
+     * @param valueNameMap 规格值名称映射
+     * @return 响应
+     */
+    private ProductSkuRespond toSkuRespond(@NotNull Sku sku, @NotNull Map<Long, String> specNameMap, @NotNull Map<Long, String> valueNameMap) {
+        List<ProductSkuRespond.ProductPriceRespond> prices = sku.getPrices().stream()
+                .map(price -> ProductSkuRespond.ProductPriceRespond.builder()
+                        .currency(price.getCurrency())
+                        .listPrice(price.getListPrice())
+                        .salePrice(price.getSalePrice())
+                        .isActive(price.isActive())
+                        .build())
+                .toList();
+        List<ProductSkuRespond.ProductSkuSpecRespond> specs = sku.getSpecs().stream()
+                .map(spec -> ProductSkuRespond.ProductSkuSpecRespond.builder()
+                        .specId(spec.getSpecId())
+                        .specCode(spec.getSpecCode())
+                        .specName(specNameMap.getOrDefault(spec.getSpecId(), spec.getSpecName()))
+                        .valueId(spec.getValueId())
+                        .valueCode(spec.getValueCode())
+                        .valueName(valueNameMap.getOrDefault(spec.getValueId(), spec.getValueName()))
+                        .build())
+                .toList();
+        List<ProductImageRespond> images = sku.getImages().stream()
+                .map(image -> ProductImageRespond.builder()
+                        .url(image.getUrl())
+                        .isMain(image.isMain())
+                        .sortOrder(image.getSortOrder())
+                        .build())
+                .toList();
+        return ProductSkuRespond.builder()
+                .id(sku.getId())
+                .skuCode(sku.getSkuCode())
+                .stock(sku.getStock())
+                .weight(sku.getWeight())
+                .status(sku.getStatus())
+                .isDefault(sku.isDefaultSku())
+                .barcode(sku.getBarcode())
+                .prices(prices)
+                .specs(specs)
+                .images(images)
+                .build();
+    }
+
+    /**
+     * 查找商品多语言
+     *
+     * @param product 商品聚合
+     * @param locale  语言
+     * @return 多语言对象
+     */
+    @Nullable
+    private ProductI18n findProductI18n(@NotNull Product product, @NotNull String locale) {
+        return product.getI18nList().stream()
+                .filter(item -> locale.equalsIgnoreCase(item.getLocale()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * 查找规格多语言
+     *
+     * @param spec   规格
+     * @param locale 语言
+     * @return 多语言对象
+     */
+    @Nullable
+    private ProductSpecI18n findSpecI18n(@NotNull ProductSpec spec, @NotNull String locale) {
+        return spec.getI18nList().stream()
+                .filter(item -> locale.equalsIgnoreCase(item.getLocale()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * 查找规格值多语言
+     *
+     * @param value  规格值
+     * @param locale 语言
+     * @return 多语言对象
+     */
+    @Nullable
+    private ProductSpecValueI18n findSpecValueI18n(@NotNull ProductSpecValue value, @Nullable String locale) {
+        if (locale == null)
+            return null;
+        return value.getI18nList().stream()
+                .filter(item -> locale.equalsIgnoreCase(item.getLocale()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * 构建规格名称映射
+     *
+     * @param specs  规格列表
+     * @param locale 语言
+     * @return Spec ID -> 本地化 Spec 名称
+     */
+    private Map<Long, String> buildSpecNameMap(@Nullable List<ProductSpec> specs, @NotNull String locale) {
+        if (specs == null || specs.isEmpty())
+            return Collections.emptyMap();
+        return specs.stream()
+                .collect(Collectors.toMap(
+                        ProductSpec::getId,
+                        spec -> {
+                            ProductSpecI18n i18n = findSpecI18n(spec, locale);
+                            return getI18nOrDefault(i18n, ProductSpecI18n::getSpecName, spec.getSpecName());
+                        }
+                ));
+    }
+
+    /**
+     * 构建规格值名称映射
+     *
+     * @param specs  规格列表
+     * @param locale 语言
+     * @return 传入的 Spec 列表中包括的 Spec Value ID -> 本地化 Spec Value 名称
+     */
+    private Map<Long, String> buildSpecValueNameMap(@Nullable List<ProductSpec> specs, @NotNull String locale) {
+        if (specs == null || specs.isEmpty())
+            return Collections.emptyMap();
+        Map<Long, String> map = new HashMap<>();
+        for (ProductSpec spec : specs) {
+            for (ProductSpecValue value : spec.getValues()) {
+                ProductSpecValueI18n i18n = findSpecValueI18n(value, locale);
+                String name = getI18nOrDefault(i18n, ProductSpecValueI18n::getValueName, value.getValueName());
+                map.put(value.getId(), name);
+            }
         }
-        return null;
+        return map;
+    }
+
+    /**
+     * 将商品快照转换为列表响应
+     *
+     * @param snapshot 商品快照
+     * @return 列表响应
+     */
+    private ProductSpuRespond toSpuRespond(@NotNull ProductPublicSnapshot snapshot) {
+        List<ProductImageRespond> gallery = snapshot.getGallery().stream()
+                .map(img -> ProductImageRespond.builder()
+                        .url(img.getUrl())
+                        .isMain(img.isMain())
+                        .sortOrder(img.getSortOrder())
+                        .build())
+                .toList();
+        return ProductSpuRespond.builder()
+                .id(snapshot.getId())
+                .slug(snapshot.getSlug())
+                .title(snapshot.getTitle())
+                .subtitle(snapshot.getSubtitle())
+                .description(snapshot.getDescription())
+                .categoryId(snapshot.getCategoryId())
+                .categorySlug(snapshot.getCategorySlug())
+                .brand(snapshot.getBrand())
+                .coverImageUrl(snapshot.getCoverImageUrl())
+                .stockTotal(snapshot.getStockTotal())
+                .saleCount(snapshot.getSaleCount())
+                .skuType(snapshot.getSkuType())
+                .status(snapshot.getStatus())
+                .tags(snapshot.getTags())
+                .priceRange(ProductSpuRespond.ProductPriceRangeRespond.builder()
+                        .currency(snapshot.getPriceRange().getCurrency())
+                        .listPriceMin(snapshot.getPriceRange().getListPriceMin())
+                        .listPriceMax(snapshot.getPriceRange().getListPriceMax())
+                        .salePriceMin(snapshot.getPriceRange().getSalePriceMin())
+                        .salePriceMax(snapshot.getPriceRange().getSalePriceMax())
+                        .build())
+                .gallery(gallery)
+                .likedAt(snapshot.getLikedAt())
+                .build();
     }
 }

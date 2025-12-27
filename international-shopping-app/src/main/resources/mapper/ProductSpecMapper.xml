@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.products.ProductSpecMapper">
+
+    <!-- 规格值多语言 -->
+    <resultMap id="ProductSpecValueI18nResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecValueI18nPO">
+        <id column="value_id" property="valueId"/>
+        <id column="locale" property="locale"/>
+        <result column="value_name" property="valueName"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 规格值 -->
+    <resultMap id="ProductSpecValueResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecValuePO">
+        <id column="id" property="id"/>
+        <result column="product_id" property="productId"/>
+        <result column="spec_id" property="specId"/>
+        <result column="value_code" property="valueCode"/>
+        <result column="value_name" property="valueName"/>
+        <result column="attributes" property="attributes"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <collection property="i18nList" resultMap="ProductSpecValueI18nResultMap" columnPrefix="i18n_"/>
+    </resultMap>
+
+    <!-- 规格多语言 -->
+    <resultMap id="ProductSpecI18nResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecI18nPO">
+        <id column="spec_id" property="specId"/>
+        <id column="locale" property="locale"/>
+        <result column="spec_name" property="specName"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 规格聚合 -->
+    <resultMap id="ProductSpecAggregateResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecPO">
+        <id column="spec_id" property="id"/>
+        <result column="spec_product_id" property="productId"/>
+        <result column="spec_code" property="specCode"/>
+        <result column="spec_name" property="specName"/>
+        <result column="spec_type" property="specType"/>
+        <result column="spec_is_required" property="isRequired"/>
+        <result column="spec_sort_order" property="sortOrder"/>
+        <result column="spec_status" property="status"/>
+        <result column="spec_created_at" property="createdAt"/>
+        <result column="spec_updated_at" property="updatedAt"/>
+        <collection property="i18nList" resultMap="ProductSpecI18nResultMap" columnPrefix="spec_i18n_"/>
+        <collection property="values" resultMap="ProductSpecValueResultMap" columnPrefix="value_"/>
+    </resultMap>
+
+    <sql id="SpecAggregateSelectBody">
+        SELECT spec.id                AS spec_id,
+               spec.product_id        AS spec_product_id,
+               spec.spec_code         AS spec_code,
+               spec.spec_name         AS spec_name,
+               spec.spec_type         AS spec_type,
+               spec.is_required       AS spec_is_required,
+               spec.sort_order        AS spec_sort_order,
+               spec.status            AS spec_status,
+               spec.created_at        AS spec_created_at,
+               spec.updated_at        AS spec_updated_at,
+               spec_i18n.spec_id      AS spec_i18n_spec_id,
+               spec_i18n.locale       AS spec_i18n_locale,
+               spec_i18n.spec_name    AS spec_i18n_spec_name,
+               spec_i18n.created_at   AS spec_i18n_created_at,
+               spec_value.id          AS value_id,
+               spec_value.product_id  AS value_product_id,
+               spec_value.spec_id     AS value_spec_id,
+               spec_value.value_code  AS value_value_code,
+               spec_value.value_name  AS value_value_name,
+               spec_value.attributes  AS value_attributes,
+               spec_value.sort_order  AS value_sort_order,
+               spec_value.status      AS value_status,
+               spec_value.created_at  AS value_created_at,
+               spec_value.updated_at  AS value_updated_at,
+               spec_value_i18n.value_id   AS value_i18n_value_id,
+               spec_value_i18n.locale     AS value_i18n_locale,
+               spec_value_i18n.value_name AS value_i18n_value_name,
+               spec_value_i18n.created_at AS value_i18n_created_at
+        FROM product_spec spec
+                 LEFT JOIN product_spec_i18n spec_i18n ON spec_i18n.spec_id = spec.id
+                 LEFT JOIN product_spec_value spec_value ON spec_value.spec_id = spec.id
+                 LEFT JOIN product_spec_value_i18n spec_value_i18n ON spec_value_i18n.value_id = spec_value.id
+    </sql>
+
+    <!-- 按商品查询规格聚合 -->
+    <select id="selectAggregateByProductId" resultMap="ProductSpecAggregateResultMap">
+        <include refid="SpecAggregateSelectBody"/>
+        WHERE spec.product_id = #{productId}
+        ORDER BY spec.sort_order,
+                 spec.id,
+                 spec_value.sort_order,
+                 spec_value.id
+    </select>
+
+    <!-- 按 ID 查询规格聚合 -->
+    <select id="selectAggregateById" resultMap="ProductSpecAggregateResultMap">
+        <include refid="SpecAggregateSelectBody"/>
+        WHERE spec.product_id = #{productId}
+          AND spec.id = #{specId}
+        ORDER BY spec.sort_order,
+                 spec.id,
+                 spec_value.sort_order,
+                 spec_value.id
+    </select>
+</mapper>

@@ -441,12 +441,18 @@ docker compose -f docker-compose-dev.yaml up -d
     * Gateway DTO 访问外部系统的 DTO
       * `xxxRequest`, `xxxxRespond` 等。
     * 包名全部小写，无下划线：`shopping.international.domain.model.vo.user`。
+    * 变量类型为 java.util.List 时, 变量命名为 xxxList
+    * 变量类型为 java.util.Set 时, 变量命名为复数形式, 如 productSkus
 
 7. **代码效率**：
     * 避免过多的 `if-else` 嵌套，使用优先考虑提早失败策略，其次是策略模式或状态模式等，最后才是嵌套 if-else。
     * 避免过多的 `try-catch`，使用 `Optional` 或自定义异常。
     * 代码中应该有合理的注释以确保代码可读性
     * 不要滥用三目运算符
+
+8. **参数校验**：
+    * shopping.international.api.req 包下的请求都需要实现 `shopping.international.types.utils.Verifiable` 接口, 并视情况实现其中的方法, 如果 Request 对象为单一功能对象, 则直接实现 validate 方法, 如果 Request 对象为创建/更新共用对象, 则还需要实现 createValidate / updateValidate 方法
+    * 所有入参校验应该在 trigger 层完成, 避免在 domain 层重复校验
 
 ### 4.2 安全 / 鉴权规则
 

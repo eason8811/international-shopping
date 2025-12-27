@@ -29,6 +29,12 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Spring Security 测试支持 (@WithMockUser、SecurityMockMvcRequestPostProcessors 等) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Spring Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

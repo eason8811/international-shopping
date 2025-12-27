@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.orders.OrderDiscountAppliedMapper">
+
+    <resultMap id="OrderDiscountAppliedViewResultMap" type="shopping.international.infrastructure.dao.orders.po.OrderDiscountAppliedViewPO">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="order_item_id" property="orderItemId"/>
+        <result column="discount_code_id" property="discountCodeId"/>
+        <result column="applied_scope" property="appliedScope"/>
+        <result column="applied_amount" property="appliedAmount"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="selectViews" resultMap="OrderDiscountAppliedViewResultMap">
+        SELECT
+            oda.id,
+            o.order_no,
+            oda.order_id,
+            oda.order_item_id,
+            oda.discount_code_id,
+            oda.applied_scope,
+            oda.applied_amount,
+            oda.created_at
+        FROM order_discount_applied oda
+                 JOIN orders o ON o.id = oda.order_id
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="discountCodeId != null">
+                AND oda.discount_code_id = #{discountCodeId}
+            </if>
+            <if test="appliedScope != null and appliedScope != ''">
+                AND oda.applied_scope = #{appliedScope}
+            </if>
+            <if test="from != null">
+                AND oda.created_at &gt;= #{from}
+            </if>
+            <if test="to != null">
+                AND oda.created_at &lt;= #{to}
+            </if>
+        </where>
+        ORDER BY oda.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countViews" resultType="long">
+        SELECT COUNT(1)
+        FROM order_discount_applied oda
+                 JOIN orders o ON o.id = oda.order_id
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="discountCodeId != null">
+                AND oda.discount_code_id = #{discountCodeId}
+            </if>
+            <if test="appliedScope != null and appliedScope != ''">
+                AND oda.applied_scope = #{appliedScope}
+            </if>
+            <if test="from != null">
+                AND oda.created_at &gt;= #{from}
+            </if>
+            <if test="to != null">
+                AND oda.created_at &lt;= #{to}
+            </if>
+        </where>
+    </select>
+
+</mapper>
+

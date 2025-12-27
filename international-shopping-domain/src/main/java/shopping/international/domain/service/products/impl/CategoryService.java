@@ -1,0 +1,351 @@
+package shopping.international.domain.service.products.impl;
+
+import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.springframework.stereotype.Service;
+import shopping.international.domain.adapter.repository.products.ICategoryRepository;
+import shopping.international.domain.model.aggregate.products.Category;
+import shopping.international.domain.model.enums.products.CategoryStatus;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.products.CategoryI18n;
+import shopping.international.domain.service.products.ICategoryService;
+import shopping.international.types.exceptions.ConflictException;
+import shopping.international.types.exceptions.IllegalParamException;
+
+import java.util.List;
+
+import static shopping.international.types.utils.FieldValidateUtils.normalizeLocale;
+
+/**
+ * 商品分类领域服务实现
+ *
+ * <p>职责: 校验业务约束 (唯一性, 层级合法性, 删除保护等), 编排聚合行为并调用仓储完成持久化</p>
+ */
+@Service
+@RequiredArgsConstructor
+public class CategoryService implements ICategoryService {
+
+    /**
+     * 分类聚合仓储
+     */
+    private final ICategoryRepository categoryRepository;
+
+    /**
+     * 列出全部启用分类 (含 i18n), 用于构建用户侧分类树
+     *
+     * @return 分类列表
+     */
+    @Override
+    public @NotNull List<Category> listEnabled() {
+        return categoryRepository.listAll(CategoryStatus.ENABLED);
+    }
+
+    /**
+     * 分页筛选分类 (管理侧)
+     *
+     * @param pageQuery       分页查询条件
+     * @param parentSpecified 是否按父级过滤
+     * @param parentId        父级 ID, 可空
+     * @param keyword         关键词, 可空
+     * @param isEnabled       启用过滤, 可空
+     * @return 分页结果
+     */
+    @Override
+    public @NotNull PageResult<Category> list(PageQuery pageQuery, boolean parentSpecified, @Nullable Long parentId,
+                                              @Nullable String keyword, @Nullable Boolean isEnabled) {
+        pageQuery.validate();
+        CategoryStatus status = isEnabled == null ? null : (isEnabled ? CategoryStatus.ENABLED : CategoryStatus.DISABLED);
+        String trimmedKeyword = keyword == null ? null : keyword.strip();
+
+        List<Category> items = categoryRepository.list(parentId, parentSpecified, trimmedKeyword, status, pageQuery.offset(), pageQuery.limit());
+        long total = categoryRepository.count(parentId, parentSpecified, trimmedKeyword, status);
+        return PageResult.<Category>builder()
+                .items(items)
+                .total(total)
+                .build();
+    }
+
+    /**
+     * 获取分类详情
+     *
+     * @param categoryId 分类 ID
+     * @return 聚合
+     */
+    @Override
+    public @NotNull Category get(@NotNull Long categoryId) {
+        return categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalParamException("分类不存在"));
+    }
+
+    /**
+     * 创建分类
+     *
+     * @param name      名称
+     * @param slug      唯一 slug
+     * @param parentId  父分类 ID, 可空
+     * @param sortOrder 排序
+     * @param isEnabled 启用状态
+     * @param i18nList  多语言列表, 可空
+     * @return 新建聚合
+     */
+    @Override
+    public @NotNull Category create(@NotNull String name, @NotNull String slug, @Nullable Long parentId,
+                                    @NotNull Integer sortOrder, @NotNull Boolean isEnabled,
+                                    @NotNull List<CategoryI18n> i18nList) {
+        Category parent = parentId == null ? null : categoryRepository.findById(parentId)
+                .orElseThrow(() -> new IllegalParamException("父分类不存在"));
+        int level = parent == null ? 1 : parent.getLevel() + 1;
+        String path = buildPath(parent);
+        Category category = Category.create(parentId, level, name, slug, sortOrder, null, i18nList);
+
+        category.moveTo(parentId, level, path);
+        if (!isEnabled)
+            category.changeStatus(CategoryStatus.DISABLED);
+
+        ensureUniqueness(
+                category.getId(),
+                category.getParentId(),
+                category.getName(),
+                category.getSlug(),
+                category.getI18nList()
+        );
+
+        return categoryRepository.save(category);
+    }
+
+    /**
+     * 更新分类基础信息及可选 i18n
+     *
+     * @param categoryId  分类 ID
+     * @param name        新名称, 可空
+     * @param slug        新 slug, 可空
+     * @param parentId    新父级, 可空
+     * @param sortOrder   新排序, 可空
+     * @param isEnabled   新启用状态, 可空
+     * @param i18nPatches 多语言增量列表, 可空
+     * @return 更新后的聚合
+     */
+    @Override
+    public @NotNull Category update(@NotNull Long categoryId, @Nullable String name, @Nullable String slug,
+                                    @Nullable Long parentId, @Nullable Integer sortOrder, @Nullable Boolean isEnabled,
+                                    @Nullable List<CategoryI18nPatch> i18nPatches) {
+        Category current = get(categoryId);
+
+        Category parent = parentId == null ? null : get(parentId);
+        if (parentId != null && parentId.equals(categoryId))
+            throw new IllegalParamException("分类不能移动到自身下");
+        if (parent != null && isDescendant(parent, current))
+            throw new IllegalParamException("分类不能移动到自己的子孙节点下");
+
+        String oldPath = current.getPath();
+        int oldLevel = current.getLevel();
+
+        boolean parentChanged = parentId != null ? !parentId.equals(current.getParentId()) : current.getParentId() != null;
+        if (parentChanged) {
+            int newLevel = parent == null ? 1 : parent.getLevel() + 1;
+            String newPath = buildPath(parent);
+            current.moveTo(parentId, newLevel, newPath);
+        }
+
+        if (name != null || slug != null)
+            current.updateBasic(name, slug, null);
+        if (sortOrder != null)
+            current.updateSortOrder(sortOrder);
+        if (isEnabled != null)
+            current.changeStatus(isEnabled ? CategoryStatus.ENABLED : CategoryStatus.DISABLED);
+
+        boolean replaceI18n = i18nPatches != null;
+        if (replaceI18n)
+            current.updateI18nBatch(
+                    i18nPatches.stream()
+                            .map(item -> CategoryI18n.of(item.locale(), item.name(), item.slug(), item.brand()))
+                            .toList()
+            );
+
+
+        ensureUniqueness(
+                categoryId,
+                current.getParentId(),
+                name == null ? current.getName() : name,
+                slug == null ? current.getSlug() : slug,
+                current.getI18nList()
+        );
+
+        ICategoryRepository.MoveContext moveContext = null;
+        if (parentChanged) {
+            String oldPrefix = buildDescendantPrefix(oldPath, current.getId());
+            String newPrefix = buildDescendantPrefix(current.getPath(), current.getId());
+            int levelDelta = current.getLevel() - oldLevel;
+            moveContext = new ICategoryRepository.MoveContext(oldPrefix, newPrefix, levelDelta);
+        }
+
+        categoryRepository.update(current, replaceI18n, moveContext);
+        return get(categoryId);
+    }
+
+    /**
+     * 删除分类
+     *
+     * @param categoryId 分类 ID
+     */
+    @Override
+    public void delete(@NotNull Long categoryId) {
+        Category category = get(categoryId);
+        String descendantPrefix = buildDescendantPrefix(category.getPath(), category.getId());
+        List<Long> subtreeIds = categoryRepository.listSubtreeIdsForDelete(categoryId, descendantPrefix);
+        if (categoryRepository.hasProductsInCategories(subtreeIds))
+            throw new ConflictException("分类下存在商品引用, 无法删除");
+        categoryRepository.deleteCascade(subtreeIds);
+    }
+
+    /**
+     * 新增多语言
+     *
+     * @param categoryId 分类 ID
+     * @param i18n       多语言值对象
+     * @return 新增后的值对象
+     */
+    @Override
+    public @NotNull CategoryI18n addI18n(@NotNull Long categoryId, @NotNull CategoryI18n i18n) {
+        Category category = get(categoryId);
+        category.addI18n(i18n);
+        categoryRepository.saveI18n(categoryId, i18n);
+        return i18n;
+    }
+
+    /**
+     * 增量更新多语言
+     *
+     * @param categoryId 分类 ID
+     * @param patch      多语言增量
+     * @return 更新后的值对象
+     */
+    @Override
+    public @NotNull CategoryI18n updateI18n(@NotNull Long categoryId, @NotNull CategoryI18nPatch patch) {
+        Category category = get(categoryId);
+        category.updateI18n(patch.locale(), patch.name(), patch.slug(), patch.brand());
+        CategoryI18n updated = category.getI18nList().stream()
+                .filter(item -> item.getLocale().equals(normalizeLocale(patch.locale())))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("指定语言不存在"));
+        categoryRepository.updateI18n(categoryId, updated);
+        return updated;
+    }
+
+    /**
+     * 删除指定分类下的特定语言版本信息
+     *
+     * @param categoryId 分类 ID
+     * @param locale     语言环境标识, 如 "en_US"
+     * @return 返回删除成功的 locale
+     */
+    @Override
+    public @NotNull String deleteI18n(@NotNull Long categoryId, @NotNull String locale) {
+        Category category = get(categoryId);
+        category.removeI18n(locale);
+        categoryRepository.deleteI18n(categoryId, locale);
+        return locale;
+    }
+
+    /**
+     * 切换启用状态
+     *
+     * @param categoryId 分类 ID
+     * @param enable     目标是否启用
+     * @return 更新后的聚合
+     */
+    @Override
+    public @NotNull Category toggleStatus(@NotNull Long categoryId, boolean enable) {
+        Category category = get(categoryId);
+        CategoryStatus target = enable ? CategoryStatus.ENABLED : CategoryStatus.DISABLED;
+        if (category.getStatus() != target) {
+            category.changeStatus(target);
+            categoryRepository.update(category, false, null);
+        }
+        return get(categoryId);
+    }
+
+    /**
+     * 计算分类路径字符串
+     *
+     * @param parent 父分类
+     * @return 路径, 如 /1/3/
+     */
+    private String buildPath(@Nullable Category parent) {
+        if (parent == null || parent.getId() == null)
+            return null;
+        String parentPath = parent.getPath();
+        String normalized = (parentPath == null || parentPath.isBlank()) ? "/" : parentPath;
+        if (!normalized.endsWith("/"))
+            normalized = normalized + "/";
+        return normalized + parent.getId() + "/";
+    }
+
+    /**
+     * 生成子树路径前缀 (旧/新)
+     *
+     * @param path       当前 path
+     * @param categoryId 分类 ID
+     * @return 子树前缀
+     */
+    private String buildDescendantPrefix(@Nullable String path, @NotNull Long categoryId) {
+        String normalized = (path == null || path.isBlank()) ? "/" : path;
+        if (!normalized.endsWith("/"))
+            normalized = normalized + "/";
+        return normalized + categoryId + "/";
+    }
+
+    /**
+     * 判断 candidate 是否为 ancestor 的子孙
+     *
+     * @param candidate 待判定节点
+     * @param ancestor  祖先节点
+     * @return 是否为子孙
+     */
+    private boolean isDescendant(@NotNull Category candidate, @NotNull Category ancestor) {
+        if (ancestor.getId() == null || candidate.getPath() == null)
+            return false;
+        String marker = "/" + ancestor.getId() + "/";
+        return candidate.getPath().contains(marker);
+    }
+
+    /**
+     * 确保 category slug 全局唯一. category 的 i18n 中的 slug 在同 locale 下唯一<br/>
+     * 同时确保 category 名称在同级下唯一, category 的 i18n 中的名称在 同级同 locale 下唯一
+     *
+     * @param excludeCategoryId 当前分类 ID, 可空
+     * @param parentId          父 ID
+     * @param name              名称
+     * @param slug              slug
+     * @param i18nList          i18n 列表
+     */
+    private void ensureUniqueness(@Nullable Long excludeCategoryId,
+                                  @Nullable Long parentId,
+                                  @NotNull String name,
+                                  @NotNull String slug,
+                                  @NotNull List<CategoryI18n> i18nList) {
+        if (categoryRepository.existsBySlug(slug, excludeCategoryId))
+            throw new ConflictException("分类的 slug 已存在");
+        if (categoryRepository.existsByParentAndName(parentId, name, excludeCategoryId))
+            throw new ConflictException("同级下分类名称重复");
+        ensureI18nUniqueness(excludeCategoryId, excludeCategoryId, i18nList);
+    }
+
+    /**
+     * category 的 i18n 中的 slug 在同 locale 下唯一且 category 的 i18n 中的名称在 同级同 locale 下唯一
+     *
+     * @param excludeCategoryId 当前分类 ID, 可空
+     * @param i18nList          i18n 列表
+     * @throws IllegalArgumentException 违反唯一约束
+     */
+    private void ensureI18nUniqueness(@Nullable Long excludeCategoryId, @Nullable Long parentId, @NotNull List<CategoryI18n> i18nList) {
+        String slugLocale = categoryRepository.existsByI18nSlugInLocale(i18nList, excludeCategoryId);
+        if (slugLocale != null)
+            throw new ConflictException("'" + slugLocale + "' 语言中分类 i18n slug 已存在");
+        String nameLocale = categoryRepository.existsByParentAndI18nNameInLocale(parentId, i18nList, excludeCategoryId);
+        if (nameLocale != null)
+            throw new ConflictException("'" + nameLocale + "' 语言中同级分类 i18n 名称重复");
+    }
+}

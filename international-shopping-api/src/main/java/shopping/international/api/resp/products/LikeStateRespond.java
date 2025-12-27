@@ -1,9 +1,10 @@
 package shopping.international.api.resp.products;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import shopping.international.domain.model.vo.products.LikeState;
 
 import java.time.LocalDateTime;
 
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
  * 点赞状态响应
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class LikeStateRespond {
@@ -21,17 +23,6 @@ public class LikeStateRespond {
     /**
      * 点赞时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime likedAt;
-
-    /**
-     * 根据点赞状态创建一个 <code>LikeStateRespond</code> 对象
-     *
-     * @param state 代表点赞状态的 <code>LikeState</code> 对象, 如果为 null, 则表示没有点赞信息
-     * @return 返回一个 <code>LikeStateRespond</code> 对象, 其中包含是否已点赞以及点赞时间的信息
-     */
-    public static LikeStateRespond from(LikeState state) {
-        if (state == null)
-            return new LikeStateRespond(false, null);
-        return new LikeStateRespond(state.liked(), state.likedAt());
-    }
 }

@@ -1,6 +1,9 @@
 package shopping.international.infrastructure.dao.products.po;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,7 +13,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 持久化对象: product_price
+ * SKU 多币种价格持久化对象, 对应表 product_price
+ * <p>记录 SKU 在不同结算币种下的价格</p>
  */
 @Data
 @Builder
@@ -18,44 +22,52 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @TableName("product_price")
 public class ProductPricePO {
+
     /**
-     * 主键ID
+     * 主键ID, 自增
      */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
+
     /**
      * SKU ID, 指向 product_sku.id
      */
     @TableField("sku_id")
     private Long skuId;
+
     /**
-     * 币种, 指向 currency.code
+     * 币种代码 (ISO 4217)
      */
     @TableField("currency")
     private String currency;
+
     /**
      * 标价
      */
     @TableField("list_price")
     private BigDecimal listPrice;
+
     /**
-     * 促销价 (可空)
+     * 促销价, 可为空
      */
     @TableField("sale_price")
     private BigDecimal salePrice;
+
     /**
-     * 是否可售用价
+     * 是否启用该价格
      */
     @TableField("is_active")
-    private Integer isActive;
+    private Boolean isActive;
+
     /**
      * 创建时间
      */
-    @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    @TableField("created_at")
     private LocalDateTime createdAt;
+
     /**
      * 更新时间
      */
-    @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
 }

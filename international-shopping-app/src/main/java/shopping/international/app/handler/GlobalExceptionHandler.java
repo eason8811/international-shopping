@@ -23,7 +23,7 @@ import shopping.international.types.enums.ApiCode;
 /**
  * 全局异常处理器
  *
- * <p>职责: 
+ * <p>职责:
  * <ul>
  *   <li>拦截系统内常见异常并统一返回 {@link Result}</li>
  *   <li>根据异常类型设置合适的 HTTP 状态码与 {@link ApiCode}</li>
@@ -31,7 +31,7 @@ import shopping.international.types.enums.ApiCode;
  * </ul>
  * </p>
  *
- * <p>HTTP 状态与业务码约定: 
+ * <p>HTTP 状态与业务码约定:
  * <ul>
  *   <li>{@link IllegalParamException} → 400 Bad Request / {@link ApiCode#BAD_REQUEST}</li>
  *   <li>{@link AppException} → 500 Internal Server Error / {@link ApiCode#INTERNAL_SERVER_ERROR}</li>
@@ -57,8 +57,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return 统一返回结构 {@link Result}, HTTP 429
      */
     @ExceptionHandler(TooManyEmailSentException.class)
-    public ResponseEntity<Result<Void>> handleIllegalParam(final TooManyEmailSentException ex,
-                                                           final HttpServletRequest request) {
+    public ResponseEntity<Result<Void>> handleTooManyEmailSent(final TooManyEmailSentException ex,
+                                                               final HttpServletRequest request) {
         // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
         log.warn(buildLogFormat(),
                 ex.getClass().getSimpleName(),
@@ -68,7 +68,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.TOO_MANY_REQUESTS, ApiCode.TOO_MANY_REQUESTS, ex.getMessage(), request);
     }
@@ -81,8 +81,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return 统一返回结构 {@link Result}, HTTP 401
      */
     @ExceptionHandler(AccountException.class)
-    public ResponseEntity<Result<Void>> handleIllegalParam(final AccountException ex,
-                                                           final HttpServletRequest request) {
+    public ResponseEntity<Result<Void>> handleAccount(final AccountException ex,
+                                                      final HttpServletRequest request) {
         // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
         log.warn(buildLogFormat(),
                 ex.getClass().getSimpleName(),
@@ -92,7 +92,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.UNAUTHORIZED, ApiCode.UNAUTHORIZED, ex.getMessage(), request);
     }
@@ -105,8 +105,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return 统一返回结构 {@link Result}, HTTP 422
      */
     @ExceptionHandler(VerificationCodeInvalidException.class)
-    public ResponseEntity<Result<Void>> handleIllegalParam(final VerificationCodeInvalidException ex,
-                                                           final HttpServletRequest request) {
+    public ResponseEntity<Result<Void>> handleVerificationCodeInvalid(final VerificationCodeInvalidException ex,
+                                                                      final HttpServletRequest request) {
         // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
         log.warn(buildLogFormat(),
                 ex.getClass().getSimpleName(),
@@ -116,7 +116,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.UNPROCESSABLE_ENTITY, ApiCode.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
@@ -129,8 +129,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * @return 统一返回结构 {@link Result}, HTTP 409
      */
     @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<Result<Void>> handleIllegalParam(final ConflictException ex,
-                                                           final HttpServletRequest request) {
+    public ResponseEntity<Result<Void>> handleConflict(final ConflictException ex,
+                                                       final HttpServletRequest request) {
         // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
         log.warn(buildLogFormat(),
                 ex.getClass().getSimpleName(),
@@ -140,7 +140,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.CONFLICT, ApiCode.CONFLICT, ex.getMessage(), request);
     }
@@ -165,7 +165,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 request.getRequestURI(),
                 request.getMethod(),
                 request.getRemoteAddr(),
-                resolveTraceId(request));
+                resolveTraceId(request), ex);
 
         return respond(HttpStatus.BAD_REQUEST, ApiCode.BAD_REQUEST, ex.getMessage(), request);
     }
@@ -220,18 +220,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
 
-
     /**
      * 处理缺少 Servlet 请求参数的异常, 返回 400 错误
      *
-     * @param ex 抛出的 {@link MissingServletRequestParameterException} 异常
+     * @param ex      抛出的 {@link MissingServletRequestParameterException} 异常
      * @param headers 响应头, 通常用于设置额外的 HTTP 头信息
-     * @param status HTTP 状态码, 对于此类异常固定为 400 (Bad Request)
+     * @param status  HTTP 状态码, 对于此类异常固定为 400 (Bad Request)
      * @param request 当前 Web 请求, 用于获取请求相关信息如 HTTP 方法等
      * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 400 状态码
      */
     @Override
-    protected ResponseEntity<Object> handleMissingServletRequestParameter(MissingServletRequestParameterException ex,
+    protected ResponseEntity<Object> handleMissingServletRequestParameter(@NotNull MissingServletRequestParameterException ex,
                                                                           @NotNull HttpHeaders headers,
                                                                           @NotNull HttpStatusCode status,
                                                                           @NotNull WebRequest request) {
@@ -244,7 +243,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 null,
                 ((ServletWebRequest) request).getHttpMethod(),
                 null,
-                resolveTraceId(null));
+                resolveTraceId(null), ex);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Result.<Void>error(ApiCode.BAD_REQUEST, ex.getMessage()));
     }
@@ -255,14 +254,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * <p>此方法用于统一处理 {@link NoResourceFoundException}, 当请求的资源不存在时触发。该方法首先记录一条警告级别的日志,
      * 随后返回一个包含错误信息的统一响应结构, HTTP 状态码为 404 (Not Found)</p>
      *
-     * @param ex 抛出的 {@link NoResourceFoundException} 异常, 包含了关于未能找到资源的具体信息
+     * @param ex      抛出的 {@link NoResourceFoundException} 异常, 包含了关于未能找到资源的具体信息
      * @param headers 响应头, 通常用于设置额外的 HTTP 头信息
-     * @param status HTTP 状态码, 对于此类异常固定为 404 (Not Found)
+     * @param status  HTTP 状态码, 对于此类异常固定为 404 (Not Found)
      * @param request 当前 Web 请求, 用于获取请求相关信息如 HTTP 方法等
      * @return 统一返回结构 {@link ResponseEntity} 包含了 {@link Result} 和 HTTP 404 状态码
      */
     @Override
-    protected ResponseEntity<Object> handleNoResourceFoundException(NoResourceFoundException ex,
+    protected ResponseEntity<Object> handleNoResourceFoundException(@NotNull NoResourceFoundException ex,
                                                                     @NotNull HttpHeaders headers,
                                                                     @NotNull HttpStatusCode status,
                                                                     @NotNull WebRequest request) {
@@ -275,7 +274,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 null,
                 ((ServletWebRequest) request).getHttpMethod(),
                 null,
-                resolveTraceId(null));
+                resolveTraceId(null), ex);
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.<Void>error(ApiCode.NOT_FOUND, ex.getMessage()));
     }

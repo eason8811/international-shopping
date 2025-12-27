@@ -1,0 +1,151 @@
+package shopping.international.domain.service.orders;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.aggregate.orders.DiscountCode;
+import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
+import shopping.international.domain.model.enums.orders.DiscountApplyScope;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
+import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteria;
+import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * 管理侧折扣管理领域服务接口
+ *
+ * <p>覆盖:</p>
+ * <ul>
+ *     <li>折扣策略 CRUD</li>
+ *     <li>折扣码 CRUD</li>
+ *     <li>折扣码适用商品映射覆盖</li>
+ *     <li>折扣实际使用流水查询</li>
+ * </ul>
+ */
+public interface IAdminDiscountService {
+    /**
+     * 折扣实际使用流水展示项
+     *
+     * @param id             主键 ID
+     * @param orderNo        订单号
+     * @param orderId        订单 ID
+     * @param orderItemId    订单明细 ID (可为空)
+     * @param discountCodeId 折扣码 ID
+     * @param appliedScope   应用范围
+     * @param appliedAmount  实际抵扣金额 (金额字符串)
+     * @param createdAt      发生时间
+     */
+    record OrderDiscountAppliedView(Long id,
+                                    String orderNo,
+                                    Long orderId,
+                                    @Nullable Long orderItemId,
+                                    Long discountCodeId,
+                                    DiscountApplyScope appliedScope,
+                                    String appliedAmount,
+                                    LocalDateTime createdAt) {
+    }
+
+    /**
+     * 查询折扣策略列表
+     *
+     * @param pageQuery 分页参数
+     * @param criteria  筛选条件
+     * @return 分页结果
+     */
+    @NotNull
+    PageResult<DiscountPolicy> listPolicies(@NotNull PageQuery pageQuery, @NotNull DiscountPolicySearchCriteria criteria);
+
+    /**
+     * 创建折扣策略
+     *
+     * @param policy 新策略
+     * @return 保存后的策略
+     */
+    @NotNull
+    DiscountPolicy createPolicy(@NotNull DiscountPolicy policy);
+
+    /**
+     * 更新折扣策略
+     *
+     * @param policyId 策略 ID
+     * @param toUpdate 用于更新的 Policy 对象
+     * @return 更新后的策略
+     */
+    @NotNull
+    DiscountPolicy updatePolicy(@NotNull Long policyId, @NotNull DiscountPolicy toUpdate);
+
+    /**
+     * 删除折扣策略
+     *
+     * @param policyId 策略 ID
+     */
+    void deletePolicy(@NotNull Long policyId);
+
+    /**
+     * 查询折扣码列表
+     *
+     * @param pageQuery 分页参数
+     * @param criteria  筛选条件
+     * @return 分页结果
+     */
+    @NotNull
+    PageResult<DiscountCode> listCodes(@NotNull PageQuery pageQuery, @NotNull DiscountCodeSearchCriteria criteria);
+
+    /**
+     * 创建折扣码
+     *
+     * @param code 新折扣码聚合
+     * @return 保存后的折扣码
+     */
+    @NotNull
+    DiscountCode createCode(@NotNull DiscountCode code);
+
+    /**
+     * 更新折扣码
+     *
+     * @param codeId   折扣码 ID
+     * @param toUpdate 用于跟新的 Code 对象
+     * @return 更新后的折扣码
+     */
+    @NotNull
+    DiscountCode updateCode(@NotNull Long codeId, @NotNull DiscountCode toUpdate);
+
+    /**
+     * 删除折扣码
+     *
+     * @param codeId 折扣码 ID
+     */
+    void deleteCode(@NotNull Long codeId);
+
+    /**
+     * 获取折扣码适用商品映射 (SPU 列表)
+     *
+     * @param codeId 折扣码 ID
+     * @return SPU ID 列表
+     */
+    @NotNull
+    List<Long> listCodeProducts(@NotNull Long codeId);
+
+    /**
+     * 覆盖设置折扣码适用商品映射 (SPU 列表)
+     *
+     * @param codeId     折扣码 ID
+     * @param productIds SPU ID 列表
+     * @return 生效后的 SPU ID 列表
+     */
+    @NotNull
+    List<Long> replaceCodeProducts(@NotNull Long codeId, @NotNull List<Long> productIds);
+
+    /**
+     * 查询折扣实际使用流水
+     *
+     * @param pageQuery 分页参数
+     * @param criteria  筛选条件
+     * @return 分页结果
+     */
+    @NotNull
+    PageResult<OrderDiscountAppliedView> listOrderDiscountApplied(@NotNull PageQuery pageQuery, @NotNull OrderDiscountAppliedSearchCriteria criteria);
+}

@@ -1,0 +1,455 @@
+package shopping.international.infrastructure.adapter.repository.orders;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import shopping.international.domain.adapter.repository.orders.IDiscountRepository;
+import shopping.international.domain.model.aggregate.orders.DiscountCode;
+import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
+import shopping.international.domain.model.enums.orders.DiscountApplyScope;
+import shopping.international.domain.model.enums.orders.DiscountScopeMode;
+import shopping.international.domain.model.enums.orders.DiscountStrategyType;
+import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
+import shopping.international.domain.model.vo.orders.DiscountCodeText;
+import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteria;
+import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
+import shopping.international.domain.service.orders.IAdminDiscountService;
+import shopping.international.infrastructure.dao.orders.DiscountCodeMapper;
+import shopping.international.infrastructure.dao.orders.DiscountCodeProductMapper;
+import shopping.international.infrastructure.dao.orders.DiscountPolicyMapper;
+import shopping.international.infrastructure.dao.orders.OrderDiscountAppliedMapper;
+import shopping.international.infrastructure.dao.orders.po.DiscountCodePO;
+import shopping.international.infrastructure.dao.orders.po.DiscountCodeProductPO;
+import shopping.international.infrastructure.dao.orders.po.DiscountPolicyPO;
+import shopping.international.infrastructure.dao.orders.po.OrderDiscountAppliedViewPO;
+import shopping.international.types.exceptions.ConflictException;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * 基于 MyBatis-Plus 的折扣仓储实现
+ */
+@Repository
+@RequiredArgsConstructor
+public class DiscountRepository implements IDiscountRepository {
+
+    /**
+     * 折扣策略 Mapper
+     */
+    private final DiscountPolicyMapper discountPolicyMapper;
+    /**
+     * 折扣码 Mapper
+     */
+    private final DiscountCodeMapper discountCodeMapper;
+    /**
+     * 折扣码-商品映射 Mapper
+     */
+    private final DiscountCodeProductMapper discountCodeProductMapper;
+    /**
+     * 折扣实际使用流水 Mapper
+     */
+    private final OrderDiscountAppliedMapper orderDiscountAppliedMapper;
+
+    /**
+     * 分页查询折扣策略
+     *
+     * @param criteria 筛选条件
+     * @param offset   偏移量
+     * @param limit    单页数量
+     * @return 策略列表
+     */
+    @Override
+    public @NotNull List<DiscountPolicy> pagePolicies(@NotNull DiscountPolicySearchCriteria criteria, int offset, int limit) {
+        LambdaQueryWrapper<DiscountPolicyPO> wrapper = buildPagePoliciesWrapper(criteria);
+        wrapper.orderByDesc(DiscountPolicyPO::getId)
+                .last("limit " + limit + " offset " + offset);
+        List<DiscountPolicyPO> pos = discountPolicyMapper.selectList(wrapper);
+        if (pos == null || pos.isEmpty())
+            return List.of();
+        return pos.stream().map(this::toAggregate).toList();
+    }
+
+    /**
+     * 统计折扣策略数量
+     *
+     * @param criteria 筛选条件
+     * @return 总数
+     */
+    @Override
+    public long countPolicies(@NotNull DiscountPolicySearchCriteria criteria) {
+        LambdaQueryWrapper<DiscountPolicyPO> wrapper = buildPagePoliciesWrapper(criteria);
+        return discountPolicyMapper.selectCount(wrapper);
+    }
+
+    /**
+     * 按主键查询折扣策略
+     *
+     * @param policyId 策略 ID
+     * @return Optional
+     */
+    @Override
+    public @NotNull Optional<DiscountPolicy> findPolicyById(@NotNull Long policyId) {
+        DiscountPolicyPO po = discountPolicyMapper.selectById(policyId);
+        return po == null ? Optional.empty() : Optional.of(toAggregate(po));
+    }
+
+    /**
+     * 保存新策略
+     *
+     * @param policy 新策略
+     * @return 保存后的策略
+     */
+    @Override
+    public @NotNull DiscountPolicy savePolicy(@NotNull DiscountPolicy policy) {
+        DiscountPolicyPO po = DiscountPolicyPO.builder()
+                .name(policy.getName())
+                .applyScope(policy.getApplyScope().name())
+                .strategyType(policy.getStrategyType().name())
+                .percentOff(policy.getPercentOff())
+                .amountOff(policy.getAmountOff())
+                .currency(policy.getCurrency())
+                .minOrderAmount(policy.getMinOrderAmount())
+                .maxDiscountAmount(policy.getMaxDiscountAmount())
+                .build();
+        discountPolicyMapper.insert(po);
+        return findPolicyById(po.getId()).orElseThrow(() -> new ConflictException("折扣策略创建后回读失败"));
+    }
+
+    /**
+     * 更新策略
+     *
+     * @param policy 策略
+     * @return 更新后的策略
+     */
+    @Override
+    public @NotNull DiscountPolicy updatePolicy(@NotNull DiscountPolicy policy) {
+        LambdaUpdateWrapper<DiscountPolicyPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(DiscountPolicyPO::getId, policy.getId())
+                .set(DiscountPolicyPO::getName, policy.getName())
+                .set(DiscountPolicyPO::getApplyScope, policy.getApplyScope().name())
+                .set(DiscountPolicyPO::getStrategyType, policy.getStrategyType().name())
+                .set(DiscountPolicyPO::getPercentOff, policy.getPercentOff())
+                .set(DiscountPolicyPO::getAmountOff, policy.getAmountOff())
+                .set(DiscountPolicyPO::getCurrency, policy.getCurrency())
+                .set(DiscountPolicyPO::getMinOrderAmount, policy.getMinOrderAmount())
+                .set(DiscountPolicyPO::getMaxDiscountAmount, policy.getMaxDiscountAmount());
+        discountPolicyMapper.update(null, wrapper);
+        return findPolicyById(policy.getId()).orElseThrow(() -> new ConflictException("折扣策略更新后回读失败"));
+    }
+
+    /**
+     * 删除折扣策略
+     *
+     * @param policyId 策略 ID
+     */
+    @Override
+    public void deletePolicy(@NotNull Long policyId) {
+        discountPolicyMapper.deleteById(policyId);
+    }
+
+    /**
+     * 分页查询折扣码
+     *
+     * @param criteria 筛选条件
+     * @param offset   偏移量
+     * @param limit    单页数量
+     * @return 折扣码列表
+     */
+    @Override
+    public @NotNull List<DiscountCode> pageCodes(@NotNull DiscountCodeSearchCriteria criteria, int offset, int limit) {
+        LambdaQueryWrapper<DiscountCodePO> wrapper = buildPageCodesWrapper(criteria);
+        wrapper.orderByDesc(DiscountCodePO::getId)
+                .last("limit " + limit + " offset " + offset);
+        List<DiscountCodePO> pos = discountCodeMapper.selectList(wrapper);
+        if (pos == null || pos.isEmpty())
+            return List.of();
+        return pos.stream().map(this::toAggregate).toList();
+    }
+
+    /**
+     * 统计折扣码数量
+     *
+     * @param criteria 筛选条件
+     * @return 总数
+     */
+    @Override
+    public long countCodes(@NotNull DiscountCodeSearchCriteria criteria) {
+        LambdaQueryWrapper<DiscountCodePO> wrapper = buildPageCodesWrapper(criteria);
+        return discountCodeMapper.selectCount(wrapper);
+    }
+
+    /**
+     * 按主键查询折扣码
+     *
+     * @param codeId 折扣码 ID
+     * @return Optional
+     */
+    @Override
+    public @NotNull Optional<DiscountCode> findCodeById(@NotNull Long codeId) {
+        DiscountCodePO po = discountCodeMapper.selectById(codeId);
+        return po == null ? Optional.empty() : Optional.of(toAggregate(po));
+    }
+
+    /**
+     * 按文本查询折扣码
+     *
+     * @param code 折扣码文本
+     * @return Optional
+     */
+    @Override
+    public @NotNull Optional<DiscountCode> findCodeByText(@NotNull DiscountCodeText code) {
+        DiscountCodePO po = discountCodeMapper.selectOne(new LambdaQueryWrapper<DiscountCodePO>()
+                .eq(DiscountCodePO::getCode, code.getValue())
+                .last("limit 1"));
+        return po == null ? Optional.empty() : Optional.of(toAggregate(po));
+    }
+
+    /**
+     * 根据给定的策略 ID 查找对应的折扣码
+     *
+     * @param policyId 策略 ID, 用于定位与之关联的折扣码
+     * @return 若找到匹配的折扣码, 则返回一个包含该折扣码的 Optional 对象; 否则, 返回空的 Optional
+     */
+    @Override
+    public @NotNull Long countCodeByPolicyId(@NotNull Long policyId) {
+        return discountCodeMapper.selectCount(new LambdaQueryWrapper<DiscountCodePO>()
+                .eq(DiscountCodePO::getPolicyId, policyId));
+    }
+
+    /**
+     * 保存新折扣码
+     *
+     * @param code 折扣码
+     * @return 保存后的折扣码
+     */
+    @Override
+    public @NotNull DiscountCode saveCode(@NotNull DiscountCode code) {
+        DiscountCodePO po = DiscountCodePO.builder()
+                .code(code.getCode().getValue())
+                .policyId(code.getPolicyId())
+                .name(code.getName())
+                .scopeMode(code.getScopeMode().name())
+                .expiresAt(code.getExpiresAt())
+                .build();
+        try {
+            discountCodeMapper.insert(po);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("折扣码唯一约束冲突", e);
+        }
+        return findCodeById(po.getId()).orElseThrow(() -> new ConflictException("折扣码创建后回读失败"));
+    }
+
+    /**
+     * 更新折扣码
+     *
+     * @param code 折扣码
+     * @return 更新后的折扣码
+     */
+    @Override
+    public @NotNull DiscountCode updateCode(@NotNull DiscountCode code) {
+        LambdaUpdateWrapper<DiscountCodePO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(DiscountCodePO::getId, code.getId())
+                .set(DiscountCodePO::getPolicyId, code.getPolicyId())
+                .set(DiscountCodePO::getName, code.getName())
+                .set(DiscountCodePO::getScopeMode, code.getScopeMode().name())
+                .set(DiscountCodePO::getExpiresAt, code.getExpiresAt());
+        discountCodeMapper.update(null, wrapper);
+        return findCodeById(code.getId()).orElseThrow(() -> new ConflictException("折扣码更新后回读失败"));
+    }
+
+    /**
+     * 删除折扣码 (同时清理映射)
+     *
+     * @param codeId 折扣码 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteCode(@NotNull Long codeId) {
+        discountCodeProductMapper.delete(new LambdaQueryWrapper<DiscountCodeProductPO>()
+                .eq(DiscountCodeProductPO::getDiscountCodeId, codeId));
+        discountCodeMapper.deleteById(codeId);
+    }
+
+    /**
+     * 获取折扣码适用商品 ID 列表
+     *
+     * @param codeId 折扣码 ID
+     * @return SPU ID 列表
+     */
+    @Override
+    public @NotNull List<Long> listCodeProductIds(@NotNull Long codeId) {
+        List<DiscountCodeProductPO> pos = discountCodeProductMapper.selectList(new LambdaQueryWrapper<DiscountCodeProductPO>()
+                .eq(DiscountCodeProductPO::getDiscountCodeId, codeId)
+                .orderByAsc(DiscountCodeProductPO::getProductId));
+        if (pos == null || pos.isEmpty())
+            return List.of();
+        return pos.stream().map(DiscountCodeProductPO::getProductId).toList();
+    }
+
+    /**
+     * 覆盖设置折扣码适用商品映射
+     *
+     * @param codeId     折扣码 ID
+     * @param productIds SPU ID 列表
+     * @return 生效后的列表
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public @NotNull List<Long> replaceCodeProducts(@NotNull Long codeId, @NotNull List<Long> productIds) {
+        discountCodeProductMapper.delete(new LambdaQueryWrapper<DiscountCodeProductPO>()
+                .eq(DiscountCodeProductPO::getDiscountCodeId, codeId));
+
+        List<DiscountCodeProductPO> toUpdatePOList = productIds.stream()
+                .map(id ->
+                        DiscountCodeProductPO.builder()
+                                .discountCodeId(codeId)
+                                .productId(id)
+                                .build()
+                )
+                .toList();
+        discountCodeProductMapper.insert(toUpdatePOList);
+
+        return listCodeProductIds(codeId);
+    }
+
+    /**
+     * 分页查询折扣实际使用流水
+     *
+     * @param criteria 筛选条件
+     * @param offset   偏移量
+     * @param limit    单页数量
+     * @return 流水列表
+     */
+    @Override
+    public @NotNull List<IAdminDiscountService.OrderDiscountAppliedView> pageOrderDiscountApplied(@NotNull OrderDiscountAppliedSearchCriteria criteria,
+                                                                                                  int offset, int limit) {
+        List<OrderDiscountAppliedViewPO> pos = orderDiscountAppliedMapper.selectViews(
+                criteria.getOrderNo(),
+                criteria.getDiscountCodeId(),
+                criteria.getAppliedScope() == null ? null : criteria.getAppliedScope().name(),
+                criteria.getFrom(),
+                criteria.getTo(),
+                offset,
+                limit
+        );
+        if (pos == null || pos.isEmpty())
+            return List.of();
+        return pos.stream().map(po -> new IAdminDiscountService.OrderDiscountAppliedView(
+                po.getId(),
+                po.getOrderNo(),
+                po.getOrderId(),
+                po.getOrderItemId(),
+                po.getDiscountCodeId(),
+                DiscountApplyScope.valueOf(po.getAppliedScope()),
+                po.getAppliedAmount() == null ? "0" : po.getAppliedAmount().toPlainString(),
+                po.getCreatedAt()
+        )).toList();
+    }
+
+    /**
+     * 统计折扣实际使用流水数量
+     *
+     * @param criteria 筛选条件
+     * @return 总数
+     */
+    @Override
+    public long countOrderDiscountApplied(@NotNull OrderDiscountAppliedSearchCriteria criteria) {
+        return orderDiscountAppliedMapper.countViews(
+                criteria.getOrderNo(),
+                criteria.getDiscountCodeId(),
+                criteria.getAppliedScope() == null ? null : criteria.getAppliedScope().name(),
+                criteria.getFrom(),
+                criteria.getTo()
+        );
+    }
+
+    /**
+     * 构建用于分页查询折扣策略的 <code>LambdaQueryWrapper</code>
+     *
+     * @param criteria 折扣策略筛选条件 包含 name, applyScope, strategyType 等属性
+     * @return LambdaQueryWrapper<DiscountPolicyPO> 根据给定条件构建的查询包装器 用于后续的数据库查询操作
+     */
+    private LambdaQueryWrapper<DiscountPolicyPO> buildPagePoliciesWrapper(@NotNull DiscountPolicySearchCriteria criteria) {
+        LambdaQueryWrapper<DiscountPolicyPO> wrapper = new LambdaQueryWrapper<>();
+        if (criteria.getName() != null && !criteria.getName().isBlank())
+            wrapper.like(DiscountPolicyPO::getName, criteria.getName());
+        if (criteria.getApplyScope() != null)
+            wrapper.eq(DiscountPolicyPO::getApplyScope, criteria.getApplyScope().name());
+        if (criteria.getStrategyType() != null)
+            wrapper.eq(DiscountPolicyPO::getStrategyType, criteria.getStrategyType().name());
+        return wrapper;
+    }
+
+    /**
+     * 构建用于分页查询折扣码的 <code>LambdaQueryWrapper</code>
+     *
+     * @param criteria 折扣码筛选条件 包含 keyword, policyId, scopeMode, expiresFrom, expiresTo 等属性
+     * @return LambdaQueryWrapper<DiscountCodePO> 根据给定条件构建的查询包装器 用于后续的数据库查询操作
+     */
+    private LambdaQueryWrapper<DiscountCodePO> buildPageCodesWrapper(@NotNull DiscountCodeSearchCriteria criteria) {
+        LambdaQueryWrapper<DiscountCodePO> wrapper = new LambdaQueryWrapper<>();
+        if (criteria.getPolicyId() != null)
+            wrapper.eq(DiscountCodePO::getPolicyId, criteria.getPolicyId());
+        if (criteria.getScopeMode() != null)
+            wrapper.eq(DiscountCodePO::getScopeMode, criteria.getScopeMode().name());
+        if (criteria.getExpiresFrom() != null)
+            wrapper.ge(DiscountCodePO::getExpiresAt, criteria.getExpiresFrom());
+        if (criteria.getExpiresTo() != null)
+            wrapper.le(DiscountCodePO::getExpiresAt, criteria.getExpiresTo());
+        if (criteria.getKeyword() != null)
+            wrapper.and(w -> w
+                    .like(DiscountCodePO::getCode, criteria.getKeyword())
+                    .or()
+                    .like(DiscountCodePO::getName, criteria.getKeyword()));
+        return wrapper;
+    }
+
+    /**
+     * PO → DiscountPolicy
+     *
+     * @param po 持久化对象
+     * @return 聚合
+     */
+    private DiscountPolicy toAggregate(DiscountPolicyPO po) {
+        return DiscountPolicy.reconstitute(
+                po.getId(),
+                po.getName(),
+                DiscountApplyScope.valueOf(po.getApplyScope()),
+                DiscountStrategyType.valueOf(po.getStrategyType()),
+                po.getPercentOff(),
+                po.getAmountOff(),
+                po.getCurrency(),
+                po.getMinOrderAmount(),
+                po.getMaxDiscountAmount(),
+                po.getCreatedAt(),
+                po.getUpdatedAt()
+        );
+    }
+
+    /**
+     * PO → DiscountCode
+     *
+     * @param po 持久化对象
+     * @return 聚合
+     */
+    private DiscountCode toAggregate(DiscountCodePO po) {
+        DiscountCodeText codeText = DiscountCodeText.ofNullable(po.getCode());
+        if (codeText == null)
+            throw new ConflictException("折扣码数据不合法");
+        return DiscountCode.reconstitute(
+                po.getId(),
+                codeText,
+                po.getPolicyId(),
+                po.getName(),
+                DiscountScopeMode.valueOf(po.getScopeMode()),
+                po.getExpiresAt(),
+                po.getCreatedAt(),
+                po.getUpdatedAt()
+        );
+    }
+}

@@ -4,74 +4,93 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
+import shopping.international.types.utils.Verifiable;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
- * 商品多语言覆盖
+ * 商品 SPU 多语言值对象, 对应表 {@code product_i18n}.
  */
 @Getter
 @ToString
-@EqualsAndHashCode(of = {"locale", "slug"})
-public class ProductI18n {
+@EqualsAndHashCode(of = "locale")
+public class ProductI18n implements Verifiable {
     /**
-     * 语言
+     * 语言代码
      */
+    @NotNull
     private final String locale;
     /**
-     * 标题
+     * 本地化标题
      */
     private final String title;
     /**
-     * 副标题
+     * 本地化副标题
      */
     private final String subtitle;
     /**
-     * 描述
+     * 本地化描述
      */
     private final String description;
     /**
-     * slug
+     * 本地化 slug
      */
     private final String slug;
     /**
-     * 标签
+     * 本地化标签列表
      */
     private final List<String> tags;
 
-    private ProductI18n(String locale, String title, String subtitle, String description, String slug, List<String> tags) {
-        this.locale = locale;
-        this.title = title;
-        this.subtitle = subtitle;
-        this.description = description;
-        this.slug = slug;
-        this.tags = tags == null ? Collections.emptyList() : new ArrayList<>(tags);
-    }
-
     /**
-     * 构建多语言覆盖
+     * 构造函数
      *
-     * @param locale      语言
+     * @param locale      语言代码
      * @param title       标题
      * @param subtitle    副标题
      * @param description 描述
      * @param slug        slug
      * @param tags        标签
-     * @return i18n 对象
      */
-    public static ProductI18n of(@NotNull String locale,
-                                 @NotNull String title,
-                                 String subtitle,
-                                 String description,
-                                 @NotNull String slug,
-                                 List<String> tags) {
-        requireNotBlank(locale, "locale 不能为空");
-        requireNotBlank(title, "title 不能为空");
-        requireNotBlank(slug, "slug 不能为空");
-        return new ProductI18n(locale, title, subtitle, description, slug, tags);
+    private ProductI18n(@NotNull String locale, String title, String subtitle, String description, String slug, List<String> tags) {
+        this.locale = locale;
+        this.title = title;
+        this.subtitle = subtitle;
+        this.description = description;
+        this.slug = slug;
+        this.tags = tags;
+    }
+
+    /**
+     * 创建多语言值对象
+     *
+     * @param locale      语言代码, 必填
+     * @param title       标题, 必填
+     * @param subtitle    副标题, 可空
+     * @param description 描述, 可空
+     * @param slug        slug, 必填
+     * @param tags        标签列表, 可空
+     * @return 规范化后的 {@link ProductI18n}
+     */
+    public static ProductI18n of(String locale, String title, String subtitle, String description, String slug, List<String> tags) {
+        String normalizedLocale = normalizeLocale(locale);
+        requireNotNull(normalizedLocale, "locale 不能为空");
+        requireNotBlank(title, "多语言标题不能为空");
+        requireNotBlank(slug, "多语言 slug 不能为空");
+        return new ProductI18n(normalizedLocale, title.strip(),
+                subtitle == null ? null : subtitle.strip(),
+                description == null ? null : description.strip(),
+                slug.strip(), normalizeTags(tags));
+    }
+
+    /**
+     * 校验当前值对象
+     */
+    @Override
+    public void validate() {
+        requireNotNull(locale, "locale 不能为空");
+        requireNotBlank(title, "多语言标题不能为空");
+        requireNotBlank(slug, "多语言 slug 不能为空");
     }
 }

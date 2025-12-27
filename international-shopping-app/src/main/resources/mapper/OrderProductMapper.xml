@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.orders.OrderProductMapper">
+
+    <resultMap id="SkuSaleSnapshotResultMap" type="shopping.international.infrastructure.dao.orders.po.SkuSaleSnapshotPO">
+        <id column="sku_id" property="skuId"/>
+        <result column="product_id" property="productId"/>
+        <result column="title" property="title"/>
+        <result column="cover_image_url" property="coverImageUrl"/>
+        <result column="sku_attrs_json" property="skuAttrsJson"/>
+        <result column="unit_price" property="unitPrice"/>
+        <result column="stock" property="stock"/>
+    </resultMap>
+
+    <select id="selectSkuSaleSnapshots" resultMap="SkuSaleSnapshotResultMap">
+        SELECT
+            ps.id AS sku_id,
+            ps.product_id,
+            COALESCE(pi18n.title, p.title) AS title,
+            p.cover_image_url,
+            <choose>
+                <when test="currency != null">
+                    CASE
+                        WHEN pp.is_active = 1 AND pp.sale_price IS NOT NULL THEN pp.sale_price
+                        WHEN pp.is_active = 1 THEN pp.list_price
+                        ELSE NULL
+                    END AS unit_price
+                </when>
+                <otherwise>
+                    NULL AS unit_price
+                </otherwise>
+            </choose>,
+            ps.stock,
+            attrs.sku_attrs_json
+        FROM product_sku ps
+                 JOIN product p ON p.id = ps.product_id
+                 <if test="locale != null">
+                     LEFT JOIN product_i18n pi18n ON pi18n.product_id = p.id AND pi18n.locale = #{locale}
+                 </if>
+                 <if test="locale == null">
+                     LEFT JOIN product_i18n pi18n ON 1 = 0
+                 </if>
+                 <if test="currency != null">
+                     LEFT JOIN product_price pp ON pp.sku_id = ps.id AND pp.currency = #{currency}
+                 </if>
+                 LEFT JOIN (
+                     SELECT
+                         sps.sku_id AS sku_id,
+                         JSON_OBJECTAGG(sp.spec_name, sv.value_name) AS sku_attrs_json
+                     FROM product_sku_spec sps
+                              JOIN product_spec sp ON sp.id = sps.spec_id
+                              JOIN product_spec_value sv ON sv.id = sps.value_id
+                     GROUP BY sps.sku_id
+                 ) attrs ON attrs.sku_id = ps.id
+        WHERE ps.id IN
+        <foreach collection="skuIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND ps.status = 'ENABLED'
+          AND p.status = 'ON_SALE'
+    </select>
+
+</mapper>

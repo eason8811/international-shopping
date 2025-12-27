@@ -3,110 +3,490 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="shopping.international.infrastructure.dao.products.ProductMapper">
 
-    <sql id="OnSaleBaseWhere">
+    <!-- 商品图片 -->
+    <resultMap id="ProductImageResultMap" type="shopping.international.infrastructure.dao.products.po.ProductImagePO">
+        <id column="id" property="id"/>
+        <result column="product_id" property="productId"/>
+        <result column="url" property="url"/>
+        <result column="is_main" property="isMain"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 规格值多语言 -->
+    <resultMap id="ProductSpecValueI18nResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecValueI18nPO">
+        <id column="value_id" property="valueId"/>
+        <id column="locale" property="locale"/>
+        <result column="value_name" property="valueName"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 规格值 -->
+    <resultMap id="ProductSpecValueResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecValuePO">
+        <id column="id" property="id"/>
+        <result column="product_id" property="productId"/>
+        <result column="spec_id" property="specId"/>
+        <result column="value_code" property="valueCode"/>
+        <result column="value_name" property="valueName"/>
+        <result column="attributes" property="attributes"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <collection property="i18nList" resultMap="ProductSpecValueI18nResultMap" columnPrefix="i18n_"/>
+    </resultMap>
+
+    <!-- 规格多语言 -->
+    <resultMap id="ProductSpecI18nResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecI18nPO">
+        <id column="spec_id" property="specId"/>
+        <id column="locale" property="locale"/>
+        <result column="spec_name" property="specName"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- 规格 -->
+    <resultMap id="ProductSpecResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSpecPO">
+        <id column="spec_id" property="id"/>
+        <result column="spec_product_id" property="productId"/>
+        <result column="spec_spec_code" property="specCode"/>
+        <result column="spec_spec_name" property="specName"/>
+        <result column="spec_spec_type" property="specType"/>
+        <result column="spec_is_required" property="isRequired"/>
+        <result column="spec_sort_order" property="sortOrder"/>
+        <result column="spec_status" property="status"/>
+        <result column="spec_created_at" property="createdAt"/>
+        <result column="spec_updated_at" property="updatedAt"/>
+        <collection property="i18nList" resultMap="ProductSpecI18nResultMap" columnPrefix="spec_i18n_"/>
+        <collection property="values" resultMap="ProductSpecValueResultMap" columnPrefix="value_"/>
+    </resultMap>
+
+    <!-- 商品多语言 -->
+    <resultMap id="ProductI18nResultMap" type="shopping.international.infrastructure.dao.products.po.ProductI18nPO">
+        <id column="id" property="id"/>
+        <id column="locale" property="locale"/>
+        <result column="product_id" property="productId"/>
+        <result column="title" property="title"/>
+        <result column="subtitle" property="subtitle"/>
+        <result column="description" property="description"/>
+        <result column="slug" property="slug"/>
+        <result column="tags" property="tags"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 商品聚合 -->
+    <resultMap id="ProductAggregateResultMap" type="shopping.international.infrastructure.dao.products.po.ProductPO">
+        <id column="product_id" property="id"/>
+        <result column="product_title" property="title"/>
+        <result column="product_subtitle" property="subtitle"/>
+        <result column="product_description" property="description"/>
+        <result column="product_slug" property="slug"/>
+        <result column="product_category_id" property="categoryId"/>
+        <result column="product_brand" property="brand"/>
+        <result column="product_cover_image_url" property="coverImageUrl"/>
+        <result column="product_stock_total" property="stockTotal"/>
+        <result column="product_sale_count" property="saleCount"/>
+        <result column="product_sku_type" property="skuType"/>
+        <result column="product_status" property="status"/>
+        <result column="product_default_sku_id" property="defaultSkuId"/>
+        <result column="product_tags" property="tags"/>
+        <result column="product_created_at" property="createdAt"/>
+        <result column="product_updated_at" property="updatedAt"/>
+        <collection property="gallery" resultMap="ProductImageResultMap" columnPrefix="image_"/>
+        <collection property="specs" resultMap="ProductSpecResultMap"/>
+        <collection property="i18nList" resultMap="ProductI18nResultMap" columnPrefix="product_i18n_"/>
+    </resultMap>
+
+    <sql id="ProductAggregateSelectBody">
+        SELECT product.id                 AS product_id,
+               product.title              AS product_title,
+               product.subtitle           AS product_subtitle,
+               product.description        AS product_description,
+               product.slug               AS product_slug,
+               product.category_id        AS product_category_id,
+               product.brand              AS product_brand,
+               product.cover_image_url    AS product_cover_image_url,
+               product.stock_total        AS product_stock_total,
+               product.sale_count         AS product_sale_count,
+               product.sku_type           AS product_sku_type,
+               product.status             AS product_status,
+               product.default_sku_id     AS product_default_sku_id,
+               product.tags               AS product_tags,
+               product.created_at         AS product_created_at,
+               product.updated_at         AS product_updated_at,
+               product_image.id           AS image_id,
+               product_image.product_id   AS image_product_id,
+               product_image.url          AS image_url,
+               product_image.is_main      AS image_is_main,
+               product_image.sort_order   AS image_sort_order,
+               product_image.created_at   AS image_created_at,
+               product_spec.id            AS spec_id,
+               product_spec.product_id    AS spec_product_id,
+               product_spec.spec_code     AS spec_spec_code,
+               product_spec.spec_name     AS spec_spec_name,
+               product_spec.spec_type     AS spec_spec_type,
+               product_spec.is_required   AS spec_is_required,
+               product_spec.sort_order    AS spec_sort_order,
+               product_spec.status        AS spec_status,
+               product_spec.created_at    AS spec_created_at,
+               product_spec.updated_at    AS spec_updated_at,
+               spec_i18n.spec_id          AS spec_i18n_spec_id,
+               spec_i18n.locale           AS spec_i18n_locale,
+               spec_i18n.spec_name        AS spec_i18n_spec_name,
+               spec_i18n.created_at       AS spec_i18n_created_at,
+               spec_value.id              AS value_id,
+               spec_value.product_id      AS value_product_id,
+               spec_value.spec_id         AS value_spec_id,
+               spec_value.value_code      AS value_value_code,
+               spec_value.value_name      AS value_value_name,
+               spec_value.attributes      AS value_attributes,
+               spec_value.sort_order      AS value_sort_order,
+               spec_value.status          AS value_status,
+               spec_value.created_at      AS value_created_at,
+               spec_value.updated_at      AS value_updated_at,
+               spec_value_i18n.value_id   AS value_i18n_value_id,
+               spec_value_i18n.locale     AS value_i18n_locale,
+               spec_value_i18n.value_name AS value_i18n_value_name,
+               spec_value_i18n.created_at AS value_i18n_created_at,
+               product_i18n.id            AS product_i18n_id,
+               product_i18n.product_id    AS product_i18n_product_id,
+               product_i18n.locale        AS product_i18n_locale,
+               product_i18n.title         AS product_i18n_title,
+               product_i18n.subtitle      AS product_i18n_subtitle,
+               product_i18n.description   AS product_i18n_description,
+               product_i18n.slug          AS product_i18n_slug,
+               product_i18n.tags          AS product_i18n_tags,
+               product_i18n.created_at    AS product_i18n_created_at,
+               product_i18n.updated_at    AS product_i18n_updated_at
+        FROM matched_product
+                 JOIN product ON product.id = matched_product.id
+                 LEFT JOIN product_image ON product_image.product_id = product.id
+                 LEFT JOIN product_spec ON product_spec.product_id = product.id
+                 LEFT JOIN product_spec_i18n spec_i18n ON spec_i18n.spec_id = product_spec.id
+                 LEFT JOIN product_spec_value spec_value ON spec_value.spec_id = product_spec.id
+                 LEFT JOIN product_spec_value_i18n spec_value_i18n ON spec_value_i18n.value_id = spec_value.id
+                 LEFT JOIN product_i18n ON product_i18n.product_id = product.id
+    </sql>
+
+    <sql id="matchedProductSubtableSelectBody">
+        SELECT p.id
         FROM product p
-        WHERE p.status = 'ON_SALE'
-        AND EXISTS (SELECT 1 FROM product_sku s WHERE s.product_id = p.id AND s.status = 'ENABLED')
-        <if test="categoryId != null">
-            AND p.category_id = #{categoryId}
-        </if>
-        <if test="keyword != null and keyword != ''">
-            AND (
-            p.title LIKE CONCAT('%', #{keyword}, '%')
-            OR p.subtitle LIKE CONCAT('%', #{keyword}, '%')
-            <if test="locale != null and locale != ''">
-                OR EXISTS (
-                SELECT 1 FROM product_i18n pi
-                WHERE pi.product_id = p.id
-                AND pi.locale = #{locale}
-                AND (pi.title LIKE CONCAT('%', #{keyword}, '%') OR pi.subtitle LIKE CONCAT('%', #{keyword}, '%'))
+        LEFT JOIN product_i18n pi
+        ON pi.product_id = p.id
+        <where>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+            <if test="skuType != null and skuType != null">
+                AND p.sku_type = #{skuType}
+            </if>
+            <if test="categoryId != null">
+                AND p.category_id = #{categoryId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                p.title LIKE CONCAT('%', #{keyword}, '%')
+                OR p.subtitle LIKE CONCAT('%', #{keyword}, '%')
+                OR p.description LIKE CONCAT('%', #{keyword}, '%')
+                OR p.slug LIKE CONCAT('%', #{keyword}, '%')
+                OR pi.title LIKE CONCAT('%', #{keyword}, '%')
+                OR pi.subtitle LIKE CONCAT('%', #{keyword}, '%')
+                OR pi.description LIKE CONCAT('%', #{keyword}, '%')
+                OR pi.slug LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
-            )
+            <if test="tag != null and tag != ''">
+                AND (
+                JSON_CONTAINS(p.tags, CONCAT('"', #{tag}, '"'))
+                OR JSON_CONTAINS(pi.tags, CONCAT('"', #{tag}, '"'))
+                )
+            </if>
+            <if test="!includeDeleted">
+                AND p.status != 'DELETED'
+            </if>
+        </where>
+    </sql>
+
+    <!-- 按ID聚合查询商品 -->
+    <select id="selectAggregateById" resultMap="ProductAggregateResultMap">
+        WITH matched_product AS (SELECT id
+                                 FROM product
+                                 WHERE id = #{productId}
+                                 LIMIT 1)
+        <include refid="ProductAggregateSelectBody"/>
+        ORDER BY product.id,
+                 product_image.is_main DESC, product_image.sort_order, product_image.id,
+                 product_spec.sort_order, product_spec.id,
+                 spec_value.sort_order, spec_value.id
+    </select>
+
+    <!-- 按 slug 聚合查询上架商品（支持本地化 slug 匹配） -->
+    <select id="selectOnSaleAggregateBySlug" resultMap="ProductAggregateResultMap">
+        WITH matched_product AS (SELECT p.id
+                                 FROM product p
+                                          LEFT JOIN product_i18n pi
+                                                    ON pi.product_id = p.id
+                                                        AND pi.locale = #{locale}
+                                 WHERE p.status = 'ON_SALE'
+                                   AND (p.slug = #{slug} OR (pi.slug = #{slug} AND pi.locale = #{locale}))
+                                 LIMIT 1)
+        <include refid="ProductAggregateSelectBody"/>
+        ORDER BY product.id,
+                 product_image.is_main DESC, product_image.sort_order, product_image.id,
+                 product_spec.sort_order, product_spec.id,
+                 spec_value.sort_order, spec_value.id
+    </select>
+
+    <select id="selectAdminAggregatePage" resultMap="ProductAggregateResultMap">
+        WITH matched_product AS (
+                                 <include refid="matchedProductSubtableSelectBody"/>
+                                 LIMIT  #{offset}, #{limit})
+        <include refid="ProductAggregateSelectBody"/>
+        ORDER BY product.id,
+                 product_image.is_main DESC, product_image.sort_order, product_image.id,
+                 product_spec.sort_order, product_spec.id,
+                 spec_value.sort_order, spec_value.id
+    </select>
+
+    <select id="countAdminAggregatePage" resultType="java.lang.Long">
+        WITH matched_product AS (<include refid="matchedProductSubtableSelectBody"/>)
+        SELECT COUNT(*)
+        FROM matched_product
+    </select>
+
+    <!-- 用户侧商品快照映射 -->
+    <resultMap id="PublicProductSnapshotMap" type="shopping.international.infrastructure.dao.products.po.PublicProductSnapshotPO">
+        <id column="id" property="id"/>
+        <result column="slug" property="slug"/>
+        <result column="title" property="title"/>
+        <result column="subtitle" property="subtitle"/>
+        <result column="description" property="description"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="category_slug" property="categorySlug"/>
+        <result column="brand" property="brand"/>
+        <result column="cover_image_url" property="coverImageUrl"/>
+        <result column="stock_total" property="stockTotal"/>
+        <result column="sale_count" property="saleCount"/>
+        <result column="sku_type" property="skuType"/>
+        <result column="status" property="status"/>
+        <result column="tags" property="tags"/>
+        <result column="list_price_min" property="listPriceMin"/>
+        <result column="list_price_max" property="listPriceMax"/>
+        <result column="sale_price_min" property="salePriceMin"/>
+        <result column="sale_price_max" property="salePriceMax"/>
+        <result column="liked_at" property="likedAt"/>
+        <collection property="gallery" resultMap="ProductImageResultMap" columnPrefix="image_"/>
+    </resultMap>
+
+    <!-- 用户侧商品分页查询 -->
+    <select id="selectPublicList" resultMap="PublicProductSnapshotMap">
+        WITH base AS (
+        SELECT p.id,
+        COALESCE(pi.slug, p.slug)              AS slug,
+        COALESCE(pi.title, p.title)             AS title,
+        COALESCE(pi.subtitle, p.subtitle)       AS subtitle,
+        COALESCE(pi.description, p.description) AS description,
+        p.category_id,
+        COALESCE(ci.slug, c.slug)               AS category_slug,
+        p.brand,
+        p.cover_image_url,
+        p.stock_total,
+        p.sale_count,
+        p.sku_type,
+        p.status,
+        COALESCE(pi.tags, p.tags)               AS tags,
+        MIN(price.list_price)                   AS list_price_min,
+        MAX(price.list_price)                   AS list_price_max,
+        MIN(price.sale_price)                   AS sale_price_min,
+        MAX(price.sale_price)                   AS sale_price_max,
+        MIN(COALESCE(price.sale_price, price.list_price)) AS effective_price_min,
+        p.updated_at
+        FROM product p
+        LEFT JOIN product_i18n pi ON pi.product_id = p.id AND pi.locale = #{locale}
+        LEFT JOIN product_category c ON c.id = p.category_id
+        LEFT JOIN product_category_i18n ci ON ci.category_id = p.category_id AND ci.locale = #{locale}
+        JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
+        JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
+        WHERE p.status = 'ON_SALE'
+        <if test="categorySlug != null and categorySlug != ''">
+            AND (c.slug = #{categorySlug} OR ci.slug = #{categorySlug})
         </if>
-        <if test="tags != null and tags.size() > 0">
+        <if test="keyword != null and keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%')
+            OR p.subtitle LIKE CONCAT('%', #{keyword}, '%')
+            OR p.description LIKE CONCAT('%', #{keyword}, '%')
+            OR p.slug LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.title LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.subtitle LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.description LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.slug LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="tags != null and tags.size() &gt; 0">
             AND (
             <foreach collection="tags" item="tag" separator=" OR ">
-                JSON_CONTAINS(p.tags, CONCAT('\"', #{tag}, '\"'))
-                <if test="locale != null and locale != ''">
-                    OR EXISTS (
-                    SELECT 1 FROM product_i18n pi
-                    WHERE pi.product_id = p.id
-                    AND pi.locale = #{locale}
-                    AND JSON_CONTAINS(pi.tags, CONCAT('\"', #{tag}, '\"'))
-                    )
-                </if>
+                JSON_CONTAINS(COALESCE(pi.tags, p.tags), CONCAT('\"', #{tag}, '\"'))
             </foreach>
             )
         </if>
-        <if test="currency != null and currency != ''">
-            AND EXISTS (
-            SELECT 1
-            FROM product_sku s
-            JOIN product_price pp ON pp.sku_id = s.id
-            WHERE s.product_id = p.id
-            AND s.status = 'ENABLED'
-            AND pp.currency = #{currency}
-            AND pp.is_active = 1
-            <if test="priceMin != null">AND COALESCE(pp.sale_price, pp.list_price) >= #{priceMin}</if>
-            <if test="priceMax != null"><![CDATA[AND COALESCE(pp.sale_price, pp.list_price) <= #{priceMax}]]></if>
-            )
+        GROUP BY p.id
+        <if test="priceMin != null or priceMax != null">
+            having
+                <if test="priceMin != null and priceMax != null">
+                    COALESCE(MIN(price.sale_price), MIN(price.list_price)) <![CDATA[>=]]> #{priceMin}
+                    AND COALESCE(MAX(price.sale_price), MAX(price.list_price)) <![CDATA[<=]]> #{priceMax}
+                </if>
+                <if test="priceMin != null and priceMax == null">
+                    COALESCE(MIN(price.sale_price), MIN(price.list_price)) <![CDATA[>=]]> #{priceMin}
+                </if>
+                <if test="priceMin == null and priceMax != null">
+                    COALESCE(MAX(price.sale_price), MAX(price.list_price)) <![CDATA[<=]]> #{priceMax}
+                </if>
         </if>
-    </sql>
-
-    <select id="selectOnSalePage" resultType="shopping.international.infrastructure.dao.products.po.ProductPO">
-        SELECT p.*
-        <include refid="OnSaleBaseWhere"/>
+        ),
+        ordered AS (
+        SELECT *
+        FROM base
         <choose>
-            <when test="sortBy == 'SALES_DESC'">
-                ORDER BY p.sale_count DESC, p.updated_at DESC
+            <when test="sort == 'SALES_DESC'">
+                ORDER BY sale_count DESC, id DESC
             </when>
-            <when test="sortBy == 'PRICE_ASC' and currency != null and currency != ''">
-                ORDER BY (
-                SELECT MIN(COALESCE(pp.sale_price, pp.list_price))
-                FROM product_sku s
-                JOIN product_price pp ON pp.sku_id = s.id
-                WHERE s.product_id = p.id AND s.status = 'ENABLED' AND pp.currency = #{currency} AND pp.is_active = 1
-                ) ASC, p.updated_at DESC
+            <when test="sort == 'PRICE_ASC'">
+                ORDER BY effective_price_min ASC, id ASC
             </when>
-            <when test="sortBy == 'PRICE_DESC' and currency != null and currency != ''">
-                ORDER BY (
-                SELECT MAX(COALESCE(pp.sale_price, pp.list_price))
-                FROM product_sku s
-                JOIN product_price pp ON pp.sku_id = s.id
-                WHERE s.product_id = p.id AND s.status = 'ENABLED' AND pp.currency = #{currency} AND pp.is_active = 1
-                ) DESC, p.updated_at DESC
+            <when test="sort == 'PRICE_DESC'">
+                ORDER BY effective_price_min DESC, id DESC
             </when>
             <otherwise>
-                ORDER BY p.updated_at DESC
+                ORDER BY updated_at DESC, id DESC
             </otherwise>
         </choose>
-        LIMIT #{limit} OFFSET #{offset}
+        LIMIT #{offset}, #{limit}
+        )
+        SELECT ordered.*,
+        image.id         AS image_id,
+        image.product_id AS image_product_id,
+        image.url        AS image_url,
+        image.is_main    AS image_is_main,
+        image.sort_order AS image_sort_order,
+        image.created_at AS image_created_at
+        FROM ordered
+        LEFT JOIN product_image image ON image.product_id = ordered.id
+        <choose>
+            <when test="sort == 'SALES_DESC'">
+                ORDER BY ordered.sale_count DESC, ordered.id DESC,
+                image.is_main DESC, image.sort_order , image.id
+            </when>
+            <when test="sort == 'PRICE_ASC'">
+                ORDER BY ordered.effective_price_min ASC, ordered.id ASC,
+                image.is_main DESC, image.sort_order ASC, image.id ASC
+            </when>
+            <when test="sort == 'PRICE_DESC'">
+                ORDER BY ordered.effective_price_min DESC, ordered.id DESC,
+                image.is_main DESC, image.sort_order ASC, image.id ASC
+            </when>
+            <otherwise>
+                ORDER BY ordered.updated_at DESC, ordered.id DESC,
+                image.is_main DESC, image.sort_order ASC, image.id ASC
+            </otherwise>
+        </choose>
     </select>
 
-    <select id="countOnSale" resultType="long">
-        SELECT COUNT(1)
-        <include refid="OnSaleBaseWhere"/>
-    </select>
-
-    <select id="selectOnSaleBySlug" resultType="shopping.international.infrastructure.dao.products.po.ProductPO">
-        SELECT p.*
+    <select id="countPublicList" resultType="java.lang.Long">
+        SELECT COUNT(DISTINCT p.id)
         FROM product p
-        WHERE p.slug = #{slug}
-          AND p.status = 'ON_SALE'
-          AND EXISTS (SELECT 1 FROM product_sku s WHERE s.product_id = p.id AND s.status = 'ENABLED')
-        LIMIT 1
-    </select>
-
-    <select id="selectOnSaleByLocalizedSlug" resultType="shopping.international.infrastructure.dao.products.po.ProductPO">
-        SELECT p.*
-        FROM product p
-                 JOIN product_i18n pi ON pi.product_id = p.id
+        LEFT JOIN product_i18n pi ON pi.product_id = p.id AND pi.locale = #{locale}
+        LEFT JOIN product_category c ON c.id = p.category_id
+        LEFT JOIN product_category_i18n ci ON ci.category_id = p.category_id AND ci.locale = #{locale}
+        JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
+        JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
         WHERE p.status = 'ON_SALE'
-          AND pi.locale = #{locale}
-          AND pi.slug = #{slug}
-          AND EXISTS (SELECT 1 FROM product_sku s WHERE s.product_id = p.id AND s.status = 'ENABLED')
-        LIMIT 1
+        <if test="categorySlug != null and categorySlug != ''">
+            AND (c.slug = #{categorySlug} OR ci.slug = #{categorySlug})
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%')
+            OR p.subtitle LIKE CONCAT('%', #{keyword}, '%')
+            OR p.description LIKE CONCAT('%', #{keyword}, '%')
+            OR p.slug LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.title LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.subtitle LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.description LIKE CONCAT('%', #{keyword}, '%')
+            OR pi.slug LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="tags != null and tags.size() &gt; 0">
+            AND (
+            <foreach collection="tags" item="tag" separator=" OR ">
+                JSON_CONTAINS(COALESCE(pi.tags, p.tags), CONCAT('\"', #{tag}, '\"'))
+            </foreach>
+            )
+        </if>
+        <if test="priceMin != null">
+            AND COALESCE(price.sale_price, price.list_price) <![CDATA[>=]]> #{priceMin}
+        </if>
+        <if test="priceMax != null">
+            AND COALESCE(price.sale_price, price.list_price) <![CDATA[<=]]> #{priceMax}
+        </if>
+    </select>
+
+    <!-- 用户点赞商品分页查询 -->
+    <select id="selectUserLikedList" resultMap="PublicProductSnapshotMap">
+        WITH base AS (SELECT p.id,
+                             COALESCE(pi.slug, p.slug)                         AS slug,
+                             COALESCE(pi.title, p.title)                       AS title,
+                             COALESCE(pi.subtitle, p.subtitle)                 AS subtitle,
+                             COALESCE(pi.description, p.description)           AS description,
+                             p.category_id,
+                             COALESCE(ci.slug, c.slug)                         AS category_slug,
+                             p.brand,
+                             p.cover_image_url,
+                             p.stock_total,
+                             p.sale_count,
+                             p.sku_type,
+                             p.status,
+                             COALESCE(pi.tags, p.tags)                         AS tags,
+                             MIN(price.list_price)                             AS list_price_min,
+                             MAX(price.list_price)                             AS list_price_max,
+                             MIN(price.sale_price)                             AS sale_price_min,
+                             MAX(price.sale_price)                             AS sale_price_max,
+                             MAX(pl.created_at)                                AS liked_at,
+                             MIN(COALESCE(price.sale_price, price.list_price)) AS effective_price_min
+                      FROM product_like pl
+                               JOIN product p ON p.id = pl.product_id
+                               LEFT JOIN product_i18n pi ON pi.product_id = p.id AND pi.locale = #{locale}
+                               LEFT JOIN product_category c ON c.id = p.category_id
+                               LEFT JOIN product_category_i18n ci
+                                         ON ci.category_id = p.category_id AND ci.locale = #{locale}
+                               JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
+                               JOIN product_price price
+                                    ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
+                      WHERE pl.user_id = #{userId}
+                        AND p.status = 'ON_SALE'
+                      GROUP BY p.id),
+             ordered AS (SELECT *
+                         FROM base
+                         ORDER BY liked_at DESC, id DESC
+                         LIMIT #{offset}, #{limit})
+        SELECT ordered.*,
+               image.id         AS image_id,
+               image.product_id AS image_product_id,
+               image.url        AS image_url,
+               image.is_main    AS image_is_main,
+               image.sort_order AS image_sort_order,
+               image.created_at AS image_created_at
+        FROM ordered
+                 LEFT JOIN product_image image ON image.product_id = ordered.id
+        ORDER BY ordered.liked_at DESC, ordered.id DESC,
+                 image.is_main DESC, image.sort_order, image.id
+    </select>
+
+    <select id="countUserLikedList" resultType="java.lang.Long">
+        SELECT COUNT(DISTINCT p.id)
+        FROM product_like pl
+                 JOIN product p ON p.id = pl.product_id
+                 JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
+                 JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
+        WHERE pl.user_id = #{userId}
+          AND p.status = 'ON_SALE'
     </select>
 
 </mapper>

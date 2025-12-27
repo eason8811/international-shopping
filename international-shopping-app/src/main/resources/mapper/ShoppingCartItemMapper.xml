@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.orders.ShoppingCartItemMapper">
+
+    <resultMap id="CartItemViewResultMap" type="shopping.international.infrastructure.dao.orders.po.CartItemViewPO">
+        <id column="id" property="id"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="quantity" property="quantity"/>
+        <result column="selected" property="selected"/>
+        <result column="added_at" property="addedAt"/>
+        <result column="product_id" property="productId"/>
+        <result column="title" property="title"/>
+        <result column="cover_image_url" property="coverImageUrl"/>
+        <result column="currency" property="currency"/>
+        <result column="unit_price" property="unitPrice"/>
+    </resultMap>
+
+    <select id="selectCartItemViews" resultMap="CartItemViewResultMap">
+        SELECT
+            cart_item.id,
+            cart_item.sku_id,
+            cart_item.quantity,
+            cart_item.selected,
+            cart_item.added_at,
+        sku.product_id,
+            COALESCE(pi18n.title, p.title) AS title,
+            p.cover_image_url,
+            #{currency} AS currency,
+            <choose>
+                <when test="currency != null">
+                    CASE
+                        WHEN price.is_active = 1 AND price.sale_price IS NOT NULL THEN price.sale_price
+                        WHEN price.is_active = 1 THEN price.list_price
+                        ELSE NULL
+                    END AS unit_price
+                </when>
+                <otherwise>
+                    NULL AS unit_price
+                </otherwise>
+            </choose>
+        FROM shopping_cart_item cart_item
+                 JOIN product_sku sku ON sku.id = cart_item.sku_id
+                 JOIN product p ON p.id = sku.product_id
+                 <if test="locale != null">
+                     LEFT JOIN product_i18n pi18n ON pi18n.product_id = p.id AND pi18n.locale = #{locale}
+                 </if>
+                 <if test="locale == null">
+                     LEFT JOIN product_i18n pi18n ON 1 = 0
+                 </if>
+                 <if test="currency != null">
+                     LEFT JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency}
+                 </if>
+        WHERE cart_item.user_id = #{userId}
+        ORDER BY cart_item.added_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+</mapper>
+

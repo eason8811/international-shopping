@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.products.ProductSkuMapper">
+
+    <!-- 价格 -->
+    <resultMap id="ProductPriceResultMap" type="shopping.international.infrastructure.dao.products.po.ProductPricePO">
+        <id column="id" property="id"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="currency" property="currency"/>
+        <result column="list_price" property="listPrice"/>
+        <result column="sale_price" property="salePrice"/>
+        <result column="is_active" property="isActive"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- SKU 规格绑定（含冗余规格/规格值名称） -->
+    <resultMap id="ProductSkuSpecResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSkuSpecPO">
+        <id column="sku_id" property="skuId"/>
+        <id column="spec_id" property="specId"/>
+        <result column="value_id" property="valueId"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="spec_code" property="specCode"/>
+        <result column="spec_name" property="specName"/>
+        <result column="value_code" property="valueCode"/>
+        <result column="value_name" property="valueName"/>
+    </resultMap>
+
+    <!-- SKU 图片 -->
+    <resultMap id="ProductSkuImageResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSkuImagePO">
+        <id column="id" property="id"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="url" property="url"/>
+        <result column="is_main" property="isMain"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <!-- SKU 聚合 -->
+    <resultMap id="ProductSkuAggregateResultMap" type="shopping.international.infrastructure.dao.products.po.ProductSkuPO">
+        <id column="sku_id" property="id"/>
+        <result column="sku_product_id" property="productId"/>
+        <result column="sku_code" property="skuCode"/>
+        <result column="sku_stock" property="stock"/>
+        <result column="sku_weight" property="weight"/>
+        <result column="sku_status" property="status"/>
+        <result column="sku_is_default" property="isDefault"/>
+        <result column="sku_barcode" property="barcode"/>
+        <result column="sku_created_at" property="createdAt"/>
+        <result column="sku_updated_at" property="updatedAt"/>
+        <collection property="prices" resultMap="ProductPriceResultMap" columnPrefix="price_"/>
+        <collection property="specs" resultMap="ProductSkuSpecResultMap" columnPrefix="spec_"/>
+        <collection property="images" resultMap="ProductSkuImageResultMap" columnPrefix="image_"/>
+    </resultMap>
+
+    <sql id="SkuAggregateSelectBody">
+        SELECT
+            product_sku.id              AS sku_id,
+            product_sku.product_id      AS sku_product_id,
+            product_sku.sku_code        AS sku_code,
+            product_sku.stock           AS sku_stock,
+            product_sku.weight          AS sku_weight,
+            product_sku.status          AS sku_status,
+            product_sku.is_default      AS sku_is_default,
+            product_sku.barcode         AS sku_barcode,
+            product_sku.created_at      AS sku_created_at,
+            product_sku.updated_at      AS sku_updated_at,
+            product_price.id            AS price_id,
+            product_price.sku_id        AS price_sku_id,
+            product_price.currency      AS price_currency,
+            product_price.list_price    AS price_list_price,
+            product_price.sale_price    AS price_sale_price,
+            product_price.is_active     AS price_is_active,
+            product_price.created_at    AS price_created_at,
+            product_price.updated_at    AS price_updated_at,
+            product_sku_spec.sku_id     AS spec_sku_id,
+            product_sku_spec.spec_id    AS spec_spec_id,
+            product_sku_spec.value_id   AS spec_value_id,
+            product_sku_spec.created_at AS spec_created_at,
+            product_spec.spec_code      AS spec_spec_code,
+            product_spec.spec_name      AS spec_spec_name,
+            product_spec_value.value_code AS spec_value_code,
+            product_spec_value.value_name AS spec_value_name,
+            product_sku_image.id        AS image_id,
+            product_sku_image.sku_id    AS image_sku_id,
+            product_sku_image.url       AS image_url,
+            product_sku_image.is_main   AS image_is_main,
+            product_sku_image.sort_order AS image_sort_order,
+            product_sku_image.created_at AS image_created_at
+        FROM product_sku
+                 LEFT JOIN product_price ON product_price.sku_id = product_sku.id
+                 LEFT JOIN product_sku_spec ON product_sku_spec.sku_id = product_sku.id
+                 LEFT JOIN product_spec ON product_spec.id = product_sku_spec.spec_id
+                 LEFT JOIN product_spec_value ON product_spec_value.id = product_sku_spec.value_id
+                 LEFT JOIN product_sku_image ON product_sku_image.sku_id = product_sku.id
+    </sql>
+
+    <!-- 按商品聚合查询 SKU 列表 -->
+    <select id="selectAggregateByProductId" resultMap="ProductSkuAggregateResultMap">
+        <include refid="SkuAggregateSelectBody"/>
+        WHERE product_sku.product_id = #{productId}
+        <if test="status != null">
+            AND product_sku.status = #{status}
+        </if>
+        ORDER BY product_sku.id ASC,
+        product_sku_image.is_main DESC, product_sku_image.sort_order ASC, product_sku_image.id ASC,
+        product_sku_spec.spec_id ASC, product_sku_spec.value_id ASC,
+        product_price.id ASC
+    </select>
+
+    <!-- 按主键聚合查询单个 SKU -->
+    <select id="selectAggregateById" resultMap="ProductSkuAggregateResultMap">
+        <include refid="SkuAggregateSelectBody"/>
+        WHERE product_sku.product_id = #{productId}
+        AND product_sku.id = #{skuId}
+        ORDER BY product_sku.id ASC,
+        product_sku_image.is_main DESC, product_sku_image.sort_order ASC, product_sku_image.id ASC,
+        product_sku_spec.spec_id ASC, product_sku_spec.value_id ASC,
+        product_price.id ASC
+    </select>
+
+</mapper>

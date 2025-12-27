@@ -1,46 +1,44 @@
 package shopping.international.domain.service.products;
 
+import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import shopping.international.domain.model.vo.products.LikeState;
-import shopping.international.domain.model.vo.products.ProductSummary;
+
+import java.time.LocalDateTime;
 
 /**
- * 商品点赞领域服务
+ * 商品点赞领域服务接口
+ *
+ * <p>负责点赞/取消点赞等行为编排, 保持幂等与业务校验</p>
  */
 public interface IProductLikeService {
 
     /**
-     * 点赞商品 (幂等)
+     * 点赞状态读模型
      *
-     * @param userId    用户ID
-     * @param productId 商品ID
+     * @param liked   是否已点赞
+     * @param likedAt 点赞时间
+     */
+    @Builder
+    record LikeState(@NotNull Boolean liked, LocalDateTime likedAt) {
+    }
+
+    /**
+     * 对商品执行点赞(幂等)
+     *
+     * @param userId    用户 ID
+     * @param productId 商品 ID
      * @return 点赞状态
      */
     @NotNull
     LikeState like(@NotNull Long userId, @NotNull Long productId);
 
     /**
-     * 取消点赞 (幂等)
+     * 取消商品点赞(幂等)
      *
-     * @param userId    用户ID
-     * @param productId 商品ID
+     * @param userId    用户 ID
+     * @param productId 商品 ID
      * @return 点赞状态
      */
     @NotNull
-    LikeState unlike(@NotNull Long userId, @NotNull Long productId);
-
-    /**
-     * 分页查询用户点赞的商品
-     *
-     * @param userId   用户ID
-     * @param page     页码
-     * @param size     每页数量
-     * @param locale   语言
-     * @param currency 价格币种
-     * @return 商品列表
-     */
-    @NotNull
-    IProductQueryService.PageResult<ProductSummary> listUserLikes(@NotNull Long userId, int page, int size,
-                                                                  @Nullable String locale, @Nullable String currency);
+    LikeState cancel(@NotNull Long userId, @NotNull Long productId);
 }
