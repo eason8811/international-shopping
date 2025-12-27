@@ -46,10 +46,10 @@ class SkuAggregateTest {
                 List.of(ProductImage.of("url", true, 0)));
 
         IllegalParamException ex = assertThrows(IllegalParamException.class,
-                () -> sku.updatePrice("USD", new BigDecimal("10"), new BigDecimal("12"), true));
+                () -> sku.patchPrice(Collections.singletonList(ProductPrice.of("USD", new BigDecimal("10"), new BigDecimal("12"), true))));
         assertTrue(ex.getMessage().contains("促销价不能高于标价"));
         assertThrows(IllegalStateException.class,
-                () -> sku.updatePrice("EUR", new BigDecimal("10"), null, true));
+                () -> sku.patchPrice(Collections.singletonList(ProductPrice.of("EUR", new BigDecimal("10"), null, true))));
     }
 
     @Test

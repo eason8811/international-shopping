@@ -237,52 +237,6 @@ public class Sku implements Verifiable {
     }
 
     /**
-     * 新增价格 (currency 不可重复)
-     *
-     * @param price 新价格
-     */
-    public void addPrice(ProductPrice price) {
-        requireNotNull(price, "价格不能为空");
-        price.validate();
-        List<ProductPrice> mutable = new ArrayList<>(prices);
-        boolean exists = mutable.stream().anyMatch(p -> p.getCurrency().equals(price.getCurrency()));
-        require(!exists, "价格 currency 已存在: " + price.getCurrency());
-        mutable.add(price);
-        this.prices = normalizeDistinctList(mutable, ProductPrice::validate, ProductPrice::getCurrency, "价格列表 currency 不能重复");
-    }
-
-    /**
-     * 更新已有价格 (按 currency 定位, 为空字段不更新)
-     *
-     * @param currency  货币代码, 必填
-     * @param listPrice 标价, null 则保留
-     * @param salePrice 促销价, null 则保留
-     * @param active    是否启用, null 则保留
-     */
-    public void updatePrice(String currency, BigDecimal listPrice, BigDecimal salePrice, Boolean active) {
-        String normalizedCurrency = normalizeCurrency(currency);
-        requireNotNull(normalizedCurrency, "价格 currency 不能为空");
-        List<ProductPrice> mutable = new ArrayList<>(prices);
-        ProductPrice existing = mutable.stream()
-                .filter(p -> p.getCurrency().equals(normalizedCurrency))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("价格不存在: " + normalizedCurrency));
-        BigDecimal targetList = listPrice != null ? listPrice : existing.getListPrice();
-        requireNotNull(targetList, "标价不能为空");
-        require(targetList.compareTo(BigDecimal.ZERO) > 0, "标价必须大于 0");
-        BigDecimal targetSale = salePrice != null ? salePrice : existing.getSalePrice();
-        if (targetSale != null) {
-            require(targetSale.compareTo(BigDecimal.ZERO) > 0, "促销价必须大于 0");
-            require(targetSale.compareTo(targetList) <= 0, "促销价不能高于标价");
-        }
-        boolean targetActive = active != null ? active : existing.isActive();
-        ProductPrice patched = ProductPrice.of(normalizedCurrency, targetList, targetSale, targetActive);
-        mutable.removeIf(p -> p.getCurrency().equals(normalizedCurrency));
-        mutable.add(patched);
-        this.prices = normalizeDistinctList(mutable, ProductPrice::validate, ProductPrice::getCurrency, "价格列表 currency 不能重复");
-    }
-
-    /**
      * 增量更新 SKU 的价格列表, 按 currency 定位已有条目, 当前 currency 不存在则新增, 已存在则更新, 没有提到的 currency 则保持不变
      *
      * @param priceList 待更新的价格列表, 列表中的每个元素必须是非空且有效的 {@link ProductPrice} 对象
