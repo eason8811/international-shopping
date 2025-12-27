@@ -328,13 +328,20 @@
             </foreach>
             )
         </if>
-        <if test="priceMin != null">
-            AND COALESCE(price.sale_price, price.list_price) <![CDATA[>=]]> #{priceMin}
-        </if>
-        <if test="priceMax != null">
-            AND COALESCE(price.sale_price, price.list_price) <![CDATA[<=]]> #{priceMax}
-        </if>
         GROUP BY p.id
+        <if test="priceMin != null or priceMax != null">
+            having
+                <if test="priceMin != null and priceMax != null">
+                    COALESCE(MIN(price.sale_price), MIN(price.list_price)) <![CDATA[>=]]> #{priceMin}
+                    AND COALESCE(MAX(price.sale_price), MAX(price.list_price)) <![CDATA[<=]]> #{priceMax}
+                </if>
+                <if test="priceMin != null and priceMax == null">
+                    COALESCE(MIN(price.sale_price), MIN(price.list_price)) <![CDATA[>=]]> #{priceMin}
+                </if>
+                <if test="priceMin == null and priceMax != null">
+                    COALESCE(MAX(price.sale_price), MAX(price.list_price)) <![CDATA[<=]]> #{priceMax}
+                </if>
+        </if>
         ),
         ordered AS (
         SELECT *
