@@ -183,7 +183,8 @@ public class SkuService implements ISkuService {
             return List.of();
 
         sku.patchPrice(prices);
-        return skuRepository.upsertPrices(skuId, sku.getPrices());
+        skuRepository.upsertPrices(skuId, sku.getPrices());
+        return prices.stream().map(ProductPrice::getCurrency).toList();
     }
 
     /**

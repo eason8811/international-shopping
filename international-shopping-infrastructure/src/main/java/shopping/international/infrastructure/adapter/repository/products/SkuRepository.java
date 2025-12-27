@@ -186,14 +186,12 @@ public class SkuRepository implements ISkuRepository {
      *
      * @param skuId  SKU ID
      * @param prices 价格列表
-     * @return 受影响的币种列表
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public @NotNull List<String> upsertPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices) {
+    public void upsertPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices) {
         productPriceMapper.delete(new LambdaQueryWrapper<ProductPricePO>().eq(ProductPricePO::getSkuId, skuId));
         persistPrices(skuId, prices);
-        return prices.stream().map(ProductPrice::getCurrency).toList();
     }
 
     /**

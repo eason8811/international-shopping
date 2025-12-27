@@ -80,10 +80,8 @@ public interface ISkuRepository {
      *
      * @param skuId  SKU ID
      * @param prices 价格列表
-     * @return 受影响的币种列表
      */
-    @NotNull
-    List<String> upsertPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices);
+    void upsertPrices(@NotNull Long skuId, @NotNull List<ProductPrice> prices);
 
     /**
      * 覆盖更新库存
