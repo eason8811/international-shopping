@@ -143,6 +143,8 @@ public class ProductService implements IProductService {
                                         @Nullable String brand, @Nullable String coverImageUrl, @Nullable SkuType skuType,
                                         @Nullable ProductStatus status, @Nullable List<String> tags) {
         Product product = ensureProduct(productId);
+        if (product.getStatus() == ProductStatus.ON_SALE && status == ProductStatus.ON_SALE)
+            throw new IllegalParamException("商品已上架, 且目标状态为上架, 不能修改基本信息");
         List<Sku> skus = skuRepository.listByProductId(productId, null);
         product.updateBasic(slug, title, subtitle, description, categoryId, brand, coverImageUrl, skuType, status, tags, skus);
         Product updated = productRepository.updateBasic(product, false);

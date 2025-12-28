@@ -119,8 +119,8 @@ public class SkuService implements ISkuService {
         Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
         List<Sku> skuList = skuRepository.listByProductId(productId, null);
-        if (product.getStatus() == ProductStatus.ON_SALE && sku.getStatus() == SkuStatus.ENABLED)
-            throw new ConflictException("已上架的 SKU, 无法修改信息");
+        if (product.getStatus() == ProductStatus.ON_SALE && sku.getStatus() == SkuStatus.ENABLED && status == SkuStatus.ENABLED)
+            throw new ConflictException("已上架的 SKU, 且目标状态为 '启用' 无法修改信息");
         sku.updateBasic(skuCode, weight, status, isDefault, barcode);
         ensureSkuSpecRelationValidate(product, skuList, skuId, sku.getSpecs());
         if (stock != null)
