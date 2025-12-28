@@ -100,12 +100,7 @@ public class ProductSpec implements Verifiable {
         this.sortOrder = sortOrder;
         this.enabled = enabled;
         this.i18nList = normalizeDistinctList(i18nList, ProductSpecI18n::validate, ProductSpecI18n::getLocale, "规格多语言 locale 不能重复");
-        this.values = normalizeDistinctList(values, ProductSpecValue::validate, ProductSpecValue::getValueCode, "规格值编码不能重复");
-        this.values.forEach(v -> {
-            v.bindProductId(this.productId);
-            if (this.id != null)
-                v.bindSpecId(this.id);
-        });
+        replaceValues(values);
     }
 
     /**
@@ -341,7 +336,7 @@ public class ProductSpec implements Verifiable {
         if (this.id != null)
             newValue.bindSpecId(this.id);
         mutable.add(newValue);
-        this.values = normalizeDistinctList(mutable, ProductSpecValue::validate, ProductSpecValue::getValueCode, "规格值编码不能重复");
+        replaceValues(mutable);
     }
 
     /**

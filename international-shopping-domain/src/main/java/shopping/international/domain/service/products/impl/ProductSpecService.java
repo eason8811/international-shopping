@@ -10,6 +10,7 @@ import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
+import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.SpecType;
 import shopping.international.domain.model.vo.products.ProductSpecI18n;
 import shopping.international.domain.model.vo.products.ProductSpecValueI18n;
@@ -132,7 +133,10 @@ public class ProductSpecService implements IProductSpecService {
      */
     @Override
     public @NotNull Long createValue(@NotNull Long productId, @NotNull Long specId, @NotNull ProductSpecValue value) {
+        Product product = ensureProduct(productId);
         ProductSpec spec = ensureSpec(productId, specId);
+        if (product.getSkuType() == SkuType.SINGLE && !spec.getValues().isEmpty())
+            throw new ConflictException("单规格商品只能有一个规格取值");
         spec.addValue(value);
         ProductSpecValue saved = productSpecRepository.saveValue(value);
         return saved.getId();
