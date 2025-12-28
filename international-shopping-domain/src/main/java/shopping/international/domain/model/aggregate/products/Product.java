@@ -380,7 +380,7 @@ public class Product implements Verifiable {
         replaceSpecs(mutable);
         if (SkuType.SINGLE == skuType)
             for (ProductSpec productSpec : specs)
-                require(productSpec.getValues().size() == 1, "单规格商品只能有一个规格值");
+                require(productSpec.getValues().size() <= 1, "单规格商品只能有一个规格值");
     }
 
     /**
@@ -428,7 +428,7 @@ public class Product implements Verifiable {
         existing.replaceI18n(i18nList);
         if (SkuType.SINGLE == skuType)
             for (ProductSpec productSpec : specs)
-                require(productSpec.getValues().size() == 1, "单规格商品只能有一个规格值");
+                require(productSpec.getValues().size() <= 1, "单规格商品只能有一个规格值");
     }
 
     /**
