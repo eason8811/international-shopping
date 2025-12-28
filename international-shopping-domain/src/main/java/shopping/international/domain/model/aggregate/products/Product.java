@@ -365,9 +365,13 @@ public class Product implements Verifiable {
                         ProductSpecI18n::getLocale,
                         Collectors.mapping(ProductSpecI18n::getSpecName, Collectors.toList())
                 ));
-        for (ProductSpecI18n i18n : spec.getI18nList())
-            require(!localeSpecI18nNameMap.get(i18n.getLocale()).contains(i18n.getSpecName()),
+        for (ProductSpecI18n i18n : spec.getI18nList()) {
+            List<String> specI18nName = localeSpecI18nNameMap.get(i18n.getLocale());
+            if (specI18nName == null)
+                continue;
+            require(!specI18nName.contains(i18n.getSpecName()),
                     i18n.getLocale() + " 语言的本地化的规格名称已存在: " + i18n.getSpecName());
+        }
 
         if (this.id != null)
             require(Objects.equals(this.id, spec.getProductId()), "规格所属商品不匹配");
