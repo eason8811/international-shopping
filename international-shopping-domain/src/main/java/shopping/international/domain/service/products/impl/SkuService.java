@@ -13,6 +13,7 @@ import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuStatus;
+import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.StockAdjustMode;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
@@ -81,7 +82,13 @@ public class SkuService implements ISkuService {
                                @Nullable BigDecimal weight, @NotNull SkuStatus status, boolean isDefault,
                                @Nullable String barcode, @NotNull List<ProductPrice> prices,
                                @NotNull List<SkuSpecRelation> specs, @NotNull List<ProductImage> images) {
-        ensureSkuSpecRelationValidate(productId, null, specs);
+        Product product = ensureProduct(productId);
+        if (product.getStatus() == ProductStatus.ON_SALE && status == SkuStatus.ENABLED)
+            throw new ConflictException("已上架的商品, 无法创建状态为 '启用' 的 SKU");
+        List<Sku> skuList = skuRepository.listByProductId(productId, null);
+        if (product.getSkuType() == SkuType.SINGLE && !skuList.isEmpty())
+            throw new ConflictException("单规格商品, 已存在 SKU, 无法再添加 SKU");
+        ensureSkuSpecRelationValidate(product, skuList, null, specs);
         Sku sku = Sku.create(productId, skuCode, stock, weight, status, isDefault, barcode, prices, specs, images);
         Sku saved = skuRepository.save(sku);
         if (isDefault)
@@ -111,8 +118,11 @@ public class SkuService implements ISkuService {
                                     @Nullable Boolean isDefault, @Nullable String barcode, @Nullable List<ProductImage> images) {
         Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
+        List<Sku> skuList = skuRepository.listByProductId(productId, null);
+        if (product.getStatus() == ProductStatus.ON_SALE && sku.getStatus() == SkuStatus.ENABLED)
+            throw new ConflictException("已上架的 SKU, 无法修改信息");
         sku.updateBasic(skuCode, weight, status, isDefault, barcode);
-        ensureSkuSpecRelationValidate(productId, skuId, sku.getSpecs());
+        ensureSkuSpecRelationValidate(product, skuList, skuId, sku.getSpecs());
         if (stock != null)
             sku.adjustStock(StockAdjustMode.SET, stock);
         if (images != null)
@@ -140,13 +150,17 @@ public class SkuService implements ISkuService {
      */
     @Override
     public @NotNull List<Long> upsertSpecs(@NotNull Long productId, @NotNull Long skuId, @NotNull List<SkuSpecRelation> specs) {
+        Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
+        if (product.getStatus() == ProductStatus.ON_SALE && sku.getStatus() == SkuStatus.ENABLED)
+            throw new ConflictException("已上架的 SKU, 无法修改规格绑定");
+        List<Sku> skuList = skuRepository.listByProductId(productId, null);
         if (specs.isEmpty())
             return List.of();
 
         sku.patchSpecSelection(specs);
         List<SkuSpecRelation> newSpecRelationList = sku.getSpecs();
-        ensureSkuSpecRelationValidate(productId, skuId, newSpecRelationList);
+        ensureSkuSpecRelationValidate(product, skuList, skuId, newSpecRelationList);
 
         return skuRepository.upsertSpecs(skuId, sku.getSpecs());
     }
@@ -161,10 +175,14 @@ public class SkuService implements ISkuService {
      */
     @Override
     public boolean deleteSpec(@NotNull Long productId, @NotNull Long skuId, @NotNull Long specId) {
+        Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
+        if (product.getStatus() == ProductStatus.ON_SALE && sku.getStatus() == SkuStatus.ENABLED)
+            throw new ConflictException("已上架的 SKU, 无法删除规格绑定");
+        List<Sku> skuList = skuRepository.listByProductId(productId, null);
         sku.removeSpecSelection(specId);
         if (sku.getStatus() == SkuStatus.ENABLED)
-            ensureSkuSpecRelationValidate(productId, skuId, sku.getSpecs());
+            ensureSkuSpecRelationValidate(product, skuList, skuId, sku.getSpecs());
         return skuRepository.deleteSpec(skuId, specId);
     }
 
@@ -178,7 +196,10 @@ public class SkuService implements ISkuService {
      */
     @Override
     public @NotNull List<String> upsertPrices(@NotNull Long productId, @NotNull Long skuId, @NotNull List<ProductPrice> prices) {
+        Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
+        if (product.getStatus() == ProductStatus.ON_SALE && sku.getStatus() == SkuStatus.ENABLED)
+            throw new ConflictException("已上架的 SKU, 无法修改价格");
         if (prices.isEmpty())
             return List.of();
 
@@ -217,6 +238,8 @@ public class SkuService implements ISkuService {
     public boolean delete(Long productId, Long skuId) {
         Product product = ensureProduct(productId);
         Sku sku = ensureSku(productId, skuId);
+        if (product.getStatus() == ProductStatus.ON_SALE && sku.getStatus() == SkuStatus.ENABLED)
+            throw new ConflictException("已上架的 SKU, 无法删除");
         List<Sku> skuList = skuRepository.listByProductId(productId, null);
         Map<Long, SkuStatus> statusBySkuIdMap = skuList.stream().collect(Collectors.toMap(Sku::getId, Sku::getStatus));
         statusBySkuIdMap.put(skuId, SkuStatus.DISABLED);
@@ -259,13 +282,12 @@ public class SkuService implements ISkuService {
     /**
      * 确保新的 SKU 选择的规格值组合不与同 SPU 下的其他 SKU 重复
      *
-     * @param productId           产品 ID
-     * @param skuId               SKU ID, 可空 (不为空则排除这一 SKU)
+     * @param product             产品
+     * @param skuList             产品下的 SKU 列表
+     * @param excludeSkuId        SKU ID, 可空 (不为空则排除这一 SKU)
      * @param newSpecRelationList 新规格绑定列表
      */
-    private void ensureSkuSpecRelationValidate(@NotNull Long productId, @Nullable Long skuId, @NotNull List<SkuSpecRelation> newSpecRelationList) {
-        Product product = ensureProduct(productId);
-        List<Sku> skuList = skuRepository.listByProductId(productId, null);
+    private void ensureSkuSpecRelationValidate(@NotNull Product product, @NotNull List<Sku> skuList, @Nullable Long excludeSkuId, @NotNull List<SkuSpecRelation> newSpecRelationList) {
         Map<Long, List<ProductSpecValue>> specValueIdBySpecIdMap = product.getSpecs().stream()
                 .map(ProductSpec::getValues)
                 .flatMap(List::stream)
@@ -283,7 +305,7 @@ public class SkuService implements ISkuService {
         // 获取本 SPU 下所有已存在的 SKU 选择的规格值组合
         List<List<Long>> specValueGroupList = new ArrayList<>();
         for (Sku s : skuList) {
-            if (skuId != null && skuId.equals(s.getId()))
+            if (excludeSkuId != null && excludeSkuId.equals(s.getId()))
                 continue;
             List<Long> valueList = s.getSpecs().stream()
                     .map(SkuSpecRelation::getValueId)

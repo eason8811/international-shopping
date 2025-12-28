@@ -374,6 +374,9 @@ public class Product implements Verifiable {
         List<ProductSpec> mutable = new ArrayList<>(specs);
         mutable.add(spec);
         replaceSpecs(mutable);
+        if (SkuType.SINGLE == skuType)
+            for (ProductSpec productSpec : specs)
+                require(productSpec.getValues().size() == 1, "单规格商品只能有一个规格值");
     }
 
     /**
@@ -419,6 +422,9 @@ public class Product implements Verifiable {
         }
         existing.update(specCode, specName, specType, required, sortOrder, enabled);
         existing.replaceI18n(i18nList);
+        if (SkuType.SINGLE == skuType)
+            for (ProductSpec productSpec : specs)
+                require(productSpec.getValues().size() == 1, "单规格商品只能有一个规格值");
     }
 
     /**
