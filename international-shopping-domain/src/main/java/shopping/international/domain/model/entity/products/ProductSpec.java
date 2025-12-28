@@ -329,9 +329,13 @@ public class ProductSpec implements Verifiable {
                         ProductSpecValueI18n::getLocale,
                         Collectors.mapping(ProductSpecValueI18n::getValueName, Collectors.toList())
                 ));
-        for (ProductSpecValueI18n i18n : newValue.getI18nList())
-            require(!localeSpecValueI18nNameMap.get(i18n.getLocale()).contains(i18n.getValueName()),
+        for (ProductSpecValueI18n i18n : newValue.getI18nList()) {
+            List<String> specValueI18nName = localeSpecValueI18nNameMap.get(i18n.getLocale());
+            if (specValueI18nName == null)
+                continue;
+            require(!specValueI18nName.contains(i18n.getValueName()),
                     i18n.getLocale() + " 语言的本地化的规格值名称已存在: " + i18n.getValueName());
+        }
         newValue.bindProductId(this.productId);
         if (this.id != null)
             newValue.bindSpecId(this.id);
