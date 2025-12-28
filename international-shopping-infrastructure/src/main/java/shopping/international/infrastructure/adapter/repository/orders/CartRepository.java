@@ -14,11 +14,15 @@ import shopping.international.domain.service.orders.ICartService;
 import shopping.international.infrastructure.dao.orders.ShoppingCartItemMapper;
 import shopping.international.infrastructure.dao.orders.po.CartItemViewPO;
 import shopping.international.infrastructure.dao.orders.po.ShoppingCartItemPO;
+import shopping.international.infrastructure.dao.products.ProductSkuMapper;
+import shopping.international.infrastructure.dao.products.po.ProductSkuPO;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.List;
 import java.util.Optional;
+
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 基于 MyBatis-Plus 的购物车仓储实现
@@ -37,6 +41,10 @@ public class CartRepository implements ICartRepository {
      * 购物车条目 Mapper
      */
     private final ShoppingCartItemMapper cartItemMapper;
+    /**
+     * 商品 SKU Mapper
+     */
+    private final ProductSkuMapper skuMapper;
 
     /**
      * 按用户分页查询购物车条目视图
@@ -127,12 +135,19 @@ public class CartRepository implements ICartRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull CartItem upsert(@NotNull Long userId, @NotNull Long skuId, int quantity, boolean selected) {
+        ProductSkuPO skuPO = skuMapper.selectById(skuId);
+        requireNotNull(skuPO, "SKU 不存在");
+        if (skuPO.getStock() < quantity)
+            throw new ConflictException("库存不足");
         ShoppingCartItemPO existing = cartItemMapper.selectOne(new LambdaQueryWrapper<ShoppingCartItemPO>()
                 .eq(ShoppingCartItemPO::getUserId, userId)
                 .eq(ShoppingCartItemPO::getSkuId, skuId)
                 .last("limit 1"));
-        if (existing != null)
+        if (existing != null) {
+            if (skuPO.getStock() < existing.getQuantity() + quantity)
+                throw new ConflictException("库存不足");
             return updateCartItem(userId, existing.getQuantity() + quantity, selected, existing);
+        }
 
         ShoppingCartItemPO po = ShoppingCartItemPO.builder()
                 .userId(userId)
@@ -143,6 +158,8 @@ public class CartRepository implements ICartRepository {
         try {
             cartItemMapper.insert(po);
         } catch (DataIntegrityViolationException e) {
+            ProductSkuPO againPO = skuMapper.selectById(skuId);
+            requireNotNull(againPO, "SKU 不存在");
             // 并发下 unique(user_id, sku_id) 冲突, 退化为“更新并回读”
             ShoppingCartItemPO again = cartItemMapper.selectOne(new LambdaQueryWrapper<ShoppingCartItemPO>()
                     .eq(ShoppingCartItemPO::getUserId, userId)
@@ -150,6 +167,8 @@ public class CartRepository implements ICartRepository {
                     .last("limit 1"));
             if (again == null)
                 throw e;
+            if (againPO.getStock() < again.getQuantity() + quantity)
+                throw new ConflictException("库存不足");
             return updateCartItem(userId, again.getQuantity() + quantity, selected, again);
         }
         ShoppingCartItemPO latest = cartItemMapper.selectById(po.getId());
@@ -170,6 +189,12 @@ public class CartRepository implements ICartRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull CartItem update(@NotNull Long userId, @NotNull Long itemId,
                                     @Nullable Long skuId, @Nullable Integer quantity, @Nullable Boolean selected) {
+        if (skuId != null) {
+            ProductSkuPO skuPO = skuMapper.selectById(skuId);
+            requireNotNull(skuPO, "SKU 不存在");
+            if (quantity != null && skuPO.getStock() < quantity)
+                throw new ConflictException("库存不足");
+        }
         ShoppingCartItemPO existing = cartItemMapper.selectOne(new LambdaQueryWrapper<ShoppingCartItemPO>()
                 .eq(ShoppingCartItemPO::getId, itemId)
                 .eq(ShoppingCartItemPO::getUserId, userId)
@@ -189,6 +214,22 @@ public class CartRepository implements ICartRepository {
         try {
             cartItemMapper.update(null, wrapper);
         } catch (DataIntegrityViolationException e) {
+            if (skuId != null) {
+                ProductSkuPO existingSkuPO = skuMapper.selectById(skuId);
+                requireNotNull(existingSkuPO, "SKU 不存在");
+                // unique(user_id, sku_id) 冲突, 退化为“更新并回读”
+                ShoppingCartItemPO again = cartItemMapper.selectOne(new LambdaQueryWrapper<ShoppingCartItemPO>()
+                        .eq(ShoppingCartItemPO::getUserId, userId)
+                        .eq(ShoppingCartItemPO::getSkuId, skuId)
+                        .last("limit 1"));
+                if (again == null)
+                    throw e;
+                if (quantity != null && existingSkuPO.getStock() < again.getQuantity() + quantity)
+                    throw new ConflictException("库存不足");
+                int normalizedQuantity = quantity == null ? again.getQuantity() : again.getQuantity() + quantity;
+                Boolean normalizedSelected = selected == null ? again.getSelected() : selected;
+                return updateCartItem(userId, normalizedQuantity, normalizedSelected, again);
+            }
             throw new ConflictException("购物车条目唯一约束冲突", e);
         }
 
