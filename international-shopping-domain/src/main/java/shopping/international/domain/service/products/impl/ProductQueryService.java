@@ -11,7 +11,6 @@ import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
-import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.ProductPublicSnapshot;
@@ -93,7 +92,7 @@ public class ProductQueryService implements IProductQueryService {
         if (product.getStatus() != ProductStatus.ON_SALE)
             throw new IllegalParamException("商品未上架");
         Product filteredProduct = filterProduct(product);
-        List<Sku> skus = skuRepository.listByProductId(product.getId(), SkuStatus.ENABLED);
+        List<Sku> skus = skuRepository.listByProductId(product.getId(), null);
         List<Sku> filteredSkus = filterSkuPrices(skus, currency);
         String categorySlug = productRepository.findCategorySlug(product.getCategoryId());
         return new ProductDetail(filteredProduct, categorySlug, filteredSkus);
