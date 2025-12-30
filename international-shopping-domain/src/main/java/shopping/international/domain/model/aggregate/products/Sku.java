@@ -204,6 +204,10 @@ public class Sku implements Verifiable {
         if (status != null) {
             if (SkuStatus.DISABLED.equals(status))
                 defaultSku = false;
+            if (SkuStatus.ENABLED.equals(status)) {
+                require(!prices.isEmpty(), "启用 SKU 必须有价格");
+                require(!specs.isEmpty(), "启用 SKU 必须有规格值选择");
+            }
             this.status = status;
         }
         if (defaultSku != null) {
