@@ -307,21 +307,42 @@ idx_price_ccy：按币种统计/导出
  */
 CREATE TABLE product_price
 (
-    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    sku_id     BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
-    currency   CHAR(3)         NOT NULL COMMENT '币种, 指向 currency.code',
-    list_price DECIMAL(18, 2)  NOT NULL COMMENT '标价 (含税口径由业务约定)',
-    sale_price DECIMAL(18, 2)  NULL COMMENT '促销价 (可空, 为空表示无促销)',
-    is_active  TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否可售用价 (预留)',
-    created_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    sku_id       BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID, 指向 product_sku.id',
+    currency     CHAR(3)         NOT NULL COMMENT '币种, 指向 currency.code',
+
+    -- 金额：最小货币单位（USD=cent, JPY=yen, KWD=1/1000 dinar）
+    list_price   BIGINT UNSIGNED NOT NULL COMMENT '标价 (最小货币单位)',
+    sale_price   BIGINT UNSIGNED NULL COMMENT '促销价 (最小货币单位, 可空)',
+
+    is_active    TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否可售用价(预留/开关)',
+    price_source ENUM ('MANUAL','FX_AUTO')
+                                 NOT NULL DEFAULT 'MANUAL' COMMENT '价格来源: 手动/汇率派生',
+    derived_from CHAR(3)         NULL     DEFAULT 'USD' COMMENT '派生基准币种 (通常USD), price_source=FX_AUTO时有效',
+
+    -- FX 派生元数据
+    fx_rate      DECIMAL(36, 18) NULL COMMENT '派生使用的汇率(1 derived_from = fx_rate currency)',
+    fx_as_of     DATETIME(3)     NULL COMMENT '派生使用的汇率时间点',
+    fx_provider  VARCHAR(32)     NULL COMMENT '派生使用的数据源',
+    computed_at  DATETIME(3)     NULL COMMENT '价格计算时间',
+    algo_ver     INT             NOT NULL DEFAULT 1 COMMENT '算法版本(便于未来规则升级)',
+    markup_bps   INT             NOT NULL DEFAULT 0 COMMENT '加价/手续费(基点, 1%=100bps, 可为0)',
+
+    created_at   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at   DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+
     PRIMARY KEY (id),
-    UNIQUE KEY uk_price_sku_ccy (sku_id, currency), -- 1:1 唯一价
-    KEY idx_price_ccy (currency),                   -- 统计/导出
+    UNIQUE KEY uk_price_sku_ccy (sku_id, currency),
+    KEY idx_price_ccy (currency),
+    KEY idx_price_ccy_active_sku (currency, is_active, sku_id),
+
+    -- 约束：促销价 <= 标价
     CHECK (sale_price IS NULL OR sale_price <= list_price),
     CHECK (list_price > 0),
-    CHECK (sale_price IS NULL OR sale_price > 0)
-) ENGINE = InnoDB COMMENT ='SKU 多币种定价(上货即确定各币种价格)';
+    CHECK (sale_price IS NULL OR sale_price > 0),
+    -- FX_AUTO 时必须具备必要元数据（开发期建议加严，线上可视情况放松）
+    CHECK (price_source <> 'FX_AUTO' OR (fx_rate IS NOT NULL AND fx_as_of IS NOT NULL AND fx_provider IS NOT NULL))
+) ENGINE = InnoDB COMMENT ='SKU 多币种定价(最小货币单位 + 可审计派生元数据)';
 
 -- 2.10 SPU 规格类别
 /*
@@ -418,6 +439,40 @@ CREATE TABLE product_sku_spec
     KEY idx_pss_spec_value (spec_id, value_id)
 ) ENGINE = InnoDB COMMENT ='SKU-规格值映射(每类别恰好一值)';
 
+-- 2.15 最新汇率快照
+/**
+idx_fx_latest_quote：按报价币种查询
+idx_fx_latest_provider_time：按提供方 + 采样时间点查询
+ */
+CREATE TABLE fx_rate_latest
+(
+    base_code  CHAR(3)         NOT NULL COMMENT '基准币种(如 USD), 指向 currency.code',
+    quote_code CHAR(3)         NOT NULL COMMENT '报价币种(如 EUR), 指向 currency.code',
+    rate       DECIMAL(36, 18) NOT NULL COMMENT '1 base = rate quote',
+    as_of      DATETIME(3)     NOT NULL COMMENT '汇率时间点/采样时间',
+    provider   VARCHAR(32)     NOT NULL COMMENT '数据源(如 ECB / OpenExchangeRates / ...)',
+    updated_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (base_code, quote_code),
+    KEY idx_fx_latest_quote (quote_code),
+    KEY idx_fx_latest_provider_time (provider, as_of)
+) ENGINE = InnoDB COMMENT ='最新汇率快照(用于派生价格/展示换算)';
+
+-- 2.16 汇率历史记录
+CREATE TABLE fx_rate
+(
+    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    base_code  CHAR(3)         NOT NULL COMMENT '基准币种(如 USD), 指向 currency.code',
+    quote_code CHAR(3)         NOT NULL COMMENT '报价币种(如 EUR), 指向 currency.code',
+    rate       DECIMAL(36, 18) NOT NULL COMMENT '1 base = rate quote',
+    as_of      DATETIME(3)     NOT NULL COMMENT '汇率时间点/采样时间',
+    provider   VARCHAR(32)     NOT NULL COMMENT '数据源(如 ECB / OpenExchangeRates)',
+    created_at DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '写入时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_fx_pair_provider_time (base_code, quote_code, provider, as_of),
+    KEY idx_fx_pair_time (base_code, quote_code, as_of),
+    KEY idx_fx_provider_time (provider, as_of)
+) ENGINE = InnoDB COMMENT ='汇率历史(审计/回放/对账解释用)';
+
 -- =========================================================
 -- 3. 订单领域 (orders)
 -- =========================================================
@@ -438,11 +493,14 @@ CREATE TABLE orders
     status              ENUM ('CREATED','PENDING_PAYMENT','PAID','CANCELLED','CLOSED','FULFILLED','REFUNDING','REFUNDED')
                                                                                   NOT NULL DEFAULT 'CREATED' COMMENT '订单状态机',
     items_count         INT                                                       NOT NULL DEFAULT 0 COMMENT '商品总件数',
-    total_amount        DECIMAL(18, 2)                                            NOT NULL COMMENT '商品总额(未含运费/折扣)',
-    discount_amount     DECIMAL(18, 2)                                            NOT NULL DEFAULT 0 COMMENT '折扣总额',
-    shipping_amount     DECIMAL(18, 2)                                            NOT NULL DEFAULT 0 COMMENT '运费',
-    pay_amount          DECIMAL(18, 2)                                            NOT NULL COMMENT '应付金额=总额-折扣+运费',
-    currency            CHAR(3)                                                   NOT NULL DEFAULT 'USD' COMMENT '币种',
+
+    total_amount        BIGINT UNSIGNED                                           NOT NULL COMMENT '商品总额(未税/未含运费/未含折扣, 最小货币单位)',
+    discount_amount     BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '折扣总额(最小货币单位)',
+    shipping_amount     BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '运费(最小货币单位)',
+    tax_amount          BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '税费(结算计算, 最小货币单位)',
+    pay_amount          BIGINT UNSIGNED                                           NOT NULL COMMENT '应付金额=总额-折扣+运费+税费(最小货币单位)',
+
+    currency            CHAR(3)                                                   NOT NULL DEFAULT 'USD' COMMENT '币种, 指向 currency.code',
     pay_channel         ENUM ('NONE','ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL DEFAULT 'NONE' COMMENT '支付通道',
     pay_status          ENUM ('NONE','INIT','SUCCESS','FAIL','CLOSED')            NOT NULL DEFAULT 'NONE' COMMENT '支付状态(网关侧)',
     payment_external_id VARCHAR(128)                                              NULL COMMENT '支付单 externalId(网关唯一标记)',
@@ -458,8 +516,14 @@ CREATE TABLE orders
     KEY idx_order_user (user_id),
     KEY idx_order_status_time (status, created_at),
     KEY idx_order_created (created_at),
-    KEY idx_order_payment_ext (payment_external_id)
-) ENGINE = InnoDB COMMENT ='订单主表';
+    KEY idx_order_payment_ext (payment_external_id),
+
+    CHECK (total_amount > 0),
+    CHECK (discount_amount >= 0),
+    CHECK (shipping_amount >= 0),
+    CHECK (tax_amount >= 0),
+    CHECK (pay_amount > 0)
+) ENGINE = InnoDB COMMENT ='订单主表(多币种/最小货币单位/含税费字段)';
 
 -- 3.2 订单明细
 /*
@@ -477,9 +541,9 @@ CREATE TABLE order_item
     title            VARCHAR(255)    NOT NULL COMMENT '商品标题快照',
     sku_attrs        JSON            NULL COMMENT 'SKU属性快照(JSON)',
     cover_image_url  VARCHAR(500)    NULL COMMENT '商品图快照',
-    unit_price       DECIMAL(18, 2)  NOT NULL COMMENT '单价快照',
+    unit_price       BIGINT UNSIGNED NOT NULL COMMENT '单价快照',
     quantity         INT             NOT NULL COMMENT '数量',
-    subtotal_amount  DECIMAL(18, 2)  NOT NULL COMMENT '小计=单价*数量',
+    subtotal_amount  BIGINT UNSIGNED NOT NULL COMMENT '小计=单价*数量',
     created_at       DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
     KEY idx_item_order (order_id),
@@ -549,24 +613,44 @@ CHECK：基础约束（百分比范围/金额为正；不同类型下字段取�
 */
 CREATE TABLE discount_policy
 (
-    id                  BIGINT UNSIGNED           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    name                VARCHAR(120)              NOT NULL COMMENT '策略名称',
-    apply_scope         ENUM ('ORDER','ITEM')     NOT NULL DEFAULT 'ITEM' COMMENT '作用域：整单/单行',
-    strategy_type       ENUM ('PERCENT','AMOUNT') NOT NULL COMMENT '折扣类型：按百分比 or 按固定金额',
-    percent_off         DECIMAL(5, 2)             NULL COMMENT '折扣百分比(0~100)，当 strategy_type=PERCENT 时生效',
-    amount_off          DECIMAL(18, 2)            NULL COMMENT '固定减金额，当 strategy_type=AMOUNT 时生效',
-    currency            CHAR(3)                   NULL COMMENT '金额折扣币种；为空表示随订单币种单位计算',
-    min_order_amount    DECIMAL(18, 2)            NULL COMMENT '门槛金额（按作用域口径）',
-    max_discount_amount DECIMAL(18, 2)            NULL COMMENT '封顶减免金额（可空）',
-    created_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at          DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    id            BIGINT UNSIGNED           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    name          VARCHAR(120)              NOT NULL COMMENT '策略名称',
+    apply_scope   ENUM ('ORDER','ITEM')     NOT NULL DEFAULT 'ITEM' COMMENT '作用域：整单/单行',
+    strategy_type ENUM ('PERCENT','AMOUNT') NOT NULL COMMENT '折扣类型：按百分比 or 按固定金额',
+    percent_off   DECIMAL(5, 2)             NULL COMMENT '折扣百分比(0~100), 当 strategy_type=PERCENT 时生效',
+    created_at    DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at    DATETIME(3)               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     KEY idx_policy_scope_type (apply_scope, strategy_type),
+    -- 约束：百分比策略必须有 percent_off, 金额策略必须没有 percent_off
     CHECK (strategy_type <> 'PERCENT' OR (percent_off IS NOT NULL AND percent_off >= 0 AND percent_off <= 100)),
-    CHECK (strategy_type <> 'AMOUNT' OR (amount_off IS NOT NULL AND amount_off > 0))
-) ENGINE = InnoDB COMMENT ='折扣策略模板';
+    CHECK (strategy_type <> 'AMOUNT' OR percent_off IS NULL)
+) ENGINE = InnoDB COMMENT ='折扣策略模板(骨架,金额配置下沉到 discount_policy_amount)';
 
--- 3.7 折扣码（6位字母数字，唯一；关联策略；统计使用次数）
+-- 3.7 折扣策略 - 币种金额配置（支持不同币种不同面额/门槛/封顶）
+/*
+ 对 strategy_type=AMOUNT：amount_off 必填（业务层控制）
+ */
+CREATE TABLE discount_policy_amount
+(
+    policy_id           BIGINT UNSIGNED NOT NULL COMMENT '折扣策略ID, 指向 discount_policy.id',
+    currency            CHAR(3)         NOT NULL COMMENT '币种, 指向 currency.code',
+
+    amount_off          BIGINT UNSIGNED NULL COMMENT '固定减金额(最小货币单位)',
+    min_order_amount    BIGINT UNSIGNED NULL COMMENT '门槛金额(最小货币单位)',
+    max_discount_amount BIGINT UNSIGNED NULL COMMENT '封顶减免金额(最小货币单位)',
+
+    created_at          DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at          DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+
+    PRIMARY KEY (policy_id, currency),
+    KEY idx_dpa_currency (currency),
+    CHECK (amount_off IS NULL OR amount_off > 0),
+    CHECK (min_order_amount IS NULL OR min_order_amount >= 0),
+    CHECK (max_discount_amount IS NULL OR max_discount_amount >= 0)
+) ENGINE = InnoDB COMMENT ='折扣策略-币种金额配置(AMOUNT/门槛/封顶多币种化)';
+
+-- 3.8 折扣码（6位字母数字，唯一；关联策略；统计使用次数）
 /*
 uk_coupon_code：折扣码文本唯一，快速命中。
 idx_coupon_policy：按策略聚合查询/运营分析。
@@ -592,7 +676,7 @@ CREATE TABLE discount_code
     CHECK (code REGEXP '^[A-Z0-9]{6}$')
 ) ENGINE = InnoDB COMMENT ='折扣码';
 
--- 3.8 折扣码-商品SPU映射（限制适用范围）
+-- 3.9 折扣码-商品SPU映射（限制适用范围）
 /*
 PK (discount_code_id, product_id)：去重“一码-一SPU”。
 idx_cpnprod_product：从SPU反查可用折扣码（商品页展示）。
@@ -606,7 +690,7 @@ CREATE TABLE discount_code_product
     KEY idx_cpnprod_product (product_id)
 ) ENGINE = InnoDB COMMENT ='折扣码-商品SPU映射(限定适用范围)';
 
--- 3.9 折扣使用日志（作为“真实使用”与对账的事实表）
+-- 3.10 折扣使用日志（作为“真实使用”与对账的事实表）
 /*
 idx_oda_order：按订单聚合查询（售后/对账）。
 idx_oda_code：按折扣码查询使用情况。
@@ -621,7 +705,7 @@ CREATE TABLE order_discount_applied
     order_item_id    BIGINT UNSIGNED       NULL COMMENT '订单明细ID, 为空表示订单级折扣',
     discount_code_id BIGINT UNSIGNED       NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
     applied_scope    ENUM ('ORDER','ITEM') NOT NULL COMMENT '应用范围：订单级/明细级',
-    applied_amount   DECIMAL(18, 2)        NOT NULL COMMENT '本次实际抵扣金额(按订单币种)',
+    applied_amount   BIGINT UNSIGNED       NOT NULL COMMENT '本次实际抵扣金额(按订单币种)',
     created_at       DATETIME(3)           NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
     KEY idx_oda_order (order_id),
@@ -650,7 +734,7 @@ CREATE TABLE payment_order
     order_id         BIGINT UNSIGNED                                    NOT NULL COMMENT '订单ID, 指向 orders.id',
     external_id      VARCHAR(128)                                       NOT NULL COMMENT '支付网关 externalId(唯一)',
     channel          ENUM ('ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL COMMENT '支付通道',
-    amount           DECIMAL(18, 2)                                     NOT NULL COMMENT '支付金额',
+    amount           BIGINT UNSIGNED                                    NOT NULL COMMENT '支付金额',
     currency         CHAR(3)                                            NOT NULL DEFAULT 'USD' COMMENT '币种',
     status           ENUM ('INIT','PENDING','SUCCESS','FAIL','CLOSED')  NOT NULL DEFAULT 'INIT' COMMENT '支付单状态',
     request_payload  JSON                                               NULL COMMENT '下单请求报文(JSON)',
@@ -686,11 +770,11 @@ CREATE TABLE payment_refund
     external_refund_id VARCHAR(128)                                      NULL COMMENT '支付系统退款 externalId(唯一)',
     client_refund_no   VARCHAR(64)                                       NULL COMMENT '商户侧/客户端幂等键(可选)',
 
-    amount             DECIMAL(18, 2)                                    NOT NULL COMMENT '退款总金额(订单币种)',
+    amount             BIGINT UNSIGNED                                   NOT NULL COMMENT '退款总金额(订单币种)',
     currency           CHAR(3)                                           NOT NULL DEFAULT 'USD' COMMENT '币种',
     -- 可选细分(便于财务拆解；留空则仅使用 amount)
-    items_amount       DECIMAL(18, 2)                                    NULL COMMENT '货品部分的退款金额',
-    shipping_amount    DECIMAL(18, 2)                                    NULL COMMENT '运费部分的退款金额',
+    items_amount       BIGINT UNSIGNED                                   NULL COMMENT '货品部分的退款金额',
+    shipping_amount    BIGINT UNSIGNED                                   NULL COMMENT '运费部分的退款金额',
 
     status             ENUM ('INIT','PENDING','SUCCESS','FAIL','CLOSED') NOT NULL DEFAULT 'INIT' COMMENT '退款状态',
     reason_code        ENUM ('CUSTOMER_REQUEST','RETURNED','LOST','DAMAGED','PRICE_ADJUST','DUPLICATE','OTHER')
@@ -733,7 +817,7 @@ CREATE TABLE payment_refund_item
     refund_id     BIGINT UNSIGNED NOT NULL COMMENT '退款单ID, 指向 payment_refund.id',
     order_item_id BIGINT UNSIGNED NOT NULL COMMENT '订单明细ID, 指向 order_item.id',
     quantity      INT             NOT NULL COMMENT '本次退款数量(件)',
-    amount        DECIMAL(18, 2)  NOT NULL COMMENT '该明细对应的退款金额',
+    amount        BIGINT UNSIGNED NOT NULL COMMENT '该明细对应的退款金额',
     reason        VARCHAR(255)    NULL COMMENT '该明细退款原因备注',
     created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
@@ -787,7 +871,7 @@ CREATE TABLE shipment
     length_cm       DECIMAL(10, 1)  NULL COMMENT '长(cm)',
     width_cm        DECIMAL(10, 1)  NULL COMMENT '宽(cm)',
     height_cm       DECIMAL(10, 1)  NULL COMMENT '高(cm)',
-    declared_value  DECIMAL(18, 2)  NULL COMMENT '申报价值(币种见currency)',
+    declared_value  BIGINT UNSIGNED NULL COMMENT '申报价值(币种见currency)',
     currency        CHAR(3)         NOT NULL DEFAULT 'USD' COMMENT '币种',
     customs_info    JSON            NULL COMMENT '关务/清关信息(HS code, 原产地, 税费等)',
     label_url       VARCHAR(500)    NULL COMMENT '电子面单URL(可选)',
@@ -886,8 +970,8 @@ CREATE TABLE shipping_claim
     external_id  VARCHAR(128)                                                        NULL COMMENT '承运商理赔编号',
     reason_code  ENUM ('LOST','DAMAGED','DELAY','OTHER')                             NOT NULL DEFAULT 'OTHER' COMMENT '理赔原因',
     status       ENUM ('FILED','UNDER_REVIEW','APPROVED','REJECTED','PAID','CLOSED') NOT NULL DEFAULT 'FILED' COMMENT '理赔状态',
-    claim_amount DECIMAL(18, 2)                                                      NOT NULL COMMENT '理赔金额',
-    paid_amount  DECIMAL(18, 2)                                                      NULL COMMENT '已支付金额',
+    claim_amount BIGINT UNSIGNED                                                     NOT NULL COMMENT '理赔金额',
+    paid_amount  BIGINT UNSIGNED                                                     NULL COMMENT '已支付金额',
     currency     CHAR(3)                                                             NOT NULL DEFAULT 'USD' COMMENT '币种',
     paid_at      DATETIME(3)                                                         NULL COMMENT '支付时间',
     created_at   DATETIME(3)                                                         NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
@@ -940,7 +1024,7 @@ CREATE TABLE cs_ticket
     tags                    JSON                                   NULL COMMENT '业务标签(JSON数组)',
 
     -- 退款/理赔相关（可选字段）
-    requested_refund_amount DECIMAL(18, 2)                         NULL COMMENT '申请退款金额(按订单币种)',
+    requested_refund_amount BIGINT UNSIGNED                        NULL COMMENT '申请退款金额(按订单币种)',
     currency                CHAR(3)                                NULL     DEFAULT 'USD' COMMENT '币种',
     claim_external_id       VARCHAR(128)                           NULL COMMENT '承运商理赔外部编号(存在则填)',
 
@@ -999,8 +1083,8 @@ CREATE TABLE aftersales_reship
     status        ENUM ('INIT','APPROVED','FULFILLING','FULFILLED','CANCELLED')
                                                   NOT NULL DEFAULT 'INIT' COMMENT '补发状态',
     currency      CHAR(3)                         NOT NULL DEFAULT 'USD' COMMENT '币种(费用口径)',
-    items_cost    DECIMAL(18, 2)                  NULL COMMENT '补发货品成本(可后置结算填充)',
-    shipping_cost DECIMAL(18, 2)                  NULL COMMENT '补发运费成本',
+    items_cost    BIGINT UNSIGNED                 NULL COMMENT '补发货品成本(可后置结算填充)',
+    shipping_cost BIGINT UNSIGNED                 NULL COMMENT '补发运费成本',
     note          VARCHAR(255)                    NULL COMMENT '备注/原因',
     created_at    DATETIME(3)                     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at    DATETIME(3)                     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
