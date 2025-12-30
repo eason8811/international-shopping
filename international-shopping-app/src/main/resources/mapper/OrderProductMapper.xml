@@ -32,7 +32,25 @@
                 </otherwise>
             </choose>,
             ps.stock,
-            attrs.sku_attrs_json
+
+            <!-- sku_attrs_json：规格 JSON + 追加 sale_price/list_price -->
+            <choose>
+                <when test="currency != null">
+                    JSON_SET(
+                        COALESCE(attrs.sku_attrs_json, JSON_OBJECT()),
+                        '$.sale_price', CASE WHEN pp.is_active = 1 THEN pp.sale_price ELSE NULL END,
+                        '$.list_price', CASE WHEN pp.is_active = 1 THEN pp.list_price ELSE NULL END
+                    ) AS sku_attrs_json
+                </when>
+                <otherwise>
+                    JSON_SET(
+                        COALESCE(attrs.sku_attrs_json, JSON_OBJECT()),
+                        '$.sale_price', NULL,
+                        '$.list_price', NULL
+                    ) AS sku_attrs_json
+                </otherwise>
+            </choose>
+
         FROM product_sku ps
                  JOIN product p ON p.id = ps.product_id
                  <if test="locale != null">
@@ -51,6 +69,10 @@
                      FROM product_sku_spec sps
                               JOIN product_spec sp ON sp.id = sps.spec_id
                               JOIN product_spec_value sv ON sv.id = sps.value_id
+                     WHERE sps.sku_id IN
+                     <foreach collection="skuIds" item="id" open="(" separator="," close=")">
+                         #{id}
+                     </foreach>
                      GROUP BY sps.sku_id
                  ) attrs ON attrs.sku_id = ps.id
         WHERE ps.id IN

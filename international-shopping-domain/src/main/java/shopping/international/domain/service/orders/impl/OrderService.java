@@ -311,19 +311,19 @@ public class OrderService implements IOrderService {
         for (Long skuId : skuIds) {
             IOrderService.SkuSaleSnapshot snapshot = snapshotMap.get(skuId);
             if (snapshot == null)
-                throw new ConflictException("SKU 不存在或不可售: skuId=" + skuId);
+                throw new ConflictException("ID 为 : " + skuId + " 的 SKU 不存在或不可售");
 
             Integer stock = snapshot.stock();
             if (stock == null)
-                throw new ConflictException("SKU 库存不可用: skuId=" + skuId);
+                throw new ConflictException("ID 为 : " + skuId + " 的 SKU 库存不可用");
 
             int qty = skuQtyMap.get(skuId);
             if (stock < qty)
-                throw new ConflictException("库存不足: skuId=" + skuId);
+                throw new ConflictException("ID 为 : " + skuId + " 的 库存不足");
 
             BigDecimal unitPriceRaw = snapshot.unitPrice();
             if (unitPriceRaw == null)
-                throw new ConflictException("SKU 价格不可用: skuId=" + skuId);
+                throw new ConflictException("ID 为 : " + skuId + " 的 SKU 价格不可用");
             Money unitPrice = Money.of(currency, unitPriceRaw);
             OrderItem item = OrderItem.snapshot(
                     snapshot.productId(),

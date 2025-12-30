@@ -40,7 +40,9 @@ public class OrderProductRepository implements IOrderProductRepository {
      * @return 快照列表
      */
     @Override
-    public @NotNull List<IOrderService.SkuSaleSnapshot> listSkuSaleSnapshots(@NotNull List<Long> skuIds, @Nullable String locale, @Nullable String currency) {
+    public @NotNull List<IOrderService.SkuSaleSnapshot> listSkuSaleSnapshots(@NotNull List<Long> skuIds,
+                                                                             @Nullable String locale,
+                                                                             @Nullable String currency) {
         if (skuIds.isEmpty())
             return List.of();
         List<SkuSaleSnapshotPO> pos = orderProductMapper.selectSkuSaleSnapshots(skuIds, locale, currency);
