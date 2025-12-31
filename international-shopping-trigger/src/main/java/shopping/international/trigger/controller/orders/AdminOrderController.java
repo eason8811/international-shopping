@@ -23,8 +23,10 @@ import shopping.international.domain.model.vo.orders.AddressSnapshot;
 import shopping.international.domain.model.vo.orders.AdminOrderSearchCriteria;
 import shopping.international.domain.model.vo.orders.InventoryLogSearchCriteria;
 import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IAdminOrderService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.IllegalParamException;
 
@@ -45,6 +47,10 @@ public class AdminOrderController {
      * 管理侧订单领域服务
      */
     private final IAdminOrderService adminOrderService;
+    /**
+     * 货币配置服务
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 搜索/筛选订单 (管理侧)
@@ -85,7 +91,9 @@ public class AdminOrderController {
                 .build();
         criteria.validate();
         PageResult<IAdminOrderService.AdminOrderListItemView> pageData = adminOrderService.list(criteria, pageQuery);
-        List<AdminOrderDetailRespond> data = pageData.items().stream().map(AdminOrderController::toRespond).toList();
+        List<AdminOrderDetailRespond> data = pageData.items().stream()
+                .map(row -> toRespond(row, currencyConfigService.get(row.currency())))
+                .toList();
         return ResponseEntity.ok(Result.ok(
                 data,
                 Result.Meta.builder()
@@ -105,7 +113,7 @@ public class AdminOrderController {
     @GetMapping("/orders/{order_no}")
     public ResponseEntity<Result<AdminOrderDetailRespond>> detail(@PathVariable("order_no") String orderNo) {
         Optional<Order> order = adminOrderService.getDetail(OrderNo.of(orderNo));
-        return order.map(value -> ResponseEntity.ok(Result.ok(toRespond(value))))
+        return order.map(value -> ResponseEntity.ok(Result.ok(toRespond(value, currencyConfigService.get(value.getCurrency())))))
                 .orElseGet(() -> ResponseEntity
                         .status(ApiCode.NOT_FOUND.toHttpStatus())
                         .body(Result.error(ApiCode.NOT_FOUND, "订单不存在"))
@@ -221,7 +229,7 @@ public class AdminOrderController {
                                                                   @RequestBody OrderCancelRequest req) {
         req.validate();
         Order cancelled = adminOrderService.cancel(OrderNo.of(orderNo), req.getReason());
-        return ResponseEntity.ok(Result.ok(toRespond(cancelled)));
+        return ResponseEntity.ok(Result.ok(toRespond(cancelled, currencyConfigService.get(cancelled.getCurrency()))));
     }
 
     /**
@@ -236,7 +244,7 @@ public class AdminOrderController {
                                                                  @RequestBody OrderCloseRequest req) {
         req.validate();
         Order closed = adminOrderService.close(OrderNo.of(orderNo), req.getReason());
-        return ResponseEntity.ok(Result.ok(toRespond(closed)));
+        return ResponseEntity.ok(Result.ok(toRespond(closed, currencyConfigService.get(closed.getCurrency()))));
     }
 
     /**
@@ -251,7 +259,7 @@ public class AdminOrderController {
                                                                          @RequestBody AdminConfirmRefundRequest req) {
         req.validate();
         Order refunded = adminOrderService.confirmRefund(OrderNo.of(orderNo), req.getNote());
-        return ResponseEntity.ok(Result.ok(toRespond(refunded)));
+        return ResponseEntity.ok(Result.ok(toRespond(refunded, currencyConfigService.get(refunded.getCurrency()))));
     }
 
     /**
@@ -260,17 +268,17 @@ public class AdminOrderController {
      * @param row 列表行
      * @return 响应
      */
-    private static AdminOrderDetailRespond toRespond(IAdminOrderService.AdminOrderListItemView row) {
+    private static AdminOrderDetailRespond toRespond(IAdminOrderService.AdminOrderListItemView row, CurrencyConfig currencyConfig) {
         return AdminOrderDetailRespond.builder()
                 .id(row.id())
                 .userId(row.userId())
                 .orderNo(row.orderNo())
                 .status(row.status())
                 .itemsCount(row.itemsCount())
-                .totalAmount(row.totalAmount())
-                .discountAmount(row.discountAmount())
-                .shippingAmount(row.shippingAmount())
-                .payAmount(row.payAmount())
+                .totalAmount(currencyConfig.toMajor(row.totalAmountMinor()).toPlainString())
+                .discountAmount(currencyConfig.toMajor(row.discountAmountMinor()).toPlainString())
+                .shippingAmount(currencyConfig.toMajor(row.shippingAmountMinor()).toPlainString())
+                .payAmount(currencyConfig.toMajor(row.payAmountMinor()).toPlainString())
                 .currency(row.currency())
                 .payChannel(row.payChannel())
                 .payStatus(row.payStatus())
@@ -287,17 +295,17 @@ public class AdminOrderController {
      * @param order 订单聚合
      * @return 响应
      */
-    private static AdminOrderDetailRespond toRespond(Order order) {
+    private static AdminOrderDetailRespond toRespond(Order order, CurrencyConfig currencyConfig) {
         return AdminOrderDetailRespond.builder()
                 .id(order.getId())
                 .userId(order.getUserId())
                 .orderNo(order.getOrderNo().getValue())
                 .status(order.getStatus())
                 .itemsCount(order.getItemsCount())
-                .totalAmount(order.getTotalAmount() == null ? null : order.getTotalAmount().getAmount().toPlainString())
-                .discountAmount(order.getDiscountAmount() == null ? null : order.getDiscountAmount().getAmount().toPlainString())
-                .shippingAmount(order.getShippingAmount() == null ? null : order.getShippingAmount().getAmount().toPlainString())
-                .payAmount(order.getPayAmount() == null ? null : order.getPayAmount().getAmount().toPlainString())
+                .totalAmount(order.getTotalAmount() == null ? null : order.getTotalAmount().toMajorString(currencyConfig))
+                .discountAmount(order.getDiscountAmount() == null ? null : order.getDiscountAmount().toMajorString(currencyConfig))
+                .shippingAmount(order.getShippingAmount() == null ? null : order.getShippingAmount().toMajorString(currencyConfig))
+                .payAmount(order.getPayAmount() == null ? null : order.getPayAmount().toMajorString(currencyConfig))
                 .currency(order.getCurrency())
                 .payChannel(order.getPayChannel())
                 .payStatus(order.getPayStatus())
@@ -309,7 +317,7 @@ public class AdminOrderController {
                 .cancelTime(order.getCancelTime())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
-                .items(order.getItems().stream().map(AdminOrderController::toRespond).toList())
+                .items(order.getItems().stream().map(it -> toRespond(it, currencyConfig)).toList())
                 .addressChanged(order.isAddressChanged())
                 .build();
     }
@@ -342,7 +350,7 @@ public class AdminOrderController {
      * @param item 明细
      * @return 响应
      */
-    private static OrderItemRespond toRespond(OrderItem item) {
+    private static OrderItemRespond toRespond(OrderItem item, CurrencyConfig currencyConfig) {
         return OrderItemRespond.builder()
                 .id(item.getId())
                 .productId(item.getProductId())
@@ -351,9 +359,9 @@ public class AdminOrderController {
                 .title(item.getTitle())
                 .skuAttrs(item.getSkuAttrs())
                 .coverImageUrl(item.getCoverImageUrl())
-                .unitPrice(item.getUnitPrice() == null ? null : item.getUnitPrice().getAmount().toPlainString())
+                .unitPrice(item.getUnitPrice() == null ? null : item.getUnitPrice().toMajorString(currencyConfig))
                 .quantity(item.getQuantity())
-                .subtotalAmount(item.getSubtotalAmount() == null ? null : item.getSubtotalAmount().getAmount().toPlainString())
+                .subtotalAmount(item.getSubtotalAmount() == null ? null : item.getSubtotalAmount().toMajorString(currencyConfig))
                 .build();
     }
 

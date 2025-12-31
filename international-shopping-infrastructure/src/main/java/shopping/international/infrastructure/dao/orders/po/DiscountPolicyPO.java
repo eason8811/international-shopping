@@ -46,7 +46,7 @@ public class DiscountPolicyPO {
      * 固定金额折扣
      */
     @TableField("amount_off")
-    private BigDecimal amountOff;
+    private Long amountOff;
     /**
      * 币种 (可为空)
      */
@@ -56,12 +56,12 @@ public class DiscountPolicyPO {
      * 门槛金额 (可为空)
      */
     @TableField("min_order_amount")
-    private BigDecimal minOrderAmount;
+    private Long minOrderAmount;
     /**
      * 封顶金额 (可为空)
      */
     @TableField("max_discount_amount")
-    private BigDecimal maxDiscountAmount;
+    private Long maxDiscountAmount;
     /**
      * 创建时间
      */
@@ -73,4 +73,3 @@ public class DiscountPolicyPO {
     @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime updatedAt;
 }
-

@@ -38,7 +38,7 @@ paths:
           in: query
           description: 语言代码（如 en-US），用于读取 product_category_i18n
           required: false
-          example: en-US
+          example: zh-CN
           schema:
             type: string
       responses:
@@ -258,64 +258,64 @@ paths:
         - name: page
           in: query
           description: 页码（从 1 开始）
-          required: false
+          required: true
           example: 1
           schema:
             type: integer
         - name: size
           in: query
           description: 每页个数
-          required: false
+          required: true
           example: 20
           schema:
             type: integer
         - name: locale
           in: query
           description: 语言代码，用于读取 product_i18n / product_category_i18n
-          required: false
-          example: en-US
+          required: true
+          example: zh-CN
           schema:
             type: string
         - name: currency
           in: query
           description: 价格币种（ISO 4217），用于匹配 product_price
-          required: false
-          example: USD
+          required: true
+          example: CNY
           schema:
             type: string
         - name: category_slug
           in: query
           description: 分类 slug（默认匹配指定语言的 slug）
           required: false
-          example: phones
+          example: dress
           schema:
             type: string
         - name: query
           in: query
           description: 关键词，匹配 title/subtitle（全文索引 ftx_prod_text 或 ftx_prod_i18n_text）
           required: false
-          example: iphone 16
+          example: 色
           schema:
             type: string
         - name: tags
           in: query
           description: 标签（JSON 数组或逗号分隔的标签，匹配 product.tags / product_i18n.tags）
           required: false
-          example: '[\"5g\",\"flagship\"]'
+          example: '%E9%BB%91%E8%89%B2'
           schema:
             type: string
         - name: price_min
           in: query
           description: 价格下限（与 `currency` 同币种）
           required: false
-          example: 100
+          example: 90
           schema:
             type: integer
         - name: price_max
           in: query
           description: 价格上限（与 `currency` 同币种）
           required: false
-          example: 2000
+          example: 100
           schema:
             type: integer
         - name: sort_by
@@ -330,6 +330,19 @@ paths:
               - SALES_DESC
               - PRICE_ASC
               - PRICE_DESC
+            x-apifox-enum:
+              - value: LATEST
+                name: ''
+                description: ''
+              - value: SALES_DESC
+                name: ''
+                description: ''
+              - value: PRICE_ASC
+                name: ''
+                description: ''
+              - value: PRICE_DESC
+                name: ''
+                description: ''
       responses:
         '200':
           x-apifox-name: 成功
@@ -599,21 +612,21 @@ paths:
           in: path
           description: 商品路由别名（可为多语言 slug）
           required: true
-          example: iphone-16
+          example: white-night-dress
           schema:
             type: string
         - name: locale
           in: query
           description: 语言代码，用于读取 product_i18n / product_spec_i18n / product_spec_value_i18n
           required: false
-          example: en-US
+          example: zh-CN
           schema:
             type: string
         - name: currency
           in: query
           description: 价格币种（ISO 4217），用于匹配 product_price
           required: false
-          example: USD
+          example: CNY
           schema:
             type: string
       responses:
@@ -915,33 +928,33 @@ paths:
         - products/Likes
         - Likes
       parameters:
-        - name: csrf_token
-          in: cookie
-          description: ''
-          required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
-          schema:
-            type: string
         - name: access_token
           in: cookie
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: product_id
           in: path
           description: 商品 ID
           required: true
-          example: '101'
+          example: '2'
           schema:
             type: string
         - name: X-CSRF-Token
           in: header
           description: ''
           required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -1158,33 +1171,33 @@ paths:
         - products/Likes
         - Likes
       parameters:
-        - name: csrf_token
-          in: cookie
-          description: ''
-          required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
-          schema:
-            type: string
         - name: access_token
           in: cookie
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: product_id
           in: path
           description: 商品 ID
           required: true
-          example: '101'
+          example: '2'
           schema:
             type: string
         - name: X-CSRF-Token
           in: header
           description: ''
           required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -1402,19 +1415,19 @@ paths:
         - products/Likes
         - Likes
       parameters:
-        - name: csrf_token
-          in: cookie
-          description: ''
-          required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
-          schema:
-            type: string
         - name: access_token
           in: cookie
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: page
@@ -1435,21 +1448,21 @@ paths:
           in: query
           description: 语言代码，用于本地化商品信息
           required: false
-          example: en-US
+          example: es-ES
           schema:
             type: string
         - name: currency
           in: query
           description: 价格币种
           required: false
-          example: USD
+          example: EUR
           schema:
             type: string
         - name: X-CSRF-Token
           in: header
           description: ''
           required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -1743,10 +1756,26 @@ paths:
         - products/Admin Categories
         - Admin Categories
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: page
           in: query
           description: ''
           required: false
+          example: 1
           schema:
             type: integer
             default: 1
@@ -1754,6 +1783,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: 5
           schema:
             type: integer
             default: 20
@@ -1761,6 +1791,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: 0
           schema:
             type:
               - integer
@@ -1770,6 +1801,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
         - name: is_enabled
@@ -1778,6 +1810,13 @@ paths:
           required: false
           schema:
             type: boolean
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -1972,13 +2011,47 @@ paths:
       tags:
         - products/Admin Categories
         - Admin Categories
-      parameters: []
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryUpsertRequest'
-            examples: {}
+            example:
+              name: black hats
+              slug: black-hats
+              parent_id: 9
+              sort_order: 35
+              is_enabled: true
+              i18n:
+                - locale: zh-CN
+                  name: 黑色帽子
+                  slug: black-hats
+                - locale: en-US
+                  name: black hats
+                  slug: black-hats
         required: true
       responses:
         '201':
@@ -2186,14 +2259,36 @@ paths:
         - products/Admin Categories
         - Admin Categories
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: category_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -2385,20 +2480,44 @@ paths:
         - products/Admin Categories
         - Admin Categories
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: category_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 4
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryUpsertRequest'
-            examples: {}
+            example:
+              parent_id: 5
+              is_enabled: true
         required: true
       responses:
         '200':
@@ -2605,14 +2724,36 @@ paths:
         - products/Admin Categories
         - Admin Categories
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: category_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -2840,20 +2981,46 @@ paths:
         - products/Admin Categories
         - Admin Categories
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: category_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryI18nPayload'
-            examples: {}
+            example:
+              locale: zh-CN
+              name: 裙子
+              slug: dress
+              brand: dolor officia ipsum in
         required: true
       responses:
         '200':
@@ -3298,6 +3465,204 @@ paths:
       x-apifox-folder: products/Admin Categories
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361154-run
+  /admin/products/categories/{category_id}/i18n/{locale}:
+    delete:
+      summary: 删除分类多语言
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin Categories
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: category_id
+          in: path
+          description: ''
+          required: true
+          example: '3'
+          schema:
+            type: string
+        - name: locale
+          in: path
+          description: ''
+          required: true
+          example: es-ES
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KARDX98AS8FVVJCPE9R07SVS:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        description: 多语言设置结果
+                        properties:
+                          locale: &ref_4
+                            type:
+                              - string
+                              - 'null'
+                            description: 更改成功的语言
+                        x-apifox-orders:
+                          - locale
+                x-apifox-orders:
+                  - 01KARDX98AS8FVVJCPE9R07SVS
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    description: 多语言设置结果
+                    properties:
+                      locale: *ref_4
+                    x-apifox-orders:
+                      - locale
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin Categories
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-394438364-run
   /admin/products/categories/{category_id}/enable:
     patch:
       summary: 启用/停用分类
@@ -3307,20 +3672,43 @@ paths:
         - products/Admin Categories
         - Admin Categories
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: category_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ToggleEnableRequest'
-            examples: {}
+            example:
+              is_enabled: true
         required: true
       responses:
         '200':
@@ -3339,7 +3727,7 @@ paths:
                         type: object
                         description: 启用状态更新结果
                         properties:
-                          is_enabled: &ref_4
+                          is_enabled: &ref_5
                             type: boolean
                         x-apifox-orders:
                           - is_enabled
@@ -3428,7 +3816,7 @@ paths:
                     type: object
                     description: 启用状态更新结果
                     properties:
-                      is_enabled: *ref_4
+                      is_enabled: *ref_5
                     x-apifox-orders:
                       - is_enabled
                     x-apifox-ignore-properties: []
@@ -3524,10 +3912,26 @@ paths:
         - products/Admin Products
         - Admin Products
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: page
           in: query
           description: ''
           required: false
+          example: 1
           schema:
             type: integer
             default: 1
@@ -3535,6 +3939,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: 20
           schema:
             type: integer
             default: 20
@@ -3542,6 +3947,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: DELETED
           schema:
             type: string
             enum:
@@ -3566,6 +3972,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: VARIANT
           schema:
             type: string
             enum:
@@ -3582,6 +3989,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: 1
           schema:
             type: integer
             format: int64
@@ -3589,21 +3997,31 @@ paths:
           in: query
           description: ''
           required: false
+          example: 时尚单品
           schema:
             type: string
         - name: tag
           in: query
           description: ''
           required: false
+          example: negro
           schema:
             type: string
         - name: include_deleted
           in: query
           description: ''
           required: false
+          example: 'true'
           schema:
             type: boolean
             default: false
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -3802,12 +4220,47 @@ paths:
       tags:
         - products/Admin Products
         - Admin Products
-      parameters: []
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY0NjExNzcsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY3MjAzNzcsImlhdCI6MTc2NjQ2MTE3NywiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.3evTE8qnNuGwvzYeQHbhHJJ4EAd0YWjInD2xctPFO0s
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSpuBasicUpsertRequest'
+            example:
+              slug: white-nignt-dress1
+              title: white nignt dress
+              description: this white night dress is very beautiful
+              category_id: 1
+              brand: our white night dress is the most beautiful
+              cover_image_url: >-
+                https://chatgpt.com/g/g-p-68f07987abc88191af653ec73b9153fd-shang-pin-wang-zhan-kai-fa
+              sku_type: VARIANT
+              status: DELETED
+              tags:
+                - white
+                - night dress
         required: true
       responses:
         '201':
@@ -4015,14 +4468,36 @@ paths:
         - products/Admin Products
         - Admin Products
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -4214,19 +4689,43 @@ paths:
         - products/Admin Products
         - Admin Products
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSpuBasicUpsertRequest'
+            example:
+              sku_type: VARIANT
         required: true
       responses:
         '200':
@@ -4245,7 +4744,7 @@ paths:
                         type: object
                         description: 更新结果
                         properties:
-                          product_id: &ref_5
+                          product_id: &ref_6
                             type: integer
                             format: int64
                         required:
@@ -4337,7 +4836,7 @@ paths:
                     type: object
                     description: 更新结果
                     properties:
-                      product_id: *ref_5
+                      product_id: *ref_6
                     required:
                       - product_id
                     x-apifox-orders:
@@ -4449,14 +4948,36 @@ paths:
         - products/Admin Products
         - Admin Products
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
@@ -4470,7 +4991,8 @@ paths:
               x-apifox-orders:
                 - status
               x-apifox-ignore-properties: []
-            examples: {}
+            example:
+              status: ON_SALE
         required: true
       responses:
         '200':
@@ -4489,7 +5011,7 @@ paths:
                         type: object
                         description: 状态更新结果
                         properties:
-                          status: &ref_6
+                          status: &ref_7
                             $ref: '#/components/schemas/ProductStatus'
                         x-apifox-orders:
                           - status
@@ -4578,7 +5100,7 @@ paths:
                     type: object
                     description: 状态更新结果
                     properties:
-                      status: *ref_6
+                      status: *ref_7
                     x-apifox-orders:
                       - status
                     x-apifox-ignore-properties: []
@@ -4674,253 +5196,49 @@ paths:
         - products/Admin Products
         - Admin Products
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductI18nUpsertRequest'
-            examples: {}
-        required: true
-      responses:
-        '200':
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                x-apifox-refs:
-                  01KARFDTB8R4E84EMCGCY4DM43:
-                    $ref: '#/components/schemas/Result'
-                    x-apifox-overrides:
-                      data:
-                        type: object
-                        description: 多语言覆盖结果
-                        properties:
-                          locale: &ref_7
-                            type:
-                              - string
-                              - 'null'
-                            description: 更新成功的语言
-                        x-apifox-orders:
-                          - locale
-                x-apifox-orders:
-                  - 01KARFDTB8R4E84EMCGCY4DM43
-                properties:
-                  success:
-                    type: boolean
-                    description: 业务是否成功（非 HTTP 含义）
-                    examples:
-                      - true
-                  code:
-                    type: string
-                    description: 业务码
-                    examples:
-                      - OK
-                    enum:
-                      - OK
-                      - CREATED
-                      - ACCEPTED
-                      - FOUND
-                      - BAD_REQUEST
-                      - UNAUTHORIZED
-                      - FORBIDDEN
-                      - NOT_FOUND
-                      - CONFLICT
-                      - UNPROCESSABLE_ENTITY
-                      - TOO_MANY_REQUESTS
-                      - INTERNAL_SERVER_ERROR
-                    x-apifox-enum:
-                      - value: OK
-                        name: OK
-                        description: 成功
-                      - value: CREATED
-                        name: Created
-                        description: 已创建
-                      - value: ACCEPTED
-                        name: Accepted
-                        description: 已接受
-                      - value: FOUND
-                        name: Found / Redirect
-                        description: 重定向
-                      - value: BAD_REQUEST
-                        name: Bad Request
-                        description: 参数错误
-                      - value: UNAUTHORIZED
-                        name: Unauthorized
-                        description: 未授权
-                      - value: FORBIDDEN
-                        name: Forbidden
-                        description: 没有权限
-                      - value: NOT_FOUND
-                        name: Not Found
-                        description: 未找到
-                      - value: CONFLICT
-                        name: Conflict
-                        description: 冲突
-                      - value: UNPROCESSABLE_ENTITY
-                        name: Unprocessable Entity
-                        description: 不能处理的实体
-                      - value: TOO_MANY_REQUESTS
-                        name: Too Many Requests
-                        description: 请求过多
-                      - value: INTERNAL_SERVER_ERROR
-                        name: Internal Server Error
-                        description: 服务器内部错误
-                  message:
-                    type: string
-                    description: 人类可读的简短信息
-                    examples:
-                      - OK
-                  timestamp:
-                    type: string
-                    format: date-time
-                    description: 服务器时间
-                    examples:
-                      - '2025-10-26T06:30:00.123Z'
-                  traceId:
-                    type:
-                      - string
-                      - 'null'
-                    description: 请求追踪ID
-                    examples:
-                      - af9c5b1f0e2a4c1b
-                  data:
-                    type: object
-                    description: 多语言覆盖结果
-                    properties:
-                      locale: *ref_7
-                    x-apifox-orders:
-                      - locale
-                    x-apifox-ignore-properties: []
-                  meta:
-                    description: 附加元信息（分页等，可选）
-                    type:
-                      - object
-                      - 'null'
-                    properties:
-                      page:
-                        type: integer
-                        examples:
-                          - 1
-                      size:
-                        type: integer
-                        examples:
-                          - 20
-                      total:
-                        type: integer
-                        examples:
-                          - 135
-                    x-apifox-orders:
-                      - page
-                      - size
-                      - total
-                    x-apifox-ignore-properties: []
-                required:
-                  - success
-                  - code
-                  - message
-                  - timestamp
-                x-apifox-ignore-properties:
-                  - success
-                  - code
-                  - message
-                  - timestamp
-                  - traceId
-                  - data
-                  - meta
-          headers: {}
-        '400':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 用户名不能为空
-                timestamp: '2025-11-06 11:38:39'
-          headers: {}
-          x-apifox-name: 请求有误
-          x-apifox-ordering: 1
-        '401':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-11-15 14:23:57'
-          headers: {}
-          x-apifox-name: 未认证
-          x-apifox-ordering: 2
-        '403':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-11-06 17:31:36'
-          headers: {}
-          x-apifox-name: 权限不足
-          x-apifox-ordering: 3
-        '409':
-          description: ''
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: CONFLICT
-                message: 邮箱已被使用
-                timestamp: '2025-11-15 14:23:56'
-          headers: {}
-          x-apifox-name: 冲突
-          x-apifox-ordering: 4
-      security: []
-      x-apifox-folder: products/Admin Products
-      x-apifox-status: released
-      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-386565333-run
-    patch:
-      summary: 增量更新商品多语言
-      deprecated: false
-      description: 除 `locale` 字段外都可以为 `null`，为 `null` 则不更新
-      tags:
-        - products/Admin Products
-        - Admin Products
-      parameters:
-        - name: product_id
-          in: path
-          description: ''
-          required: true
-          example: 0
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProductI18nUpsertRequest'
-            examples: {}
+            example:
+              locale: es-ES
+              title: vestido de noche blanco
+              description: este vestido de noche blanco es muy hermoso
+              slug: vestido-de-noche-blanco
+              tags:
+                - blanco
+                - vestido
         required: true
       responses:
         '200':
@@ -5131,7 +5449,468 @@ paths:
       security: []
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-386565333-run
+    patch:
+      summary: 增量更新商品多语言
+      deprecated: false
+      description: 除 `locale` 字段外都可以为 `null`，为 `null` 则不更新
+      tags:
+        - products/Admin Products
+        - Admin Products
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: ''
+          required: true
+          example: 2
+          schema:
+            type: integer
+            format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductI18nUpsertRequest'
+            example:
+              locale: ab-AB
+              title: 滴滴滴滴地地道道
+              subtitle: 地道弟弟刀
+              description: 滴滴滴滴滴滴滴滴滴滴滴滴滴滴滴滴地道
+              slug: ccccc-ddddcb-g-l
+              tags: null
+        required: true
+      responses:
+        '200':
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KARFDTB8R4E84EMCGCY4DM43:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        description: 多语言覆盖结果
+                        properties:
+                          locale: &ref_9
+                            type:
+                              - string
+                              - 'null'
+                            description: 更新成功的语言
+                        x-apifox-orders:
+                          - locale
+                x-apifox-orders:
+                  - 01KARFDTB8R4E84EMCGCY4DM43
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    description: 多语言覆盖结果
+                    properties:
+                      locale: *ref_9
+                    x-apifox-orders:
+                      - locale
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+        '409':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+              example:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+          headers: {}
+          x-apifox-name: 冲突
+          x-apifox-ordering: 4
+      security: []
+      x-apifox-folder: products/Admin Products
+      x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361161-run
+  /admin/products/{product_id}/i18n/{locale}:
+    delete:
+      summary: 删除商品多语言
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin Products
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: ''
+          required: true
+          example: '2'
+          schema:
+            type: string
+        - name: locale
+          in: path
+          description: ''
+          required: true
+          example: ab-AB
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KD2EKYDCHXVRRE3AC7J7RKE3:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        properties:
+                          locale: &ref_10
+                            type: string
+                        x-apifox-orders:
+                          - locale
+                        description: 业务数据（随具体接口定义）
+                        required:
+                          - locale
+                    required: []
+                x-apifox-orders:
+                  - 01KD2EKYDCHXVRRE3AC7J7RKE3
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    properties:
+                      locale: *ref_10
+                    x-apifox-orders:
+                      - locale
+                    description: 业务数据（随具体接口定义）
+                    required:
+                      - locale
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin Products
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-394975100-run
   /admin/products/{product_id}/gallery:
     put:
       summary: 覆盖商品主图/图库
@@ -5141,14 +5920,36 @@ paths:
         - products/Admin Products
         - Admin Products
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
@@ -5156,7 +5957,16 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/ProductImage'
-            examples: {}
+            example:
+              - url: https://imaginative-rim.name/
+                is_main: true
+                sort_order: 1
+              - url: https://informal-travel.biz/
+                is_main: false
+                sort_order: 52
+              - url: https://forsaken-stitcher.com/
+                is_main: false
+                sort_order: 83
         required: true
       responses:
         '200':
@@ -5175,10 +5985,10 @@ paths:
                         type: object
                         description: 图库更新结果
                         properties:
-                          product_id: &ref_9
+                          product_id: &ref_11
                             type: integer
                             format: int64
-                          image_count: &ref_10
+                          image_count: &ref_12
                             type:
                               - integer
                               - 'null'
@@ -5273,8 +6083,8 @@ paths:
                     type: object
                     description: 图库更新结果
                     properties:
-                      product_id: *ref_9
-                      image_count: *ref_10
+                      product_id: *ref_11
+                      image_count: *ref_12
                     required:
                       - product_id
                     x-apifox-orders:
@@ -5373,14 +6183,36 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -5576,20 +6408,55 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSpecUpsertRequest'
-            examples: {}
+            example:
+              spec_code: dimension
+              spec_name: dimension
+              spec_type: OTHER
+              is_required: true
+              sort_order: 1
+              enabled: true
+              i18n_list:
+                - locale: ez-EZ
+                  spec_name: dimensión
+                - locale: en-US
+                  spec_name: dimension
+                - locale: zh-CN
+                  spec_name: 维度
         required: true
       responses:
         '200':
@@ -5608,7 +6475,7 @@ paths:
                         type: object
                         description: 规格更新结果
                         properties:
-                          spec_id: &ref_11
+                          spec_id: &ref_13
                             type:
                               - integer
                               - 'null'
@@ -5701,7 +6568,7 @@ paths:
                     type: object
                     description: 规格更新结果
                     properties:
-                      spec_id: *ref_11
+                      spec_id: *ref_13
                     x-apifox-orders:
                       - spec_id
                     x-apifox-ignore-properties: []
@@ -5812,20 +6679,50 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY0NjExNzcsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY3MjAzNzcsImlhdCI6MTc2NjQ2MTE3NywiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.3evTE8qnNuGwvzYeQHbhHJJ4EAd0YWjInD2xctPFO0s
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSpecUpsertRequest'
-            examples: {}
+            example:
+              spec_id: 3
+              i18n_list:
+                - locale: en-US
+                  spec_name: length
+                - locale: ez-EZ
+                  spec_name: longitud
+                - locale: zh-CN
+                  spec_name: 长度
         required: true
       responses:
         '200':
@@ -5844,7 +6741,7 @@ paths:
                         type: object
                         description: 规格更新结果
                         properties:
-                          spec_id: &ref_12
+                          spec_id: &ref_14
                             type:
                               - integer
                               - 'null'
@@ -5937,7 +6834,7 @@ paths:
                     type: object
                     description: 规格更新结果
                     properties:
-                      spec_id: *ref_12
+                      spec_id: *ref_14
                     x-apifox-orders:
                       - spec_id
                     x-apifox-ignore-properties: []
@@ -6047,11 +6944,26 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY0NjExNzcsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY3MjAzNzcsImlhdCI6MTc2NjQ2MTE3NywiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.3evTE8qnNuGwvzYeQHbhHJJ4EAd0YWjInD2xctPFO0s
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
@@ -6059,10 +6971,17 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 5
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -6080,7 +6999,7 @@ paths:
                         type: object
                         description: 删除结果
                         properties:
-                          deleted: &ref_13
+                          deleted: &ref_15
                             type: boolean
                             default: true
                         x-apifox-orders:
@@ -6170,7 +7089,7 @@ paths:
                     type: object
                     description: 删除结果
                     properties:
-                      deleted: *ref_13
+                      deleted: *ref_15
                     x-apifox-orders:
                       - deleted
                     x-apifox-ignore-properties: []
@@ -6280,11 +7199,26 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
@@ -6292,10 +7226,17 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -6491,11 +7432,26 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
@@ -6503,16 +7459,34 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 7
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSpecValueUpsertRequest'
-            examples: {}
+            example:
+              value_code: 100-CM
+              value_name: 100 CM
+              sort_order: 0
+              is_enabled: true
+              i18n_list:
+                - locale: en-US
+                  value_name: 100 CM
+                - locale: zh-CN
+                  value_name: 100 CM
+                - locale: es-ES
+                  value_name: 100 CM
         required: true
       responses:
         '200':
@@ -6531,7 +7505,7 @@ paths:
                         type: object
                         description: 规格取值更新结果
                         properties:
-                          value_id: &ref_14
+                          value_id: &ref_16
                             type:
                               - integer
                               - 'null'
@@ -6624,7 +7598,7 @@ paths:
                     type: object
                     description: 规格取值更新结果
                     properties:
-                      value_id: *ref_14
+                      value_id: *ref_16
                     x-apifox-orders:
                       - value_id
                     x-apifox-ignore-properties: []
@@ -6735,11 +7709,26 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY0NjExNzcsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY3MjAzNzcsImlhdCI6MTc2NjQ2MTE3NywiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.3evTE8qnNuGwvzYeQHbhHJJ4EAd0YWjInD2xctPFO0s
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
@@ -6747,16 +7736,32 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSpecValueUpsertRequest'
-            examples: {}
+            example:
+              value_id: 1
+              sort_order: 2
+              i18n_list:
+                - locale: en-US
+                  value_name: m
+                - locale: zh-CN
+                  value_name: 中
+                - locale: ez-EZ
+                  value_name: m
         required: true
       responses:
         '200':
@@ -6775,7 +7780,7 @@ paths:
                         type: object
                         description: 规格取值更新结果
                         properties:
-                          value_id: &ref_15
+                          value_id: &ref_17
                             type:
                               - integer
                               - 'null'
@@ -6868,7 +7873,7 @@ paths:
                     type: object
                     description: 规格取值更新结果
                     properties:
-                      value_id: *ref_15
+                      value_id: *ref_17
                     x-apifox-orders:
                       - value_id
                     x-apifox-ignore-properties: []
@@ -6978,11 +7983,26 @@ paths:
         - products/Admin Specs
         - Admin Specs
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
@@ -6990,7 +8010,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
@@ -6998,10 +8018,17 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 11
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -7019,7 +8046,7 @@ paths:
                         type: object
                         description: 删除结果
                         properties:
-                          deleted: &ref_16
+                          deleted: &ref_18
                             type: boolean
                             default: true
                         x-apifox-orders:
@@ -7109,7 +8136,7 @@ paths:
                     type: object
                     description: 删除结果
                     properties:
-                      deleted: *ref_16
+                      deleted: *ref_18
                     x-apifox-orders:
                       - deleted
                     x-apifox-ignore-properties: []
@@ -7219,14 +8246,36 @@ paths:
         - products/Admin SKUs
         - Admin SKUs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -7422,20 +8471,75 @@ paths:
         - products/Admin SKUs
         - Admin SKUs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSkuCreateRequest'
-            examples: {}
+            example:
+              sku_code: white-night-dress-M-95-CM
+              stock: 10
+              weight: 78
+              status: ENABLED
+              is_default: true
+              price:
+                - currency: USD
+                  list_price: 120
+                  sale_price: 110
+                  is_active: true
+                - currency: CNY
+                  list_price: 800
+                  sale_price: 760
+                  is_active: true
+                - currency: EUR
+                  list_price: 120
+                  sale_price: 100
+                  is_active: true
+              specs:
+                - spec_id: 6
+                  value_id: 13
+                - spec_id: 7
+                  value_id: 16
+              images:
+                - url: ht666
+                  is_main: false
+                  sort_order: 0
+                - url: ht666
+                  is_main: false
+                  sort_order: 0
+                - url: ht666
+                  is_main: false
+                  sort_order: 0
         required: true
       responses:
         '201':
@@ -7643,11 +8747,26 @@ paths:
         - products/Admin SKUs
         - Admin SKUs
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
@@ -7655,15 +8774,24 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 9
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ProductSkuUpdateRequest'
+            example:
+              status: ENABLED
         required: true
       responses:
         '200':
@@ -7682,10 +8810,10 @@ paths:
                         type: object
                         description: SKU 更新结果
                         properties:
-                          product_id: &ref_17
+                          product_id: &ref_19
                             type: integer
                             format: int64
-                          sku_id: &ref_18
+                          sku_id: &ref_20
                             type: integer
                             format: int64
                         required:
@@ -7779,8 +8907,8 @@ paths:
                     type: object
                     description: SKU 更新结果
                     properties:
-                      product_id: *ref_17
-                      sku_id: *ref_18
+                      product_id: *ref_19
+                      sku_id: *ref_20
                     required:
                       - product_id
                       - sku_id
@@ -7885,6 +9013,205 @@ paths:
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361171-run
+    delete:
+      summary: 删除 SKU
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin SKUs
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: ''
+          required: true
+          example: '3'
+          schema:
+            type: string
+        - name: sku_id
+          in: path
+          description: ''
+          required: true
+          example: '3'
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KDAWW15QJGFFPP213ENERSPY:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        properties:
+                          deleted: &ref_21
+                            type: boolean
+                        x-apifox-orders:
+                          - deleted
+                        description: 业务数据（随具体接口定义）
+                        required:
+                          - deleted
+                    required: []
+                x-apifox-orders:
+                  - 01KDAWW15QJGFFPP213ENERSPY
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    properties:
+                      deleted: *ref_21
+                    x-apifox-orders:
+                      - deleted
+                    description: 业务数据（随具体接口定义）
+                    required:
+                      - deleted
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin SKUs
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-397122529-run
   /admin/products/{product_id}/skus/{sku_id}/specs:
     patch:
       summary: 更新 SKU 与规格取值的绑定
@@ -7894,11 +9221,26 @@ paths:
         - products/Admin SKUs
         - Admin SKUs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
@@ -7906,16 +9248,27 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 4
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductSkuSpecUpsertRequest'
-            examples: {}
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSkuSpecUpsertRequest'
+            example:
+              - spec_id: 1
+                value_id: 2
         required: true
       responses:
         '200':
@@ -7934,10 +9287,10 @@ paths:
                         type: object
                         description: 规格绑定更新结果
                         properties:
-                          product_id: &ref_19
+                          product_id: &ref_22
                             type: integer
                             format: int64
-                          sku_id: &ref_20
+                          sku_id: &ref_23
                             type: integer
                             format: int64
                           spec_ids:
@@ -7945,7 +9298,7 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的规格ID 列表
-                            items: &ref_21
+                            items: &ref_24
                               type: integer
                               format: int64
                         required:
@@ -8040,14 +9393,14 @@ paths:
                     type: object
                     description: 规格绑定更新结果
                     properties:
-                      product_id: *ref_19
-                      sku_id: *ref_20
+                      product_id: *ref_22
+                      sku_id: *ref_23
                       spec_ids:
                         type:
                           - array
                           - 'null'
                         description: 受影响的规格ID 列表
-                        items: *ref_21
+                        items: *ref_24
                     required:
                       - product_id
                       - sku_id
@@ -8162,11 +9515,26 @@ paths:
         - products/Admin SKUs
         - Admin SKUs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
@@ -8174,7 +9542,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 4
           schema:
             type: integer
             format: int64
@@ -8182,10 +9550,17 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -8203,7 +9578,7 @@ paths:
                         type: object
                         description: 解绑结果
                         properties:
-                          deleted: &ref_22
+                          deleted: &ref_25
                             type: boolean
                             default: true
                         x-apifox-orders:
@@ -8293,7 +9668,7 @@ paths:
                     type: object
                     description: 解绑结果
                     properties:
-                      deleted: *ref_22
+                      deleted: *ref_25
                     x-apifox-orders:
                       - deleted
                     x-apifox-ignore-properties: []
@@ -8396,18 +9771,33 @@ paths:
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361173-run
   /admin/products/{product_id}/skus/{sku_id}/price:
     patch:
-      summary: 批量更新 SKU 价格（多币种）
+      summary: 更新 SKU 价格（多币种）
       deprecated: false
       description: 支持一次更新多个 currency 的价格，未提交的币种保持不变。
       tags:
         - products/Admin SKUs
         - Admin SKUs
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
@@ -8415,16 +9805,37 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 9
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductPriceUpsertRequest'
-            examples: {}
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductPriceUpsertRequest'
+            example:
+              - currency: USD
+                list_price: 700
+                sale_price: 600
+                is_active: true
+              - currency: CNY
+                list_price: 7000
+                sale_price: 6000
+                is_active: true
+              - currency: EUR
+                list_price: 700
+                sale_price: 600
+                is_active: true
         required: true
       responses:
         '200':
@@ -8443,10 +9854,10 @@ paths:
                         type: object
                         description: 价格更新结果
                         properties:
-                          product_id: &ref_23
+                          product_id: &ref_26
                             type: integer
                             format: int64
-                          sku_id: &ref_24
+                          sku_id: &ref_27
                             type: integer
                             format: int64
                           currencies:
@@ -8454,7 +9865,7 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的币种列表
-                            items: &ref_25
+                            items: &ref_28
                               type: string
                         required:
                           - product_id
@@ -8548,14 +9959,14 @@ paths:
                     type: object
                     description: 价格更新结果
                     properties:
-                      product_id: *ref_23
-                      sku_id: *ref_24
+                      product_id: *ref_26
+                      sku_id: *ref_27
                       currencies:
                         type:
                           - array
                           - 'null'
                         description: 受影响的币种列表
-                        items: *ref_25
+                        items: *ref_28
                     required:
                       - product_id
                       - sku_id
@@ -8670,11 +10081,26 @@ paths:
         - products/Admin SKUs
         - Admin SKUs
       parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
         - name: product_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
@@ -8682,15 +10108,26 @@ paths:
           in: path
           description: ''
           required: true
-          example: 0
+          example: 5
           schema:
             type: integer
             format: int64
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/StockAdjustRequest'
+            example:
+              mode: SET
+              quantity: 100
+              reason: null
         required: true
       responses:
         '200':
@@ -8709,13 +10146,13 @@ paths:
                         type: object
                         description: 库存调整结果
                         properties:
-                          product_id: &ref_26
+                          product_id: &ref_29
                             type: integer
                             format: int64
-                          sku_id: &ref_27
+                          sku_id: &ref_30
                             type: integer
                             format: int64
-                          stock: &ref_28
+                          stock: &ref_31
                             type: integer
                         required:
                           - product_id
@@ -8809,9 +10246,9 @@ paths:
                     type: object
                     description: 库存调整结果
                     properties:
-                      product_id: *ref_26
-                      sku_id: *ref_27
-                      stock: *ref_28
+                      product_id: *ref_29
+                      sku_id: *ref_30
+                      stock: *ref_31
                     required:
                       - product_id
                       - sku_id
@@ -9269,6 +10706,8 @@ components:
         - spec_code
         - spec_name
         - spec_type
+        - sort_order
+        - enabled
       properties:
         spec_id:
           type:
@@ -9285,6 +10724,11 @@ components:
           type:
             - boolean
             - 'null'
+        sort_order:
+          type: integer
+          format: int64
+        enabled:
+          type: boolean
         i18n_list:
           type:
             - array
@@ -9297,6 +10741,8 @@ components:
         - spec_name
         - spec_type
         - is_required
+        - sort_order
+        - enabled
         - i18n_list
       x-apifox-folder: products
       x-apifox-ignore-properties: []
@@ -9324,6 +10770,9 @@ components:
           properties: {}
           x-apifox-orders: []
           x-apifox-ignore-properties: []
+        sort_order:
+          type: integer
+          format: int64
         is_enabled:
           type: boolean
           default: true
@@ -9338,6 +10787,7 @@ components:
         - value_code
         - value_name
         - attributes
+        - sort_order
         - is_enabled
         - i18n_list
       x-apifox-folder: products
@@ -9806,6 +11256,11 @@ components:
           $ref: '#/components/schemas/SpecType'
         is_required:
           type: boolean
+        sort_order:
+          type: integer
+          format: int64
+        enabled:
+          type: boolean
         i18n_list:
           type:
             - array
@@ -9822,11 +11277,15 @@ components:
         - spec_name
         - spec_type
         - is_required
+        - sort_order
+        - enabled
         - i18n_list
         - values
       x-apifox-folder: products
       required:
         - i18n_list
+        - sort_order
+        - enabled
       x-apifox-ignore-properties: []
     PublicProductSpec:
       type: object
@@ -10025,7 +11484,7 @@ components:
           type:
             - string
             - 'null'
-        price:
+        prices:
           type: array
           description: 多币种定价列表
           items:
@@ -10046,7 +11505,7 @@ components:
         - status
         - is_default
         - barcode
-        - price
+        - prices
         - specs
         - images
       x-apifox-folder: products

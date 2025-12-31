@@ -73,7 +73,7 @@ public class CartRepository implements ICartRepository {
                         po.getTitle(),
                         po.getCoverImageUrl(),
                         po.getCurrency(),
-                        po.getUnitPrice() == null ? null : po.getUnitPrice().toPlainString()
+                        po.getUnitPrice()
                 ))
                 .toList();
     }
@@ -306,4 +306,3 @@ public class CartRepository implements ICartRepository {
         );
     }
 }
-

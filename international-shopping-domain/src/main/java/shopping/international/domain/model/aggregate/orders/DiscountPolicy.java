@@ -47,7 +47,7 @@ public class DiscountPolicy implements Verifiable {
     /**
      * {@link #strategyType}<code> == </code>{@link DiscountStrategyType#AMOUNT AMOUNT} 时的固定折扣金额
      */
-    private BigDecimal amountOff;
+    private Long amountOff;
     /**
      * 结算货币 (可以为空, 为空则使用订单的货币)
      */
@@ -55,11 +55,11 @@ public class DiscountPolicy implements Verifiable {
     /**
      * 最小订单金额 (可以为空, 为空则不限制)
      */
-    private BigDecimal minOrderAmount;
+    private Long minOrderAmount;
     /**
      * 折扣金额封顶 (可以为空, 为空则不限制)
      */
-    private BigDecimal maxDiscountAmount;
+    private Long maxDiscountAmount;
     /**
      * 创建时间
      */
@@ -85,8 +85,8 @@ public class DiscountPolicy implements Verifiable {
      * @param updatedAt         折扣策略最后更新时间
      */
     private DiscountPolicy(Long id, String name, DiscountApplyScope applyScope, DiscountStrategyType strategyType,
-                           BigDecimal percentOff, BigDecimal amountOff, String currency,
-                           BigDecimal minOrderAmount, BigDecimal maxDiscountAmount,
+                           BigDecimal percentOff, Long amountOff, String currency,
+                           Long minOrderAmount, Long maxDiscountAmount,
                            LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.name = name;
@@ -116,9 +116,9 @@ public class DiscountPolicy implements Verifiable {
      * @return 新创建的折扣策略实例
      */
     public static DiscountPolicy create(String name, DiscountApplyScope applyScope, DiscountStrategyType strategyType,
-                                        @Nullable BigDecimal percentOff, @Nullable BigDecimal amountOff,
+                                        @Nullable BigDecimal percentOff, @Nullable Long amountOff,
                                         @Nullable String currency,
-                                        @Nullable BigDecimal minOrderAmount, @Nullable BigDecimal maxDiscountAmount) {
+                                        @Nullable Long minOrderAmount, @Nullable Long maxDiscountAmount) {
         return new DiscountPolicy(null, name, applyScope, strategyType, percentOff, amountOff, currency,
                 minOrderAmount, maxDiscountAmount, LocalDateTime.now(), LocalDateTime.now());
     }
@@ -140,8 +140,8 @@ public class DiscountPolicy implements Verifiable {
      * @return 由给定参数构成的新 <code>DiscountPolicy</code> 实例
      */
     public static DiscountPolicy reconstitute(Long id, String name, DiscountApplyScope applyScope, DiscountStrategyType strategyType,
-                                              BigDecimal percentOff, BigDecimal amountOff, String currency,
-                                              BigDecimal minOrderAmount, BigDecimal maxDiscountAmount,
+                                              BigDecimal percentOff, Long amountOff, String currency,
+                                              Long minOrderAmount, Long maxDiscountAmount,
                                               LocalDateTime createdAt, LocalDateTime updatedAt) {
         return new DiscountPolicy(id, name, applyScope, strategyType, percentOff, amountOff, currency,
                 minOrderAmount, maxDiscountAmount, createdAt, updatedAt);
@@ -160,9 +160,9 @@ public class DiscountPolicy implements Verifiable {
      * @param maxDiscountAmount 最大折扣金额限制, 如果设置, 应该是非负数
      */
     public void update(String name, DiscountApplyScope applyScope, DiscountStrategyType strategyType,
-                       @Nullable BigDecimal percentOff, @Nullable BigDecimal amountOff,
+                       @Nullable BigDecimal percentOff, @Nullable Long amountOff,
                        @Nullable String currency,
-                       @Nullable BigDecimal minOrderAmount, @Nullable BigDecimal maxDiscountAmount) {
+                       @Nullable Long minOrderAmount, @Nullable Long maxDiscountAmount) {
         if (name != null)
             this.name = name.strip();
         if (applyScope != null)
@@ -210,7 +210,7 @@ public class DiscountPolicy implements Verifiable {
         }
         if (strategyType == DiscountStrategyType.AMOUNT) {
             requireNotNull(amountOff, "amountOff 不能为空");
-            require(amountOff.compareTo(BigDecimal.ZERO) > 0, "amountOff 必须大于 0");
+            require(amountOff > 0, "amountOff 必须大于 0");
         }
         if (currency != null) {
             String normalized = normalizeCurrency(currency);
@@ -218,9 +218,8 @@ public class DiscountPolicy implements Verifiable {
             this.currency = normalized;
         }
         if (minOrderAmount != null)
-            require(minOrderAmount.compareTo(BigDecimal.ZERO) >= 0, "minOrderAmount 不能为负数");
+            require(minOrderAmount >= 0, "minOrderAmount 不能为负数");
         if (maxDiscountAmount != null)
-            require(maxDiscountAmount.compareTo(BigDecimal.ZERO) >= 0, "maxDiscountAmount 不能为负数");
+            require(maxDiscountAmount >= 0, "maxDiscountAmount 不能为负数");
     }
 }
-

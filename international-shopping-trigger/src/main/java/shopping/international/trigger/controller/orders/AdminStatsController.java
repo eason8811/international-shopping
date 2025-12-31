@@ -14,8 +14,10 @@ import shopping.international.domain.model.enums.orders.OrderStatsDimension;
 import shopping.international.domain.model.enums.orders.OrderStatus;
 import shopping.international.domain.model.vo.orders.OrderStatsOverviewQuery;
 import shopping.international.domain.model.vo.orders.OrderStatsQuery;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IAdminStatsService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
@@ -34,6 +36,10 @@ public class AdminStatsController {
      * 管理侧统计领域服务
      */
     private final IAdminStatsService adminStatsService;
+    /**
+     * 货币配置服务
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 订单统计概览 (时间范围)
@@ -60,6 +66,7 @@ public class AdminStatsController {
                 .build();
         query.validate();
         IAdminStatsService.OrderStatsOverviewView overview = adminStatsService.overview(query);
+        CurrencyConfig currencyConfig = query.getCurrency() == null ? null : currencyConfigService.get(query.getCurrency());
 
         OrderStatsOverviewRespond resp = OrderStatsOverviewRespond.builder()
                 .from(fromTime)
@@ -68,10 +75,10 @@ public class AdminStatsController {
                 .ordersCount(overview.ordersCount() == null ? 0 : overview.ordersCount().intValue())
                 .paidOrdersCount(overview.paidOrdersCount() == null ? 0 : overview.paidOrdersCount().intValue())
                 .itemsCountSum(overview.itemsCount() == null ? null : overview.itemsCount().intValue())
-                .totalAmountSum(overview.totalAmount())
-                .discountAmountSum(overview.discountAmount())
-                .shippingAmountSum(overview.shippingAmount())
-                .payAmountSum(overview.payAmount())
+                .totalAmountSum(currencyConfig == null || overview.totalAmountMinor() == null ? null : currencyConfig.toMajor(overview.totalAmountMinor()).toPlainString())
+                .discountAmountSum(currencyConfig == null || overview.discountAmountMinor() == null ? null : currencyConfig.toMajor(overview.discountAmountMinor()).toPlainString())
+                .shippingAmountSum(currencyConfig == null || overview.shippingAmountMinor() == null ? null : currencyConfig.toMajor(overview.shippingAmountMinor()).toPlainString())
+                .payAmountSum(currencyConfig == null || overview.payAmountMinor() == null ? null : currencyConfig.toMajor(overview.payAmountMinor()).toPlainString())
                 .build();
 
         return ResponseEntity.ok(Result.ok(resp));
@@ -111,6 +118,7 @@ public class AdminStatsController {
                 .build();
         query.validate();
         List<IAdminStatsService.OrderStatsRowView> rows = adminStatsService.stats(query);
+        CurrencyConfig currencyConfig = query.getCurrency() == null ? null : currencyConfigService.get(query.getCurrency());
         List<OrderStatsRowRespond> data = rows.stream().map(r -> OrderStatsRowRespond.builder()
                 .dimension(r.dimension())
                 .keyId(parseLongOrNull(r.dimensionKey()))
@@ -118,10 +126,10 @@ public class AdminStatsController {
                 .keyName(null)
                 .ordersCount(r.ordersCount() == null ? 0 : r.ordersCount().intValue())
                 .itemsCount(r.itemsCount() == null ? null : r.itemsCount().intValue())
-                .subtotalAmountSum(r.totalAmount())
-                .payAmountSum(r.payAmount())
-                .discountAmountSum(r.discountAmount())
-                .shippingAmountSum(r.shippingAmount())
+                .subtotalAmountSum(currencyConfig == null || r.totalAmountMinor() == null ? null : currencyConfig.toMajor(r.totalAmountMinor()).toPlainString())
+                .payAmountSum(currencyConfig == null || r.payAmountMinor() == null ? null : currencyConfig.toMajor(r.payAmountMinor()).toPlainString())
+                .discountAmountSum(currencyConfig == null || r.discountAmountMinor() == null ? null : currencyConfig.toMajor(r.discountAmountMinor()).toPlainString())
+                .shippingAmountSum(currencyConfig == null || r.shippingAmountMinor() == null ? null : currencyConfig.toMajor(r.shippingAmountMinor()).toPlainString())
                 .appliedAmountSum(null)
                 .build()).toList();
 

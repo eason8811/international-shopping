@@ -22,13 +22,14 @@ import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
 import shopping.international.domain.model.vo.orders.DiscountCodeText;
 import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteria;
 import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IAdminDiscountService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -45,6 +46,10 @@ public class AdminDiscountController {
      * 管理侧折扣领域服务
      */
     private final IAdminDiscountService adminDiscountService;
+    /**
+     * 货币配置服务
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 查询折扣策略列表
@@ -71,7 +76,7 @@ public class AdminDiscountController {
                 .build();
         criteria.validate();
         PageResult<DiscountPolicy> pageData = adminDiscountService.listPolicies(pageQuery, criteria);
-        List<DiscountPolicyRespond> data = pageData.items().stream().map(AdminDiscountController::toRespond).toList();
+        List<DiscountPolicyRespond> data = pageData.items().stream().map(this::toRespond).toList();
         return ResponseEntity.ok(Result.ok(
                 data,
                 Result.Meta.builder()
@@ -92,10 +97,11 @@ public class AdminDiscountController {
     public ResponseEntity<Result<DiscountPolicyRespond>> createPolicy(@RequestBody DiscountPolicyUpsertRequest req) {
         req.createValidate();
 
-        BigDecimal percentOff = parseDecimalOrNull(req.getAmountOff(), "percentOff");
-        BigDecimal amountOff = parseDecimalOrNull(req.getAmountOff(), "amountOff");
-        BigDecimal minOrderAmount = parseDecimalOrNull(req.getMinOrderAmount(), "minOrderAmount");
-        BigDecimal maxDiscountAmount = parseDecimalOrNull(req.getMaxDiscountAmount(), "maxDiscountAmount");
+        BigDecimal percentOff = parseBigDecimalOrNull(req.getPercentOff(), "percentOff");
+        CurrencyConfig currencyConfig = req.getCurrency() == null ? null : currencyConfigService.get(req.getCurrency());
+        Long amountOffMinor = toMinorOrNull(currencyConfig, req.getAmountOff(), "amountOff", true);
+        Long minOrderAmountMinor = toMinorOrNull(currencyConfig, req.getMinOrderAmount(), "minOrderAmount", false);
+        Long maxDiscountAmountMinor = toMinorOrNull(currencyConfig, req.getMaxDiscountAmount(), "maxDiscountAmount", false);
 
         DiscountPolicy created = adminDiscountService.createPolicy(
                 DiscountPolicy.create(
@@ -103,10 +109,10 @@ public class AdminDiscountController {
                         req.getApplyScope(),
                         req.getStrategyType(),
                         percentOff,
-                        amountOff,
+                        amountOffMinor,
                         req.getCurrency(),
-                        minOrderAmount,
-                        maxDiscountAmount
+                        minOrderAmountMinor,
+                        maxDiscountAmountMinor
                 )
         );
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
@@ -125,20 +131,21 @@ public class AdminDiscountController {
                                                                       @RequestBody DiscountPolicyUpsertRequest req) {
         req.updateValidate();
 
-        BigDecimal percentOff = parseDecimalOrNull(req.getAmountOff(), "percentOff");
-        BigDecimal amountOff = parseDecimalOrNull(req.getAmountOff(), "amountOff");
-        BigDecimal minOrderAmount = parseDecimalOrNull(req.getMinOrderAmount(), "minOrderAmount");
-        BigDecimal maxDiscountAmount = parseDecimalOrNull(req.getMaxDiscountAmount(), "maxDiscountAmount");
+        BigDecimal percentOff = parseBigDecimalOrNull(req.getPercentOff(), "percentOff");
+        CurrencyConfig currencyConfig = req.getCurrency() == null ? null : currencyConfigService.get(req.getCurrency());
+        Long amountOffMinor = toMinorOrNull(currencyConfig, req.getAmountOff(), "amountOff", true);
+        Long minOrderAmountMinor = toMinorOrNull(currencyConfig, req.getMinOrderAmount(), "minOrderAmount", false);
+        Long maxDiscountAmountMinor = toMinorOrNull(currencyConfig, req.getMaxDiscountAmount(), "maxDiscountAmount", false);
 
         DiscountPolicy toUpdate = DiscountPolicy.create(
                 req.getName(),
                 req.getApplyScope(),
                 req.getStrategyType(),
                 percentOff,
-                amountOff,
+                amountOffMinor,
                 req.getCurrency(),
-                minOrderAmount,
-                maxDiscountAmount
+                minOrderAmountMinor,
+                maxDiscountAmountMinor
         );
         DiscountPolicy updated = adminDiscountService.updatePolicy(policyId, toUpdate);
         return ResponseEntity.ok(Result.ok(toRespond(updated)));
@@ -316,16 +323,19 @@ public class AdminDiscountController {
         criteria.validate();
         PageResult<IAdminDiscountService.OrderDiscountAppliedView> pageData = adminDiscountService.listOrderDiscountApplied(pageQuery, criteria);
         List<DiscountAppliedViewRespond> data = pageData.items().stream()
-                .map(v ->
-                        DiscountAppliedViewRespond.builder()
-                                .orderNo(v.orderNo())
-                                .orderItemId(v.orderItemId())
-                                .discountCodeId(v.discountCodeId())
-                                .appliedScope(v.appliedScope())
-                                .appliedAmount(v.appliedAmount())
-                                .createdAt(v.createdAt())
-                                .build()
-                )
+                .map(v -> {
+                    CurrencyConfig currencyConfig = v.currency() == null ? null : currencyConfigService.get(v.currency());
+                    return DiscountAppliedViewRespond.builder()
+                            .orderNo(v.orderNo())
+                            .orderItemId(v.orderItemId())
+                            .discountCodeId(v.discountCodeId())
+                            .appliedScope(v.appliedScope())
+                            .appliedAmount(currencyConfig == null || v.appliedAmountMinor() == null
+                                    ? null
+                                    : currencyConfig.toMajor(v.appliedAmountMinor()).toPlainString())
+                            .createdAt(v.createdAt())
+                            .build();
+                })
                 .toList();
         return ResponseEntity.ok(Result.ok(
                 data,
@@ -343,17 +353,18 @@ public class AdminDiscountController {
      * @param policy 策略聚合
      * @return 响应
      */
-    private static DiscountPolicyRespond toRespond(DiscountPolicy policy) {
+    private DiscountPolicyRespond toRespond(DiscountPolicy policy) {
+        CurrencyConfig currencyConfig = policy.getCurrency() == null ? null : currencyConfigService.get(policy.getCurrency());
         return DiscountPolicyRespond.builder()
                 .id(policy.getId())
                 .name(policy.getName())
                 .applyScope(policy.getApplyScope())
                 .strategyType(policy.getStrategyType())
                 .percentOff(policy.getPercentOff() == null ? null : policy.getPercentOff().doubleValue())
-                .amountOff(policy.getAmountOff() == null ? null : policy.getAmountOff().toPlainString())
+                .amountOff(currencyConfig == null || policy.getAmountOff() == null ? null : currencyConfig.toMajor(policy.getAmountOff()).toPlainString())
                 .currency(policy.getCurrency())
-                .minOrderAmount(policy.getMinOrderAmount() == null ? null : policy.getMinOrderAmount().toPlainString())
-                .maxDiscountAmount(policy.getMaxDiscountAmount() == null ? null : policy.getMaxDiscountAmount().toPlainString())
+                .minOrderAmount(currencyConfig == null || policy.getMinOrderAmount() == null ? null : currencyConfig.toMajor(policy.getMinOrderAmount()).toPlainString())
+                .maxDiscountAmount(currencyConfig == null || policy.getMaxDiscountAmount() == null ? null : currencyConfig.toMajor(policy.getMaxDiscountAmount()).toPlainString())
                 .createdAt(policy.getCreatedAt())
                 .updatedAt(policy.getUpdatedAt())
                 .build();
@@ -418,22 +429,50 @@ public class AdminDiscountController {
     }
 
     /**
-     * 将金额字符串解析为 BigDecimal (可为空)
+     * 将给定的字符串转换为 <code>BigDecimal</code> 对象 如果字符串为空或空白 则返回 null
      *
-     * @param raw       原始字符串
-     * @param fieldName 字段名
-     * @return BigDecimal 或 null
+     * @param raw       输入的原始字符串 可以为 null
+     * @param fieldName 字段名称 用于在抛出异常时提供上下文信息
+     * @return 如果输入字符串可以被解析为 <code>BigDecimal</code> 则返回对应的 <code>BigDecimal</code> 对象 否则返回 null 或者当解析失败时抛出异常
+     * @throws IllegalParamException 当输入字符串无法被解析为有效的 <code>BigDecimal</code> 时抛出此异常 包含字段名以指示哪个字段值不合法
      */
-    private static @Nullable BigDecimal parseDecimalOrNull(@Nullable String raw, String fieldName) {
-        if (raw == null)
+    private static @Nullable BigDecimal parseBigDecimalOrNull(@Nullable String raw, String fieldName) {
+        if (raw == null || raw.isBlank())
             return null;
         String trimmed = raw.strip();
-        if (trimmed.isEmpty())
-            return null;
         try {
-            return new BigDecimal(trimmed).setScale(2, RoundingMode.HALF_UP);
+            return new BigDecimal(trimmed);
         } catch (Exception e) {
-            throw new IllegalParamException(fieldName + " 金额格式不合法");
+            throw new IllegalParamException(fieldName + " 数值不合法");
         }
+    }
+
+    /**
+     * 将给定的字符串转换为货币配置中的最小单位, 如果无法转换则返回 null
+     *
+     * @param currencyConfig  货币配置对象, 用于进行货币单位之间的换算, 如果为 null 则会抛出异常
+     * @param raw             原始字符串, 代表需要转换的数值, 如果为空或仅包含空白字符, 方法将直接返回 null
+     * @param fieldName       字段名称, 主要用于在抛出异常时提供上下文信息
+     * @param requirePositive 指示转换后的数值是否必须为正数, 如果设置为 true 且转换结果不大于 0, 或者设置为 false 但转换结果小于 0, 都将抛出异常
+     * @return 返回转换后的 long 类型值, 表示原始数值在指定货币配置下的最小单位表示, 如果无法转换则返回 null
+     * @throws IllegalParamException 当 currencyConfig 为 null, 或者根据 requirePositive 参数检查失败时抛出
+     */
+    private static @Nullable Long toMinorOrNull(@Nullable CurrencyConfig currencyConfig,
+                                                @Nullable String raw,
+                                                String fieldName,
+                                                boolean requirePositive) {
+        if (raw == null || raw.isBlank())
+            return null;
+        if (currencyConfig == null)
+            throw new IllegalParamException(fieldName + " 需要提供 currency 才能进行换算");
+        BigDecimal major = parseBigDecimalOrNull(raw, fieldName);
+        if (major == null)
+            return null;
+        long minor = currencyConfig.toMinorExact(major);
+        if (requirePositive && minor <= 0)
+            throw new IllegalParamException(fieldName + " 必须大于 0");
+        if (!requirePositive && minor < 0)
+            throw new IllegalParamException(fieldName + " 不能为负数");
+        return minor;
     }
 }

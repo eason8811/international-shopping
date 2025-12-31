@@ -6,9 +6,9 @@ import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.currency.CurrencyConfig;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Objects;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeCurrency;
@@ -25,27 +25,23 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
 @EqualsAndHashCode
 public final class Money implements Comparable<Money> {
     /**
-     * 金额精度
-     */
-    private static final int SCALE = 2;
-    /**
      * 结算货币
      */
     private final String currency;
     /**
-     * 金额值
+     * 金额值（最小货币单位）
      */
-    private final BigDecimal amount;
+    private final long amountMinor;
 
     /**
      * 构造一个新的 {@code Money} 对象, 代表指定货币和金额的金额值对象
      *
      * @param currency 货币代码, 不能为空
-     * @param amount 金额数值, 必须是正数或零, 精度为 {@code SCALE}
+     * @param amountMinor 金额数值（最小货币单位）, 必须是正数或零
      */
-    private Money(String currency, BigDecimal amount) {
+    private Money(String currency, long amountMinor) {
         this.currency = currency;
-        this.amount = amount;
+        this.amountMinor = amountMinor;
     }
 
     /**
@@ -55,7 +51,7 @@ public final class Money implements Comparable<Money> {
      * @return 一个新的 {@link Money} 对象, 其金额值为零且货币类型由参数指定
      */
     public static Money zero(String currency) {
-        return of(currency, BigDecimal.ZERO);
+        return ofMinor(currency, 0L);
     }
 
     /**
@@ -64,17 +60,27 @@ public final class Money implements Comparable<Money> {
      * <p>该方法会检查传入的货币代码是否合法, 并将金额数值标准化到预定义的精度。如果输入参数不满足要求, 则抛出异常</p>
      *
      * @param currency 货币代码, 必须为有效的 3 位字母代码, 不能为空
-     * @param amount 金额数值, 必须是正数或零, 将被四舍五入到预设的小数位数
+     * @param amountMinor 金额数值（最小货币单位）, 必须是正数或零
      * @return 新创建的 {@link Money} 实例, 包含已规范化后的货币代码和金额数值
      * @throws IllegalParamException 如果货币代码无效, 或者金额为空, 或者金额为负数
      */
-    public static Money of(String currency, BigDecimal amount) {
+    public static Money ofMinor(String currency, long amountMinor) {
         String normalizedCurrency = normalizeCurrency(currency);
         requireNotNull(normalizedCurrency, "currency 不能为空");
-        requireNotNull(amount, "金额不能为空");
-        BigDecimal normalizedAmount = amount.setScale(SCALE, RoundingMode.HALF_UP);
-        require(normalizedAmount.compareTo(BigDecimal.ZERO) >= 0, "金额不能为负数");
-        return new Money(normalizedCurrency, normalizedAmount);
+        require(amountMinor >= 0, "金额不能为负数");
+        return new Money(normalizedCurrency, amountMinor);
+    }
+
+    /**
+     * 以 major 金额构造 Money（使用 currency 配置进行精确换算）
+     *
+     * <p>仅用于边界层/读模型换算，不建议在领域计算中直接使用 BigDecimal。</p>
+     */
+    public static Money ofMajor(@NotNull CurrencyConfig currencyConfig, @NotNull java.math.BigDecimal majorAmount) {
+        requireNotNull(currencyConfig, "currencyConfig 不能为空");
+        requireNotNull(majorAmount, "金额不能为空");
+        long minor = currencyConfig.toMinorExact(majorAmount);
+        return ofMinor(currencyConfig.code(), minor);
     }
 
     /**
@@ -87,7 +93,7 @@ public final class Money implements Comparable<Money> {
      */
     public Money add(Money other) {
         ensureSameCurrency(other);
-        return new Money(currency, amount.add(other.amount));
+        return new Money(currency, Math.addExact(amountMinor, other.amountMinor));
     }
 
     /**
@@ -101,8 +107,8 @@ public final class Money implements Comparable<Money> {
      */
     public Money subtract(Money other) {
         ensureSameCurrency(other);
-        BigDecimal result = amount.subtract(other.amount);
-        require(result.compareTo(BigDecimal.ZERO) >= 0, "金额不能为负数");
+        long result = amountMinor - other.amountMinor;
+        require(result >= 0, "金额不能为负数");
         return new Money(currency, result);
     }
 
@@ -117,7 +123,7 @@ public final class Money implements Comparable<Money> {
      */
     public Money multiply(int multiplier) {
         require(multiplier >= 0, "乘数不能为负数");
-        return new Money(currency, amount.multiply(BigDecimal.valueOf(multiplier)).setScale(SCALE, RoundingMode.HALF_UP));
+        return new Money(currency, Math.multiplyExact(amountMinor, multiplier));
     }
 
     /**
@@ -126,7 +132,17 @@ public final class Money implements Comparable<Money> {
      * @return 如果当前金额值等于 <code>BigDecimal.ZERO</code>, 返回 <code>true</code>; 否则返回 <code>false</code>
      */
     public boolean isZero() {
-        return amount.compareTo(BigDecimal.ZERO) == 0;
+        return amountMinor == 0L;
+    }
+
+    public @NotNull BigDecimal toMajor(@NotNull CurrencyConfig currencyConfig) {
+        requireNotNull(currencyConfig, "currencyConfig 不能为空");
+        require(Objects.equals(currency, currencyConfig.code()), "币种不一致: " + currency + " vs " + currencyConfig.code());
+        return currencyConfig.toMajor(amountMinor);
+    }
+
+    public @NotNull String toMajorString(@NotNull CurrencyConfig currencyConfig) {
+        return toMajor(currencyConfig).toPlainString();
     }
 
     /**
@@ -156,7 +172,6 @@ public final class Money implements Comparable<Money> {
         if (o == null)
             return 1;
         ensureSameCurrency(o);
-        return this.amount.compareTo(o.amount);
+        return Long.compare(this.amountMinor, o.amountMinor);
     }
 }
-

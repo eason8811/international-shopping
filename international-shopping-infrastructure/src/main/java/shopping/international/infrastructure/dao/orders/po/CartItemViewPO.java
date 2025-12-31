@@ -2,7 +2,6 @@ package shopping.international.infrastructure.dao.orders.po;
 
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -55,6 +54,5 @@ public class CartItemViewPO {
     /**
      * 展示单价
      */
-    private BigDecimal unitPrice;
+    private Long unitPrice;
 }
-

@@ -32,10 +32,10 @@ public interface ICartService {
      * @param title         商品标题 (可为空)
      * @param coverImageUrl 商品封面图 (可为空)
      * @param currency      展示币种 (可为空)
-     * @param unitPrice     展示单价 (可为空, 金额字符串)
+     * @param unitPriceMinor     展示单价 (可为空, 最小货币单位)
      */
     record CartItemView(Long id, Long skuId, Integer quantity, Boolean selected, LocalDateTime addedAt,
-                        Long productId, String title, String coverImageUrl, String currency, String unitPrice) {
+                        Long productId, String title, String coverImageUrl, String currency, Long unitPriceMinor) {
     }
 
     /**

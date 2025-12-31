@@ -122,6 +122,6 @@ public final class OrderItemSnapshot implements Verifiable {
         requireNotNull(subtotalAmount, "subtotalAmount 不能为空");
         unitPrice.ensureSameCurrency(subtotalAmount);
         Money expected = unitPrice.multiply(quantity);
-        require(expected.getAmount().compareTo(subtotalAmount.getAmount()) == 0, "小计不一致");
+        require(expected.getAmountMinor() == subtotalAmount.getAmountMinor(), "小计不一致");
     }
 }

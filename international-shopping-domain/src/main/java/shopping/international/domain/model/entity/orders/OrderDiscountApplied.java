@@ -94,7 +94,7 @@ public class OrderDiscountApplied implements Verifiable {
         requireNotNull(discountCodeId, "折扣码 ID 不能为空");
         requireNotNull(appliedScope, "折扣应用范围不能为空");
         requireNotNull(appliedAmount, "抵扣金额不能为空");
-        require(appliedAmount.getAmount().signum() > 0, "抵扣金额必须大于 0");
+        require(appliedAmount.getAmountMinor() > 0, "抵扣金额必须大于 0");
         if (appliedScope == DiscountApplyScope.ITEM)
             requireNotNull(orderItemId, "明细级折扣必须提供 orderItemId");
         requireNotNull(createdAt, "创建时间不能为空");

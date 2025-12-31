@@ -34,20 +34,22 @@ paths:
           in: cookie
           description: ''
           required: false
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
           required: false
-          example: ''
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: page
           in: query
           description: ''
           required: false
+          example: 1
           schema:
             type: integer
             default: 1
@@ -56,6 +58,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: 20
           schema:
             type: integer
             default: 20
@@ -65,16 +68,25 @@ paths:
           in: query
           description: 语言代码（如 en-US），用于展示商品标题本地化（若实现）
           required: false
+          example: es-ES
           schema:
             type: string
         - name: currency
           in: query
           description: 结算币种（如 USD），用于展示单价/小计（若实现）
           required: false
+          example: CNY
           schema:
             type: string
             minLength: 3
             maxLength: 3
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -143,22 +155,23 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: ''
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       requestBody:
@@ -166,7 +179,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CartItemUpsertRequest'
-            examples: {}
+            example:
+              sku_id: 5
+              quantity: 6
+              selected: true
         required: true
       responses:
         '200':
@@ -250,31 +266,32 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 3
           schema:
             type: integer
             format: int64
             minimum: 1
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: ''
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       requestBody:
@@ -282,7 +299,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CartItemUpsertRequest'
-            examples: {}
+            example:
+              sku_id: 4
+              quantity: 2
         required: true
       responses:
         '200':
@@ -351,31 +370,32 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
             minimum: 1
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: ''
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -451,22 +471,23 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: ''
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       requestBody:
@@ -474,7 +495,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderPreviewRequest'
-            examples: {}
+            example:
+              source: CART
+              address_id: 97822245
+              currency: CNY
+              buyer_remark: null
+              locale: zh-CN
         required: true
       responses:
         '200':
@@ -545,20 +571,22 @@ paths:
           in: cookie
           description: ''
           required: false
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
           required: false
-          example: ''
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: page
           in: query
           description: ''
           required: false
+          example: 1
           schema:
             type: integer
             default: 1
@@ -567,6 +595,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: 20
           schema:
             type: integer
             default: 20
@@ -626,6 +655,13 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -719,7 +755,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderCreateRequest'
-            examples: {}
+            example:
+              source: DIRECT
+              items: null
+              address_id: 26939800
+              currency: dol
+              discount_code: 15-15_15-15
+              buyer_remark: con
+              locale: aliqua elit quis sit consectetur
         required: true
       responses:
         '201':
@@ -1045,6 +1088,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderChangeAddressRequest'
+            examples: {}
         required: true
       responses:
         '200':
@@ -2110,10 +2154,26 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: page
           in: query
           description: ''
           required: false
+          example: 1
           schema:
             type: integer
             default: 1
@@ -2121,9 +2181,16 @@ paths:
           in: query
           description: ''
           required: false
+          example: 20
           schema:
             type: integer
             default: 20
+        - name: name
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
         - name: apply_scope
           in: query
           description: ''
@@ -2156,6 +2223,13 @@ paths:
               - value: AMOUNT
                 name: ''
                 description: ''
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -2219,13 +2293,42 @@ paths:
       tags:
         - orders/Admin Discounts
         - Admin Discounts
-      parameters: []
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DiscountPolicyUpsertRequest'
-            examples: {}
+            example:
+              name: ORDER-PERCENT-300-100
+              apply_scope: ORDER
+              strategy_type: PERCENT
+              percent_off: '10'
+              currency: null
+              min_order_amount: '300'
+              max_discount_amount: '100'
         required: true
       responses:
         '201':
@@ -2461,7 +2564,7 @@ paths:
           schema:
             type: integer
             default: 20
-        - name: code
+        - name: keyword
           in: query
           description: ''
           required: false
@@ -4317,9 +4420,8 @@ components:
           $ref: '#/components/schemas/DiscountStrategyType'
         percent_off:
           type:
-            - number
+            - string
             - 'null'
-          format: double
           description: strategy_type=PERCENT 时必填
         amount_off:
           type:
@@ -4448,14 +4550,17 @@ components:
         - discount_code_id
         - applied_scope
         - applied_amount
+        - order_no
       properties:
-        discount_code_id:
-          type: integer
-          format: int64
+        order_no:
+          type: string
         order_item_id:
           type:
             - integer
             - 'null'
+          format: int64
+        discount_code_id:
+          type: integer
           format: int64
         applied_scope:
           $ref: '#/components/schemas/DiscountApplyScope'
@@ -4467,8 +4572,9 @@ components:
             - 'null'
           format: date-time
       x-apifox-orders:
-        - discount_code_id
+        - order_no
         - order_item_id
+        - discount_code_id
         - applied_scope
         - applied_amount
         - created_at

@@ -11,7 +11,9 @@ import shopping.international.api.resp.orders.CartItemRespond;
 import shopping.international.domain.model.entity.orders.CartItem;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.ICartService;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.exceptions.AccountException;
 
@@ -37,6 +39,10 @@ public class CartController {
      * 购物车领域服务
      */
     private final ICartService cartService;
+    /**
+     * 货币配置服务
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 列出购物车条目 (当前用户)
@@ -55,7 +61,7 @@ public class CartController {
         PageQuery pageQuery = PageQuery.of(page, size, 200);
         Long userId = requireCurrentUserId();
         PageResult<ICartService.CartItemView> pageData = cartService.list(userId, pageQuery, locale, currency);
-        List<CartItemRespond> data = pageData.items().stream().map(CartController::toRespond).toList();
+        List<CartItemRespond> data = pageData.items().stream().map(this::toRespond).toList();
         return ResponseEntity.ok(Result.ok(
                 data,
                 Result.Meta.builder()
@@ -114,7 +120,9 @@ public class CartController {
      * @param view 视图
      * @return 响应
      */
-    private static CartItemRespond toRespond(ICartService.CartItemView view) {
+    private CartItemRespond toRespond(ICartService.CartItemView view) {
+        String currency = view.currency();
+        CurrencyConfig currencyConfig = currency == null ? null : currencyConfigService.get(currency);
         return CartItemRespond.builder()
                 .id(view.id())
                 .skuId(view.skuId())
@@ -124,8 +132,10 @@ public class CartController {
                 .productId(view.productId())
                 .title(view.title())
                 .coverImageUrl(view.coverImageUrl())
-                .currency(view.currency())
-                .unitPrice(view.unitPrice())
+                .currency(currency)
+                .unitPrice(currencyConfig == null || view.unitPriceMinor() == null
+                        ? null
+                        : currencyConfig.toMajor(view.unitPriceMinor()).toPlainString())
                 .build();
     }
 

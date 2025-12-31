@@ -41,10 +41,11 @@ public interface IAdminOrderService {
      * @param userId            用户 ID
      * @param status            订单状态
      * @param itemsCount        商品件数
-     * @param totalAmount       商品总额 (金额字符串)
-     * @param discountAmount    折扣金额 (金额字符串)
-     * @param shippingAmount    运费 (金额字符串)
-     * @param payAmount         应付金额 (金额字符串)
+     * @param totalAmountMinor       商品总额 (最小货币单位)
+     * @param discountAmountMinor    折扣金额 (最小货币单位)
+     * @param shippingAmountMinor    运费 (最小货币单位)
+     * @param taxAmountMinor         税费 (最小货币单位)
+     * @param payAmountMinor         应付金额 (最小货币单位)
      * @param currency          币种
      * @param payChannel        支付渠道
      * @param payStatus         支付状态
@@ -58,10 +59,11 @@ public interface IAdminOrderService {
                                   Long userId,
                                   OrderStatus status,
                                   Integer itemsCount,
-                                  String totalAmount,
-                                  String discountAmount,
-                                  String shippingAmount,
-                                  String payAmount,
+                                  long totalAmountMinor,
+                                  long discountAmountMinor,
+                                  long shippingAmountMinor,
+                                  long taxAmountMinor,
+                                  long payAmountMinor,
                                   String currency,
                                   PayChannel payChannel,
                                   PayStatus payStatus,

@@ -12,7 +12,6 @@ import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -63,6 +62,10 @@ public class Order implements Verifiable {
      * 订单运费金额
      */
     private Money shippingAmount;
+    /**
+     * 订单税费金额
+     */
+    private Money taxAmount;
     /**
      * 订单应付金额
      */
@@ -159,7 +162,7 @@ public class Order implements Verifiable {
      * @param updatedAt         更新时间
      */
     private Order(Long id, OrderNo orderNo, Long userId, OrderStatus status,
-                  Money totalAmount, Money discountAmount, Money shippingAmount, Money payAmount,
+                  Money totalAmount, Money discountAmount, Money shippingAmount, Money taxAmount, Money payAmount,
                   String currency, PayChannel payChannel, PayStatus payStatus, String paymentExternalId, LocalDateTime payTime,
                   AddressSnapshot addressSnapshot, BuyerRemark buyerRemark,
                   CancelReason cancelReason, LocalDateTime cancelTime,
@@ -173,6 +176,7 @@ public class Order implements Verifiable {
         requireNotNull(totalAmount, "订单总额不能为空");
         requireNotNull(discountAmount, "折扣金额不能为空");
         requireNotNull(shippingAmount, "运费不能为空");
+        requireNotNull(taxAmount, "税费不能为空");
         requireNotNull(payAmount, "应付金额不能为空");
         this.id = id;
         this.orderNo = orderNo;
@@ -182,6 +186,7 @@ public class Order implements Verifiable {
         this.totalAmount = totalAmount;
         this.discountAmount = discountAmount;
         this.shippingAmount = shippingAmount;
+        this.taxAmount = taxAmount;
         this.payAmount = payAmount;
         this.payChannel = payChannel == null ? PayChannel.NONE : payChannel;
         this.payStatus = payStatus == null ? PayStatus.NONE : payStatus;
@@ -222,12 +227,13 @@ public class Order implements Verifiable {
         requireNotNull(normalizedCurrency, "currency 不能为空");
         Money discount = discountAmount == null ? Money.zero(normalizedCurrency) : discountAmount;
         Money shipping = shippingAmount == null ? Money.zero(normalizedCurrency) : shippingAmount;
+        Money tax = Money.zero(normalizedCurrency);
         Order order = new Order(null, orderNo, userId, OrderStatus.CREATED,
-                Money.zero(normalizedCurrency), discount, shipping, Money.zero(normalizedCurrency),
+                Money.zero(normalizedCurrency), discount, shipping, tax, Money.zero(normalizedCurrency),
                 normalizedCurrency, PayChannel.NONE, PayStatus.NONE, null, null,
                 addressSnapshot, buyerRemark, null, null, false, null,
                 items == null ? List.of() : items, LocalDateTime.now(), LocalDateTime.now());
-        order.recalculateAmounts(discount, shipping);
+        order.recalculateAmounts(discount, shipping, tax);
         return order;
     }
 
@@ -258,14 +264,14 @@ public class Order implements Verifiable {
      * @return 重构后的订单对象
      */
     public static Order reconstitute(Long id, OrderNo orderNo, Long userId, OrderStatus status,
-                                     Money totalAmount, Money discountAmount, Money shippingAmount, Money payAmount,
+                                     Money totalAmount, Money discountAmount, Money shippingAmount, Money taxAmount, Money payAmount,
                                      String currency, PayChannel payChannel, PayStatus payStatus,
                                      String paymentExternalId, LocalDateTime payTime,
                                      AddressSnapshot addressSnapshot, BuyerRemark buyerRemark,
                                      CancelReason cancelReason, LocalDateTime cancelTime,
                                      boolean addressChanged,
                                      List<OrderItem> items, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        return new Order(id, orderNo, userId, status, totalAmount, discountAmount, shippingAmount, payAmount,
+        return new Order(id, orderNo, userId, status, totalAmount, discountAmount, shippingAmount, taxAmount, payAmount,
                 currency, payChannel, payStatus, paymentExternalId, payTime,
                 addressSnapshot, buyerRemark, cancelReason, cancelTime,
                 addressChanged, null, items, createdAt, updatedAt);
@@ -443,16 +449,19 @@ public class Order implements Verifiable {
      *                       在调整了折扣金额和运费后, 该方法会更新支付总金额, 即商品总额减去折扣加上运费, 注意, 折扣金额不能超过商品总额
      * @throws IllegalArgumentException 如果折扣金额大于商品总额或传入的参数为空
      */
-    public void recalculateAmounts(@NotNull Money discountAmount, @NotNull Money shippingAmount) {
+    public void recalculateAmounts(@NotNull Money discountAmount, @NotNull Money shippingAmount, @NotNull Money taxAmount) {
         requireNotNull(discountAmount, "折扣金额不能为空");
         requireNotNull(shippingAmount, "运费不能为空");
+        requireNotNull(taxAmount, "税费不能为空");
         ensureCurrency(discountAmount);
         ensureCurrency(shippingAmount);
+        ensureCurrency(taxAmount);
         recalcAmountsFromItems();
         require(discountAmount.compareTo(totalAmount) <= 0, "折扣金额不能大于商品总额");
         this.discountAmount = discountAmount;
         this.shippingAmount = shippingAmount;
-        this.payAmount = totalAmount.subtract(discountAmount).add(shippingAmount);
+        this.taxAmount = taxAmount;
+        this.payAmount = totalAmount.subtract(discountAmount).add(shippingAmount).add(taxAmount);
     }
 
     /**
@@ -468,21 +477,22 @@ public class Order implements Verifiable {
      */
     private void recalcAmountsFromItems() {
         requireNotNull(items, "订单明细不能为空");
-        BigDecimal total = BigDecimal.ZERO;
+        long totalMinor = 0L;
         int count = 0;
         for (OrderItem item : items) {
             requireNotNull(item, "订单明细不能为空");
             item.validate();
             Money subtotal = item.getSubtotalAmount();
             ensureCurrency(subtotal);
-            total = total.add(subtotal.getAmount());
+            totalMinor = Math.addExact(totalMinor, subtotal.getAmountMinor());
             count = Math.addExact(count, item.getQuantity());
         }
         this.itemsCount = count;
-        this.totalAmount = Money.of(this.currency, total);
+        this.totalAmount = Money.ofMinor(this.currency, totalMinor);
         ensureCurrency(this.discountAmount);
         ensureCurrency(this.shippingAmount);
-        this.payAmount = totalAmount.subtract(this.discountAmount).add(this.shippingAmount);
+        ensureCurrency(this.taxAmount);
+        this.payAmount = totalAmount.subtract(this.discountAmount).add(this.shippingAmount).add(this.taxAmount);
     }
 
     /**
@@ -577,8 +587,9 @@ public class Order implements Verifiable {
         ensureCurrency(totalAmount);
         ensureCurrency(discountAmount);
         ensureCurrency(shippingAmount);
+        ensureCurrency(taxAmount);
         ensureCurrency(payAmount);
-        require(payAmount.getAmount().compareTo(BigDecimal.ZERO) >= 0, "应付金额不能为负数");
+        require(payAmount.getAmountMinor() >= 0, "应付金额不能为负数");
         if (status == OrderStatus.CANCELLED) {
             requireNotNull(cancelReason, "取消原因不能为空");
             requireNotNull(cancelTime, "取消时间不能为空");

@@ -2,8 +2,6 @@ package shopping.international.infrastructure.dao.orders.po;
 
 import lombok.*;
 
-import java.math.BigDecimal;
-
 /**
  * 订单统计概览 PO
  */
@@ -27,17 +25,17 @@ public class OrderStatsOverviewPO {
     /**
      * 商品总额合计
      */
-    private BigDecimal totalAmount;
+    private Long totalAmount;
     /**
      * 折扣金额合计
      */
-    private BigDecimal discountAmount;
+    private Long discountAmount;
     /**
      * 运费合计
      */
-    private BigDecimal shippingAmount;
+    private Long shippingAmount;
     /**
      * 应付金额合计
      */
-    private BigDecimal payAmount;
+    private Long payAmount;
 }

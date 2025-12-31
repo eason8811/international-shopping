@@ -25,7 +25,6 @@ import shopping.international.infrastructure.dao.products.ProductSkuMapper;
 import shopping.international.infrastructure.dao.products.po.ProductSkuPO;
 import shopping.international.types.exceptions.ConflictException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -115,10 +114,11 @@ public class OrderRepository implements IOrderRepository {
                         po.getOrderNo(),
                         OrderStatus.valueOf(po.getStatus()),
                         po.getItemsCount(),
-                        toAmountString(po.getTotalAmount()),
-                        toAmountString(po.getDiscountAmount()),
-                        toAmountString(po.getShippingAmount()),
-                        toAmountString(po.getPayAmount()),
+                        nullToZero(po.getTotalAmount()),
+                        nullToZero(po.getDiscountAmount()),
+                        nullToZero(po.getShippingAmount()),
+                        nullToZero(po.getTaxAmount()),
+                        nullToZero(po.getPayAmount()),
                         po.getCurrency(),
                         PayChannel.valueOf(po.getPayChannel()),
                         PayStatus.valueOf(po.getPayStatus()),
@@ -189,10 +189,11 @@ public class OrderRepository implements IOrderRepository {
                         po.getUserId(),
                         OrderStatus.valueOf(po.getStatus()),
                         po.getItemsCount(),
-                        toAmountString(po.getTotalAmount()),
-                        toAmountString(po.getDiscountAmount()),
-                        toAmountString(po.getShippingAmount()),
-                        toAmountString(po.getPayAmount()),
+                        nullToZero(po.getTotalAmount()),
+                        nullToZero(po.getDiscountAmount()),
+                        nullToZero(po.getShippingAmount()),
+                        nullToZero(po.getTaxAmount()),
+                        nullToZero(po.getPayAmount()),
                         po.getCurrency(),
                         PayChannel.valueOf(po.getPayChannel()),
                         PayStatus.valueOf(po.getPayStatus()),
@@ -581,10 +582,11 @@ public class OrderRepository implements IOrderRepository {
                 orderNo,
                 orderPo.getUserId(),
                 OrderStatus.valueOf(orderPo.getStatus()),
-                Money.of(orderPo.getCurrency(), nullToZero(orderPo.getTotalAmount())),
-                Money.of(orderPo.getCurrency(), nullToZero(orderPo.getDiscountAmount())),
-                Money.of(orderPo.getCurrency(), nullToZero(orderPo.getShippingAmount())),
-                Money.of(orderPo.getCurrency(), nullToZero(orderPo.getPayAmount())),
+	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getTotalAmount())),
+	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getDiscountAmount())),
+	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getShippingAmount())),
+	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getTaxAmount())),
+	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getPayAmount())),
                 orderPo.getCurrency(),
                 PayChannel.valueOf(orderPo.getPayChannel()),
                 PayStatus.valueOf(orderPo.getPayStatus()),
@@ -612,16 +614,17 @@ public class OrderRepository implements IOrderRepository {
                 .id(order.getId())
                 .orderNo(order.getOrderNo().getValue())
                 .userId(order.getUserId())
-                .status(order.getStatus().name())
-                .itemsCount(order.getItemsCount())
-                .totalAmount(order.getTotalAmount().getAmount())
-                .discountAmount(order.getDiscountAmount().getAmount())
-                .shippingAmount(order.getShippingAmount().getAmount())
-                .payAmount(order.getPayAmount().getAmount())
-                .currency(order.getCurrency())
-                .payChannel(order.getPayChannel() == null ? PayChannel.NONE.name() : order.getPayChannel().name())
-                .payStatus(order.getPayStatus() == null ? PayStatus.NONE.name() : order.getPayStatus().name())
-                .paymentExternalId(order.getPaymentExternalId())
+	                .status(order.getStatus().name())
+	                .itemsCount(order.getItemsCount())
+	                .totalAmount(order.getTotalAmount().getAmountMinor())
+	                .discountAmount(order.getDiscountAmount().getAmountMinor())
+	                .shippingAmount(order.getShippingAmount().getAmountMinor())
+	                .taxAmount(order.getTaxAmount().getAmountMinor())
+	                .payAmount(order.getPayAmount().getAmountMinor())
+	                .currency(order.getCurrency())
+	                .payChannel(order.getPayChannel() == null ? PayChannel.NONE.name() : order.getPayChannel().name())
+	                .payStatus(order.getPayStatus() == null ? PayStatus.NONE.name() : order.getPayStatus().name())
+	                .paymentExternalId(order.getPaymentExternalId())
                 .payTime(order.getPayTime())
                 .addressSnapshot(toJsonOrNull(order.getAddressSnapshot()))
                 .buyerRemark(order.getBuyerRemark() == null ? null : order.getBuyerRemark().getValue())
@@ -644,13 +647,13 @@ public class OrderRepository implements IOrderRepository {
                 .skuId(item.getSkuId())
                 .discountCodeId(item.getDiscountCodeId())
                 .title(item.getTitle())
-                .skuAttrs(toJsonOrNull(item.getSkuAttrs()))
-                .coverImageUrl(item.getCoverImageUrl())
-                .unitPrice(item.getUnitPrice().getAmount())
-                .quantity(item.getQuantity())
-                .subtotalAmount(item.getSubtotalAmount().getAmount())
-                .build();
-    }
+	                .skuAttrs(toJsonOrNull(item.getSkuAttrs()))
+	                .coverImageUrl(item.getCoverImageUrl())
+	                .unitPrice(item.getUnitPrice().getAmountMinor())
+	                .quantity(item.getQuantity())
+	                .subtotalAmount(item.getSubtotalAmount().getAmountMinor())
+	                .build();
+	    }
 
     /**
      * OrderItemPO → OrderItem 实体
@@ -665,16 +668,16 @@ public class OrderRepository implements IOrderRepository {
                 po.getOrderId(),
                 po.getProductId(),
                 po.getSkuId(),
-                po.getDiscountCodeId(),
-                po.getTitle(),
-                parseMap(po.getSkuAttrs()),
-                po.getCoverImageUrl(),
-                Money.of(currency, nullToZero(po.getUnitPrice())),
-                po.getQuantity() == null ? 0 : po.getQuantity(),
-                Money.of(currency, nullToZero(po.getSubtotalAmount())),
-                po.getCreatedAt()
-        );
-    }
+	                po.getDiscountCodeId(),
+	                po.getTitle(),
+	                parseMap(po.getSkuAttrs()),
+	                po.getCoverImageUrl(),
+	                Money.ofMinor(currency, nullToZero(po.getUnitPrice())),
+	                po.getQuantity() == null ? 0 : po.getQuantity(),
+	                Money.ofMinor(currency, nullToZero(po.getSubtotalAmount())),
+	                po.getCreatedAt()
+	        );
+	    }
 
     /**
      * 写入状态流转日志
@@ -774,16 +777,16 @@ public class OrderRepository implements IOrderRepository {
                 orderItemId = skuIdToOrderItemId.get(applied.skuId());
                 requireNotNull(orderItemId, "明细级折扣找不到对应 order_item");
             }
-            OrderDiscountAppliedPO po = OrderDiscountAppliedPO.builder()
-                    .orderId(orderId)
-                    .orderItemId(orderItemId)
-                    .discountCodeId(applied.discountCodeId())
-                    .appliedScope(applied.appliedScope().name())
-                    .appliedAmount(new BigDecimal(applied.appliedAmount()))
-                    .build();
-            orderDiscountAppliedMapper.insert(po);
-        }
-    }
+	            OrderDiscountAppliedPO po = OrderDiscountAppliedPO.builder()
+	                    .orderId(orderId)
+	                    .orderItemId(orderItemId)
+	                    .discountCodeId(applied.discountCodeId())
+	                    .appliedScope(applied.appliedScope().name())
+	                    .appliedAmount(applied.appliedAmountMinor())
+	                    .build();
+	            orderDiscountAppliedMapper.insert(po);
+	        }
+	    }
 
     /**
      * 解析 address_snapshot JSON
@@ -795,7 +798,7 @@ public class OrderRepository implements IOrderRepository {
         if (json == null || json.isBlank())
             return null;
         try {
-            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
+            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {
             });
             return AddressSnapshot.of(
                     asString(map.get("receiverName")),
@@ -823,7 +826,7 @@ public class OrderRepository implements IOrderRepository {
         if (json == null || json.isBlank())
             return null;
         try {
-            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
+            return objectMapper.readValue(json, new TypeReference<>() {
             });
         } catch (Exception ignore) {
             return null;
@@ -847,23 +850,10 @@ public class OrderRepository implements IOrderRepository {
     }
 
     /**
-     * BigDecimal null → 0
-     *
-     * @param v 原值
-     * @return 非空值
+     * Long null → 0
      */
-    private static BigDecimal nullToZero(@Nullable BigDecimal v) {
-        return v == null ? BigDecimal.ZERO : v;
-    }
-
-    /**
-     * BigDecimal → 金额字符串
-     *
-     * @param v 金额
-     * @return 字符串
-     */
-    private static String toAmountString(@Nullable BigDecimal v) {
-        return v == null ? "0" : v.toPlainString();
+    private static long nullToZero(@Nullable Long v) {
+        return v == null ? 0L : v;
     }
 
     /**

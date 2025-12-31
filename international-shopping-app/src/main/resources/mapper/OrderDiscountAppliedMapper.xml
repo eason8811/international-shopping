@@ -10,6 +10,7 @@
         <result column="order_item_id" property="orderItemId"/>
         <result column="discount_code_id" property="discountCodeId"/>
         <result column="applied_scope" property="appliedScope"/>
+        <result column="currency" property="currency"/>
         <result column="applied_amount" property="appliedAmount"/>
         <result column="created_at" property="createdAt"/>
     </resultMap>
@@ -22,6 +23,7 @@
             oda.order_item_id,
             oda.discount_code_id,
             oda.applied_scope,
+            o.currency,
             oda.applied_amount,
             oda.created_at
         FROM order_discount_applied oda
@@ -71,4 +73,3 @@
     </select>
 
 </mapper>
-

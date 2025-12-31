@@ -19,7 +19,9 @@ import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.AddressSnapshot;
 import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IOrderService;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
@@ -50,6 +52,10 @@ public class OrderController {
      * 用户侧订单领域服务
      */
     private final IOrderService orderService;
+    /**
+     * 货币配置服务
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 下单试算 (价格/库存/折扣/运费)
@@ -77,7 +83,8 @@ public class OrderController {
                 req.getBuyerRemark(),
                 req.getLocale()
         );
-        return ResponseEntity.ok(Result.ok(toRespond(preview)));
+        CurrencyConfig currencyConfig = currencyConfigService.get(preview.currency());
+        return ResponseEntity.ok(Result.ok(toRespond(preview, currencyConfig)));
     }
 
     /**
@@ -108,10 +115,10 @@ public class OrderController {
                 .orderNo(row.orderNo())
                 .status(row.status())
                 .itemsCount(row.itemsCount())
-                .totalAmount(row.totalAmount())
-                .discountAmount(row.discountAmount())
-                .shippingAmount(row.shippingAmount())
-                .payAmount(row.payAmount())
+                .totalAmount(currencyConfigService.get(row.currency()).toMajor(row.totalAmountMinor()).toPlainString())
+                .discountAmount(currencyConfigService.get(row.currency()).toMajor(row.discountAmountMinor()).toPlainString())
+                .shippingAmount(currencyConfigService.get(row.currency()).toMajor(row.shippingAmountMinor()).toPlainString())
+                .payAmount(currencyConfigService.get(row.currency()).toMajor(row.payAmountMinor()).toPlainString())
                 .currency(row.currency())
                 .payChannel(row.payChannel())
                 .payStatus(row.payStatus())
@@ -155,8 +162,9 @@ public class OrderController {
                 req.getBuyerRemark(),
                 req.getLocale()
         );
+        CurrencyConfig currencyConfig = currencyConfigService.get(created.getCurrency());
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
-                .body(Result.created(toRespond(created)));
+                .body(Result.created(toRespond(created, currencyConfig)));
     }
 
     /**
@@ -169,7 +177,7 @@ public class OrderController {
     public ResponseEntity<Result<OrderDetailRespond>> detail(@PathVariable("order_no") String orderNo) {
         Long userId = requireCurrentUserId();
         Optional<Order> order = orderService.getMyOrder(userId, OrderNo.of(orderNo));
-        return order.map(value -> ResponseEntity.ok(Result.ok(toRespond(value))))
+        return order.map(value -> ResponseEntity.ok(Result.ok(toRespond(value, currencyConfigService.get(value.getCurrency())))))
                 .orElseGet(() -> ResponseEntity
                         .status(ApiCode.NOT_FOUND.toHttpStatus())
                         .body(Result.error(ApiCode.NOT_FOUND, "订单不存在"))
@@ -189,7 +197,7 @@ public class OrderController {
         req.validate();
         Long userId = requireCurrentUserId();
         Order cancelled = orderService.cancel(userId, OrderNo.of(orderNo), req.getReason());
-        return ResponseEntity.ok(Result.ok(toRespond(cancelled)));
+        return ResponseEntity.ok(Result.ok(toRespond(cancelled, currencyConfigService.get(cancelled.getCurrency()))));
     }
 
     /**
@@ -205,7 +213,7 @@ public class OrderController {
         req.validate();
         Long userId = requireCurrentUserId();
         Order updated = orderService.changeAddress(userId, OrderNo.of(orderNo), req.getAddressId(), req.getNote());
-        return ResponseEntity.ok(Result.ok(toRespond(updated)));
+        return ResponseEntity.ok(Result.ok(toRespond(updated, currencyConfigService.get(updated.getCurrency()))));
     }
 
     /**
@@ -227,8 +235,9 @@ public class OrderController {
                 req.getReasonText(),
                 req.getAttachments()
         );
+        CurrencyConfig currencyConfig = currencyConfigService.get(updated.getCurrency());
         return ResponseEntity.status(ApiCode.ACCEPTED.toHttpStatus())
-                .body(Result.of(true, ApiCode.ACCEPTED, "已接受", toRespond(updated), null));
+                .body(Result.of(true, ApiCode.ACCEPTED, "已接受", toRespond(updated, currencyConfig), null));
     }
 
     /**
@@ -237,17 +246,17 @@ public class OrderController {
      * @param preview 预览结果
      * @return 响应
      */
-    private static OrderPreviewRespond toRespond(IOrderService.PreviewComputation preview) {
+    private static OrderPreviewRespond toRespond(IOrderService.PreviewComputation preview, CurrencyConfig currencyConfig) {
         List<OrderItemRespond> items = preview.items()
                 .stream()
-                .map(OrderController::toRespond)
+                .map(it -> toRespond(it, currencyConfig))
                 .toList();
         List<DiscountAppliedViewRespond> breakdown = preview.discountApplied().stream()
                 .map(row -> DiscountAppliedViewRespond.builder()
                         .discountCodeId(row.discountCodeId())
                         .orderItemId(null)
                         .appliedScope(row.appliedScope())
-                        .appliedAmount(row.appliedAmount())
+                        .appliedAmount(currencyConfig.toMajor(row.appliedAmountMinor()).toPlainString())
                         .createdAt(null)
                         .build())
                 .toList();
@@ -259,10 +268,10 @@ public class OrderController {
                                 .mapToInt(Integer::intValue)
                                 .sum()
                 )
-                .totalAmount(preview.totalAmount().getAmount().toPlainString())
-                .discountAmount(preview.discountAmount().getAmount().toPlainString())
-                .shippingAmount(preview.shippingAmount().getAmount().toPlainString())
-                .payAmount(preview.payAmount().getAmount().toPlainString())
+                .totalAmount(preview.totalAmount().toMajorString(currencyConfig))
+                .discountAmount(preview.discountAmount().toMajorString(currencyConfig))
+                .shippingAmount(preview.shippingAmount().toMajorString(currencyConfig))
+                .payAmount(preview.payAmount().toMajorString(currencyConfig))
                 .currency(preview.currency())
                 .discountBreakdown(breakdown)
                 .build();
@@ -274,15 +283,15 @@ public class OrderController {
      * @param order 订单聚合
      * @return 响应
      */
-    private static OrderDetailRespond toRespond(Order order) {
+    private static OrderDetailRespond toRespond(Order order, CurrencyConfig currencyConfig) {
         return OrderDetailRespond.builder()
                 .orderNo(order.getOrderNo().getValue())
                 .status(order.getStatus())
                 .itemsCount(order.getItemsCount())
-                .totalAmount(order.getTotalAmount() == null ? null : order.getTotalAmount().getAmount().toPlainString())
-                .discountAmount(order.getDiscountAmount() == null ? null : order.getDiscountAmount().getAmount().toPlainString())
-                .shippingAmount(order.getShippingAmount() == null ? null : order.getShippingAmount().getAmount().toPlainString())
-                .payAmount(order.getPayAmount() == null ? null : order.getPayAmount().getAmount().toPlainString())
+                .totalAmount(order.getTotalAmount() == null ? null : order.getTotalAmount().toMajorString(currencyConfig))
+                .discountAmount(order.getDiscountAmount() == null ? null : order.getDiscountAmount().toMajorString(currencyConfig))
+                .shippingAmount(order.getShippingAmount() == null ? null : order.getShippingAmount().toMajorString(currencyConfig))
+                .payAmount(order.getPayAmount() == null ? null : order.getPayAmount().toMajorString(currencyConfig))
                 .currency(order.getCurrency())
                 .payChannel(order.getPayChannel())
                 .payStatus(order.getPayStatus())
@@ -293,7 +302,7 @@ public class OrderController {
                 .cancelReason(order.getCancelReason() == null ? null : order.getCancelReason().getValue())
                 .cancelTime(order.getCancelTime())
                 .createdAt(order.getCreatedAt())
-                .items(order.getItems().stream().map(OrderController::toRespond).toList())
+                .items(order.getItems().stream().map(it -> toRespond(it, currencyConfig)).toList())
                 .addressChanged(order.isAddressChanged())
                 .build();
     }
@@ -326,7 +335,7 @@ public class OrderController {
      * @param item 明细实体
      * @return 响应
      */
-    private static OrderItemRespond toRespond(OrderItem item) {
+    private static OrderItemRespond toRespond(OrderItem item, CurrencyConfig currencyConfig) {
         return OrderItemRespond.builder()
                 .id(item.getId())
                 .productId(item.getProductId())
@@ -335,9 +344,9 @@ public class OrderController {
                 .title(item.getTitle())
                 .skuAttrs(item.getSkuAttrs())
                 .coverImageUrl(item.getCoverImageUrl())
-                .unitPrice(item.getUnitPrice() == null ? null : item.getUnitPrice().getAmount().toPlainString())
+                .unitPrice(item.getUnitPrice() == null ? null : item.getUnitPrice().toMajorString(currencyConfig))
                 .quantity(item.getQuantity())
-                .subtotalAmount(item.getSubtotalAmount() == null ? null : item.getSubtotalAmount().getAmount().toPlainString())
+                .subtotalAmount(item.getSubtotalAmount() == null ? null : item.getSubtotalAmount().toMajorString(currencyConfig))
                 .build();
     }
 

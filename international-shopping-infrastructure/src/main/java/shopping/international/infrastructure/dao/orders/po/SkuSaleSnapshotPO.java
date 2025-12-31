@@ -2,8 +2,6 @@ package shopping.international.infrastructure.dao.orders.po;
 
 import lombok.*;
 
-import java.math.BigDecimal;
-
 /**
  * SKU 可售快照 PO
  *
@@ -37,10 +35,9 @@ public class SkuSaleSnapshotPO {
     /**
      * 单价
      */
-    private BigDecimal unitPrice;
+    private Long unitPrice;
     /**
      * 当前库存
      */
     private Integer stock;
 }
-

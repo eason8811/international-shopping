@@ -42,15 +42,15 @@ public class OrderStatsRepository implements IOrderStatsRepository {
                 currency
         );
         if (po == null)
-            return new IAdminStatsService.OrderStatsOverviewView(0L, 0L, 0L, "0", "0", "0", "0", currency);
+            return new IAdminStatsService.OrderStatsOverviewView(0L, 0L, 0L, 0L, 0L, 0L, 0L, currency);
         return new IAdminStatsService.OrderStatsOverviewView(
                 po.getOrdersCount() == null ? 0L : po.getOrdersCount(),
                 po.getPaidOrdersCount() == null ? 0L : po.getPaidOrdersCount(),
                 po.getItemsCount() == null ? 0L : po.getItemsCount(),
-                po.getTotalAmount() == null ? "0" : po.getTotalAmount().toPlainString(),
-                po.getDiscountAmount() == null ? "0" : po.getDiscountAmount().toPlainString(),
-                po.getShippingAmount() == null ? "0" : po.getShippingAmount().toPlainString(),
-                po.getPayAmount() == null ? "0" : po.getPayAmount().toPlainString(),
+                po.getTotalAmount(),
+                po.getDiscountAmount(),
+                po.getShippingAmount(),
+                po.getPayAmount(),
                 currency
         );
     }
@@ -81,10 +81,10 @@ public class OrderStatsRepository implements IOrderStatsRepository {
                 po.getDimensionKey(),
                 po.getOrdersCount() == null ? 0L : po.getOrdersCount(),
                 po.getItemsCount() == null ? 0L : po.getItemsCount(),
-                po.getTotalAmount() == null ? "0" : po.getTotalAmount().toPlainString(),
-                po.getDiscountAmount() == null ? "0" : po.getDiscountAmount().toPlainString(),
-                po.getShippingAmount() == null ? "0" : po.getShippingAmount().toPlainString(),
-                po.getPayAmount() == null ? "0" : po.getPayAmount().toPlainString(),
+                po.getTotalAmount(),
+                po.getDiscountAmount(),
+                po.getShippingAmount(),
+                po.getPayAmount(),
                 currency
         )).toList();
     }

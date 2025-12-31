@@ -35,7 +35,8 @@ public interface IAdminDiscountService {
      * @param orderItemId    订单明细 ID (可为空)
      * @param discountCodeId 折扣码 ID
      * @param appliedScope   应用范围
-     * @param appliedAmount  实际抵扣金额 (金额字符串)
+     * @param currency       订单币种 (可为空)
+     * @param appliedAmountMinor  实际抵扣金额 (最小货币单位)
      * @param createdAt      发生时间
      */
     record OrderDiscountAppliedView(Long id,
@@ -44,7 +45,8 @@ public interface IAdminDiscountService {
                                     @Nullable Long orderItemId,
                                     Long discountCodeId,
                                     DiscountApplyScope appliedScope,
-                                    String appliedAmount,
+                                    @Nullable String currency,
+                                    Long appliedAmountMinor,
                                     LocalDateTime createdAt) {
     }
 

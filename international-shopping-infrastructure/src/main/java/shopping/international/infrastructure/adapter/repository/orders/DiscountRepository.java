@@ -346,7 +346,8 @@ public class DiscountRepository implements IDiscountRepository {
                 po.getOrderItemId(),
                 po.getDiscountCodeId(),
                 DiscountApplyScope.valueOf(po.getAppliedScope()),
-                po.getAppliedAmount() == null ? "0" : po.getAppliedAmount().toPlainString(),
+                po.getCurrency(),
+                po.getAppliedAmount(),
                 po.getCreatedAt()
         )).toList();
     }

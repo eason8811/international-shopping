@@ -2,7 +2,6 @@ package shopping.international.infrastructure.dao.orders.po;
 
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -40,12 +39,15 @@ public class OrderDiscountAppliedViewPO {
      */
     private String appliedScope;
     /**
+     * 订单币种
+     */
+    private String currency;
+    /**
      * 抵扣金额
      */
-    private BigDecimal appliedAmount;
+    private Long appliedAmount;
     /**
      * 创建时间
      */
     private LocalDateTime createdAt;
 }
-

@@ -21,19 +21,19 @@ public interface IAdminStatsService {
      * @param ordersCount     订单数
      * @param paidOrdersCount 已支付订单数
      * @param itemsCount      商品件数合计
-     * @param totalAmount     商品总额合计 (金额字符串)
-     * @param discountAmount  折扣金额合计 (金额字符串)
-     * @param shippingAmount  运费合计 (金额字符串)
-     * @param payAmount       应付金额合计 (金额字符串)
+     * @param totalAmountMinor     商品总额合计 (最小货币单位)
+     * @param discountAmountMinor  折扣金额合计 (最小货币单位)
+     * @param shippingAmountMinor  运费合计 (最小货币单位)
+     * @param payAmountMinor       应付金额合计 (最小货币单位)
      * @param currency        币种 (可为空, 若多币种混算)
      */
     record OrderStatsOverviewView(Long ordersCount,
                                   Long paidOrdersCount,
                                   Long itemsCount,
-                                  String totalAmount,
-                                  String discountAmount,
-                                  String shippingAmount,
-                                  String payAmount,
+                                  @Nullable Long totalAmountMinor,
+                                  @Nullable Long discountAmountMinor,
+                                  @Nullable Long shippingAmountMinor,
+                                  @Nullable Long payAmountMinor,
                                   @Nullable String currency) {
     }
 
@@ -44,20 +44,20 @@ public interface IAdminStatsService {
      * @param dimensionKey   维度键 (如 productId / skuId / userId / discountCodeId / policyId)
      * @param ordersCount    订单数
      * @param itemsCount     商品件数合计
-     * @param totalAmount    商品总额合计 (金额字符串)
-     * @param discountAmount 折扣金额合计 (金额字符串)
-     * @param shippingAmount 运费合计 (金额字符串)
-     * @param payAmount      应付金额合计 (金额字符串)
+     * @param totalAmountMinor    商品总额合计 (最小货币单位)
+     * @param discountAmountMinor 折扣金额合计 (最小货币单位)
+     * @param shippingAmountMinor 运费合计 (最小货币单位)
+     * @param payAmountMinor      应付金额合计 (最小货币单位)
      * @param currency       币种 (可为空)
      */
     record OrderStatsRowView(@NotNull OrderStatsDimension dimension,
                              String dimensionKey,
                              Long ordersCount,
                              Long itemsCount,
-                             String totalAmount,
-                             String discountAmount,
-                             String shippingAmount,
-                             String payAmount,
+                             @Nullable Long totalAmountMinor,
+                             @Nullable Long discountAmountMinor,
+                             @Nullable Long shippingAmountMinor,
+                             @Nullable Long payAmountMinor,
                              @Nullable String currency) {
     }
 

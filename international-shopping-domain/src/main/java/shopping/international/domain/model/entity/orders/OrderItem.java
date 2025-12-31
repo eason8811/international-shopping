@@ -149,7 +149,6 @@ public class OrderItem implements Verifiable {
         requireNotNull(subtotalAmount, "小计不能为空");
         unitPrice.ensureSameCurrency(subtotalAmount);
         Money expected = unitPrice.multiply(quantity);
-        require(expected.getAmount().compareTo(subtotalAmount.getAmount()) == 0, "订单明细小计不一致");
+        require(expected.getAmountMinor() == subtotalAmount.getAmountMinor(), "订单明细小计不一致");
     }
 }
-

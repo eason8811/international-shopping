@@ -33,20 +33,20 @@ public interface IOrderService {
      *
      * <p>该类型是订单域在下单阶段对商品域数据的读取投影, 用于组装订单项快照</p>
      *
-     * @param skuId         SKU ID
-     * @param productId     商品 ID
-     * @param title         商品标题 (按 locale 覆盖后)
-     * @param coverImageUrl 商品封面图 URL
-     * @param skuAttrs      SKU 属性快照 (可为空)
-     * @param unitPrice     单价 (订单币种)
-     * @param stock         当前库存
+     * @param skuId          SKU ID
+     * @param productId      商品 ID
+     * @param title          商品标题 (按 locale 覆盖后)
+     * @param coverImageUrl  商品封面图 URL
+     * @param skuAttrs       SKU 属性快照 (可为空)
+     * @param unitPriceMinor 单价 (订单币种最小单位)
+     * @param stock          当前库存
      */
     record SkuSaleSnapshot(Long skuId,
                            Long productId,
                            String title,
                            String coverImageUrl,
                            @Nullable Map<String, Object> skuAttrs,
-                           java.math.BigDecimal unitPrice,
+                           Long unitPriceMinor,
                            Integer stock) {
     }
 
@@ -73,15 +73,15 @@ public interface IOrderService {
      *
      * <p>用于在订单落库后写入 {@code order_discount_applied}</p>
      *
-     * @param discountCodeId 折扣码 ID
-     * @param appliedScope   应用范围
-     * @param skuId          明细级折扣关联的 SKU ID (订单级折扣为 null)
-     * @param appliedAmount  实际抵扣金额 (金额字符串)
+     * @param discountCodeId     折扣码 ID
+     * @param appliedScope       应用范围
+     * @param skuId              明细级折扣关联的 SKU ID (订单级折扣为 null)
+     * @param appliedAmountMinor 实际抵扣金额 (最小货币单位)
      */
     record OrderDiscountApplied(Long discountCodeId,
                                 @NotNull DiscountApplyScope appliedScope,
                                 @Nullable Long skuId,
-                                @NotNull String appliedAmount) {
+                                long appliedAmountMinor) {
     }
 
     /**
@@ -174,26 +174,28 @@ public interface IOrderService {
     /**
      * 用户侧订单摘要行
      *
-     * @param orderNo        订单号
-     * @param status         订单状态
-     * @param itemsCount     商品件数
-     * @param totalAmount    商品总额 (金额字符串)
-     * @param discountAmount 折扣金额 (金额字符串)
-     * @param shippingAmount 运费 (金额字符串)
-     * @param payAmount      应付金额 (金额字符串)
-     * @param currency       币种
-     * @param payChannel     支付渠道
-     * @param payStatus      支付状态
-     * @param payTime        支付时间 (可为空)
-     * @param createdAt      创建时间
+     * @param orderNo             订单号
+     * @param status              订单状态
+     * @param itemsCount          商品件数
+     * @param totalAmountMinor    商品总额 (最小货币单位)
+     * @param discountAmountMinor 折扣金额 (最小货币单位)
+     * @param shippingAmountMinor 运费 (最小货币单位)
+     * @param taxAmountMinor      税费 (最小货币单位)
+     * @param payAmountMinor      应付金额 (最小货币单位)
+     * @param currency            币种
+     * @param payChannel          支付渠道
+     * @param payStatus           支付状态
+     * @param payTime             支付时间 (可为空)
+     * @param createdAt           创建时间
      */
     record OrderSummaryRow(String orderNo,
                            OrderStatus status,
                            Integer itemsCount,
-                           String totalAmount,
-                           String discountAmount,
-                           String shippingAmount,
-                           String payAmount,
+                           long totalAmountMinor,
+                           long discountAmountMinor,
+                           long shippingAmountMinor,
+                           long taxAmountMinor,
+                           long payAmountMinor,
                            String currency,
                            PayChannel payChannel,
                            PayStatus payStatus,

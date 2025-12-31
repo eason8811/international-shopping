@@ -3,7 +3,6 @@ package shopping.international.infrastructure.dao.orders.po;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -63,7 +62,7 @@ public class OrderItemPO {
      * 单价快照
      */
     @TableField("unit_price")
-    private BigDecimal unitPrice;
+    private Long unitPrice;
     /**
      * 数量
      */
@@ -73,11 +72,10 @@ public class OrderItemPO {
      * 小计金额
      */
     @TableField("subtotal_amount")
-    private BigDecimal subtotalAmount;
+    private Long subtotalAmount;
     /**
      * 创建时间
      */
     @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;
 }
-

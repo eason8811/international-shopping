@@ -7,8 +7,6 @@ import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import shopping.international.types.utils.Verifiable;
 
-import java.math.BigDecimal;
-
 import static shopping.international.types.utils.FieldValidateUtils.require;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
@@ -38,7 +36,12 @@ public final class OrderAmountBreakdown implements Verifiable {
     @NotNull
     private Money shippingAmount;
     /**
-     * 应付金额 (= total - discount + shipping)
+     * 税费
+     */
+    @NotNull
+    private Money taxAmount;
+    /**
+     * 应付金额 (= total - discount + shipping + tax)
      */
     @NotNull
     private Money payAmount;
@@ -49,19 +52,26 @@ public final class OrderAmountBreakdown implements Verifiable {
      * @param totalAmount    商品总额
      * @param discountAmount 折扣总额
      * @param shippingAmount 运费
+     * @param taxAmount      税费
      * @return 金额口径对象
      */
-    public static OrderAmountBreakdown of(@NotNull Money totalAmount, @NotNull Money discountAmount, @NotNull Money shippingAmount) {
+    public static OrderAmountBreakdown of(@NotNull Money totalAmount,
+                                          @NotNull Money discountAmount,
+                                          @NotNull Money shippingAmount,
+                                          @NotNull Money taxAmount) {
         requireNotNull(totalAmount, "totalAmount 不能为空");
         requireNotNull(discountAmount, "discountAmount 不能为空");
         requireNotNull(shippingAmount, "shippingAmount 不能为空");
+        requireNotNull(taxAmount, "taxAmount 不能为空");
         totalAmount.ensureSameCurrency(discountAmount);
         totalAmount.ensureSameCurrency(shippingAmount);
-        Money pay = totalAmount.subtract(discountAmount).add(shippingAmount);
+        totalAmount.ensureSameCurrency(taxAmount);
+        Money pay = totalAmount.subtract(discountAmount).add(shippingAmount).add(taxAmount);
         return OrderAmountBreakdown.builder()
                 .totalAmount(totalAmount)
                 .discountAmount(discountAmount)
                 .shippingAmount(shippingAmount)
+                .taxAmount(taxAmount)
                 .payAmount(pay)
                 .build();
     }
@@ -81,13 +91,15 @@ public final class OrderAmountBreakdown implements Verifiable {
         requireNotNull(totalAmount, "totalAmount 不能为空");
         requireNotNull(discountAmount, "discountAmount 不能为空");
         requireNotNull(shippingAmount, "shippingAmount 不能为空");
+        requireNotNull(taxAmount, "taxAmount 不能为空");
         requireNotNull(payAmount, "payAmount 不能为空");
         totalAmount.ensureSameCurrency(discountAmount);
         totalAmount.ensureSameCurrency(shippingAmount);
+        totalAmount.ensureSameCurrency(taxAmount);
         totalAmount.ensureSameCurrency(payAmount);
-        require(discountAmount.getAmount().compareTo(totalAmount.getAmount()) <= 0, "折扣金额不能大于总额");
-        require(payAmount.getAmount().compareTo(BigDecimal.ZERO) >= 0, "应付金额不能为负数");
-        Money expected = totalAmount.subtract(discountAmount).add(shippingAmount);
-        require(expected.getAmount().compareTo(payAmount.getAmount()) == 0, "金额口径不一致");
+        require(discountAmount.getAmountMinor() <= totalAmount.getAmountMinor(), "折扣金额不能大于总额");
+        require(payAmount.getAmountMinor() >= 0, "应付金额不能为负数");
+        Money expected = totalAmount.subtract(discountAmount).add(shippingAmount).add(taxAmount);
+        require(expected.getAmountMinor() == payAmount.getAmountMinor(), "金额口径不一致");
     }
 }
