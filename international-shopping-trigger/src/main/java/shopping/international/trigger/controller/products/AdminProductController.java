@@ -23,8 +23,10 @@ import shopping.international.domain.model.vo.products.ProductI18n;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.products.IProductService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 
 import java.util.*;
@@ -46,6 +48,10 @@ public class AdminProductController {
      * 商品领域服务
      */
     private final IProductService productService;
+    /**
+     * 货币配置服务（用于最小货币单位换算）
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 分页查询商品
@@ -359,10 +365,11 @@ public class AdminProductController {
      * @return 响应体
      */
     private ProductSkuRespond.ProductPriceRespond toPriceRespond(@NotNull ProductPrice price) {
+        CurrencyConfig currencyConfig = currencyConfigService.get(price.getCurrency());
         return ProductSkuRespond.ProductPriceRespond.builder()
                 .currency(price.getCurrency())
-                .listPrice(price.getListPrice())
-                .salePrice(price.getSalePrice())
+                .listPrice(currencyConfig.toMajor(price.getListPrice()))
+                .salePrice(currencyConfig.toMajorNullable(price.getSalePrice()))
                 .isActive(price.isActive())
                 .build();
     }

@@ -347,7 +347,9 @@ public class SkuRepository implements ISkuRepository {
             return Collections.emptyList();
         return pos.stream()
                 .filter(Objects::nonNull)
-                .map(po -> ProductPrice.of(po.getCurrency(), po.getListPrice(), po.getSalePrice(),
+                .map(po -> ProductPrice.of(po.getCurrency(),
+                        po.getListPrice() == null ? 0L : po.getListPrice(),
+                        po.getSalePrice(),
                         Boolean.TRUE.equals(po.getIsActive())))
                 .toList();
     }

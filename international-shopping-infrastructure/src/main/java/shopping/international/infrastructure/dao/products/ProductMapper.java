@@ -4,11 +4,9 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.jetbrains.annotations.Nullable;
-import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.infrastructure.dao.products.po.ProductPO;
 import shopping.international.infrastructure.dao.products.po.PublicProductSnapshotPO;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -87,8 +85,8 @@ public interface ProductMapper extends BaseMapper<ProductPO> {
                                                    @Param("categorySlug") String categorySlug,
                                                    @Param("keyword") String keyword,
                                                    @Param("tags") List<String> tags,
-                                                   @Param("priceMin") BigDecimal priceMin,
-                                                   @Param("priceMax") BigDecimal priceMax,
+                                                   @Param("priceMin") Long priceMin,
+                                                   @Param("priceMax") Long priceMax,
                                                    @Param("sort") String sort,
                                                    @Param("offset") int offset,
                                                    @Param("limit") int limit);
@@ -110,8 +108,8 @@ public interface ProductMapper extends BaseMapper<ProductPO> {
                          @Param("categorySlug") String categorySlug,
                          @Param("keyword") String keyword,
                          @Param("tags") List<String> tags,
-                         @Param("priceMin") BigDecimal priceMin,
-                         @Param("priceMax") BigDecimal priceMax);
+                         @Param("priceMin") Long priceMin,
+                         @Param("priceMax") Long priceMax);
 
     /**
      * 用户点赞商品分页查询

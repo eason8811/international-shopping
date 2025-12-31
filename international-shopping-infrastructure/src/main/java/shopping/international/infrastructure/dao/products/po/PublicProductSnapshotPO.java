@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -77,21 +76,21 @@ public class PublicProductSnapshotPO {
      */
     private String tags;
     /**
-     * 标价最小值
+     * 标价最小值（最小货币单位）
      */
-    private BigDecimal listPriceMin;
+    private Long listPriceMin;
     /**
-     * 标价最大值
+     * 标价最大值（最小货币单位）
      */
-    private BigDecimal listPriceMax;
+    private Long listPriceMax;
     /**
-     * 促销价最小值
+     * 促销价最小值（最小货币单位）
      */
-    private BigDecimal salePriceMin;
+    private Long salePriceMin;
     /**
-     * 促销价最大值
+     * 促销价最大值（最小货币单位）
      */
-    private BigDecimal salePriceMax;
+    private Long salePriceMax;
     /**
      * 商品图库
      */

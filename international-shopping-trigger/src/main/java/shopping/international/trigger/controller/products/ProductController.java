@@ -18,8 +18,10 @@ import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.products.*;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.products.IProductQueryService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,6 +42,10 @@ public class ProductController {
      * 商品查询领域服务
      */
     private final IProductQueryService productQueryService;
+    /**
+     * 货币配置服务（用于最小货币单位换算）
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 搜索/筛选上架商品列表
@@ -50,20 +56,23 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<Result<List<ProductSpuRespond>>> list(@ModelAttribute ProductPublicListRequest req) {
         req.validate();
+        CurrencyConfig currencyConfig = currencyConfigService.get(req.getCurrency());
+        Long priceMinMinor = currencyConfig.toMinorExactNullable(req.getPriceMin());
+        Long priceMaxMinor = currencyConfig.toMinorExactNullable(req.getPriceMax());
         ProductSearchCriteria criteria = ProductSearchCriteria.builder()
                 .locale(req.getLocale())
                 .currency(req.getCurrency())
                 .categorySlug(req.getCategorySlug())
                 .keyword(req.getQuery())
                 .tags(req.getParsedTags())
-                .priceMin(req.getPriceMin())
-                .priceMax(req.getPriceMax())
+                .priceMin(priceMinMinor)
+                .priceMax(priceMaxMinor)
                 .sort(req.getSortBy())
                 .build();
         PageQuery pageQuery = PageQuery.of(req.getPage(), req.getSize(), 200);
         PageResult<ProductPublicSnapshot> pageResult = productQueryService.pageOnSale(pageQuery, criteria);
         List<ProductSpuRespond> data = pageResult.items().stream()
-                .map(this::toSpuRespond)
+                .map(snapshot -> toSpuRespond(snapshot, currencyConfig))
                 .toList();
         Result.Meta meta = Result.Meta.builder()
                 .page(pageQuery.page())
@@ -211,11 +220,14 @@ public class ProductController {
      * @return 响应
      */
     private ProductSkuRespond toSkuRespond(@NotNull Sku sku, @NotNull Map<Long, String> specNameMap, @NotNull Map<Long, String> valueNameMap) {
+        Map<String, CurrencyConfig> currencyConfigCache = new HashMap<>();
         List<ProductSkuRespond.ProductPriceRespond> prices = sku.getPrices().stream()
                 .map(price -> ProductSkuRespond.ProductPriceRespond.builder()
                         .currency(price.getCurrency())
-                        .listPrice(price.getListPrice())
-                        .salePrice(price.getSalePrice())
+                        .listPrice(currencyConfigCache.computeIfAbsent(price.getCurrency(), currencyConfigService::get)
+                                .toMajor(price.getListPrice()))
+                        .salePrice(currencyConfigCache.computeIfAbsent(price.getCurrency(), currencyConfigService::get)
+                                .toMajorNullable(price.getSalePrice()))
                         .isActive(price.isActive())
                         .build())
                 .toList();
@@ -345,6 +357,11 @@ public class ProductController {
      * @return 列表响应
      */
     private ProductSpuRespond toSpuRespond(@NotNull ProductPublicSnapshot snapshot) {
+        CurrencyConfig currencyConfig = currencyConfigService.get(snapshot.getPriceRange().getCurrency());
+        return toSpuRespond(snapshot, currencyConfig);
+    }
+
+    private ProductSpuRespond toSpuRespond(@NotNull ProductPublicSnapshot snapshot, @NotNull CurrencyConfig currencyConfig) {
         List<ProductImageRespond> gallery = snapshot.getGallery().stream()
                 .map(img -> ProductImageRespond.builder()
                         .url(img.getUrl())
@@ -369,10 +386,10 @@ public class ProductController {
                 .tags(snapshot.getTags())
                 .priceRange(ProductSpuRespond.ProductPriceRangeRespond.builder()
                         .currency(snapshot.getPriceRange().getCurrency())
-                        .listPriceMin(snapshot.getPriceRange().getListPriceMin())
-                        .listPriceMax(snapshot.getPriceRange().getListPriceMax())
-                        .salePriceMin(snapshot.getPriceRange().getSalePriceMin())
-                        .salePriceMax(snapshot.getPriceRange().getSalePriceMax())
+                        .listPriceMin(currencyConfig.toMajorNullable(snapshot.getPriceRange().getListPriceMin()))
+                        .listPriceMax(currencyConfig.toMajorNullable(snapshot.getPriceRange().getListPriceMax()))
+                        .salePriceMin(currencyConfig.toMajorNullable(snapshot.getPriceRange().getSalePriceMin()))
+                        .salePriceMax(currencyConfig.toMajorNullable(snapshot.getPriceRange().getSalePriceMax()))
                         .build())
                 .gallery(gallery)
                 .likedAt(snapshot.getLikedAt())

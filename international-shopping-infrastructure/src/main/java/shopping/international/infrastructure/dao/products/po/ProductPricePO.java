@@ -9,7 +9,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -42,16 +41,16 @@ public class ProductPricePO {
     private String currency;
 
     /**
-     * 标价
+     * 标价（最小货币单位）
      */
     @TableField("list_price")
-    private BigDecimal listPrice;
+    private Long listPrice;
 
     /**
-     * 促销价, 可为空
+     * 促销价（最小货币单位）, 可为空
      */
     @TableField("sale_price")
-    private BigDecimal salePrice;
+    private Long salePrice;
 
     /**
      * 是否启用该价格

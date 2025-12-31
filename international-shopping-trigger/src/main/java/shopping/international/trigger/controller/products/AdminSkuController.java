@@ -12,11 +12,14 @@ import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.products.ISkuService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +39,10 @@ public class AdminSkuController {
      * SKU 领域服务
      */
     private final ISkuService skuService;
+    /**
+     * 货币配置服务（用于最小货币单位换算）
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 查询商品下所有 SKU
@@ -199,11 +206,14 @@ public class AdminSkuController {
      * @return 响应体
      */
     private ProductSkuRespond toSkuRespond(@NotNull Sku sku) {
+        Map<String, CurrencyConfig> currencyConfigCache = new HashMap<>();
         List<ProductSkuRespond.ProductPriceRespond> prices = sku.getPrices().stream()
                 .map(price -> ProductSkuRespond.ProductPriceRespond.builder()
                         .currency(price.getCurrency())
-                        .listPrice(price.getListPrice())
-                        .salePrice(price.getSalePrice())
+                        .listPrice(currencyConfigCache.computeIfAbsent(price.getCurrency(), currencyConfigService::get)
+                                .toMajor(price.getListPrice()))
+                        .salePrice(currencyConfigCache.computeIfAbsent(price.getCurrency(), currencyConfigService::get)
+                                .toMajorNullable(price.getSalePrice()))
                         .isActive(price.isActive())
                         .build())
                 .toList();
@@ -256,14 +266,17 @@ public class AdminSkuController {
                     else
                         req.updateValidate();
                 })
-                .map(req ->
-                        ProductPrice.of(
-                                req.getCurrency(),
-                                req.getListPrice(),
-                                req.getSalePrice(),
-                                req.getIsActive() == null || req.getIsActive()
-                        )
-                )
+                .map(req -> {
+                    CurrencyConfig currencyConfig = currencyConfigService.get(req.getCurrency());
+                    long listPriceMinor = currencyConfig.toMinorExact(req.getListPrice());
+                    Long salePriceMinor = currencyConfig.toMinorExactNullable(req.getSalePrice());
+                    return ProductPrice.of(
+                            req.getCurrency(),
+                            listPriceMinor,
+                            salePriceMinor,
+                            req.getIsActive() == null || req.getIsActive()
+                    );
+                })
                 .toList();
     }
 

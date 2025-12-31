@@ -9,7 +9,6 @@ import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.products.ProductSort;
 import shopping.international.types.utils.Verifiable;
 
-import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 
@@ -51,15 +50,15 @@ public class ProductSearchCriteria implements Verifiable {
     @NotNull
     private List<String> tags = Collections.emptyList();
     /**
-     * 价格下限, 可空
+     * 价格下限（最小货币单位）, 可空
      */
     @Nullable
-    private BigDecimal priceMin;
+    private Long priceMin;
     /**
-     * 价格上限, 可空
+     * 价格上限（最小货币单位）, 可空
      */
     @Nullable
-    private BigDecimal priceMax;
+    private Long priceMax;
     /**
      * 排序方式
      */

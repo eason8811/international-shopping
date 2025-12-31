@@ -3,9 +3,8 @@ package shopping.international.domain.model.vo.products;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import org.jetbrains.annotations.Nullable;
 import shopping.international.types.utils.Verifiable;
-
-import java.math.BigDecimal;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -21,13 +20,14 @@ public class ProductPrice implements Verifiable {
      */
     private final String currency;
     /**
-     * 标价
+     * 标价（最小货币单位）
      */
-    private final BigDecimal listPrice;
+    private final long listPrice;
     /**
-     * 促销价, 可空
+     * 促销价（最小货币单位）, 可空
      */
-    private final BigDecimal salePrice;
+    @Nullable
+    private final Long salePrice;
     /**
      * 是否可售用价
      */
@@ -36,12 +36,12 @@ public class ProductPrice implements Verifiable {
     /**
      * 构造函数
      *
-     * @param currency 货币
+     * @param currency  货币
      * @param listPrice 标价
      * @param salePrice 促销价
-     * @param active 是否可售
+     * @param active    是否可售
      */
-    private ProductPrice(String currency, BigDecimal listPrice, BigDecimal salePrice, boolean active) {
+    private ProductPrice(String currency, long listPrice, @Nullable Long salePrice, boolean active) {
         this.currency = currency;
         this.listPrice = listPrice;
         this.salePrice = salePrice;
@@ -57,16 +57,22 @@ public class ProductPrice implements Verifiable {
      * @param active    是否可售
      * @return 规范化后的 {@link ProductPrice}
      */
-    public static ProductPrice of(String currency, BigDecimal listPrice, BigDecimal salePrice, boolean active) {
+    public static ProductPrice of(String currency, long listPrice, @Nullable Long salePrice, boolean active) {
         String normalizedCurrency = normalizeCurrency(currency);
         requireNotNull(normalizedCurrency, "currency 不能为空");
-        requireNotNull(listPrice, "标价不能为空");
-        require(listPrice.compareTo(BigDecimal.ZERO) > 0, "标价必须大于 0");
+        require(listPrice > 0, "标价必须大于 0");
         if (salePrice != null) {
-            require(salePrice.compareTo(BigDecimal.ZERO) > 0, "促销价必须大于 0");
-            require(salePrice.compareTo(listPrice) <= 0, "促销价不能高于标价");
+            require(salePrice > 0, "促销价必须大于 0");
+            require(salePrice <= listPrice, "促销价不能高于标价");
         }
         return new ProductPrice(normalizedCurrency, listPrice, salePrice, active);
+    }
+
+    /**
+     * 有效价 (促销价优先)
+     */
+    public long effectivePrice() {
+        return salePrice != null ? salePrice : listPrice;
     }
 
     /**
@@ -75,11 +81,10 @@ public class ProductPrice implements Verifiable {
     @Override
     public void validate() {
         requireNotNull(currency, "currency 不能为空");
-        requireNotNull(listPrice, "标价不能为空");
-        require(listPrice.compareTo(BigDecimal.ZERO) > 0, "标价必须大于 0");
+        require(listPrice > 0, "标价必须大于 0");
         if (salePrice != null) {
-            require(salePrice.compareTo(BigDecimal.ZERO) > 0, "促销价必须大于 0");
-            require(salePrice.compareTo(listPrice) <= 0, "促销价不能高于标价");
+            require(salePrice > 0, "促销价必须大于 0");
+            require(salePrice <= listPrice, "促销价不能高于标价");
         }
         requireNotNull(active, "active 不能为空");
     }

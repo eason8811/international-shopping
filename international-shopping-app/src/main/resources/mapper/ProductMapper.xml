@@ -278,6 +278,10 @@
         <collection property="gallery" resultMap="ProductImageResultMap" columnPrefix="image_"/>
     </resultMap>
 
+    <sql id="EffectivePriceExpr">
+        COALESCE(price.sale_price, price.list_price)
+    </sql>
+
     <!-- 用户侧商品分页查询 -->
     <select id="selectPublicList" resultMap="PublicProductSnapshotMap">
         WITH base AS (
@@ -299,7 +303,7 @@
         MAX(price.list_price)                   AS list_price_max,
         MIN(price.sale_price)                   AS sale_price_min,
         MAX(price.sale_price)                   AS sale_price_max,
-        MIN(COALESCE(price.sale_price, price.list_price)) AS effective_price_min,
+        MIN(<include refid="EffectivePriceExpr"/>) AS effective_price_min,
         p.updated_at
         FROM product p
         LEFT JOIN product_i18n pi ON pi.product_id = p.id AND pi.locale = #{locale}
@@ -329,19 +333,19 @@
             )
         </if>
         GROUP BY p.id
-        <if test="priceMin != null or priceMax != null">
-            having
-                <if test="priceMin != null and priceMax != null">
-                    COALESCE(MIN(price.sale_price), MIN(price.list_price)) <![CDATA[>=]]> #{priceMin}
-                    AND COALESCE(MAX(price.sale_price), MAX(price.list_price)) <![CDATA[<=]]> #{priceMax}
-                </if>
-                <if test="priceMin != null and priceMax == null">
-                    COALESCE(MIN(price.sale_price), MIN(price.list_price)) <![CDATA[>=]]> #{priceMin}
-                </if>
-                <if test="priceMin == null and priceMax != null">
-                    COALESCE(MAX(price.sale_price), MAX(price.list_price)) <![CDATA[<=]]> #{priceMax}
-                </if>
-        </if>
+	        <if test="priceMin != null or priceMax != null">
+	            having
+	                <if test="priceMin != null and priceMax != null">
+	                    MIN(<include refid="EffectivePriceExpr"/>) <![CDATA[>=]]> #{priceMin}
+	                    AND MAX(<include refid="EffectivePriceExpr"/>) <![CDATA[<=]]> #{priceMax}
+	                </if>
+	                <if test="priceMin != null and priceMax == null">
+	                    MIN(<include refid="EffectivePriceExpr"/>) <![CDATA[>=]]> #{priceMin}
+	                </if>
+	                <if test="priceMin == null and priceMax != null">
+	                    MAX(<include refid="EffectivePriceExpr"/>) <![CDATA[<=]]> #{priceMax}
+	                </if>
+	        </if>
         ),
         ordered AS (
         SELECT *
@@ -421,10 +425,10 @@
             )
         </if>
         <if test="priceMin != null">
-            AND COALESCE(price.sale_price, price.list_price) <![CDATA[>=]]> #{priceMin}
+            AND <include refid="EffectivePriceExpr"/> <![CDATA[>=]]> #{priceMin}
         </if>
         <if test="priceMax != null">
-            AND COALESCE(price.sale_price, price.list_price) <![CDATA[<=]]> #{priceMax}
+            AND <include refid="EffectivePriceExpr"/> <![CDATA[<=]]> #{priceMax}
         </if>
     </select>
 
@@ -449,7 +453,7 @@
                              MIN(price.sale_price)                             AS sale_price_min,
                              MAX(price.sale_price)                             AS sale_price_max,
                              MAX(pl.created_at)                                AS liked_at,
-                             MIN(COALESCE(price.sale_price, price.list_price)) AS effective_price_min
+                             MIN(<include refid="EffectivePriceExpr"/>) AS effective_price_min
                       FROM product_like pl
                                JOIN product p ON p.id = pl.product_id
                                LEFT JOIN product_i18n pi ON pi.product_id = p.id AND pi.locale = #{locale}
