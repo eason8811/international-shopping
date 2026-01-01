@@ -57,8 +57,8 @@ public class ProductController {
     public ResponseEntity<Result<List<ProductSpuRespond>>> list(@ModelAttribute ProductPublicListRequest req) {
         req.validate();
         CurrencyConfig currencyConfig = currencyConfigService.get(req.getCurrency());
-        Long priceMinMinor = currencyConfig.toMinorExactNullable(req.getPriceMin());
-        Long priceMaxMinor = currencyConfig.toMinorExactNullable(req.getPriceMax());
+        Long priceMinMinor = currencyConfig.toMinorRoundedNullable(req.getPriceMin());
+        Long priceMaxMinor = currencyConfig.toMinorRoundedNullable(req.getPriceMax());
         ProductSearchCriteria criteria = ProductSearchCriteria.builder()
                 .locale(req.getLocale())
                 .currency(req.getCurrency())

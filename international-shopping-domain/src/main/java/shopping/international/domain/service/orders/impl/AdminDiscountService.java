@@ -74,10 +74,7 @@ public class AdminDiscountService implements IAdminDiscountService {
                 toUpdate.getApplyScope(),
                 toUpdate.getStrategyType(),
                 toUpdate.getPercentOff(),
-                toUpdate.getAmountOff(),
-                toUpdate.getCurrency(),
-                toUpdate.getMinOrderAmount(),
-                toUpdate.getMaxDiscountAmount()
+                toUpdate.getAmounts()
         );
         return discountRepository.updatePolicy(policy);
     }

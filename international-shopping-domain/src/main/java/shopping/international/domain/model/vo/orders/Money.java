@@ -5,15 +5,13 @@ import lombok.Getter;
 import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.currency.CurrencyConfig;
+import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
 import java.util.Objects;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeCurrency;
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 金额值对象 (amount + currency)
@@ -79,7 +77,7 @@ public final class Money implements Comparable<Money> {
     public static Money ofMajor(@NotNull CurrencyConfig currencyConfig, @NotNull java.math.BigDecimal majorAmount) {
         requireNotNull(currencyConfig, "currencyConfig 不能为空");
         requireNotNull(majorAmount, "金额不能为空");
-        long minor = currencyConfig.toMinorExact(majorAmount);
+        long minor = currencyConfig.toMinorRounded(majorAmount);
         return ofMinor(currencyConfig.code(), minor);
     }
 

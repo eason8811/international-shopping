@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.adapter.port.orders.IOrderAddressChangePort;
 import shopping.international.domain.adapter.repository.orders.ICartRepository;
 import shopping.international.domain.adapter.repository.orders.IDiscountRepository;
@@ -15,15 +14,17 @@ import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
 import shopping.international.domain.model.aggregate.orders.Order;
 import shopping.international.domain.model.entity.orders.CartItem;
+import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.entity.orders.OrderItem;
 import shopping.international.domain.model.enums.orders.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.*;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IOrderService;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
-import shopping.international.types.currency.CurrencyConfig;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -418,17 +419,15 @@ public class OrderService implements IOrderService {
         DiscountPolicy policy = discountRepository.findPolicyById(code.getPolicyId())
                 .orElseThrow(() -> new ConflictException("折扣策略不存在"));
 
-        // 1) 币种约束
-        if (policy.getCurrency() != null && !policy.getCurrency().equals(currency))
-            throw new ConflictException("折扣码币种不匹配");
+        DiscountPolicyAmount amountConfig = policy.resolveAmount(currency);
 
         Money orderTotal = Money.zero(currency);
         for (OrderItem item : items)
             orderTotal = orderTotal.add(item.getSubtotalAmount());
 
         // 2) 门槛约束
-        if (policy.getMinOrderAmount() != null) {
-            Money min = Money.ofMinor(currency, policy.getMinOrderAmount());
+        if (amountConfig != null && amountConfig.getMinOrderAmountMinor() != null) {
+            Money min = Money.ofMinor(currency, amountConfig.getMinOrderAmountMinor());
             if (orderTotal.compareTo(min) < 0)
                 throw new ConflictException("未满足折扣门槛");
         }
@@ -462,8 +461,8 @@ public class OrderService implements IOrderService {
             Money base = Money.zero(currency);
             for (OrderItem item : eligible)
                 base = base.add(item.getSubtotalAmount());
-            Money raw = computeRawDiscount(currencyConfig, policy, base);
-            Money capped = capDiscount(currency, policy, raw, base);
+            Money raw = computeRawDiscount(currencyConfig, policy, amountConfig, base);
+            Money capped = capDiscount(currency, amountConfig, raw, base);
             discountAmount = capped;
 
             appliedList.add(new IOrderService.OrderDiscountApplied(code.getId(), DiscountApplyScope.ORDER, null, capped.getAmountMinor()));
@@ -473,14 +472,16 @@ public class OrderService implements IOrderService {
             Money sum = Money.zero(currency);
             for (OrderItem item : eligible) {
                 Money base = item.getSubtotalAmount();
-                Money raw = computeRawDiscount(currencyConfig, policy, base);
-                Money capped = capDiscount(currency, policy, raw, base);
+                Money raw = computeRawDiscount(currencyConfig, policy, amountConfig, base);
+                Money capped = capDiscount(currency, amountConfig, raw, base);
                 lineDiscounts.add(new LineDiscount(item.getSkuId(), capped));
                 sum = sum.add(capped);
             }
 
             // maxDiscountAmount 作为订单级上限再次裁剪
-            Money max = policy.getMaxDiscountAmount() == null ? null : Money.ofMinor(currency, policy.getMaxDiscountAmount());
+            Money max = amountConfig == null || amountConfig.getMaxDiscountAmountMinor() == null
+                    ? null
+                    : Money.ofMinor(currency, amountConfig.getMaxDiscountAmountMinor());
             if (max != null && sum.compareTo(max) > 0) {
                 Money remaining = max;
                 List<LineDiscount> adjusted = new ArrayList<>();
@@ -534,10 +535,11 @@ public class OrderService implements IOrderService {
      *
      * @param currencyConfig 币种配置
      * @param policy         策略
+     * @param amountConfig   币种金额配置 (可能为空, 由策略类型决定)
      * @param base           折扣计算基数
      * @return 原始折扣金额
      */
-    private static Money computeRawDiscount(CurrencyConfig currencyConfig, DiscountPolicy policy, Money base) {
+    private static Money computeRawDiscount(CurrencyConfig currencyConfig, DiscountPolicy policy, DiscountPolicyAmount amountConfig, Money base) {
         if (policy.getStrategyType() == DiscountStrategyType.PERCENT) {
             BigDecimal percent = policy.getPercentOff();
             BigDecimal rawMinor = BigDecimal.valueOf(base.getAmountMinor())
@@ -545,23 +547,24 @@ public class OrderService implements IOrderService {
                     .divide(BigDecimal.valueOf(100), 0, currencyConfig.roundingMode());
             return Money.ofMinor(currencyConfig.code(), rawMinor.longValueExact());
         }
-        Long amountOffMinor = policy.getAmountOff();
-        return Money.ofMinor(currencyConfig.code(), amountOffMinor == null ? 0L : amountOffMinor);
+        if (amountConfig == null || amountConfig.getAmountOffMinor() == null)
+            throw new ConflictException("折扣策略未配置该币种的折扣金额");
+        return Money.ofMinor(currencyConfig.code(), amountConfig.getAmountOffMinor());
     }
 
     /**
      * 对折扣金额进行裁剪 (不超过 base, 不超过 maxDiscountAmount)
      *
      * @param currency 币种
-     * @param policy   策略
+     * @param amountConfig 币种金额配置
      * @param raw      原始折扣金额
      * @param base     基数金额
      * @return 裁剪后的折扣金额
      */
-    private static Money capDiscount(String currency, DiscountPolicy policy, Money raw, Money base) {
+    private static Money capDiscount(String currency, DiscountPolicyAmount amountConfig, Money raw, Money base) {
         Money capped = raw.compareTo(base) > 0 ? base : raw;
-        if (policy.getMaxDiscountAmount() != null) {
-            Money max = Money.ofMinor(currency, policy.getMaxDiscountAmount());
+        if (amountConfig != null && amountConfig.getMaxDiscountAmountMinor() != null) {
+            Money max = Money.ofMinor(currency, amountConfig.getMaxDiscountAmountMinor());
             if (capped.compareTo(max) > 0)
                 capped = max;
         }

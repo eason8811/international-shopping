@@ -7,9 +7,7 @@ import shopping.international.types.exceptions.IllegalParamException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeCurrency;
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 货币配置 (来自 currency 表)
@@ -79,35 +77,32 @@ public record CurrencyConfig(@NotNull String code,
     }
 
     /**
-     * 将给定的主要金额转换为最小货币单位的精确数值表示
+     * 将给定的主要金额转换为最小货币单位 (按该币种配置的舍入规则进行舍入)
      *
-     * <p>此方法基于当前配置的 {@code minorUnit} 值, 将传入的主要金额 ({@link BigDecimal}) 转换为其对应的最小货币单位数量, 并确保结果是一个整数, 如果输入金额的小数位数超过 {@code minorUnit} 所允许的范围, 或者金额为负数, 则会抛出异常</p>
+     * <p>当输入金额的小数位数超过 {@code minorUnit} 时, 会使用 {@link #roundingMode} 进行舍入</p>
      *
      * @param majorAmount 主要金额, 必须为非空且非负数
-     * @return 返回转换后的最小货币单位数量, 类型为 {@code long}, 代表了主要金额在当前货币配置下的最小单位数量
-     * @throws IllegalParamException 如果输入金额为负数, 或小数位数超过当前配置的限制
+     * @return 转换后的最小货币单位数量
      */
-    public long toMinorExact(@NotNull BigDecimal majorAmount) {
+    public long toMinorRounded(@NotNull BigDecimal majorAmount) {
         requireNotNull(majorAmount, "金额不能为空");
         require(majorAmount.compareTo(BigDecimal.ZERO) >= 0, "金额不能为负数");
         try {
-            BigDecimal scaled = majorAmount.setScale(minorUnit, RoundingMode.UNNECESSARY);
+            BigDecimal scaled = majorAmount.setScale(minorUnit, roundingMode);
             BigDecimal minor = scaled.movePointRight(minorUnit);
             return minor.longValueExact();
         } catch (ArithmeticException e) {
-            throw IllegalParamException.of("金额小数位超过该币种 minor_unit=" + minorUnit + " 的限制");
+            throw IllegalParamException.of("金额超出 long 范围");
         }
     }
 
     /**
-     * 将给定的主要金额转换为最小货币单位的精确数值表示, 支持传入 <code>null</code> 值
+     * 将给定的主要金额转换为最小货币单位 (按该币种配置的舍入规则进行舍入), 支持传入 <code>null</code> 值
      *
-     * <p>此方法基于当前配置的 {@code minorUnit} 值, 将传入的主要金额 ({@link BigDecimal}) 转换为其对应的最小货币单位数量, 如果输入为 <code>null</code>, 则返回 <code>null</code></p>
-     *
-     * @param majorAmount 主要金额, 可以为 <code>null</code>
-     * @return 返回转换后的最小货币单位数量, 类型为 {@code Long}, 如果输入为 <code>null</code>, 则返回 <code>null</code>; 否则, 该值反映了主要金额在当前货币配置下的最小单位数量
+     * @param majorAmount 主要金额, 可为空
+     * @return 转换后的最小货币单位数量, 输入为空则返回 null
      */
-    public @Nullable Long toMinorExactNullable(@Nullable BigDecimal majorAmount) {
-        return majorAmount == null ? null : toMinorExact(majorAmount);
+    public @Nullable Long toMinorRoundedNullable(@Nullable BigDecimal majorAmount) {
+        return majorAmount == null ? null : toMinorRounded(majorAmount);
     }
 }

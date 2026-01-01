@@ -13,6 +13,7 @@ import shopping.international.api.resp.orders.DiscountCodeRespond;
 import shopping.international.api.resp.orders.DiscountPolicyRespond;
 import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
+import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
 import shopping.international.domain.model.enums.orders.DiscountScopeMode;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
@@ -33,6 +34,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 管理侧折扣管理接口
@@ -98,10 +100,7 @@ public class AdminDiscountController {
         req.createValidate();
 
         BigDecimal percentOff = parseBigDecimalOrNull(req.getPercentOff(), "percentOff");
-        CurrencyConfig currencyConfig = req.getCurrency() == null ? null : currencyConfigService.get(req.getCurrency());
-        Long amountOffMinor = toMinorOrNull(currencyConfig, req.getAmountOff(), "amountOff", true);
-        Long minOrderAmountMinor = toMinorOrNull(currencyConfig, req.getMinOrderAmount(), "minOrderAmount", false);
-        Long maxDiscountAmountMinor = toMinorOrNull(currencyConfig, req.getMaxDiscountAmount(), "maxDiscountAmount", false);
+        List<DiscountPolicyAmount> amounts = toPolicyAmounts(req.getAmounts());
 
         DiscountPolicy created = adminDiscountService.createPolicy(
                 DiscountPolicy.create(
@@ -109,10 +108,7 @@ public class AdminDiscountController {
                         req.getApplyScope(),
                         req.getStrategyType(),
                         percentOff,
-                        amountOffMinor,
-                        req.getCurrency(),
-                        minOrderAmountMinor,
-                        maxDiscountAmountMinor
+                        amounts
                 )
         );
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
@@ -132,20 +128,14 @@ public class AdminDiscountController {
         req.updateValidate();
 
         BigDecimal percentOff = parseBigDecimalOrNull(req.getPercentOff(), "percentOff");
-        CurrencyConfig currencyConfig = req.getCurrency() == null ? null : currencyConfigService.get(req.getCurrency());
-        Long amountOffMinor = toMinorOrNull(currencyConfig, req.getAmountOff(), "amountOff", true);
-        Long minOrderAmountMinor = toMinorOrNull(currencyConfig, req.getMinOrderAmount(), "minOrderAmount", false);
-        Long maxDiscountAmountMinor = toMinorOrNull(currencyConfig, req.getMaxDiscountAmount(), "maxDiscountAmount", false);
+        List<DiscountPolicyAmount> amounts = toPolicyAmounts(req.getAmounts());
 
         DiscountPolicy toUpdate = DiscountPolicy.create(
                 req.getName(),
                 req.getApplyScope(),
                 req.getStrategyType(),
                 percentOff,
-                amountOffMinor,
-                req.getCurrency(),
-                minOrderAmountMinor,
-                maxDiscountAmountMinor
+                amounts
         );
         DiscountPolicy updated = adminDiscountService.updatePolicy(policyId, toUpdate);
         return ResponseEntity.ok(Result.ok(toRespond(updated)));
@@ -354,20 +344,49 @@ public class AdminDiscountController {
      * @return 响应
      */
     private DiscountPolicyRespond toRespond(DiscountPolicy policy) {
-        CurrencyConfig currencyConfig = policy.getCurrency() == null ? null : currencyConfigService.get(policy.getCurrency());
+        List<DiscountPolicyRespond.DiscountPolicyAmountRespond> amounts = policy.getAmounts().stream()
+        .filter(Objects::nonNull)
+        .map(a -> {
+            CurrencyConfig currencyConfig = currencyConfigService.get(a.getCurrency());
+            return DiscountPolicyRespond.DiscountPolicyAmountRespond.builder()
+                    .currency(a.getCurrency())
+                    .amountOff(a.getAmountOffMinor() == null ? null : currencyConfig.toMajor(a.getAmountOffMinor()).toPlainString())
+                    .minOrderAmount(a.getMinOrderAmountMinor() == null ? null : currencyConfig.toMajor(a.getMinOrderAmountMinor()).toPlainString())
+                    .maxDiscountAmount(a.getMaxDiscountAmountMinor() == null ? null : currencyConfig.toMajor(a.getMaxDiscountAmountMinor()).toPlainString())
+                    .build();
+        })
+        .toList();
         return DiscountPolicyRespond.builder()
                 .id(policy.getId())
                 .name(policy.getName())
                 .applyScope(policy.getApplyScope())
                 .strategyType(policy.getStrategyType())
                 .percentOff(policy.getPercentOff() == null ? null : policy.getPercentOff().doubleValue())
-                .amountOff(currencyConfig == null || policy.getAmountOff() == null ? null : currencyConfig.toMajor(policy.getAmountOff()).toPlainString())
-                .currency(policy.getCurrency())
-                .minOrderAmount(currencyConfig == null || policy.getMinOrderAmount() == null ? null : currencyConfig.toMajor(policy.getMinOrderAmount()).toPlainString())
-                .maxDiscountAmount(currencyConfig == null || policy.getMaxDiscountAmount() == null ? null : currencyConfig.toMajor(policy.getMaxDiscountAmount()).toPlainString())
+                .amounts(amounts)
                 .createdAt(policy.getCreatedAt())
                 .updatedAt(policy.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * 将请求体的金额配置列表转换为领域实体列表
+     *
+     * @param amountReqs 请求体金额配置列表 (可为空)
+     * @return 领域实体列表
+     */
+    private List<DiscountPolicyAmount> toPolicyAmounts(@Nullable List<DiscountPolicyUpsertRequest.DiscountPolicyAmountUpsertRequest> amountReqs) {
+        if (amountReqs == null || amountReqs.isEmpty())
+            return List.of();
+        return amountReqs.stream()
+                .filter(Objects::nonNull)
+                .map(a -> {
+                    CurrencyConfig currencyConfig = currencyConfigService.get(a.getCurrency());
+                    Long amountOffMinor = toMinorOrNull(currencyConfig, a.getAmountOff(), "amountOff", true);
+                    Long minOrderAmountMinor = toMinorOrNull(currencyConfig, a.getMinOrderAmount(), "minOrderAmount", false);
+                    Long maxDiscountAmountMinor = toMinorOrNull(currencyConfig, a.getMaxDiscountAmount(), "maxDiscountAmount", false);
+                    return DiscountPolicyAmount.of(a.getCurrency(), amountOffMinor, minOrderAmountMinor, maxDiscountAmountMinor);
+                })
+                .toList();
     }
 
     /**
@@ -468,7 +487,7 @@ public class AdminDiscountController {
         BigDecimal major = parseBigDecimalOrNull(raw, fieldName);
         if (major == null)
             return null;
-        long minor = currencyConfig.toMinorExact(major);
+        long minor = currencyConfig.toMinorRounded(major);
         if (requirePositive && minor <= 0)
             throw new IllegalParamException(fieldName + " 必须大于 0");
         if (!requirePositive && minor < 0)

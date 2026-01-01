@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.orders.DiscountPolicyMapper">
+
+    <resultMap id="DiscountPolicyWithAmountsMap"
+               type="shopping.international.infrastructure.dao.orders.po.DiscountPolicyPO"
+               autoMapping="true">
+        <id column="id" property="id"/>
+
+        <collection property="amounts"
+                    ofType="shopping.international.infrastructure.dao.orders.po.DiscountPolicyAmountPO"
+                    autoMapping="true"
+                    notNullColumn="a_currency"
+                    columnPrefix="a_">
+            <id column="currency" property="currency"/>
+        </collection>
+    </resultMap>
+
+    <select id="pageWithAmounts" resultMap="DiscountPolicyWithAmountsMap">
+        SELECT
+        p.id,
+        p.name,
+        p.apply_scope,
+        p.strategy_type,
+        p.percent_off,
+        p.created_at,
+        p.updated_at,
+        a.policy_id       AS a_policy_id,
+        a.currency        AS a_currency,
+        a.amount_off      AS a_amount_off,
+        a.min_order_amount AS a_min_order_amount,
+        a.max_discount_amount AS a_max_discount_amount,
+        a.created_at      AS a_created_at,
+        a.updated_at      AS a_updated_at
+        FROM (
+        SELECT
+        id,
+        name,
+        apply_scope,
+        strategy_type,
+        percent_off,
+        created_at,
+        updated_at
+        FROM discount_policy
+        <where>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="applyScope != null and applyScope != ''">
+                AND apply_scope = #{applyScope}
+            </if>
+            <if test="strategyType != null and strategyType != ''">
+                AND strategy_type = #{strategyType}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+        ) p
+        LEFT JOIN discount_policy_amount a ON p.id = a.policy_id
+        ORDER BY p.id DESC, a.currency
+    </select>
+
+</mapper>
+

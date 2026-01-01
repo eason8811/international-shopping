@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.orders.IDiscountRepository;
 import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
+import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
 import shopping.international.domain.model.enums.orders.DiscountScopeMode;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
@@ -18,16 +19,11 @@ import shopping.international.domain.model.vo.orders.DiscountCodeText;
 import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteria;
 import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
 import shopping.international.domain.service.orders.IAdminDiscountService;
-import shopping.international.infrastructure.dao.orders.DiscountCodeMapper;
-import shopping.international.infrastructure.dao.orders.DiscountCodeProductMapper;
-import shopping.international.infrastructure.dao.orders.DiscountPolicyMapper;
-import shopping.international.infrastructure.dao.orders.OrderDiscountAppliedMapper;
-import shopping.international.infrastructure.dao.orders.po.DiscountCodePO;
-import shopping.international.infrastructure.dao.orders.po.DiscountCodeProductPO;
-import shopping.international.infrastructure.dao.orders.po.DiscountPolicyPO;
-import shopping.international.infrastructure.dao.orders.po.OrderDiscountAppliedViewPO;
+import shopping.international.infrastructure.dao.orders.*;
+import shopping.international.infrastructure.dao.orders.po.*;
 import shopping.international.types.exceptions.ConflictException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +38,10 @@ public class DiscountRepository implements IDiscountRepository {
      * 折扣策略 Mapper
      */
     private final DiscountPolicyMapper discountPolicyMapper;
+    /**
+     * 折扣策略币种金额配置 Mapper
+     */
+    private final DiscountPolicyAmountMapper discountPolicyAmountMapper;
     /**
      * 折扣码 Mapper
      */
@@ -65,13 +65,16 @@ public class DiscountRepository implements IDiscountRepository {
      */
     @Override
     public @NotNull List<DiscountPolicy> pagePolicies(@NotNull DiscountPolicySearchCriteria criteria, int offset, int limit) {
-        LambdaQueryWrapper<DiscountPolicyPO> wrapper = buildPagePoliciesWrapper(criteria);
-        wrapper.orderByDesc(DiscountPolicyPO::getId)
-                .last("limit " + limit + " offset " + offset);
-        List<DiscountPolicyPO> pos = discountPolicyMapper.selectList(wrapper);
+        List<DiscountPolicyPO> pos = discountPolicyMapper.pageWithAmounts(
+                criteria.getName(),
+                criteria.getApplyScope() == null ? null : criteria.getApplyScope().name(),
+                criteria.getStrategyType() == null ? null : criteria.getStrategyType().name(),
+                offset,
+                limit
+        );
         if (pos == null || pos.isEmpty())
             return List.of();
-        return pos.stream().map(this::toAggregate).toList();
+        return pos.stream().map(po -> toAggregate(po, po.getAmounts())).toList();
     }
 
     /**
@@ -95,7 +98,11 @@ public class DiscountRepository implements IDiscountRepository {
     @Override
     public @NotNull Optional<DiscountPolicy> findPolicyById(@NotNull Long policyId) {
         DiscountPolicyPO po = discountPolicyMapper.selectById(policyId);
-        return po == null ? Optional.empty() : Optional.of(toAggregate(po));
+        if (po == null)
+            return Optional.empty();
+        List<DiscountPolicyAmountPO> amountPos = discountPolicyAmountMapper.selectList(new LambdaQueryWrapper<DiscountPolicyAmountPO>()
+                .eq(DiscountPolicyAmountPO::getPolicyId, policyId));
+        return Optional.of(toAggregate(po, amountPos));
     }
 
     /**
@@ -105,18 +112,16 @@ public class DiscountRepository implements IDiscountRepository {
      * @return 保存后的策略
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public @NotNull DiscountPolicy savePolicy(@NotNull DiscountPolicy policy) {
         DiscountPolicyPO po = DiscountPolicyPO.builder()
                 .name(policy.getName())
                 .applyScope(policy.getApplyScope().name())
                 .strategyType(policy.getStrategyType().name())
                 .percentOff(policy.getPercentOff())
-                .amountOff(policy.getAmountOff())
-                .currency(policy.getCurrency())
-                .minOrderAmount(policy.getMinOrderAmount())
-                .maxDiscountAmount(policy.getMaxDiscountAmount())
                 .build();
         discountPolicyMapper.insert(po);
+        replacePolicyAmounts(po.getId(), policy.getAmounts());
         return findPolicyById(po.getId()).orElseThrow(() -> new ConflictException("折扣策略创建后回读失败"));
     }
 
@@ -127,18 +132,16 @@ public class DiscountRepository implements IDiscountRepository {
      * @return 更新后的策略
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public @NotNull DiscountPolicy updatePolicy(@NotNull DiscountPolicy policy) {
         LambdaUpdateWrapper<DiscountPolicyPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(DiscountPolicyPO::getId, policy.getId())
                 .set(DiscountPolicyPO::getName, policy.getName())
                 .set(DiscountPolicyPO::getApplyScope, policy.getApplyScope().name())
                 .set(DiscountPolicyPO::getStrategyType, policy.getStrategyType().name())
-                .set(DiscountPolicyPO::getPercentOff, policy.getPercentOff())
-                .set(DiscountPolicyPO::getAmountOff, policy.getAmountOff())
-                .set(DiscountPolicyPO::getCurrency, policy.getCurrency())
-                .set(DiscountPolicyPO::getMinOrderAmount, policy.getMinOrderAmount())
-                .set(DiscountPolicyPO::getMaxDiscountAmount, policy.getMaxDiscountAmount());
+                .set(DiscountPolicyPO::getPercentOff, policy.getPercentOff());
         discountPolicyMapper.update(null, wrapper);
+        replacePolicyAmounts(policy.getId(), policy.getAmounts());
         return findPolicyById(policy.getId()).orElseThrow(() -> new ConflictException("折扣策略更新后回读失败"));
     }
 
@@ -148,8 +151,41 @@ public class DiscountRepository implements IDiscountRepository {
      * @param policyId 策略 ID
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deletePolicy(@NotNull Long policyId) {
+        discountPolicyAmountMapper.delete(new LambdaQueryWrapper<DiscountPolicyAmountPO>()
+                .eq(DiscountPolicyAmountPO::getPolicyId, policyId));
         discountPolicyMapper.deleteById(policyId);
+    }
+
+    /**
+     * 覆盖写入折扣策略的币种金额配置
+     *
+     * <p>该方法会先清理旧配置, 再插入新配置, 需要在事务内调用</p>
+     *
+     * @param policyId 策略 ID
+     * @param amounts  币种金额配置列表 (可为空)
+     */
+    private void replacePolicyAmounts(@NotNull Long policyId, @NotNull List<DiscountPolicyAmount> amounts) {
+        discountPolicyAmountMapper.delete(new LambdaQueryWrapper<DiscountPolicyAmountPO>()
+                .eq(DiscountPolicyAmountPO::getPolicyId, policyId));
+        if (amounts.isEmpty())
+            return;
+        List<DiscountPolicyAmountPO> poList = new ArrayList<>();
+        for (DiscountPolicyAmount a : amounts) {
+            if (a == null)
+                continue;
+            poList.add(DiscountPolicyAmountPO.builder()
+                    .policyId(policyId)
+                    .currency(a.getCurrency())
+                    .amountOff(a.getAmountOffMinor())
+                    .minOrderAmount(a.getMinOrderAmountMinor())
+                    .maxDiscountAmount(a.getMaxDiscountAmountMinor())
+                    .build());
+        }
+        if (poList.isEmpty())
+            return;
+        discountPolicyAmountMapper.insert(poList);
     }
 
     /**
@@ -416,17 +452,24 @@ public class DiscountRepository implements IDiscountRepository {
      * @param po 持久化对象
      * @return 聚合
      */
-    private DiscountPolicy toAggregate(DiscountPolicyPO po) {
+    private DiscountPolicy toAggregate(DiscountPolicyPO po, List<DiscountPolicyAmountPO> amountPos) {
+        List<DiscountPolicyAmount> amounts = amountPos == null || amountPos.isEmpty()
+                ? List.of()
+                : amountPos.stream()
+                .map(a -> DiscountPolicyAmount.of(
+                        a.getCurrency(),
+                        a.getAmountOff(),
+                        a.getMinOrderAmount(),
+                        a.getMaxDiscountAmount()
+                ))
+                .toList();
         return DiscountPolicy.reconstitute(
                 po.getId(),
                 po.getName(),
                 DiscountApplyScope.valueOf(po.getApplyScope()),
                 DiscountStrategyType.valueOf(po.getStrategyType()),
                 po.getPercentOff(),
-                po.getAmountOff(),
-                po.getCurrency(),
-                po.getMinOrderAmount(),
-                po.getMaxDiscountAmount(),
+                amounts,
                 po.getCreatedAt(),
                 po.getUpdatedAt()
         );

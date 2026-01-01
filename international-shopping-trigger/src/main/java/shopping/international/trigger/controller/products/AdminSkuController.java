@@ -18,11 +18,7 @@ import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -268,8 +264,8 @@ public class AdminSkuController {
                 })
                 .map(req -> {
                     CurrencyConfig currencyConfig = currencyConfigService.get(req.getCurrency());
-                    long listPriceMinor = currencyConfig.toMinorExact(req.getListPrice());
-                    Long salePriceMinor = currencyConfig.toMinorExactNullable(req.getSalePrice());
+                    long listPriceMinor = currencyConfig.toMinorRounded(req.getListPrice());
+                    Long salePriceMinor = currencyConfig.toMinorRoundedNullable(req.getSalePrice());
                     return ProductPrice.of(
                             req.getCurrency(),
                             listPriceMinor,

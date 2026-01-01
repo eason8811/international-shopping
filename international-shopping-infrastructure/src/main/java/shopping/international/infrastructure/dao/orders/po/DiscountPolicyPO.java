@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 持久化对象: discount_policy
@@ -43,25 +44,10 @@ public class DiscountPolicyPO {
     @TableField("percent_off")
     private BigDecimal percentOff;
     /**
-     * 固定金额折扣
+     * 折扣策略按币种金额配置列表 (对应表 discount_policy_amount), 仅用于聚合查询回填
      */
-    @TableField("amount_off")
-    private Long amountOff;
-    /**
-     * 币种 (可为空)
-     */
-    @TableField("currency")
-    private String currency;
-    /**
-     * 门槛金额 (可为空)
-     */
-    @TableField("min_order_amount")
-    private Long minOrderAmount;
-    /**
-     * 封顶金额 (可为空)
-     */
-    @TableField("max_discount_amount")
-    private Long maxDiscountAmount;
+    @TableField(exist = false)
+    private List<DiscountPolicyAmountPO> amounts;
     /**
      * 创建时间
      */

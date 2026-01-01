@@ -10,6 +10,7 @@ import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -41,25 +42,10 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
     @Nullable
     private String percentOff;
     /**
-     * 固定金额折扣 (strategyType=AMOUNT 时必填, 金额字符串)
+     * 币种金额配置列表 (整策略携带多币种配置)
      */
     @Nullable
-    private String amountOff;
-    /**
-     * 币种 (strategyType=AMOUNT 时建议必填)
-     */
-    @Nullable
-    private String currency;
-    /**
-     * 最小订单金额限制 (可选, 金额字符串)
-     */
-    @Nullable
-    private String minOrderAmount;
-    /**
-     * 最大折扣金额上限 (可选, 金额字符串)
-     */
-    @Nullable
-    private String maxDiscountAmount;
+    private List<DiscountPolicyAmountUpsertRequest> amounts;
 
     /**
      * 通用字段校验与规范化
@@ -68,7 +54,6 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
      */
     @Override
     public void validate() {
-        currency = normalizeCurrency(currency);
         if (percentOff != null) {
             try {
                 BigDecimal percentOffNumber = new BigDecimal(percentOff);
@@ -77,6 +62,12 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
                 throw new IllegalParamException("percentOff 折扣百分比不合法");
             }
         }
+
+        amounts = normalizeDistinctList(
+                amounts,
+                DiscountPolicyAmountUpsertRequest::getCurrency,
+                "同一折扣策略的金额配置币种不可重复"
+        );
     }
 
     /**
@@ -93,41 +84,115 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
 
         if (strategyType == DiscountStrategyType.PERCENT) {
             requireNotNull(percentOff, "折扣策略类型为 PERCENT 时 percentOff 不能为空");
-            require(amountOff == null, "折扣策略类型为 PERCENT 时不允许提供 amountOff");
+            if (amounts != null) {
+                for (DiscountPolicyAmountUpsertRequest a : amounts) {
+                    if (a == null)
+                        continue;
+                    require(a.getAmountOff() == null, "折扣策略类型为 PERCENT 时不允许提供 amountOff");
+                }
+            }
         } else if (strategyType == DiscountStrategyType.AMOUNT) {
-            amountOff = normalizeNotNullField(amountOff, "折扣策略类型为 AMOUNT 时 amountOff 不能为空",
-                    s -> s.length() <= 64, "amountOff 长度不能超过 64 个字符");
             require(percentOff == null, "折扣策略类型为 AMOUNT 时不允许提供 percentOff");
+            require(amounts != null && !amounts.isEmpty(), "折扣策略类型为 AMOUNT 时 amounts 不能为空");
+            for (DiscountPolicyAmountUpsertRequest a : amounts) {
+                requireNotNull(a, "amounts 不能包含 null");
+                a.createValidate();
+                requireNotNull(a.getAmountOff(), "折扣策略类型为 AMOUNT 时 amountOff 不能为空");
+            }
         }
     }
 
     /**
      * 更新场景校验
      *
-     * <p>更新时为 null 的字段表示不更新; 若更新折扣参数, 则需满足对应策略类型的约束</p>
+     * <p>更新接口采用整策略更新语义 (需要携带策略基础信息与金额配置)</p>
      */
     @Override
     public void updateValidate() {
         validate();
-        name = normalizeNullableField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
-        amountOff = normalizeNullableField(amountOff, "amountOff 不能为空", s -> s.length() <= 64, "amountOff 长度不能超过 64 个字符");
-
-        require(name != null || applyScope != null || strategyType != null || percentOff != null || amountOff != null || currency != null
-                        || minOrderAmount != null || maxDiscountAmount != null,
-                "更新折扣策略时至少需要提供一个要更新的字段");
-
-        if (strategyType == null) {
-            require(!(percentOff != null && amountOff != null), "percentOff 与 amountOff 不能同时提供");
-            return;
-        }
+        name = normalizeNotNullField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
+        requireNotNull(applyScope, "applyScope 不能为空");
+        requireNotNull(strategyType, "strategyType 不能为空");
 
         if (strategyType == DiscountStrategyType.PERCENT) {
-            requireNotNull(percentOff, "strategyType=PERCENT 时 percentOff 不能为空");
-            require(amountOff == null, "strategyType=PERCENT 时不允许提供 amountOff");
+            requireNotNull(percentOff, "折扣策略类型为 PERCENT 时 percentOff 不能为空");
+            if (amounts != null) {
+                for (DiscountPolicyAmountUpsertRequest a : amounts) {
+                    if (a == null)
+                        continue;
+                    require(a.getAmountOff() == null, "折扣策略类型为 PERCENT 时不允许提供 amountOff");
+                }
+            }
         } else if (strategyType == DiscountStrategyType.AMOUNT) {
-            requireNotNull(amountOff, "strategyType=AMOUNT 时 amountOff 不能为空");
-            require(percentOff == null, "strategyType=AMOUNT 时不允许提供 percentOff");
+            require(percentOff == null, "折扣策略类型为 AMOUNT 时不允许提供 percentOff");
+            require(amounts != null && !amounts.isEmpty(), "折扣策略类型为 AMOUNT 时 amounts 不能为空");
+            for (DiscountPolicyAmountUpsertRequest a : amounts) {
+                requireNotNull(a, "amounts 不能包含 null");
+                a.updateValidate();
+                requireNotNull(a.getAmountOff(), "折扣策略类型为 AMOUNT 时 amountOff 不能为空");
+            }
+        }
+    }
+
+    /**
+     * 折扣策略币种金额配置请求体 (DiscountPolicyAmountUpsertRequest)
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DiscountPolicyAmountUpsertRequest implements Verifiable {
+        /**
+         * 币种
+         */
+        @Nullable
+        private String currency;
+        /**
+         * 固定减免金额 (可为空, 金额字符串), strategyType=AMOUNT 时必填
+         */
+        @Nullable
+        private String amountOff;
+        /**
+         * 门槛金额 (可为空, 金额字符串)
+         */
+        @Nullable
+        private String minOrderAmount;
+        /**
+         * 封顶金额 (可为空, 金额字符串)
+         */
+        @Nullable
+        private String maxDiscountAmount;
+
+        /**
+         * 校验并规范化金额配置字段
+         */
+        @Override
+        public void validate() {
+            currency = normalizeCurrency(currency);
+            amountOff = normalizeNullableField(amountOff, "amountOff 不能为空", s -> s.length() <= 64, "amountOff 长度不能超过 64 个字符");
+            minOrderAmount = normalizeNullableField(minOrderAmount, "minOrderAmount 不能为空", s -> s.length() <= 64, "minOrderAmount 长度不能超过 64 个字符");
+            maxDiscountAmount = normalizeNullableField(maxDiscountAmount, "maxDiscountAmount 不能为空", s -> s.length() <= 64, "maxDiscountAmount 长度不能超过 64 个字符");
+
+            if (amountOff != null)
+                try {
+                    BigDecimal v = new BigDecimal(amountOff);
+                    require(v.compareTo(BigDecimal.ZERO) > 0, "amountOff 必须大于 0");
+                } catch (NumberFormatException e) {
+                    throw new IllegalParamException("amountOff 数值格式不合法");
+                }
+            if (minOrderAmount != null)
+                try {
+                    BigDecimal v = new BigDecimal(minOrderAmount);
+                    require(v.compareTo(BigDecimal.ZERO) >= 0, "minOrderAmount 不能为负数");
+                } catch (NumberFormatException e) {
+                    throw new IllegalParamException("minOrderAmount 数值格式不合法");
+                }
+            if (maxDiscountAmount != null)
+                try {
+                    BigDecimal v = new BigDecimal(maxDiscountAmount);
+                    require(v.compareTo(BigDecimal.ZERO) > 0, "maxDiscountAmount 必须大于 0");
+                } catch (NumberFormatException e) {
+                    throw new IllegalParamException("maxDiscountAmount 数值格式不合法");
+                }
         }
     }
 }
-
