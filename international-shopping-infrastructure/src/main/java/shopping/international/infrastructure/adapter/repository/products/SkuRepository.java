@@ -10,12 +10,14 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.products.ISkuRepository;
 import shopping.international.domain.model.aggregate.products.Sku;
+import shopping.international.domain.model.enums.products.ProductPriceSource;
 import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
 import shopping.international.infrastructure.dao.products.*;
 import shopping.international.infrastructure.dao.products.po.*;
+import shopping.international.types.enums.FxRateProvider;
 import shopping.international.types.exceptions.ConflictException;
 
 import java.util.*;
@@ -347,10 +349,28 @@ public class SkuRepository implements ISkuRepository {
             return Collections.emptyList();
         return pos.stream()
                 .filter(Objects::nonNull)
-                .map(po -> ProductPrice.of(po.getCurrency(),
-                        po.getListPrice() == null ? 0L : po.getListPrice(),
-                        po.getSalePrice(),
-                        Boolean.TRUE.equals(po.getIsActive())))
+                .map(po -> {
+                    ProductPriceSource source = ProductPriceSource.parseNullable(po.getPriceSource());
+                    if (source == null)
+                        source = ProductPriceSource.MANUAL;
+                    FxRateProvider provider = null;
+                    if (po.getFxProvider() != null && !po.getFxProvider().isBlank())
+                        provider = FxRateProvider.of(po.getFxProvider());
+                    return ProductPrice.reconstitute(
+                            po.getCurrency(),
+                            po.getListPrice() == null ? 0L : po.getListPrice(),
+                            po.getSalePrice(),
+                            Boolean.TRUE.equals(po.getIsActive()),
+                            source,
+                            po.getDerivedFrom(),
+                            po.getFxRate(),
+                            po.getFxAsOf(),
+                            provider,
+                            po.getComputedAt(),
+                            po.getAlgoVer() == null ? 1 : po.getAlgoVer(),
+                            po.getMarkupBps() == null ? 0 : po.getMarkupBps()
+                    );
+                })
                 .toList();
     }
 
@@ -401,6 +421,14 @@ public class SkuRepository implements ISkuRepository {
                         .listPrice(price.getListPrice())
                         .salePrice(price.getSalePrice())
                         .isActive(price.isActive())
+                        .priceSource(price.getSource() == null ? null : price.getSource().name())
+                        .derivedFrom(price.getDerivedFrom())
+                        .fxRate(price.getFxRate())
+                        .fxAsOf(price.getFxAsOf())
+                        .fxProvider(price.getFxProvider() == null ? null : price.getFxProvider().code())
+                        .computedAt(price.getComputedAt())
+                        .algoVer(price.getAlgoVer())
+                        .markupBps(price.getMarkupBps())
                         .build())
                 .toList();
         productPriceMapper.insert(poList);

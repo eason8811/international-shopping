@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
+import shopping.international.infrastructure.gateway.common.IExchangeRateApi;
 import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
 import shopping.international.infrastructure.gateway.user.IOidcUserInfoApi;
 
@@ -162,5 +163,13 @@ public class RetrofitConfig {
     @Bean
     public IOidcUserInfoApi oidcUserInfoApi(Retrofit retrofit) {
         return retrofit.create(IOidcUserInfoApi.class);
+    }
+
+    /**
+     * 创建并返回一个实现 <code>IExchangeRateApi</code> 接口的 Retrofit 客户端实例
+     */
+    @Bean
+    public IExchangeRateApi exchangeRateApi(Retrofit retrofit) {
+        return retrofit.create(IExchangeRateApi.class);
     }
 }

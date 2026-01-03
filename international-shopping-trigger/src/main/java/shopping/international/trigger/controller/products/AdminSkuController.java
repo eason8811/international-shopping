@@ -160,6 +160,46 @@ public class AdminSkuController {
     }
 
     /**
+     * 重新计算指定商品SKU的 FX_AUTO / 缺失币种价格信息
+     *
+     * @param productId 商品ID
+     * @param skuId     SKU ID
+     * @return 返回一个包含更新后价格信息的响应实体, 其中包括商品ID, SKU ID以及更新后的货币列表
+     */
+    @PostMapping("/{sku_id}/price/recompute")
+    public ResponseEntity<Result<SkuPriceUpdateRespond>> recomputePrice(@PathVariable("product_id") Long productId,
+                                                                        @PathVariable("sku_id") Long skuId) {
+        List<String> currencies = skuService.recomputeFxPrices(productId, skuId);
+        SkuPriceUpdateRespond respond = SkuPriceUpdateRespond.builder()
+                .productId(productId)
+                .skuId(skuId)
+                .currencies(currencies)
+                .build();
+        return ResponseEntity.ok(Result.ok(respond));
+    }
+
+    /**
+     * 将指定 SKU 的价格模式切换为 MANUAL 模式 (保留金额, 清空 FX 元数据)
+     *
+     * @param productId 产品 ID, 用于定位具体的产品
+     * @param skuId     SKU ID, 用于定位具体的 SKU
+     * @param currency  货币代码, 指定要切换到 MANUAL 模式的货币
+     * @return 返回一个包含更新结果的 ResponseEntity 对象. 结果中包含了操作后的响应信息, 包括受影响的产品 ID, SKU ID 以及受影响的货币列表
+     */
+    @PatchMapping("/{sku_id}/price/{currency}/manual")
+    public ResponseEntity<Result<SkuPriceUpdateRespond>> switchPriceToManual(@PathVariable("product_id") Long productId,
+                                                                             @PathVariable("sku_id") Long skuId,
+                                                                             @PathVariable String currency) {
+        List<String> currencies = skuService.switchPriceToManual(productId, skuId, currency);
+        SkuPriceUpdateRespond respond = SkuPriceUpdateRespond.builder()
+                .productId(productId)
+                .skuId(skuId)
+                .currencies(currencies)
+                .build();
+        return ResponseEntity.ok(Result.ok(respond));
+    }
+
+    /**
      * 调整库存
      *
      * @param productId 商品 ID

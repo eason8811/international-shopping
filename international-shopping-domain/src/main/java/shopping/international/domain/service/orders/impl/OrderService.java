@@ -289,6 +289,7 @@ public class OrderService implements IOrderService {
                                               @NotNull String currency,
                                               @Nullable String discountCode,
                                               @Nullable String locale) {
+        String orderCurrency = currency;
         ResolvedItems resolved = resolveItems(userId, source, directItems);
         require(resolved.items() != null && !resolved.items().isEmpty(), "下单条目不能为空");
 
@@ -304,16 +305,31 @@ public class OrderService implements IOrderService {
         }
 
         List<Long> skuIds = new ArrayList<>(skuQtyMap.keySet());
-        List<IOrderService.SkuSaleSnapshot> snapshots = orderProductRepository.listSkuSaleSnapshots(skuIds, locale, currency);
+        List<IOrderService.SkuSaleSnapshot> snapshots = orderProductRepository.listSkuSaleSnapshots(skuIds, locale, orderCurrency);
         Map<Long, IOrderService.SkuSaleSnapshot> snapshotMap = snapshots.stream()
                 .collect(Collectors.toMap(
                         SkuSaleSnapshot::skuId,
                         Function.identity()
                 ));
 
+        // 汇率缺失/过期时回退 USD: 如果任一 SKU 在目标币种下价格不可用，则整单回退 USD 重新取价
+        if (!"USD".equalsIgnoreCase(orderCurrency)) {
+            Map<Long, SkuSaleSnapshot> finalSnapshotMap = snapshotMap;
+            boolean missingPrice = skuIds.stream().anyMatch(skuId -> {
+                IOrderService.SkuSaleSnapshot s = finalSnapshotMap.get(skuId);
+                return s == null || s.unitPriceMinor() == null;
+            });
+            if (missingPrice) {
+                orderCurrency = "USD";
+                snapshots = orderProductRepository.listSkuSaleSnapshots(skuIds, locale, orderCurrency);
+                snapshotMap = snapshots.stream()
+                        .collect(Collectors.toMap(SkuSaleSnapshot::skuId, Function.identity()));
+            }
+        }
+
         // 2) 构造订单明细快照并校验库存/价格
         List<OrderItem> orderItems = new ArrayList<>();
-        Money totalAmount = Money.zero(currency);
+        Money totalAmount = Money.zero(orderCurrency);
         for (Long skuId : skuIds) {
             IOrderService.SkuSaleSnapshot snapshot = snapshotMap.get(skuId);
             if (snapshot == null)
@@ -330,7 +346,7 @@ public class OrderService implements IOrderService {
             Long unitPriceMinor = snapshot.unitPriceMinor();
             if (unitPriceMinor == null)
                 throw new ConflictException("ID 为 : " + skuId + " 的 SKU 价格不可用");
-            Money unitPrice = Money.ofMinor(currency, unitPriceMinor);
+            Money unitPrice = Money.ofMinor(orderCurrency, unitPriceMinor);
             OrderItem item = OrderItem.snapshot(
                     snapshot.productId(),
                     snapshot.skuId(),
@@ -346,12 +362,12 @@ public class OrderService implements IOrderService {
         }
 
         // 3) 运费 (当前实现为 0)
-        Money shipping = Money.zero(currency);
+        Money shipping = Money.zero(orderCurrency);
         // 3.1) 税费 (当前实现为 0)
-        Money tax = Money.zero(currency);
+        Money tax = Money.zero(orderCurrency);
 
         // 4) 折扣试算
-        DiscountComputation discountComputation = computeDiscount(currency, orderItems, discountCode);
+        DiscountComputation discountComputation = computeDiscount(orderCurrency, orderItems, discountCode);
 
         Money payAmount = totalAmount.subtract(discountComputation.discountAmount()).add(shipping).add(tax);
 
@@ -361,7 +377,7 @@ public class OrderService implements IOrderService {
                 discountComputation.discountAmount(),
                 shipping,
                 payAmount,
-                currency,
+                orderCurrency,
                 discountComputation.discountCodeId(),
                 source == OrderSource.CART ? resolved.cartItemIdsToDelete() : null,
                 discountComputation.discountApplied()

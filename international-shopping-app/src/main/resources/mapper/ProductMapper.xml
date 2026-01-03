@@ -279,7 +279,7 @@
     </resultMap>
 
     <sql id="EffectivePriceExpr">
-        COALESCE(price.sale_price, price.list_price)
+        COALESCE(price.sale_price, price.list_price, usd_price.sale_price, usd_price.list_price)
     </sql>
 
     <!-- 用户侧商品分页查询 -->
@@ -299,10 +299,10 @@
         p.sku_type,
         p.status,
         COALESCE(pi.tags, p.tags)               AS tags,
-        MIN(price.list_price)                   AS list_price_min,
-        MAX(price.list_price)                   AS list_price_max,
-        MIN(price.sale_price)                   AS sale_price_min,
-        MAX(price.sale_price)                   AS sale_price_max,
+        MIN(COALESCE(price.list_price, usd_price.list_price))                   AS list_price_min,
+        MAX(COALESCE(price.list_price, usd_price.list_price))                   AS list_price_max,
+        MIN(COALESCE(price.sale_price, usd_price.sale_price))                   AS sale_price_min,
+        MAX(COALESCE(price.sale_price, usd_price.sale_price))                   AS sale_price_max,
         MIN(<include refid="EffectivePriceExpr"/>) AS effective_price_min,
         p.updated_at
         FROM product p
@@ -310,7 +310,12 @@
         LEFT JOIN product_category c ON c.id = p.category_id
         LEFT JOIN product_category_i18n ci ON ci.category_id = p.category_id AND ci.locale = #{locale}
         JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
-        JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
+        JOIN product_price usd_price ON usd_price.sku_id = sku.id
+            AND usd_price.currency = 'USD'
+            AND usd_price.is_active = 1
+        LEFT JOIN product_price price ON price.sku_id = sku.id
+            AND price.currency = #{currency}
+            AND price.is_active = 1
         WHERE p.status = 'ON_SALE'
         <if test="categorySlug != null and categorySlug != ''">
             AND (c.slug = #{categorySlug} OR ci.slug = #{categorySlug})
@@ -402,7 +407,12 @@
         LEFT JOIN product_category c ON c.id = p.category_id
         LEFT JOIN product_category_i18n ci ON ci.category_id = p.category_id AND ci.locale = #{locale}
         JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
-        JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
+        JOIN product_price usd_price ON usd_price.sku_id = sku.id
+            AND usd_price.currency = 'USD'
+            AND usd_price.is_active = 1
+        LEFT JOIN product_price price ON price.sku_id = sku.id
+            AND price.currency = #{currency}
+            AND price.is_active = 1
         WHERE p.status = 'ON_SALE'
         <if test="categorySlug != null and categorySlug != ''">
             AND (c.slug = #{categorySlug} OR ci.slug = #{categorySlug})
@@ -448,10 +458,10 @@
                              p.sku_type,
                              p.status,
                              COALESCE(pi.tags, p.tags)                         AS tags,
-                             MIN(price.list_price)                             AS list_price_min,
-                             MAX(price.list_price)                             AS list_price_max,
-                             MIN(price.sale_price)                             AS sale_price_min,
-                             MAX(price.sale_price)                             AS sale_price_max,
+                             MIN(COALESCE(price.list_price, usd_price.list_price))                             AS list_price_min,
+                             MAX(COALESCE(price.list_price, usd_price.list_price))                             AS list_price_max,
+                             MIN(COALESCE(price.sale_price, usd_price.sale_price))                             AS sale_price_min,
+                             MAX(COALESCE(price.sale_price, usd_price.sale_price))                             AS sale_price_max,
                              MAX(pl.created_at)                                AS liked_at,
                              MIN(<include refid="EffectivePriceExpr"/>) AS effective_price_min
                       FROM product_like pl
@@ -461,8 +471,13 @@
                                LEFT JOIN product_category_i18n ci
                                          ON ci.category_id = p.category_id AND ci.locale = #{locale}
                                JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
-                               JOIN product_price price
-                                    ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
+                               JOIN product_price usd_price ON usd_price.sku_id = sku.id
+                                    AND usd_price.currency = 'USD'
+                                    AND usd_price.is_active = 1
+                               LEFT JOIN product_price price
+                                    ON price.sku_id = sku.id
+                                        AND price.currency = #{currency}
+                                        AND price.is_active = 1
                       WHERE pl.user_id = #{userId}
                         AND p.status = 'ON_SALE'
                       GROUP BY p.id),
@@ -488,7 +503,12 @@
         FROM product_like pl
                  JOIN product p ON p.id = pl.product_id
                  JOIN product_sku sku ON sku.product_id = p.id AND sku.status = 'ENABLED'
-                 JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency} AND price.is_active = 1
+                 JOIN product_price usd_price ON usd_price.sku_id = sku.id
+                    AND usd_price.currency = 'USD'
+                    AND usd_price.is_active = 1
+                 LEFT JOIN product_price price ON price.sku_id = sku.id
+                    AND price.currency = #{currency}
+                    AND price.is_active = 1
         WHERE pl.user_id = #{userId}
           AND p.status = 'ON_SALE'
     </select>

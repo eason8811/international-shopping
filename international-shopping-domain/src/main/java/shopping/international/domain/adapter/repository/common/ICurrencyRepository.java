@@ -4,6 +4,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.vo.common.CurrencyProfile;
 
+import java.util.List;
+
 /**
  * 币种配置仓储接口 (currency 表) 
  */
@@ -17,5 +19,14 @@ public interface ICurrencyRepository {
      */
     @Nullable
     CurrencyProfile findByCode(@NotNull String code);
-}
 
+    /**
+     * 查询启用币种代码列表
+     *
+     * <p>用于 FX 同步与价格派生时的目标币种集合。</p>
+     *
+     * @return 启用币种代码列表 (可能为空)
+     */
+    @NotNull
+    List<String> listEnabledCodes();
+}

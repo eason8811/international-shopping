@@ -26,16 +26,35 @@
         sku.product_id,
             COALESCE(pi18n.title, p.title) AS title,
             p.cover_image_url,
-            #{currency} AS currency,
             <choose>
                 <when test="currency != null">
                     CASE
-                        WHEN price.is_active = 1 AND price.sale_price IS NOT NULL THEN price.sale_price
-                        WHEN price.is_active = 1 THEN price.list_price
+                        WHEN price.is_active = 1
+                             AND (price.price_source = 'MANUAL'
+                                  OR (price.price_source = 'FX_AUTO'
+                                      AND price.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                      AND price.fx_as_of <![CDATA[<=]]> NOW(3))) THEN #{currency}
+                        ELSE 'USD'
+                    END AS currency,
+                    CASE
+                        WHEN price.is_active = 1
+                             AND (price.price_source = 'MANUAL'
+                                  OR (price.price_source = 'FX_AUTO'
+                                      AND price.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                      AND price.fx_as_of <![CDATA[<=]]> NOW(3)))
+                             AND price.sale_price IS NOT NULL THEN price.sale_price
+                        WHEN price.is_active = 1
+                             AND (price.price_source = 'MANUAL'
+                                  OR (price.price_source = 'FX_AUTO'
+                                      AND price.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                      AND price.fx_as_of <![CDATA[<=]]> NOW(3))) THEN price.list_price
+                        WHEN usd_price.is_active = 1 AND usd_price.sale_price IS NOT NULL THEN usd_price.sale_price
+                        WHEN usd_price.is_active = 1 THEN usd_price.list_price
                         ELSE NULL
                     END AS unit_price
                 </when>
                 <otherwise>
+                    NULL AS currency,
                     NULL AS unit_price
                 </otherwise>
             </choose>
@@ -50,6 +69,7 @@
                  </if>
                  <if test="currency != null">
                      LEFT JOIN product_price price ON price.sku_id = sku.id AND price.currency = #{currency}
+                     LEFT JOIN product_price usd_price ON usd_price.sku_id = sku.id AND usd_price.currency = 'USD'
                  </if>
         WHERE cart_item.user_id = #{userId}
         ORDER BY cart_item.added_at DESC
@@ -57,4 +77,3 @@
     </select>
 
 </mapper>
-

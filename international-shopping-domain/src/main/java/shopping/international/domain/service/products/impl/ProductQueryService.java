@@ -13,6 +13,7 @@ import shopping.international.domain.model.entity.products.ProductSpecValue;
 import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.ProductPublicSnapshot;
 import shopping.international.domain.model.vo.products.ProductSearchCriteria;
 import shopping.international.domain.service.products.IProductQueryService;
@@ -158,14 +159,21 @@ public class ProductQueryService implements IProductQueryService {
      * @return 新 SKU
      */
     private Sku rebuildSkuWithCurrency(@NotNull Sku sku, @NotNull String currency) {
-        List<shopping.international.domain.model.vo.products.ProductPrice> filteredPrices = sku.getPrices()
-                .stream()
-                .filter(price -> currency.equalsIgnoreCase(price.getCurrency()))
-                .toList();
+        // 优先返回指定币种的 active 价格, 缺失/不可用时回退 USD
+        List<ProductPrice> filteredPrices = sku.getPrices();
+        ProductPrice defaultPrice = filteredPrices.stream()
+                .filter(p -> p != null && "USD".equalsIgnoreCase(p.getCurrency()))
+                .filter(ProductPrice::isActive)
+                .findFirst()
+                .orElse(null);
+        ProductPrice picked = filteredPrices.stream()
+                .filter(p -> p != null && currency.equalsIgnoreCase(p.getCurrency()))
+                .filter(ProductPrice::isActive)
+                .findFirst()
+                .orElse(defaultPrice);
+        List<ProductPrice> single = picked == null ? List.of() : List.of(picked);
         return Sku.reconstitute(sku.getId(), sku.getProductId(), sku.getSkuCode(), sku.getStock(),
                 sku.getWeight(), sku.getStatus(), sku.isDefaultSku(), sku.getBarcode(),
-                filteredPrices, sku.getSpecs(), sku.getImages(), sku.getCreatedAt(), sku.getUpdatedAt());
+                single, sku.getSpecs(), sku.getImages(), sku.getCreatedAt(), sku.getUpdatedAt());
     }
-
-    // 留空: 规格和规格值的本地化在触发层根据读取到的 i18n 数据完成
 }

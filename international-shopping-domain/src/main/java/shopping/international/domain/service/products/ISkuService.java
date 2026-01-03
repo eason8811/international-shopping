@@ -102,6 +102,47 @@ public interface ISkuService {
     List<String> upsertPrices(@NotNull Long productId, @NotNull Long skuId, @NotNull List<ProductPrice> prices);
 
     /**
+     * 重新计算指定 SKU 的外汇自动价格或缺失币种的价格
+     *
+     * <p>不会覆盖已有 MANUAL 币种；基于 USD 基准价 + latest 汇率派生其余币种</p>
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @return 受影响的币种列表
+     */
+    @NotNull
+    List<String> recomputeFxPrices(@NotNull Long productId, @NotNull Long skuId);
+
+    /**
+     * 重新计算指定商品下所有 SKU 的外汇自动价格或缺失币种的价格
+     *
+     * <p>此方法不会覆盖已设定为 MANUAL 模式的币种价格；它基于 USD 基准价和最新汇率派生其余币种的价格</p>
+     *
+     * @param productId 商品 ID
+     * @return 受影响的 SKU 数量, 表示有多少个 SKU 的价格被重新计算了
+     */
+    int recomputeFxPricesByProduct(@NotNull Long productId);
+
+    /**
+     * 全量重算 FX_AUTO / 缺失币种价格
+     *
+     * @param batchSize 商品分页大小
+     * @return 处理的 SKU 数量
+     */
+    int recomputeFxPricesAll(int batchSize);
+
+    /**
+     * 将指定 SKU 的特定币种价格模式切换为 MANUAL 模式
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param currency  要切换到 MANUAL 模式的币种代码
+     * @return 受影响的币种列表, 包含了成功切换为 MANUAL 模式的币种
+     */
+    @NotNull
+    List<String> switchPriceToManual(@NotNull Long productId, @NotNull Long skuId, @NotNull String currency);
+
+    /**
      * 调整库存
      *
      * @param productId 所属商品 ID

@@ -25,6 +25,7 @@ import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.products.IProductService;
+import shopping.international.domain.service.products.ISkuService;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
@@ -48,6 +49,10 @@ public class AdminProductController {
      * 商品领域服务
      */
     private final IProductService productService;
+    /**
+     * SKU 领域服务 (用于价格重算)
+     */
+    private final ISkuService skuService;
     /**
      * 货币配置服务（用于最小货币单位换算）
      */
@@ -119,6 +124,30 @@ public class AdminProductController {
     public ResponseEntity<Result<AdminProductDetailRespond>> detail(@PathVariable("product_id") Long productId) {
         AdminProductDetailRespond respond = toDetailRespond(productService.detail(productId));
         return ResponseEntity.ok(Result.ok(respond));
+    }
+
+    /**
+     * 重算某商品(SPU)下所有 SKU 的 FX_AUTO / 缺失币种价格
+     *
+     * @param productId 产品 ID (path variable), 用于标识要重新计算价格的产品
+     * @return 包含处理结果的 ResponseEntity, 其中 Result 对象封装了一个 Map, 映射键 "processed_skus" 到一个整数, 表示已处理的 SKU 数量
+     */
+    @PostMapping("/{product_id}/price/recompute")
+    public ResponseEntity<Result<Map<String, Integer>>> recomputePricesByProduct(@PathVariable("product_id") Long productId) {
+        int processed = skuService.recomputeFxPricesByProduct(productId);
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("processed_skus", processed)));
+    }
+
+    /**
+     * 全量重算 FX_AUTO / 缺失币种价格
+     *
+     * @param batchSize 每次处理的商品数量 默认值为 100
+     * @return 返回一个包含已处理商品数量的响应实体, 其中 processed_skus 表示已处理的商品数目
+     */
+    @PostMapping("/price/recompute")
+    public ResponseEntity<Result<Map<String, Integer>>> recomputePricesAll(@RequestParam(name = "batch_size", defaultValue = "100") int batchSize) {
+        int processed = skuService.recomputeFxPricesAll(batchSize);
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("processed_skus", processed)));
     }
 
     /**

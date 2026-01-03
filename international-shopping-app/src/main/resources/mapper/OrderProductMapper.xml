@@ -22,8 +22,17 @@
             <choose>
                 <when test="currency != null">
                     CASE
-                        WHEN pp.is_active = 1 AND pp.sale_price IS NOT NULL THEN pp.sale_price
-                        WHEN pp.is_active = 1 THEN pp.list_price
+                        WHEN pp.is_active = 1
+                             AND (pp.price_source = 'MANUAL'
+                                  OR (pp.price_source = 'FX_AUTO'
+                                      AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                      AND pp.fx_as_of <![CDATA[<=]]> NOW(3)))
+                             AND pp.sale_price IS NOT NULL THEN pp.sale_price
+                        WHEN pp.is_active = 1
+                             AND (pp.price_source = 'MANUAL'
+                                  OR (pp.price_source = 'FX_AUTO'
+                                      AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                      AND pp.fx_as_of <![CDATA[<=]]> NOW(3))) THEN pp.list_price
                         ELSE NULL
                     END AS unit_price
                 </when>
@@ -38,13 +47,93 @@
                 <when test="currency != null">
                     JSON_SET(
                         COALESCE(attrs.sku_attrs_json, JSON_OBJECT()),
-                        '$.sale_price', CASE WHEN pp.is_active = 1 THEN pp.sale_price ELSE NULL END,
-                        '$.list_price', CASE WHEN pp.is_active = 1 THEN pp.list_price ELSE NULL END
+                        '$.pricing_currency', CASE
+                            WHEN pp.is_active = 1
+                                 AND (pp.price_source = 'MANUAL'
+                                      OR (pp.price_source = 'FX_AUTO'
+                                          AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                          AND pp.fx_as_of <![CDATA[<=]]> NOW(3))) THEN pp.currency
+                            ELSE NULL
+                        END,
+                        '$.sale_price', CASE
+                            WHEN pp.is_active = 1
+                                 AND (pp.price_source = 'MANUAL'
+                                      OR (pp.price_source = 'FX_AUTO'
+                                          AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                          AND pp.fx_as_of <![CDATA[<=]]> NOW(3))) THEN pp.sale_price
+                            ELSE NULL
+                        END,
+                        '$.list_price', CASE
+                            WHEN pp.is_active = 1
+                                 AND (pp.price_source = 'MANUAL'
+                                      OR (pp.price_source = 'FX_AUTO'
+                                          AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                          AND pp.fx_as_of <![CDATA[<=]]> NOW(3))) THEN pp.list_price
+                            ELSE NULL
+                        END,
+                        '$.price_source', CASE
+                            WHEN pp.is_active = 1
+                                 AND (pp.price_source = 'MANUAL'
+                                      OR (pp.price_source = 'FX_AUTO'
+                                          AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                          AND pp.fx_as_of <![CDATA[<=]]> NOW(3))) THEN pp.price_source
+                            ELSE NULL
+                        END,
+                        '$.derived_from', CASE
+                            WHEN pp.is_active = 1
+                                 AND pp.price_source = 'FX_AUTO'
+                                 AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN pp.derived_from
+                            ELSE NULL
+                        END,
+                        '$.fx_rate', CASE
+                            WHEN pp.is_active = 1
+                                 AND pp.price_source = 'FX_AUTO'
+                                 AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN pp.fx_rate
+                            ELSE NULL
+                        END,
+                        '$.fx_as_of', CASE
+                            WHEN pp.is_active = 1
+                                 AND pp.price_source = 'FX_AUTO'
+                                 AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN DATE_FORMAT(pp.fx_as_of, '%Y-%m-%dT%H:%i:%s.%f')
+                            ELSE NULL
+                        END,
+                        '$.fx_provider', CASE
+                            WHEN pp.is_active = 1
+                                 AND pp.price_source = 'FX_AUTO'
+                                 AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN pp.fx_provider
+                            ELSE NULL
+                        END,
+                        '$.computed_at', CASE
+                            WHEN pp.is_active = 1
+                                 AND pp.price_source = 'FX_AUTO'
+                                 AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN DATE_FORMAT(pp.computed_at, '%Y-%m-%dT%H:%i:%s.%f')
+                            ELSE NULL
+                        END,
+                        '$.algo_ver', CASE
+                            WHEN pp.is_active = 1
+                                 AND pp.price_source = 'FX_AUTO'
+                                 AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN pp.algo_ver
+                            ELSE NULL
+                        END,
+                        '$.markup_bps', CASE
+                            WHEN pp.is_active = 1
+                                 AND pp.price_source = 'FX_AUTO'
+                                 AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN pp.markup_bps
+                            ELSE NULL
+                        END
                     ) AS sku_attrs_json
                 </when>
                 <otherwise>
                     JSON_SET(
                         COALESCE(attrs.sku_attrs_json, JSON_OBJECT()),
+                        '$.pricing_currency', NULL,
                         '$.sale_price', NULL,
                         '$.list_price', NULL
                     ) AS sku_attrs_json

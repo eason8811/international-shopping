@@ -114,3 +114,15 @@ resend:
   from-name: international-shopping
   activation-subject: Your verification code
   password-reset-subject: Your password reset code
+
+
+# FX 汇率与派生配置
+fx:
+  rate:
+    # 全站默认基准币种
+    baseCurrency: USD
+    sync:
+      # 汇率同步任务：启动后首次延迟
+      initialDelay: 30s
+      # 汇率同步任务：执行间隔(固定延迟)
+      fixedDelay: 1h

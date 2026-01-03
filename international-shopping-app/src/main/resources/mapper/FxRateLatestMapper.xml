@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.common.FxRateLatestMapper">
+
+    <select id="selectOneLatest" resultType="shopping.international.infrastructure.dao.common.po.FxRateLatestPO">
+        SELECT base_code  AS baseCode,
+               quote_code AS quoteCode,
+               rate       AS rate,
+               as_of      AS asOf,
+               provider   AS provider,
+               updated_at AS updatedAt
+        FROM fx_rate_latest
+        WHERE base_code = #{baseCode}
+          AND quote_code = #{quoteCode}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestByQuotes" resultType="shopping.international.infrastructure.dao.common.po.FxRateLatestPO">
+        SELECT base_code  AS baseCode,
+               quote_code AS quoteCode,
+               rate       AS rate,
+               as_of      AS asOf,
+               provider   AS provider,
+               updated_at AS updatedAt
+        FROM fx_rate_latest
+        WHERE base_code = #{baseCode}
+          AND quote_code IN
+        <foreach collection="quoteCodes" item="c" open="(" separator="," close=")">
+            #{c}
+        </foreach>
+    </select>
+
+    <insert id="upsertBatch">
+        INSERT INTO fx_rate_latest (base_code, quote_code, rate, as_of, provider)
+        VALUES
+        <foreach collection="list" item="i" separator=",">
+            (#{i.baseCode}, #{i.quoteCode}, #{i.rate}, #{i.asOf}, #{i.provider})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        rate     = VALUES(rate),
+        as_of    = VALUES(as_of),
+        provider = VALUES(provider)
+    </insert>
+
+</mapper>
+

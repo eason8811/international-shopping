@@ -5,27 +5,31 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import shopping.international.domain.adapter.repository.common.ICurrencyRepository;
 import shopping.international.domain.adapter.repository.products.IProductRepository;
 import shopping.international.domain.adapter.repository.products.ISkuRepository;
 import shopping.international.domain.model.aggregate.products.Product;
 import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.entity.products.ProductSpec;
 import shopping.international.domain.model.entity.products.ProductSpecValue;
-import shopping.international.domain.model.enums.products.ProductStatus;
-import shopping.international.domain.model.enums.products.SkuStatus;
-import shopping.international.domain.model.enums.products.SkuType;
-import shopping.international.domain.model.enums.products.StockAdjustMode;
+import shopping.international.domain.model.enums.products.*;
+import shopping.international.domain.model.vo.common.FxRateLatest;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
+import shopping.international.domain.service.common.ICurrencyConfigService;
+import shopping.international.domain.service.common.IFxRateService;
 import shopping.international.domain.service.products.ISkuService;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.math.RoundingMode;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -41,6 +45,27 @@ import static shopping.international.types.utils.FieldValidateUtils.require;
 public class SkuService implements ISkuService {
 
     /**
+     * 全站默认基础货币
+     */
+    private static final String DEFAULT_BASE_CURRENCY = "USD";
+    /**
+     * 默认算法版本
+     */
+    private static final int DEFAULT_ALGO_VER = 1;
+    /**
+     * 默认 markup
+     */
+    private static final int DEFAULT_MARKUP_BPS = 0;
+    /**
+     * 允许的最大延迟时间
+     */
+    private static final Duration FX_MAX_AGE = Duration.ofHours(8);
+    /**
+     * 时钟
+     */
+    private final Clock clock = Clock.systemUTC();
+
+    /**
      * SKU 仓储
      */
     private final ISkuRepository skuRepository;
@@ -48,6 +73,18 @@ public class SkuService implements ISkuService {
      * 商品仓储
      */
     private final IProductRepository productRepository;
+    /**
+     * 币种仓储 (用于 enabled 币种集合)
+     */
+    private final ICurrencyRepository currencyRepository;
+    /**
+     * 货币配置服务
+     */
+    private final ICurrencyConfigService currencyConfigService;
+    /**
+     * 汇率服务
+     */
+    private final IFxRateService fxRateService;
 
     /**
      * 列出商品下的 SKU
@@ -89,7 +126,9 @@ public class SkuService implements ISkuService {
         if (product.getSkuType() == SkuType.SINGLE && !skuList.isEmpty())
             throw new ConflictException("单规格商品, 已存在 SKU, 无法再添加 SKU");
         ensureSkuSpecRelationValidate(product, skuList, null, specs);
-        Sku sku = Sku.create(productId, skuCode, stock, weight, status, isDefault, barcode, prices, specs, images);
+        ensureHasBaseCurrencyPrice(prices, DEFAULT_BASE_CURRENCY);
+        List<ProductPrice> fullPrices = deriveMissingFxAutoPrices(prices, List.of(), DEFAULT_BASE_CURRENCY);
+        Sku sku = Sku.create(productId, skuCode, stock, weight, status, isDefault, barcode, fullPrices, specs, images);
         Sku saved = skuRepository.save(sku);
         if (isDefault)
             skuRepository.markDefault(productId, saved.getId());
@@ -203,9 +242,254 @@ public class SkuService implements ISkuService {
         if (prices.isEmpty())
             return List.of();
 
-        sku.patchPrice(prices);
+        ensureHasBaseCurrencyPrice(prices, DEFAULT_BASE_CURRENCY);
+        List<ProductPrice> fullPrices = deriveMissingFxAutoPrices(prices, sku.getPrices(), DEFAULT_BASE_CURRENCY);
+        sku.patchPrice(fullPrices);
         skuRepository.upsertPrices(skuId, sku.getPrices());
-        return prices.stream().map(ProductPrice::getCurrency).toList();
+        return fullPrices.stream().map(ProductPrice::getCurrency).distinct().toList();
+    }
+
+    /**
+     * 重新计算指定 SKU 的外汇自动价格或缺失币种的价格
+     *
+     * <p>不会覆盖已有 MANUAL 币种；基于 USD 基准价 + latest 汇率派生其余币种</p>
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @return 受影响的币种列表
+     */
+    @Override
+    public @NotNull List<String> recomputeFxPrices(@NotNull Long productId, @NotNull Long skuId) {
+        ensureProduct(productId);
+        Sku sku = ensureSku(productId, skuId);
+        ProductPrice usd = sku.getPrices().stream()
+                .filter(p -> DEFAULT_BASE_CURRENCY.equalsIgnoreCase(p.getCurrency()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("SKU 缺少全站默认币种 " + DEFAULT_BASE_CURRENCY + " 定价"));
+
+        // 重算只依赖 USD 基准价, 并确保 USD 为 MANUAL (清理可能存在的 FX 元数据)
+        ProductPrice usdManual = ProductPrice.of(DEFAULT_BASE_CURRENCY, usd.getListPrice(), usd.getSalePrice(), usd.isActive());
+
+        List<ProductPrice> fullPrices = deriveMissingFxAutoPrices(List.of(usdManual), sku.getPrices(), DEFAULT_BASE_CURRENCY);
+        sku.patchPrice(fullPrices);
+        skuRepository.upsertPrices(skuId, sku.getPrices());
+        return fullPrices.stream().map(ProductPrice::getCurrency).distinct().toList();
+    }
+
+    /**
+     * 重新计算指定商品下所有 SKU 的外汇自动价格或缺失币种的价格
+     *
+     * <p>此方法不会覆盖已设定为 MANUAL 模式的币种价格；它基于 USD 基准价和最新汇率派生其余币种的价格</p>
+     *
+     * @param productId 商品 ID
+     * @return 受影响的 SKU 数量, 表示有多少个 SKU 的价格被重新计算了
+     */
+    @Override
+    public int recomputeFxPricesByProduct(@NotNull Long productId) {
+        ensureProduct(productId);
+        List<Sku> skus = skuRepository.listByProductId(productId, null);
+        if (skus.isEmpty())
+            return 0;
+        int processed = 0;
+        for (Sku sku : skus) {
+            if (sku == null || sku.getId() == null)
+                continue;
+            try {
+                recomputeFxPrices(productId, sku.getId());
+                processed++;
+            } catch (Exception ignore) {
+                // 跳过缺失 USD 定价等不满足派生条件的 SKU
+            }
+        }
+        return processed;
+    }
+
+    /**
+     * 全量重算 FX_AUTO / 缺失币种价格
+     *
+     * @param batchSize 商品分页大小
+     * @return 处理的 SKU 数量
+     */
+    @Override
+    public int recomputeFxPricesAll(int batchSize) {
+        int size = Math.max(1, Math.min(batchSize, 500));
+        int offset = 0;
+        int processedSkus = 0;
+        while (true) {
+            List<Product> products = productRepository.list(null, null, null, null, null, false, offset, size);
+            if (products.isEmpty())
+                break;
+            for (Product p : products) {
+                if (p == null || p.getId() == null)
+                    continue;
+                processedSkus += recomputeFxPricesByProduct(p.getId());
+            }
+            offset += products.size();
+            if (products.size() < size)
+                break;
+        }
+        return processedSkus;
+    }
+
+    /**
+     * 将指定 SKU 的特定币种价格模式切换为 MANUAL 模式
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param currency  要切换到 MANUAL 模式的币种代码
+     * @return 受影响的币种列表, 包含了成功切换为 MANUAL 模式的币种
+     */
+    @Override
+    public @NotNull List<String> switchPriceToManual(@NotNull Long productId, @NotNull Long skuId, @NotNull String currency) {
+        ensureProduct(productId);
+        Sku sku = ensureSku(productId, skuId);
+        ProductPrice existed = sku.getPrices().stream()
+                .filter(p -> p != null && p.getCurrency() != null && p.getCurrency().equalsIgnoreCase(currency))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("SKU 未配置该币种价格: " + currency));
+        ProductPrice manual = ProductPrice.of(existed.getCurrency(), existed.getListPrice(), existed.getSalePrice(), existed.isActive());
+        sku.patchPrice(List.of(manual));
+        skuRepository.upsertPrices(skuId, sku.getPrices());
+        return List.of(manual.getCurrency());
+    }
+
+    /**
+     * 确保给定的价格列表中至少包含一个以全站默认币种计价的价格
+     *
+     * @param prices       价格列表, 必须不为空
+     * @param baseCurrency 全站默认币种代码, 必须不为空
+     * @throws IllegalArgumentException 如果价格列表中没有任何一个价格是以 {@code baseCurrency} 为币种的
+     */
+    private static void ensureHasBaseCurrencyPrice(@NotNull List<ProductPrice> prices, @NotNull String baseCurrency) {
+        require(prices.stream().filter(Objects::nonNull).anyMatch(p -> baseCurrency.equalsIgnoreCase(p.getCurrency())),
+                "价格必须包含全站默认币种 " + baseCurrency);
+    }
+
+    /**
+     * 写入时派生价格并落库:
+     * <ul>
+     *      <li>未传入的币种: 若该币种当前不是 MANUAL，则使用 base(USD) + latest 汇率派生</li>
+     *      <li>传入的非 base 币种: 视为人工调整 (MANUAL)，不派生该币种</li>
+     * </ul>
+     * <p>当汇率缺失/过期(>8h)时，不生成派生价格，读取侧应回退 USD</p>
+     *
+     * @param requested    请求中的产品价格列表, 包含可能需要推导出新价格的条目
+     * @param existing     已存在的产品价格列表, 用于参考哪些价格已经设定且为手动调整
+     * @param baseCurrency 基础货币代码, 作为汇率换算的基础
+     * @return 返回一个完整的包含所有原始请求价格及推导出的新价格的列表
+     * @throws IllegalParamException 如果提供的价格列表中不包含全站默认币种, 则抛出异常
+     */
+    private @NotNull List<ProductPrice> deriveMissingFxAutoPrices(@NotNull List<ProductPrice> requested,
+                                                                  @NotNull List<ProductPrice> existing,
+                                                                  @NotNull String baseCurrency) {
+        // 获取 currency -> Price 映射
+        Map<String, ProductPrice> priceByCurrencyMap = requested.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(p -> p.getCurrency().toUpperCase(), Function.identity(), (a, b) -> b));
+
+        ProductPrice basePrice = priceByCurrencyMap.get(baseCurrency);
+        if (basePrice == null)
+            throw new IllegalParamException("价格必须包含全站默认币种 " + baseCurrency);
+
+        Map<String, ProductPrice> existingByCurrency = existing.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(p -> p.getCurrency().toUpperCase(), Function.identity(), (a, b) -> b));
+
+        Set<String> quoteCodes = currencyRepository.listEnabledCodes().stream()
+                .filter(Objects::nonNull)
+                .map(String::strip)
+                .map(String::toUpperCase)
+                .filter(c -> !c.isBlank())
+                .filter(c -> !baseCurrency.equalsIgnoreCase(c))
+                .collect(Collectors.toSet());
+
+        if (quoteCodes.isEmpty())
+            return requested;
+
+        Map<String, FxRateLatest> latestMap = fxRateService.getLatestByQuotes(baseCurrency, quoteCodes);
+
+        CurrencyConfig baseCfg = currencyConfigService.get(baseCurrency);
+        LocalDateTime computedAt = LocalDateTime.now(clock);
+
+        List<ProductPrice> derived = new ArrayList<>();
+        for (String quote : quoteCodes) {
+            if (quote == null || quote.isBlank())
+                continue;
+            // 传入视为人工调整
+            if (priceByCurrencyMap.containsKey(quote))
+                continue;
+            // 已有且为 MANUAL 则保持不变
+            ProductPrice existed = existingByCurrency.get(quote);
+            if (existed != null && existed.getSource() == ProductPriceSource.MANUAL)
+                continue;
+
+            FxRateLatest latest = latestMap.get(quote);
+            if (latest == null || !latest.isFresh(clock, FX_MAX_AGE))
+                continue;
+
+            CurrencyConfig quoteCfg = currencyConfigService.get(quote);
+            long listMinor = convertMinor(baseCfg, quoteCfg, basePrice.getListPrice(), latest.rate(), DEFAULT_MARKUP_BPS);
+            if (listMinor <= 0)
+                continue;
+
+            Long saleMinor = null;
+            if (basePrice.getSalePrice() != null) {
+                long tmp = convertMinor(baseCfg, quoteCfg, basePrice.getSalePrice(), latest.rate(), DEFAULT_MARKUP_BPS);
+                if (tmp > 0)
+                    saleMinor = tmp;
+            }
+            if (saleMinor != null && saleMinor > listMinor)
+                saleMinor = listMinor;
+
+            derived.add(ProductPrice.fxAuto(
+                    quote,
+                    listMinor,
+                    saleMinor,
+                    basePrice.isActive(),
+                    baseCurrency,
+                    latest.rate(),
+                    latest.asOf(),
+                    latest.provider(),
+                    computedAt,
+                    DEFAULT_ALGO_VER,
+                    DEFAULT_MARKUP_BPS
+            ));
+        }
+
+        if (derived.isEmpty())
+            return requested;
+
+        List<ProductPrice> full = new ArrayList<>(requested);
+        full.addAll(derived);
+        return full;
+    }
+
+    /**
+     * 将基础货币的最小单位金额转换为目标货币的最小单位金额, 并根据给定的加成基点进行调整
+     * baseMinor(USD) -> quoteMinor
+     * <p>markup_bps 在换算前应用，最终舍入由 quoteCfg.roundingMode + minorUnit 决定</p>
+     *
+     * @param baseCfg   基础货币配置信息
+     * @param quoteCfg  目标货币配置信息
+     * @param baseMinor 基础货币的最小单位金额
+     * @param rate      汇率, 用于从基础货币转换到目标货币
+     * @param markupBps 加成基点, 用于计算额外的成本或利润, 以基点为单位(1基点=0.0001)
+     * @return 转换后并经过加成调整的目标货币的最小单位金额
+     */
+    private static long convertMinor(@NotNull CurrencyConfig baseCfg,
+                                     @NotNull CurrencyConfig quoteCfg,
+                                     long baseMinor,
+                                     @NotNull java.math.BigDecimal rate,
+                                     int markupBps) {
+        require(baseMinor >= 0, "金额不能为负数");
+        require(markupBps >= 0, "markup_bps 不能为负数");
+        BigDecimal baseMajor = baseCfg.toMajor(baseMinor);
+        BigDecimal marked = markupBps == 0
+                ? baseMajor
+                : baseMajor.multiply(BigDecimal.valueOf(10000L + markupBps))
+                .divide(BigDecimal.valueOf(10000L), 18, RoundingMode.HALF_UP);
+        BigDecimal quoteMajor = marked.multiply(rate);
+        return quoteCfg.toMinorRounded(quoteMajor);
     }
 
     /**

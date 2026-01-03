@@ -1,5 +1,6 @@
 package shopping.international.infrastructure.adapter.repository.common;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -8,6 +9,9 @@ import shopping.international.domain.adapter.repository.common.ICurrencyReposito
 import shopping.international.domain.model.vo.common.CurrencyProfile;
 import shopping.international.infrastructure.dao.common.CurrencyMapper;
 import shopping.international.infrastructure.dao.common.po.CurrencyPO;
+
+import java.util.Collections;
+import java.util.List;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeCurrency;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
@@ -45,5 +49,25 @@ public class CurrencyRepository implements ICurrencyRepository {
                 po.getEnabled()
         );
     }
-}
 
+    /**
+     * 查询启用币种代码列表
+     *
+     * @return 启用币种代码列表 (可能为空)
+     */
+    @Override
+    public @NotNull List<String> listEnabledCodes() {
+        List<CurrencyPO> pos = currencyMapper.selectList(
+                new LambdaQueryWrapper<CurrencyPO>()
+                        .eq(CurrencyPO::getEnabled, true)
+                        .select(CurrencyPO::getCode)
+        );
+        if (pos == null || pos.isEmpty())
+            return Collections.emptyList();
+        return pos.stream()
+                .map(CurrencyPO::getCode)
+                .filter(c -> c != null && !c.isBlank())
+                .map(String::strip)
+                .toList();
+    }
+}

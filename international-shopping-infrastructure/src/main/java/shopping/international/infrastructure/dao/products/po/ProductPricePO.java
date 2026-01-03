@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -57,6 +58,54 @@ public class ProductPricePO {
      */
     @TableField("is_active")
     private Boolean isActive;
+
+    /**
+     * 价格来源: MANUAL / FX_AUTO
+     */
+    @TableField("price_source")
+    private String priceSource;
+
+    /**
+     * 派生基准币种 (通常 USD), price_source=FX_AUTO 时有效
+     */
+    @TableField("derived_from")
+    private String derivedFrom;
+
+    /**
+     * 派生使用的汇率(1 derived_from = fx_rate currency)
+     */
+    @TableField("fx_rate")
+    private BigDecimal fxRate;
+
+    /**
+     * 派生使用的汇率时间点
+     */
+    @TableField("fx_as_of")
+    private LocalDateTime fxAsOf;
+
+    /**
+     * 派生使用的数据源
+     */
+    @TableField("fx_provider")
+    private String fxProvider;
+
+    /**
+     * 价格计算时间
+     */
+    @TableField("computed_at")
+    private LocalDateTime computedAt;
+
+    /**
+     * 算法版本
+     */
+    @TableField("algo_ver")
+    private Integer algoVer;
+
+    /**
+     * 加价/手续费 (bps)
+     */
+    @TableField("markup_bps")
+    private Integer markupBps;
 
     /**
      * 创建时间

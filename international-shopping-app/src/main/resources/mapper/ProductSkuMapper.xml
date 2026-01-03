@@ -11,6 +11,14 @@
         <result column="list_price" property="listPrice"/>
         <result column="sale_price" property="salePrice"/>
         <result column="is_active" property="isActive"/>
+        <result column="price_source" property="priceSource"/>
+        <result column="derived_from" property="derivedFrom"/>
+        <result column="fx_rate" property="fxRate"/>
+        <result column="fx_as_of" property="fxAsOf"/>
+        <result column="fx_provider" property="fxProvider"/>
+        <result column="computed_at" property="computedAt"/>
+        <result column="algo_ver" property="algoVer"/>
+        <result column="markup_bps" property="markupBps"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
@@ -72,6 +80,14 @@
             product_price.list_price    AS price_list_price,
             product_price.sale_price    AS price_sale_price,
             product_price.is_active     AS price_is_active,
+            product_price.price_source  AS price_price_source,
+            product_price.derived_from  AS price_derived_from,
+            product_price.fx_rate       AS price_fx_rate,
+            product_price.fx_as_of      AS price_fx_as_of,
+            product_price.fx_provider   AS price_fx_provider,
+            product_price.computed_at   AS price_computed_at,
+            product_price.algo_ver      AS price_algo_ver,
+            product_price.markup_bps    AS price_markup_bps,
             product_price.created_at    AS price_created_at,
             product_price.updated_at    AS price_updated_at,
             product_sku_spec.sku_id     AS spec_sku_id,

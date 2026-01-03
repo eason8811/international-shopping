@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.common.FxRateMapper">
+
+    <insert id="insertIgnoreBatch">
+        INSERT IGNORE INTO fx_rate (base_code, quote_code, rate, as_of, provider)
+        VALUES
+        <foreach collection="list" item="i" separator=",">
+            (#{i.baseCode}, #{i.quoteCode}, #{i.rate}, #{i.asOf}, #{i.provider})
+        </foreach>
+    </insert>
+
+</mapper>
+
