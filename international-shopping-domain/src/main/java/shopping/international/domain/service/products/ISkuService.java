@@ -143,6 +143,17 @@ public interface ISkuService {
     List<String> switchPriceToManual(@NotNull Long productId, @NotNull Long skuId, @NotNull String currency);
 
     /**
+     * 将指定 SKU 的特定币种价格模式切换为 FX_AUTO 模式
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param currency  要切换到 FX_AUTO 模式的币种代码
+     * @return 受影响的币种列表, 包含了成功切换为 FX_AUTO 模式的币种
+     */
+    @NotNull
+    List<String> switchPriceToFxAuto(@NotNull Long productId, @NotNull Long skuId, @NotNull String currency);
+
+    /**
      * 调整库存
      *
      * @param productId 所属商品 ID

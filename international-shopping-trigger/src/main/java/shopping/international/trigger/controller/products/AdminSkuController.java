@@ -200,6 +200,27 @@ public class AdminSkuController {
     }
 
     /**
+     * 将指定 SKU 的价格模式切换为 FX_AUTO 模式
+     *
+     * @param productId 产品 ID, 用于定位具体的产品
+     * @param skuId     SKU ID, 用于定位具体的 SKU
+     * @param currency  货币代码, 指定要切换到 FX_AUTO 模式的货币
+     * @return 返回一个包含更新结果的 ResponseEntity 对象. 结果中包含了操作后的响应信息, 包括受影响的产品 ID, SKU ID 以及受影响的货币列表
+     */
+    @PatchMapping("/{sku_id}/price/{currency}/fx-auto")
+    public ResponseEntity<Result<SkuPriceUpdateRespond>> switchPriceToFxAuto(@PathVariable("product_id") Long productId,
+                                                                             @PathVariable("sku_id") Long skuId,
+                                                                             @PathVariable String currency) {
+        List<String> currencies = skuService.switchPriceToFxAuto(productId, skuId, currency);
+        SkuPriceUpdateRespond respond = SkuPriceUpdateRespond.builder()
+                .productId(productId)
+                .skuId(skuId)
+                .currencies(currencies)
+                .build();
+        return ResponseEntity.ok(Result.ok(respond));
+    }
+
+    /**
      * 调整库存
      *
      * @param productId 商品 ID

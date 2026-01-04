@@ -34,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * SKU 领域服务实现
@@ -351,6 +352,60 @@ public class SkuService implements ISkuService {
         sku.patchPrice(List.of(manual));
         skuRepository.upsertPrices(skuId, sku.getPrices());
         return List.of(manual.getCurrency());
+    }
+
+    /**
+     * 将指定 SKU 的特定币种价格模式切换为 FX_AUTO 模式
+     *
+     * @param productId 商品 ID
+     * @param skuId     SKU ID
+     * @param currency  要切换到 FX_AUTO 模式的币种代码
+     * @return 受影响的币种列表, 包含了成功切换为 FX_AUTO 模式的币种
+     */
+    @Override
+    public @NotNull List<String> switchPriceToFxAuto(@NotNull Long productId, @NotNull Long skuId, @NotNull String currency) {
+        if (DEFAULT_BASE_CURRENCY.equalsIgnoreCase(currency))
+            throw new IllegalParamException("无法将全站默认币种 " + DEFAULT_BASE_CURRENCY + " 设为 FX_AUTO 模式, 该币种必须手动设置");
+        ensureProduct(productId);
+        Sku sku = ensureSku(productId, skuId);
+        ProductPrice defaultCurrencyPrice = sku.getPrices().stream()
+                .filter(p -> p != null && p.getCurrency() != null && p.getCurrency().equalsIgnoreCase(DEFAULT_BASE_CURRENCY))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("SKU 未配置全站默认币种价格: " + DEFAULT_BASE_CURRENCY));
+        ProductPrice existed = sku.getPrices().stream()
+                .filter(p -> p != null && p.getCurrency() != null && p.getCurrency().equalsIgnoreCase(currency))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("SKU 未配置该币种价格: " + currency));
+        FxRateLatest fxRateLatest = fxRateService.getLatest(DEFAULT_BASE_CURRENCY, currency);
+        requireNotNull(fxRateLatest, "汇率 '" + DEFAULT_BASE_CURRENCY + "' -> '" + currency + "' 不存在或已过期, 无法自动计算价格");
+
+        CurrencyConfig existedQuoteCfg = currencyConfigService.get(currency);
+        CurrencyConfig defaultBaseCfg = currencyConfigService.get(DEFAULT_BASE_CURRENCY);
+        long listMinor = convertMinor(defaultBaseCfg, existedQuoteCfg, defaultCurrencyPrice.getListPrice(), fxRateLatest.rate(), DEFAULT_MARKUP_BPS);
+        Long saleMinor = null;
+        if (defaultCurrencyPrice.getSalePrice() != null) {
+            long tmp = convertMinor(defaultBaseCfg, existedQuoteCfg, defaultCurrencyPrice.getSalePrice(), fxRateLatest.rate(), DEFAULT_MARKUP_BPS);
+            if (tmp > 0)
+                saleMinor = tmp;
+        }
+        if (saleMinor != null && saleMinor > listMinor)
+            saleMinor = listMinor;
+
+        ProductPrice fxAutoPrice = ProductPrice.fxAuto(
+                existed.getCurrency(),
+                listMinor,
+                saleMinor,
+                existed.isActive(),
+                DEFAULT_BASE_CURRENCY,
+                fxRateLatest.rate(),
+                fxRateLatest.asOf(),
+                fxRateLatest.provider(),
+                LocalDateTime.now(clock),
+                DEFAULT_ALGO_VER,
+                DEFAULT_MARKUP_BPS);
+        sku.patchPrice(List.of(fxAutoPrice));
+        skuRepository.upsertPrices(skuId, sku.getPrices());
+        return List.of(fxAutoPrice.getCurrency());
     }
 
     /**
