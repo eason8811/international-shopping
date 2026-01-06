@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
+import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
@@ -99,6 +100,8 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
                 a.createValidate();
                 requireNotNull(a.getAmountOff(), "折扣策略类型为 AMOUNT 时 amountOff 不能为空");
             }
+            require(amounts.stream().anyMatch(a -> a != null && DiscountPolicy.DEFAULT_CURRENCY.equalsIgnoreCase(a.getCurrency())),
+                    "折扣策略类型为 AMOUNT 时 amounts 必须包含默认币种 " + DiscountPolicy.DEFAULT_CURRENCY);
         }
     }
 
@@ -131,6 +134,8 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
                 a.updateValidate();
                 requireNotNull(a.getAmountOff(), "折扣策略类型为 AMOUNT 时 amountOff 不能为空");
             }
+            require(amounts.stream().anyMatch(a -> a != null && DiscountPolicy.DEFAULT_CURRENCY.equalsIgnoreCase(a.getCurrency())),
+                    "折扣策略类型为 AMOUNT 时 amounts 必须包含默认币种 " + DiscountPolicy.DEFAULT_CURRENCY);
         }
     }
 
