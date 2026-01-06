@@ -581,6 +581,7 @@ public class SkuService implements ISkuService {
             throw new ConflictException("已上架的 SKU, 无法删除");
         List<Sku> skuList = skuRepository.listByProductId(productId, null);
         Map<Long, SkuStatus> statusBySkuIdMap = skuList.stream().collect(Collectors.toMap(Sku::getId, Sku::getStatus));
+        sku.updateBasic(null, null, SkuStatus.DISABLED, null, null);
         statusBySkuIdMap.put(skuId, SkuStatus.DISABLED);
         boolean hasEnabledSkuAfter = statusBySkuIdMap.values().stream().anyMatch(status -> status == SkuStatus.ENABLED);
         boolean defaultChanged = product.onSkuUpdated(sku, hasEnabledSkuAfter);
