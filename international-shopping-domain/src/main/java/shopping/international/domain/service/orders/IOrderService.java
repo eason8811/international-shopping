@@ -9,7 +9,9 @@ import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.Money;
 import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.types.enums.FxRateProvider;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -77,11 +79,21 @@ public interface IOrderService {
      * @param appliedScope       应用范围
      * @param skuId              明细级折扣关联的 SKU ID (订单级折扣为 null)
      * @param appliedAmountMinor 实际抵扣金额 (最小货币单位)
+     * @param baseCurrency       统一记账币种(如 USD)
+     * @param appliedAmountBaseMinor 实际抵扣金额(统一记账币种,最小货币单位)
+     * @param fxRate             折扣换算汇率快照(1 base = rate quote), base=baseCurrency, quote=订单币种
+     * @param fxAsOf             汇率时间点/采样时间(快照)
+     * @param fxProvider         汇率数据源(快照)
      */
     record OrderDiscountApplied(Long discountCodeId,
                                 @NotNull DiscountApplyScope appliedScope,
                                 @Nullable Long skuId,
-                                long appliedAmountMinor) {
+                                long appliedAmountMinor,
+                                @NotNull String baseCurrency,
+                                long appliedAmountBaseMinor,
+                                @Nullable BigDecimal fxRate,
+                                @Nullable LocalDateTime fxAsOf,
+                                @Nullable FxRateProvider fxProvider) {
     }
 
     /**

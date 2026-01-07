@@ -19,14 +19,18 @@ import shopping.international.domain.model.entity.orders.OrderItem;
 import shopping.international.domain.model.enums.orders.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.common.FxRateLatest;
 import shopping.international.domain.model.vo.orders.*;
+import shopping.international.domain.service.common.IFxRateService;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IOrderService;
+import shopping.international.types.config.FxRateProperties;
 import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -36,6 +40,7 @@ import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.require;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.normalizeCurrency;
 
 /**
  * 用户侧订单领域服务默认实现
@@ -79,6 +84,14 @@ public class OrderService implements IOrderService {
      * 货币配置服务, 用于金额换算与舍入
      */
     private final ICurrencyConfigService currencyConfigService;
+    /**
+     * 汇率服务, 用于将金额固化为统一记账币种
+     */
+    private final IFxRateService fxRateService;
+    /**
+     * FX 配置(包含全站默认基准币种)
+     */
+    private final FxRateProperties fxRateProperties;
 
     /**
      * 订单改址标记 TTL
@@ -472,6 +485,16 @@ public class OrderService implements IOrderService {
         List<IOrderService.OrderDiscountApplied> appliedList = new ArrayList<>();
         Money discountAmount;
         CurrencyConfig currencyConfig = currencyConfigService.get(currency);
+        String baseCurrency = normalizeCurrency(fxRateProperties.getBaseCurrency());
+        CurrencyConfig baseCurrencyConfig = null;
+        FxRateLatest fxRateLatest = null;
+        if (baseCurrency.isBlank())
+            baseCurrency = "USD";
+        if (!baseCurrency.equalsIgnoreCase(currency)) {
+            fxRateLatest = fxRateService.getLatest(baseCurrency, currency);
+            requireNotNull(fxRateLatest, "汇率 '" + baseCurrency + "' -> '" + currency + "' 不存在, 无法计算折扣记账金额");
+            baseCurrencyConfig = currencyConfigService.get(baseCurrency);
+        }
 
         if (policy.getApplyScope() == DiscountApplyScope.ORDER) {
             Money base = Money.zero(currency);
@@ -481,7 +504,19 @@ public class OrderService implements IOrderService {
             Money capped = capDiscount(currency, amountConfig, raw, base);
             discountAmount = capped;
 
-            appliedList.add(new IOrderService.OrderDiscountApplied(code.getId(), DiscountApplyScope.ORDER, null, capped.getAmountMinor()));
+            appliedList.add(
+                    toAccountingApplied(
+                            code.getId(),
+                            DiscountApplyScope.ORDER,
+                            null,
+                            capped.getAmountMinor(),
+                            baseCurrency,
+                            currency,
+                            currencyConfig,
+                            baseCurrencyConfig,
+                            fxRateLatest
+                    )
+            );
         } else {
             // ITEM 级别: 逐行计算
             List<LineDiscount> lineDiscounts = new ArrayList<>();
@@ -515,10 +550,24 @@ public class OrderService implements IOrderService {
             }
             discountAmount = sum;
 
-            appliedList.addAll(
-                    lineDiscounts.stream()
-                            .map(ld -> new IOrderService.OrderDiscountApplied(code.getId(), DiscountApplyScope.ITEM, ld.skuId, ld.amount.getAmountMinor()))
-                            .toList()
+            final String baseCurrencyFinal = baseCurrency;
+            final CurrencyConfig baseCurrencyConfigFinal = baseCurrencyConfig;
+            final FxRateLatest fxRateLatestFinal = fxRateLatest;
+            appliedList.addAll(lineDiscounts.stream()
+                    .map(ld ->
+                            toAccountingApplied(
+                                    code.getId(),
+                                    DiscountApplyScope.ITEM,
+                                    ld.skuId,
+                                    ld.amount.getAmountMinor(),
+                                    baseCurrencyFinal,
+                                    currency,
+                                    currencyConfig,
+                                    baseCurrencyConfigFinal,
+                                    fxRateLatestFinal
+                            )
+                    )
+                    .toList()
             );
         }
 
@@ -538,6 +587,80 @@ public class OrderService implements IOrderService {
         }
 
         return new DiscountComputation(discountAmount, itemsWithCode, code.getId(), appliedList);
+    }
+
+    /**
+     * 构造包含 "统一记账币种金额 + FX 快照" 的折扣应用记录
+     *
+     * @param discountCodeId     折扣码ID 必填
+     * @param appliedScope       折扣应用范围 必填
+     * @param skuId              库存单位ID 可为空
+     * @param appliedAmountMinor 应用金额(最小单位) 必填
+     * @param baseCurrency       基础货币 必填
+     * @param quoteCurrency      引用货币 必填
+     * @param quoteCfg           引用货币配置 必填
+     * @param baseCfg            基础货币配置 可为空
+     * @param fxRateLatest       最新汇率信息 可为空
+     * @return 返回一个 {@link IOrderService.OrderDiscountApplied} 对象, 包含了转换后的折扣应用信息
+     */
+    private static @NotNull IOrderService.OrderDiscountApplied toAccountingApplied(@NotNull Long discountCodeId,
+                                                                                   @NotNull DiscountApplyScope appliedScope,
+                                                                                   @Nullable Long skuId,
+                                                                                   long appliedAmountMinor,
+                                                                                   @NotNull String baseCurrency,
+                                                                                   @NotNull String quoteCurrency,
+                                                                                   @NotNull CurrencyConfig quoteCfg,
+                                                                                   @Nullable CurrencyConfig baseCfg,
+                                                                                   @Nullable FxRateLatest fxRateLatest) {
+        if (baseCurrency.equalsIgnoreCase(quoteCurrency)) {
+            return new IOrderService.OrderDiscountApplied(
+                    discountCodeId,
+                    appliedScope,
+                    skuId,
+                    appliedAmountMinor,
+                    baseCurrency,
+                    appliedAmountMinor,
+                    null,
+                    null,
+                    null
+            );
+        }
+        requireNotNull(baseCfg, "baseCfg 不能为空");
+        requireNotNull(fxRateLatest, "fxRateLatest 不能为空");
+        long baseMinor = convertQuoteMinorToBaseMinor(baseCfg, quoteCfg, appliedAmountMinor, fxRateLatest.rate());
+        return new IOrderService.OrderDiscountApplied(
+                discountCodeId,
+                appliedScope,
+                skuId,
+                appliedAmountMinor,
+                baseCurrency,
+                baseMinor,
+                fxRateLatest.rate(),
+                fxRateLatest.asOf(),
+                fxRateLatest.provider()
+        );
+    }
+
+    /**
+     * quoteMinor(订单币种) -> baseMinor(统一记账币种)
+     *
+     * <p>rate: 1 base = rate quote</p>
+     *
+     * @param baseCfg    基础货币配置信息, 不能为 null
+     * @param quoteCfg   报价货币配置信息, 不能为 null
+     * @param quoteMinor 报价货币的小数单位金额, 必须大于等于 0
+     * @param rate       汇率, 从报价货币到基础货币的换算比率, 不能为 null
+     * @return 转换后的基础货币的小数单位金额
+     * @throws IllegalArgumentException 如果 quoteMinor 小于 0
+     */
+    private static long convertQuoteMinorToBaseMinor(@NotNull CurrencyConfig baseCfg,
+                                                     @NotNull CurrencyConfig quoteCfg,
+                                                     long quoteMinor,
+                                                     @NotNull BigDecimal rate) {
+        require(quoteMinor >= 0, "金额不能为负数");
+        BigDecimal quoteMajor = quoteCfg.toMajor(quoteMinor);
+        BigDecimal baseMajor = quoteMajor.divide(rate, 18, RoundingMode.HALF_UP);
+        return baseCfg.toMinorRounded(baseMajor);
     }
 
     /**
@@ -571,10 +694,10 @@ public class OrderService implements IOrderService {
     /**
      * 对折扣金额进行裁剪 (不超过 base, 不超过 maxDiscountAmount)
      *
-     * @param currency 币种
+     * @param currency     币种
      * @param amountConfig 币种金额配置
-     * @param raw      原始折扣金额
-     * @param base     基数金额
+     * @param raw          原始折扣金额
+     * @param base         基数金额
      * @return 裁剪后的折扣金额
      */
     private static Money capDiscount(String currency, DiscountPolicyAmount amountConfig, Money raw, Money base) {
