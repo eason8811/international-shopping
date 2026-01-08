@@ -25,6 +25,7 @@ import shopping.international.infrastructure.dao.orders.po.*;
 import shopping.international.types.enums.FxRateProvider;
 import shopping.international.types.exceptions.ConflictException;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -105,6 +106,24 @@ public class DiscountRepository implements IDiscountRepository {
         List<DiscountPolicyAmountPO> amountPos = discountPolicyAmountMapper.selectList(new LambdaQueryWrapper<DiscountPolicyAmountPO>()
                 .eq(DiscountPolicyAmountPO::getPolicyId, policyId));
         return Optional.of(toAggregate(po, amountPos));
+    }
+
+    /**
+     * 根据名称查找折扣策略
+     *
+     * @param name 折扣策略的名称, 不能为 null
+     * @return 如果找到了指定名称的折扣策略, 则返回包含该策略的 Optional; 否则, 返回空的 Optional
+     */
+    @Override
+    public @NotNull Optional<DiscountPolicy> findPolicyByName(@NotNull String name) {
+        DiscountPolicyPO discountPolicyPO = discountPolicyMapper.selectOne(new LambdaQueryWrapper<DiscountPolicyPO>()
+                .eq(DiscountPolicyPO::getName, name)
+                .last("limit 1"));
+        if (discountPolicyPO == null)
+            return Optional.empty();
+        List<DiscountPolicyAmountPO> amountPos = discountPolicyAmountMapper.selectList(new LambdaQueryWrapper<DiscountPolicyAmountPO>()
+                .eq(DiscountPolicyAmountPO::getPolicyId, discountPolicyPO.getId()));
+        return Optional.of(toAggregate(discountPolicyPO, amountPos));
     }
 
     /**
@@ -261,8 +280,11 @@ public class DiscountRepository implements IDiscountRepository {
      */
     @Override
     public @NotNull Long countCodeByPolicyId(@NotNull Long policyId) {
-        return discountCodeMapper.selectCount(new LambdaQueryWrapper<DiscountCodePO>()
-                .eq(DiscountCodePO::getPolicyId, policyId));
+        return discountCodeMapper.selectCount(
+                new LambdaQueryWrapper<DiscountCodePO>()
+                        .eq(DiscountCodePO::getPolicyId, policyId)
+                        .lt(DiscountCodePO::getExpiresAt, LocalDateTime.now())
+        );
     }
 
     /**

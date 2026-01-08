@@ -12,7 +12,7 @@
         <collection property="amounts"
                     ofType="shopping.international.infrastructure.dao.orders.po.DiscountPolicyAmountPO"
                     autoMapping="true"
-                    notNullColumn="a_currency"
+                    notNullColumn="currency"
                     columnPrefix="a_">
             <id column="currency" property="currency"/>
         </collection>

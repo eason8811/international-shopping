@@ -56,6 +56,15 @@ public interface IDiscountRepository {
     Optional<DiscountPolicy> findPolicyById(@NotNull Long policyId);
 
     /**
+     * 根据名称查找折扣策略
+     *
+     * @param name 折扣策略的名称, 不能为 null
+     * @return 如果找到了指定名称的折扣策略, 则返回包含该策略的 Optional; 否则, 返回空的 Optional
+     */
+    @NotNull
+    Optional<DiscountPolicy> findPolicyByName(@NotNull String name);
+
+    /**
      * 保存新折扣策略
      *
      * @param policy 待保存策略 (id 为空)

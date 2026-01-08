@@ -93,6 +93,10 @@ public class AdminDiscountService implements IAdminDiscountService {
      */
     @Override
     public @NotNull DiscountPolicy createPolicy(@NotNull DiscountPolicy policy) {
+        discountRepository.findPolicyByName(policy.getName())
+                .ifPresent(p -> {
+                    throw new ConflictException("折扣策略已存在");
+                });
         if (policy.getStrategyType() == DiscountStrategyType.AMOUNT) {
             List<DiscountPolicyAmount> full = deriveFxAmountsForUpsert(policy.getAmounts(), List.of(), DiscountPolicy.DEFAULT_CURRENCY);
             policy.update(null, null, null, null, full);
@@ -111,7 +115,11 @@ public class AdminDiscountService implements IAdminDiscountService {
     public @NotNull DiscountPolicy updatePolicy(@NotNull Long policyId, @NotNull DiscountPolicy toUpdate) {
         DiscountPolicy policy = discountRepository.findPolicyById(policyId)
                 .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
-
+        if (toUpdate.getName() != null)
+            discountRepository.findPolicyByName(toUpdate.getName())
+                    .ifPresent(p -> {
+                        throw new ConflictException("折扣策略已存在");
+                    });
         List<DiscountPolicyAmount> fullAmounts = toUpdate.getAmounts();
         if (toUpdate.getStrategyType() == DiscountStrategyType.AMOUNT)
             fullAmounts = deriveFxAmountsForUpsert(toUpdate.getAmounts(), policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
