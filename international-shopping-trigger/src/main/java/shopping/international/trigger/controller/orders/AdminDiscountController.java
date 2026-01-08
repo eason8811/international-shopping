@@ -10,6 +10,7 @@ import shopping.international.api.req.orders.DiscountPolicyUpsertRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.orders.DiscountAppliedViewRespond;
 import shopping.international.api.resp.orders.DiscountCodeRespond;
+import shopping.international.api.resp.orders.DiscountPolicyAmountUpdateRespond;
 import shopping.international.api.resp.orders.DiscountPolicyRespond;
 import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
@@ -33,7 +34,9 @@ import shopping.international.types.exceptions.IllegalParamException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -151,6 +154,69 @@ public class AdminDiscountController {
     public ResponseEntity<Result<Void>> deletePolicy(@PathVariable("policy_id") Long policyId) {
         adminDiscountService.deletePolicy(policyId);
         return ResponseEntity.ok(Result.ok("折扣策略已删除"));
+    }
+
+    /**
+     * 重算指定折扣策略的 FX_AUTO / 缺失币种金额配置
+     *
+     * @param policyId 策略 ID
+     * @return 更新结果(受影响币种)
+     */
+    @PostMapping("/discount-policies/{policy_id}/amount/recompute")
+    public ResponseEntity<Result<DiscountPolicyAmountUpdateRespond>> recomputePolicyAmounts(@PathVariable("policy_id") Long policyId) {
+        List<String> currencies = adminDiscountService.recomputeFxAmounts(policyId);
+        return ResponseEntity.ok(Result.ok(
+                DiscountPolicyAmountUpdateRespond.builder()
+                        .policyId(policyId)
+                        .currencies(currencies)
+                        .build()
+        ));
+    }
+
+    /**
+     * 全量重算所有折扣策略(AMOUNT)的 FX_AUTO / 缺失币种金额配置
+     *
+     * @param batchSize 每批处理策略数(默认 100)
+     * @return 处理结果(受影响策略数)
+     */
+    @PostMapping("/discount-policies/amount/recompute")
+    public ResponseEntity<Result<Map<String, Integer>>> recomputePolicyAmountsAll(@RequestParam(name = "batch_size", defaultValue = "100") int batchSize) {
+        int processed = adminDiscountService.recomputeFxAmountsAll(batchSize);
+        return ResponseEntity.ok(Result.ok(Collections.singletonMap("processed_policies", processed)));
+    }
+
+    /**
+     * 将指定折扣策略的金额配置模式切换为 MANUAL (冻结金额, 清空 FX 元数据)
+     *
+     * @param policyId 策略 ID
+     * @return 更新结果(受影响币种)
+     */
+    @PatchMapping("/discount-policies/{policy_id}/amount/manual")
+    public ResponseEntity<Result<DiscountPolicyAmountUpdateRespond>> switchPolicyAmountsToManual(@PathVariable("policy_id") Long policyId) {
+        List<String> currencies = adminDiscountService.switchPolicyAmountsToManual(policyId);
+        return ResponseEntity.ok(Result.ok(
+                DiscountPolicyAmountUpdateRespond.builder()
+                        .policyId(policyId)
+                        .currencies(currencies)
+                        .build()
+        ));
+    }
+
+    /**
+     * 将指定折扣策略的金额配置模式切换为 FX_AUTO (除 USD 外全部按汇率派生)
+     *
+     * @param policyId 策略 ID
+     * @return 更新结果(受影响币种)
+     */
+    @PatchMapping("/discount-policies/{policy_id}/amount/fx-auto")
+    public ResponseEntity<Result<DiscountPolicyAmountUpdateRespond>> switchPolicyAmountsToFxAuto(@PathVariable("policy_id") Long policyId) {
+        List<String> currencies = adminDiscountService.switchPolicyAmountsToFxAuto(policyId);
+        return ResponseEntity.ok(Result.ok(
+                DiscountPolicyAmountUpdateRespond.builder()
+                        .policyId(policyId)
+                        .currencies(currencies)
+                        .build()
+        ));
     }
 
     /**
@@ -345,17 +411,23 @@ public class AdminDiscountController {
      */
     private DiscountPolicyRespond toRespond(DiscountPolicy policy) {
         List<DiscountPolicyRespond.DiscountPolicyAmountRespond> amounts = policy.getAmounts().stream()
-        .filter(Objects::nonNull)
-        .map(a -> {
-            CurrencyConfig currencyConfig = currencyConfigService.get(a.getCurrency());
-            return DiscountPolicyRespond.DiscountPolicyAmountRespond.builder()
-                    .currency(a.getCurrency())
-                    .amountOff(a.getAmountOffMinor() == null ? null : currencyConfig.toMajor(a.getAmountOffMinor()).toPlainString())
-                    .minOrderAmount(a.getMinOrderAmountMinor() == null ? null : currencyConfig.toMajor(a.getMinOrderAmountMinor()).toPlainString())
-                    .maxDiscountAmount(a.getMaxDiscountAmountMinor() == null ? null : currencyConfig.toMajor(a.getMaxDiscountAmountMinor()).toPlainString())
-                    .build();
-        })
-        .toList();
+                .filter(Objects::nonNull)
+                .map(a -> {
+                    CurrencyConfig currencyConfig = currencyConfigService.get(a.getCurrency());
+                    return DiscountPolicyRespond.DiscountPolicyAmountRespond.builder()
+                            .currency(a.getCurrency())
+                            .amountOff(a.getAmountOffMinor() == null ? null : currencyConfig.toMajor(a.getAmountOffMinor()).toPlainString())
+                            .minOrderAmount(a.getMinOrderAmountMinor() == null ? null : currencyConfig.toMajor(a.getMinOrderAmountMinor()).toPlainString())
+                            .maxDiscountAmount(a.getMaxDiscountAmountMinor() == null ? null : currencyConfig.toMajor(a.getMaxDiscountAmountMinor()).toPlainString())
+                            .source(a.getSource())
+                            .derivedFrom(a.getDerivedFrom())
+                            .fxRate(a.getFxRate())
+                            .fxAsOf(a.getFxAsOf())
+                            .fxProvider(a.getFxProvider() == null ? null : a.getFxProvider().name())
+                            .computedAt(a.getComputedAt())
+                            .build();
+                })
+                .toList();
         return DiscountPolicyRespond.builder()
                 .id(policy.getId())
                 .name(policy.getName())

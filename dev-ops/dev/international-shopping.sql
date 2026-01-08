@@ -640,6 +640,16 @@ CREATE TABLE discount_policy_amount
     min_order_amount    BIGINT UNSIGNED NULL COMMENT '门槛金额(最小货币单位)',
     max_discount_amount BIGINT UNSIGNED NULL COMMENT '封顶减免金额(最小货币单位)',
 
+    amount_source       ENUM ('MANUAL','FX_AUTO')
+                                        NOT NULL DEFAULT 'MANUAL' COMMENT '金额来源: 手动/汇率派生(未显式传入币种时自动派生)',
+    derived_from        CHAR(3)         NULL     DEFAULT 'USD' COMMENT '派生基准币种 (通常USD), amount_source=FX_AUTO时有效',
+
+    -- FX 派生元数据(用于审计与更新时“仅更新自动派生项”)
+    fx_rate             DECIMAL(36, 18) NULL COMMENT '派生使用的汇率(1 derived_from = fx_rate currency)',
+    fx_as_of            DATETIME(3)     NULL COMMENT '派生使用的汇率时间点',
+    fx_provider         VARCHAR(32)     NULL COMMENT '派生使用的数据源',
+    computed_at         DATETIME(3)     NULL COMMENT '金额计算时间',
+
     created_at          DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at          DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
 
@@ -647,7 +657,11 @@ CREATE TABLE discount_policy_amount
     KEY idx_dpa_currency (currency),
     CHECK (amount_off IS NULL OR amount_off > 0),
     CHECK (min_order_amount IS NULL OR min_order_amount >= 0),
-    CHECK (max_discount_amount IS NULL OR max_discount_amount >= 0)
+    CHECK (max_discount_amount IS NULL OR max_discount_amount >= 0),
+    -- FX_AUTO 时必须具备必要元数据（开发期建议加严，线上可视情况放松）
+    CHECK (amount_source <> 'FX_AUTO' OR
+           (derived_from IS NOT NULL AND fx_rate IS NOT NULL AND fx_as_of IS NOT NULL AND fx_provider IS NOT NULL AND
+            computed_at IS NOT NULL))
 ) ENGINE = InnoDB COMMENT ='折扣策略-币种金额配置(AMOUNT/门槛/封顶多币种化)';
 
 -- 3.8 折扣码（6位字母数字，唯一；关联策略；统计使用次数）
@@ -700,26 +714,26 @@ uk_oda_order_once (order_id, discount_code_id, order_level_only)：整单层仅�
 */
 CREATE TABLE order_discount_applied
 (
-    id               BIGINT UNSIGNED       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id         BIGINT UNSIGNED       NOT NULL COMMENT '订单ID, 指向 orders.id',
-    order_item_id    BIGINT UNSIGNED       NULL COMMENT '订单明细ID, 为空表示订单级折扣',
-    discount_code_id BIGINT UNSIGNED       NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
-    applied_scope    ENUM ('ORDER','ITEM') NOT NULL COMMENT '应用范围：订单级/明细级',
-    currency         CHAR(3)               NOT NULL COMMENT '币种(冗余自 orders.currency)',
-    applied_amount   BIGINT UNSIGNED       NOT NULL COMMENT '本次实际抵扣金额(最小货币单位)',
-    base_currency    CHAR(3)               NOT NULL DEFAULT 'USD' COMMENT '统一记账币种(全站默认)',
-    applied_amount_base BIGINT UNSIGNED    NOT NULL COMMENT '本次实际抵扣金额(统一记账币种,最小货币单位)',
-    fx_rate          DECIMAL(36, 18)       NULL COMMENT '折扣换算汇率快照(1 base = rate quote), base=base_currency, quote=currency',
-    fx_as_of         DATETIME(3)           NULL COMMENT '汇率时间点/采样时间(快照)',
-    fx_provider      VARCHAR(32)           NULL COMMENT '汇率数据源(快照)',
-    created_at       DATETIME(3)           NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    id                  BIGINT UNSIGNED       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_id            BIGINT UNSIGNED       NOT NULL COMMENT '订单ID, 指向 orders.id',
+    order_item_id       BIGINT UNSIGNED       NULL COMMENT '订单明细ID, 为空表示订单级折扣',
+    discount_code_id    BIGINT UNSIGNED       NOT NULL COMMENT '折扣码ID, 指向 discount_code.id',
+    applied_scope       ENUM ('ORDER','ITEM') NOT NULL COMMENT '应用范围：订单级/明细级',
+    currency            CHAR(3)               NOT NULL COMMENT '币种(冗余自 orders.currency)',
+    applied_amount      BIGINT UNSIGNED       NOT NULL COMMENT '本次实际抵扣金额(最小货币单位)',
+    base_currency       CHAR(3)               NOT NULL DEFAULT 'USD' COMMENT '统一记账币种(全站默认)',
+    applied_amount_base BIGINT UNSIGNED       NOT NULL COMMENT '本次实际抵扣金额(统一记账币种,最小货币单位)',
+    fx_rate             DECIMAL(36, 18)       NULL COMMENT '折扣换算汇率快照(1 base = rate quote), base=base_currency, quote=currency',
+    fx_as_of            DATETIME(3)           NULL COMMENT '汇率时间点/采样时间(快照)',
+    fx_provider         VARCHAR(32)           NULL COMMENT '汇率数据源(快照)',
+    created_at          DATETIME(3)           NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
     KEY idx_oda_order (order_id),
     KEY idx_oda_code (discount_code_id),
     -- 明细级幂等：同一明细+同一码只允许一条
     UNIQUE KEY uk_oda_item_once (order_item_id, discount_code_id),
     -- 订单级幂等：同一订单+同一码只允许一条（借助生成列处理 order_item_id 为 NULL 的情况）
-    order_level_only TINYINT AS (CASE WHEN order_item_id IS NULL THEN 1 ELSE NULL END) STORED,
+    order_level_only    TINYINT AS (CASE WHEN order_item_id IS NULL THEN 1 ELSE NULL END) STORED,
     UNIQUE KEY uk_oda_order_once (order_id, discount_code_id, order_level_only),
     CHECK (applied_amount > 0)
 ) ENGINE = InnoDB COMMENT ='折扣应用日志(真实使用的事实表)';

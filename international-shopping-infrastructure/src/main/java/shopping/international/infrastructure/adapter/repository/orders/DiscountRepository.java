@@ -12,6 +12,7 @@ import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
 import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
+import shopping.international.domain.model.enums.orders.DiscountPolicyAmountSource;
 import shopping.international.domain.model.enums.orders.DiscountScopeMode;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
@@ -21,6 +22,7 @@ import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchC
 import shopping.international.domain.service.orders.IAdminDiscountService;
 import shopping.international.infrastructure.dao.orders.*;
 import shopping.international.infrastructure.dao.orders.po.*;
+import shopping.international.types.enums.FxRateProvider;
 import shopping.international.types.exceptions.ConflictException;
 
 import java.util.ArrayList;
@@ -181,6 +183,12 @@ public class DiscountRepository implements IDiscountRepository {
                     .amountOff(a.getAmountOffMinor())
                     .minOrderAmount(a.getMinOrderAmountMinor())
                     .maxDiscountAmount(a.getMaxDiscountAmountMinor())
+                    .amountSource(a.getSource() == null ? DiscountPolicyAmountSource.MANUAL.name() : a.getSource().name())
+                    .derivedFrom(a.getDerivedFrom())
+                    .fxRate(a.getFxRate())
+                    .fxAsOf(a.getFxAsOf())
+                    .fxProvider(a.getFxProvider() == null ? null : a.getFxProvider().name())
+                    .computedAt(a.getComputedAt())
                     .build());
         }
         if (poList.isEmpty())
@@ -456,12 +464,24 @@ public class DiscountRepository implements IDiscountRepository {
         List<DiscountPolicyAmount> amounts = amountPos == null || amountPos.isEmpty()
                 ? List.of()
                 : amountPos.stream()
-                .map(a -> DiscountPolicyAmount.of(
-                        a.getCurrency(),
-                        a.getAmountOff(),
-                        a.getMinOrderAmount(),
-                        a.getMaxDiscountAmount()
-                ))
+                .map(a -> {
+                    DiscountPolicyAmountSource source = a.getAmountSource() == null
+                            ? DiscountPolicyAmountSource.MANUAL
+                            : DiscountPolicyAmountSource.valueOf(a.getAmountSource());
+                    FxRateProvider provider = a.getFxProvider() == null ? null : FxRateProvider.valueOf(a.getFxProvider());
+                    return DiscountPolicyAmount.reconstitute(
+                            a.getCurrency(),
+                            a.getAmountOff(),
+                            a.getMinOrderAmount(),
+                            a.getMaxDiscountAmount(),
+                            source,
+                            a.getDerivedFrom(),
+                            a.getFxRate(),
+                            a.getFxAsOf(),
+                            provider,
+                            a.getComputedAt()
+                    );
+                })
                 .toList();
         return DiscountPolicy.reconstitute(
                 po.getId(),

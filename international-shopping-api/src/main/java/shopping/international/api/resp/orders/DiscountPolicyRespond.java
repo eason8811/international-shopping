@@ -6,8 +6,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
+import shopping.international.domain.model.enums.orders.DiscountPolicyAmountSource;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -78,5 +80,32 @@ public class DiscountPolicyRespond {
          * 最大折扣金额上限 (可为空, 金额字符串)
          */
         private String maxDiscountAmount;
+
+        /**
+         * 金额来源 (MANUAL / FX_AUTO)
+         */
+        private DiscountPolicyAmountSource source;
+        /**
+         * FX 派生基准币种 (source=FX_AUTO 时有效)
+         */
+        private String derivedFrom;
+        /**
+         * FX 派生汇率(1 derived_from = fx_rate currency)
+         */
+        private BigDecimal fxRate;
+        /**
+         * FX 汇率时间点/采样时间
+         */
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime fxAsOf;
+        /**
+         * FX 数据源
+         */
+        private String fxProvider;
+        /**
+         * 派生计算时间
+         */
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime computedAt;
     }
 }

@@ -3,6 +3,7 @@ package shopping.international.infrastructure.dao.orders.po;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -41,6 +42,42 @@ public class DiscountPolicyAmountPO {
      */
     @TableField("max_discount_amount")
     private Long maxDiscountAmount;
+
+    /**
+     * 金额来源: MANUAL / FX_AUTO
+     */
+    @TableField("amount_source")
+    private String amountSource;
+
+    /**
+     * 派生基准币种 (通常 USD), amount_source=FX_AUTO 时有效
+     */
+    @TableField("derived_from")
+    private String derivedFrom;
+
+    /**
+     * 派生使用的汇率(1 derived_from = fx_rate currency)
+     */
+    @TableField("fx_rate")
+    private BigDecimal fxRate;
+
+    /**
+     * 派生使用的汇率时间点
+     */
+    @TableField("fx_as_of")
+    private LocalDateTime fxAsOf;
+
+    /**
+     * 派生使用的数据源
+     */
+    @TableField("fx_provider")
+    private String fxProvider;
+
+    /**
+     * 金额计算时间
+     */
+    @TableField("computed_at")
+    private LocalDateTime computedAt;
     /**
      * 创建时间
      */
@@ -52,4 +89,3 @@ public class DiscountPolicyAmountPO {
     @TableField(value = "updated_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private LocalDateTime updatedAt;
 }
-

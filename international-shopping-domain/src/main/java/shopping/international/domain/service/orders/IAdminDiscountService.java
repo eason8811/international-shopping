@@ -80,6 +80,43 @@ public interface IAdminDiscountService {
     DiscountPolicy updatePolicy(@NotNull Long policyId, @NotNull DiscountPolicy toUpdate);
 
     /**
+     * 重算指定折扣策略(AMOUNT)的 FX_AUTO / 缺失币种金额配置
+     *
+     * <p>不会覆盖已有 MANUAL 币种；基于 USD 基准金额 + 最新汇率派生其余币种</p>
+     *
+     * @param policyId 策略 ID
+     * @return 受影响的币种列表
+     */
+    @NotNull
+    List<String> recomputeFxAmounts(@NotNull Long policyId);
+
+    /**
+     * 全量重算所有折扣策略(AMOUNT)的 FX_AUTO / 缺失币种金额配置
+     *
+     * @param batchSize 每批处理的策略数量
+     * @return 处理的策略数量
+     */
+    int recomputeFxAmountsAll(int batchSize);
+
+    /**
+     * 将指定折扣策略(AMOUNT)的金额配置模式切换为 MANUAL (冻结金额, 清空 FX 元数据)
+     *
+     * @param policyId 策略 ID
+     * @return 受影响的币种列表
+     */
+    @NotNull
+    List<String> switchPolicyAmountsToManual(@NotNull Long policyId);
+
+    /**
+     * 将指定折扣策略(AMOUNT)的金额配置模式切换为 FX_AUTO (除 USD 外全部按汇率派生)
+     *
+     * @param policyId 策略 ID
+     * @return 受影响的币种列表
+     */
+    @NotNull
+    List<String> switchPolicyAmountsToFxAuto(@NotNull Long policyId);
+
+    /**
      * 删除折扣策略
      *
      * @param policyId 策略 ID
