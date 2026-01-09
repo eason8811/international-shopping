@@ -9,7 +9,6 @@ import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
 import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.enums.orders.DiscountPolicyAmountSource;
-import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
@@ -131,7 +130,7 @@ public class AdminDiscountService implements IAdminDiscountService {
     }
 
     /**
-     * 重算指定折扣策略(AMOUNT)的 FX_AUTO / 缺失币种金额配置
+     * 重算指定折扣策略的 FX_AUTO / 缺失币种金额配置
      *
      * <p>不会覆盖已有 MANUAL 币种；基于 USD 基准金额 + 最新汇率派生其余币种</p>
      *
@@ -149,7 +148,7 @@ public class AdminDiscountService implements IAdminDiscountService {
     }
 
     /**
-     * 全量重算所有折扣策略(AMOUNT)的 FX_AUTO / 缺失币种金额配置
+     * 全量重算所有折扣策略的 FX_AUTO / 缺失币种金额配置
      *
      * @param batchSize 每批处理的策略数量
      * @return 处理的策略数量
@@ -159,9 +158,7 @@ public class AdminDiscountService implements IAdminDiscountService {
         int size = Math.max(1, Math.min(batchSize, 500));
         int offset = 0;
         int processed = 0;
-        DiscountPolicySearchCriteria criteria = DiscountPolicySearchCriteria.builder()
-                .strategyType(DiscountStrategyType.AMOUNT)
-                .build();
+        DiscountPolicySearchCriteria criteria = DiscountPolicySearchCriteria.builder().build();
         while (true) {
             List<DiscountPolicy> policies = discountRepository.pagePolicies(criteria, offset, size);
             if (policies.isEmpty())
@@ -186,7 +183,7 @@ public class AdminDiscountService implements IAdminDiscountService {
     }
 
     /**
-     * 将指定折扣策略(AMOUNT)的金额配置模式切换为 MANUAL (冻结金额, 清空 FX 元数据)
+     * 将指定折扣策略的金额配置模式切换为 MANUAL (冻结金额, 清空 FX 元数据)
      *
      * @param policyId 策略 ID
      * @param currency 币种
@@ -216,7 +213,7 @@ public class AdminDiscountService implements IAdminDiscountService {
     }
 
     /**
-     * 将指定折扣策略(AMOUNT)的金额配置模式切换为 FX_AUTO (除 USD 外全部按汇率派生)
+     * 将指定折扣策略的金额配置模式切换为 FX_AUTO (除 USD 外全部按汇率派生)
      *
      * @param policyId 策略 ID
      * @param currency 币种
@@ -521,9 +518,8 @@ public class AdminDiscountService implements IAdminDiscountService {
     /**
      * 重算策略的 FX_AUTO / 缺失币种金额配置 (不覆盖已有 MANUAL)
      *
-     * @param policy 需要重新计算其外币金额的折扣策略对象 必须非空且其策略类型为 AMOUNT
+     * @param policy 需要重新计算其外币金额的折扣策略对象
      * @return 一个非空的 {@link DiscountPolicyAmount} 列表 包含了重新计算后的所有货币金额项
-     * @throws IllegalArgumentException 如果提供的 <code>policy</code> 的策略类型不是 AMOUNT
      */
     private @NotNull List<DiscountPolicyAmount> recomputeFxAmountsForPolicy(@NotNull DiscountPolicy policy) {
         requireNotNull(policy.getStrategyType(), "strategyType 不能为空");
