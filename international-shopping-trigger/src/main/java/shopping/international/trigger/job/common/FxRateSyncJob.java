@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import shopping.international.domain.service.common.IFxRateService;
+import shopping.international.domain.service.orders.IAdminDiscountService;
 import shopping.international.domain.service.products.ISkuService;
 import shopping.international.types.config.FxRateProperties;
 
@@ -19,6 +20,10 @@ public class FxRateSyncJob {
      * SKU 服务
      */
     private final ISkuService skuService;
+    /**
+     * 折扣服务
+     */
+    private final IAdminDiscountService discountService;
     /**
      * 外汇汇率服务
      */
@@ -43,6 +48,9 @@ public class FxRateSyncJob {
             log.info("开始同步 SKU 价格...");
             skuService.recomputeFxPricesAll(50);
             log.info("SKU 价格同步完成");
+            log.info("开始同步折扣策略 Amounts...");
+            discountService.recomputeFxAmountsAll(50);
+            log.info("折扣策略 Amounts 同步完成");
         } catch (Exception e) {
             log.warn("FX 同步失败: {}", e.getMessage());
         }
