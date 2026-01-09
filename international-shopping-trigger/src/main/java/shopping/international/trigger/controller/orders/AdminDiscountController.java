@@ -189,15 +189,17 @@ public class AdminDiscountController {
      * 将指定折扣策略的金额配置模式切换为 MANUAL (冻结金额, 清空 FX 元数据)
      *
      * @param policyId 策略 ID
+     * @param currency 币种
      * @return 更新结果(受影响币种)
      */
-    @PatchMapping("/discount-policies/{policy_id}/amount/manual")
-    public ResponseEntity<Result<DiscountPolicyAmountUpdateRespond>> switchPolicyAmountsToManual(@PathVariable("policy_id") Long policyId) {
-        List<String> currencies = adminDiscountService.switchPolicyAmountsToManual(policyId);
+    @PatchMapping("/discount-policies/{policy_id}/amount/{currency}/manual")
+    public ResponseEntity<Result<DiscountPolicyAmountUpdateRespond>> switchPolicyAmountsToManual(@PathVariable("policy_id") Long policyId,
+                                                                                                 @PathVariable String currency) {
+        String processedCurrencies = adminDiscountService.switchPolicyAmountsToManual(policyId, currency);
         return ResponseEntity.ok(Result.ok(
                 DiscountPolicyAmountUpdateRespond.builder()
                         .policyId(policyId)
-                        .currencies(currencies)
+                        .currencies(Collections.singletonList(processedCurrencies))
                         .build()
         ));
     }
@@ -206,15 +208,17 @@ public class AdminDiscountController {
      * 将指定折扣策略的金额配置模式切换为 FX_AUTO (除 USD 外全部按汇率派生)
      *
      * @param policyId 策略 ID
+     * @param currency 币种
      * @return 更新结果(受影响币种)
      */
-    @PatchMapping("/discount-policies/{policy_id}/amount/fx-auto")
-    public ResponseEntity<Result<DiscountPolicyAmountUpdateRespond>> switchPolicyAmountsToFxAuto(@PathVariable("policy_id") Long policyId) {
-        List<String> currencies = adminDiscountService.switchPolicyAmountsToFxAuto(policyId);
+    @PatchMapping("/discount-policies/{policy_id}/amount/{currency}/fx-auto")
+    public ResponseEntity<Result<DiscountPolicyAmountUpdateRespond>> switchPolicyAmountsToFxAuto(@PathVariable("policy_id") Long policyId,
+                                                                                                 @PathVariable String currency) {
+        String processedCurrencies = adminDiscountService.switchPolicyAmountsToFxAuto(policyId, currency);
         return ResponseEntity.ok(Result.ok(
                 DiscountPolicyAmountUpdateRespond.builder()
                         .policyId(policyId)
-                        .currencies(currencies)
+                        .currencies(Collections.singletonList(processedCurrencies))
                         .build()
         ));
     }

@@ -29,15 +29,15 @@ public interface IAdminDiscountService {
     /**
      * 折扣实际使用流水展示项
      *
-     * @param id             主键 ID
-     * @param orderNo        订单号
-     * @param orderId        订单 ID
-     * @param orderItemId    订单明细 ID (可为空)
-     * @param discountCodeId 折扣码 ID
-     * @param appliedScope   应用范围
-     * @param currency       订单币种 (可为空)
-     * @param appliedAmountMinor  实际抵扣金额 (最小货币单位)
-     * @param createdAt      发生时间
+     * @param id                 主键 ID
+     * @param orderNo            订单号
+     * @param orderId            订单 ID
+     * @param orderItemId        订单明细 ID (可为空)
+     * @param discountCodeId     折扣码 ID
+     * @param appliedScope       应用范围
+     * @param currency           订单币种 (可为空)
+     * @param appliedAmountMinor 实际抵扣金额 (最小货币单位)
+     * @param createdAt          发生时间
      */
     record OrderDiscountAppliedView(Long id,
                                     String orderNo,
@@ -102,19 +102,21 @@ public interface IAdminDiscountService {
      * 将指定折扣策略(AMOUNT)的金额配置模式切换为 MANUAL (冻结金额, 清空 FX 元数据)
      *
      * @param policyId 策略 ID
-     * @return 受影响的币种列表
+     * @param currency 币种
+     * @return 受影响的币种
      */
     @NotNull
-    List<String> switchPolicyAmountsToManual(@NotNull Long policyId);
+    String switchPolicyAmountsToManual(@NotNull Long policyId, @NotNull String currency);
 
     /**
      * 将指定折扣策略(AMOUNT)的金额配置模式切换为 FX_AUTO (除 USD 外全部按汇率派生)
      *
      * @param policyId 策略 ID
-     * @return 受影响的币种列表
+     * @param currency 币种
+     * @return 受影响的币种
      */
     @NotNull
-    List<String> switchPolicyAmountsToFxAuto(@NotNull Long policyId);
+    String switchPolicyAmountsToFxAuto(@NotNull Long policyId, @NotNull String currency);
 
     /**
      * 删除折扣策略

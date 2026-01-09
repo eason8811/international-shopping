@@ -97,10 +97,8 @@ public class AdminDiscountService implements IAdminDiscountService {
                 .ifPresent(p -> {
                     throw new ConflictException("折扣策略已存在");
                 });
-        if (policy.getStrategyType() == DiscountStrategyType.AMOUNT) {
-            List<DiscountPolicyAmount> full = deriveFxAmountsForUpsert(policy.getAmounts(), List.of(), DiscountPolicy.DEFAULT_CURRENCY);
-            policy.update(null, null, null, null, full);
-        }
+        List<DiscountPolicyAmount> full = deriveFxAmountsForUpsert(policy.getAmounts(), List.of(), DiscountPolicy.DEFAULT_CURRENCY);
+        policy.update(null, null, null, null, full);
         return discountRepository.savePolicy(policy);
     }
 
@@ -120,9 +118,7 @@ public class AdminDiscountService implements IAdminDiscountService {
                     .ifPresent(p -> {
                         throw new ConflictException("折扣策略已存在");
                     });
-        List<DiscountPolicyAmount> fullAmounts = toUpdate.getAmounts();
-        if (toUpdate.getStrategyType() == DiscountStrategyType.AMOUNT)
-            fullAmounts = deriveFxAmountsForUpsert(toUpdate.getAmounts(), policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
+        List<DiscountPolicyAmount> fullAmounts = deriveFxAmountsForUpsert(toUpdate.getAmounts(), policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
 
         policy.update(
                 toUpdate.getName(),
@@ -193,48 +189,80 @@ public class AdminDiscountService implements IAdminDiscountService {
      * 将指定折扣策略(AMOUNT)的金额配置模式切换为 MANUAL (冻结金额, 清空 FX 元数据)
      *
      * @param policyId 策略 ID
-     * @return 受影响的币种列表
+     * @param currency 币种
+     * @return 受影响的币种
      */
     @Override
-    public @NotNull List<String> switchPolicyAmountsToManual(@NotNull Long policyId) {
+    public @NotNull String switchPolicyAmountsToManual(@NotNull Long policyId, @NotNull String currency) {
         DiscountPolicy policy = discountRepository.findPolicyById(policyId)
                 .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
-        require(policy.getStrategyType() == DiscountStrategyType.AMOUNT, "仅 AMOUNT 策略支持金额配置模式切换");
 
         List<DiscountPolicyAmount> full = recomputeFxAmountsForPolicy(policy);
-        List<DiscountPolicyAmount> manual = full.stream()
-                .filter(Objects::nonNull)
-                .map(a -> DiscountPolicyAmount.of(a.getCurrency(), a.getAmountOffMinor(), a.getMinOrderAmountMinor(), a.getMaxDiscountAmountMinor()))
-                .toList();
-        policy.update(null, null, null, null, manual);
+        DiscountPolicyAmount existedAmount = full.stream()
+                .filter(a -> a != null && a.getCurrency() != null && a.getCurrency().equals(currency))
+                .findFirst()
+                .orElseThrow(() -> new IllegalParamException("折扣策略缺少指定币种 '" + currency + "' 的金额项"));
+        DiscountPolicyAmount manual = DiscountPolicyAmount.of(
+                existedAmount.getCurrency(),
+                existedAmount.getAmountOffMinor(),
+                existedAmount.getMinOrderAmountMinor(),
+                existedAmount.getMaxDiscountAmountMinor()
+        );
+        full.remove(existedAmount);
+        full.add(manual);
+        policy.update(null, null, null, null, full);
         discountRepository.updatePolicy(policy);
-        return manual.stream().map(DiscountPolicyAmount::getCurrency).distinct().toList();
+        return currency;
     }
 
     /**
      * 将指定折扣策略(AMOUNT)的金额配置模式切换为 FX_AUTO (除 USD 外全部按汇率派生)
      *
      * @param policyId 策略 ID
+     * @param currency 币种
      * @return 受影响的币种列表
      */
     @Override
-    public @NotNull List<String> switchPolicyAmountsToFxAuto(@NotNull Long policyId) {
+    public @NotNull String switchPolicyAmountsToFxAuto(@NotNull Long policyId, @NotNull String currency) {
+        if (DiscountPolicy.DEFAULT_CURRENCY.equalsIgnoreCase(currency))
+            throw new IllegalParamException("无法将全站默认币种 " + DiscountPolicy.DEFAULT_CURRENCY + " 设为 FX_AUTO 模式, 该币种必须手动设置");
         DiscountPolicy policy = discountRepository.findPolicyById(policyId)
                 .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
-        require(policy.getStrategyType() == DiscountStrategyType.AMOUNT, "仅 AMOUNT 策略支持金额配置模式切换");
 
-        DiscountPolicyAmount base = policy.resolveAmount(DiscountPolicy.DEFAULT_CURRENCY);
-        requireNotNull(base, "策略缺少全站默认币种 " + DiscountPolicy.DEFAULT_CURRENCY + " 的金额项");
-        DiscountPolicyAmount baseManual = DiscountPolicyAmount.of(
+        DiscountPolicyAmount baseAmount = policy.resolveAmount(DiscountPolicy.DEFAULT_CURRENCY);
+        requireNotNull(baseAmount, "策略缺少全站默认币种 " + DiscountPolicy.DEFAULT_CURRENCY + " 的金额项");
+        FxRateLatest fxRateLatest = fxRateService.getLatest(DiscountPolicy.DEFAULT_CURRENCY, currency);
+        requireNotNull(fxRateLatest, "汇率 '" + DiscountPolicy.DEFAULT_CURRENCY + "' -> '" + currency + "' 不存在或已过期, 无法自动计算价格");
+        CurrencyConfig existedQuoteCfg = currencyConfigService.get(currency);
+        CurrencyConfig defaultBaseCfg = currencyConfigService.get(DiscountPolicy.DEFAULT_CURRENCY);
+
+        Long amountOffMinor = baseAmount.getAmountOffMinor() == null
+                ? null
+                : convertMinor(defaultBaseCfg, existedQuoteCfg, baseAmount.getAmountOffMinor(), fxRateLatest.rate());
+        Long minOrderAmountMinor = baseAmount.getMinOrderAmountMinor() == null
+                ? null
+                : convertMinor(defaultBaseCfg, existedQuoteCfg, baseAmount.getMinOrderAmountMinor(), fxRateLatest.rate());
+        Long maxDiscountAmountMinor = baseAmount.getMaxDiscountAmountMinor() == null
+                ? null
+                : convertMinor(defaultBaseCfg, existedQuoteCfg, baseAmount.getMaxDiscountAmountMinor(), fxRateLatest.rate());
+
+        DiscountPolicyAmount fxAutoAmount = DiscountPolicyAmount.fxAuto(
+                currency,
+                amountOffMinor,
+                minOrderAmountMinor,
+                maxDiscountAmountMinor,
                 DiscountPolicy.DEFAULT_CURRENCY,
-                base.getAmountOffMinor(),
-                base.getMinOrderAmountMinor(),
-                base.getMaxDiscountAmountMinor()
+                fxRateLatest.rate(),
+                fxRateLatest.asOf(),
+                fxRateLatest.provider(),
+                LocalDateTime.now(Clock.systemUTC())
         );
-        List<DiscountPolicyAmount> full = deriveFxAmountsForUpsert(List.of(baseManual), List.of(), DiscountPolicy.DEFAULT_CURRENCY);
+        List<DiscountPolicyAmount> full = new ArrayList<>(policy.getAmounts());
+        full.removeIf(a -> a != null && a.getCurrency() != null && a.getCurrency().equals(currency));
+        full.add(fxAutoAmount);
         policy.update(null, null, null, null, full);
         discountRepository.updatePolicy(policy);
-        return full.stream().filter(Objects::nonNull).map(DiscountPolicyAmount::getCurrency).distinct().toList();
+        return currency;
     }
 
     /**
@@ -499,7 +527,6 @@ public class AdminDiscountService implements IAdminDiscountService {
      */
     private @NotNull List<DiscountPolicyAmount> recomputeFxAmountsForPolicy(@NotNull DiscountPolicy policy) {
         requireNotNull(policy.getStrategyType(), "strategyType 不能为空");
-        require(policy.getStrategyType() == DiscountStrategyType.AMOUNT, "仅 AMOUNT 策略支持金额配置重算");
 
         DiscountPolicyAmount base = policy.resolveAmount(DiscountPolicy.DEFAULT_CURRENCY);
         requireNotNull(base, "策略缺少全站默认币种 " + DiscountPolicy.DEFAULT_CURRENCY + " 的金额项");
