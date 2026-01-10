@@ -226,11 +226,8 @@ public class DiscountRepository implements IDiscountRepository {
      */
     @Override
     public @NotNull List<DiscountCode> pageCodes(@NotNull DiscountCodeSearchCriteria criteria, int offset, int limit) {
-        LambdaQueryWrapper<DiscountCodePO> wrapper = buildPageCodesWrapper(criteria);
-        wrapper.orderByDesc(DiscountCodePO::getId)
-                .last("limit " + limit + " offset " + offset);
-        List<DiscountCodePO> pos = discountCodeMapper.selectList(wrapper);
-        if (pos == null || pos.isEmpty())
+        List<DiscountCodePO> pos = discountCodeMapper.pageCodes(criteria, offset, limit);
+        if (pos.isEmpty())
             return List.of();
         return pos.stream().map(this::toAggregate).toList();
     }
@@ -243,8 +240,7 @@ public class DiscountRepository implements IDiscountRepository {
      */
     @Override
     public long countCodes(@NotNull DiscountCodeSearchCriteria criteria) {
-        LambdaQueryWrapper<DiscountCodePO> wrapper = buildPageCodesWrapper(criteria);
-        return discountCodeMapper.selectCount(wrapper);
+        return discountCodeMapper.countCodes(criteria);
     }
 
     /**
@@ -499,35 +495,6 @@ public class DiscountRepository implements IDiscountRepository {
             wrapper.eq(DiscountPolicyPO::getApplyScope, criteria.getApplyScope().name());
         if (criteria.getStrategyType() != null)
             wrapper.eq(DiscountPolicyPO::getStrategyType, criteria.getStrategyType().name());
-        return wrapper;
-    }
-
-    /**
-     * 构建用于分页查询折扣码的 <code>LambdaQueryWrapper</code>
-     *
-     * @param criteria 折扣码筛选条件 包含 keyword, policyId, scopeMode, expiresFrom, expiresTo 等属性
-     * @return LambdaQueryWrapper<DiscountCodePO> 根据给定条件构建的查询包装器 用于后续的数据库查询操作
-     */
-    private LambdaQueryWrapper<DiscountCodePO> buildPageCodesWrapper(@NotNull DiscountCodeSearchCriteria criteria) {
-        LambdaQueryWrapper<DiscountCodePO> wrapper = new LambdaQueryWrapper<>();
-        if (criteria.getPolicyId() != null)
-            wrapper.eq(DiscountCodePO::getPolicyId, criteria.getPolicyId());
-        if (criteria.getScopeMode() != null)
-            wrapper.eq(DiscountCodePO::getScopeMode, criteria.getScopeMode().name());
-        if (criteria.getPermanent() != null)
-            wrapper.eq(DiscountCodePO::getPermanent, criteria.getPermanent());
-        if (criteria.getExpiresFrom() != null)
-            wrapper.ge(DiscountCodePO::getExpiresAt, criteria.getExpiresFrom());
-        if (criteria.getExpiresTo() != null)
-            wrapper.le(DiscountCodePO::getExpiresAt, criteria.getExpiresTo());
-        if (criteria.getPermanent() != null)
-            wrapper.eq(DiscountCodePO::getPermanent, criteria.getPermanent());
-        if (criteria.getKeyword() != null)
-            wrapper.and(w -> w
-                    .like(DiscountCodePO::getCode, criteria.getKeyword())
-                    .or()
-                    .like(DiscountCodePO::getName, criteria.getKeyword())
-            );
         return wrapper;
     }
 
