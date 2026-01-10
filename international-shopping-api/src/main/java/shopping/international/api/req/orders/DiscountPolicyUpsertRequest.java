@@ -113,7 +113,7 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
     @Override
     public void updateValidate() {
         validate();
-        name = normalizeNotNullField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
+        name = normalizeNullableField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
 
         if (strategyType != null && strategyType == DiscountStrategyType.PERCENT) {
             requireNotNull(percentOff, "折扣策略类型为 PERCENT 时 percentOff 不能为空");
