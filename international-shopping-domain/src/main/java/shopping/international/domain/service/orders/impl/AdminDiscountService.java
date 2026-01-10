@@ -2,12 +2,14 @@ package shopping.international.domain.service.orders.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import shopping.international.domain.adapter.repository.common.ICurrencyRepository;
 import shopping.international.domain.adapter.repository.orders.IDiscountRepository;
 import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
 import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
+import shopping.international.domain.model.enums.orders.DiscountApplyScope;
 import shopping.international.domain.model.enums.orders.DiscountPolicyAmountSource;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 import shopping.international.domain.model.vo.PageQuery;
@@ -103,42 +105,42 @@ public class AdminDiscountService implements IAdminDiscountService {
     }
 
     /**
-     * 更新折扣策略
+     * 更新折扣策略 (为 null 则不更新)
      *
-     * @param policyId 策略 ID
-     * @param toUpdate 用于更新的 Policy 对象
+     * @param policyId     策略 ID
+     * @param name         策略名称
+     * @param applyScope   策略适用范围
+     * @param strategyType 策略类型
+     * @param amounts      策略金额配置
      * @return 更新后的策略
      */
     @Override
-    public @NotNull DiscountPolicy updatePolicy(@NotNull Long policyId, @NotNull DiscountPolicy toUpdate) {
+    public @NotNull DiscountPolicy updatePolicy(@NotNull Long policyId,
+                                                @Nullable String name,
+                                                @Nullable DiscountApplyScope applyScope,
+                                                @Nullable DiscountStrategyType strategyType,
+                                                @Nullable BigDecimal percentOff,
+                                                @NotNull List<DiscountPolicyAmount> amounts) {
         DiscountPolicy policy = discountRepository.findPolicyById(policyId)
                 .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
-        if (toUpdate.getName() != null)
-            discountRepository.findPolicyByName(toUpdate.getName())
+        if (name != null)
+            discountRepository.findPolicyByName(name)
                     .ifPresent(p -> {
                         throw new ConflictException("折扣策略已存在");
                     });
-        if (toUpdate.getStrategyType() == null) {
+        if (strategyType == null) {
             DiscountStrategyType originalType = policy.getStrategyType();
             if (originalType == DiscountStrategyType.PERCENT)
                 require(
-                        toUpdate.getAmounts()
-                                .stream()
-                                .anyMatch(a -> a != null && a.getAmountOffMinor() != null),
+                        amounts.stream().anyMatch(a -> a != null && a.getAmountOffMinor() != null),
                         "策略类型为 PERCENT 时, 金额项不能传入"
                 );
             if (originalType == DiscountStrategyType.AMOUNT)
-                require(toUpdate.getPercentOff() == null, "策略类型为 AMOUNT 时, 百分比不能传入");
+                require(percentOff == null, "策略类型为 AMOUNT 时, 百分比不能传入");
         }
-        List<DiscountPolicyAmount> fullAmounts = deriveFxAmountsForUpsert(toUpdate.getAmounts(), policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
+        List<DiscountPolicyAmount> fullAmounts = deriveFxAmountsForUpsert(amounts, policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
 
-        policy.update(
-                toUpdate.getName(),
-                toUpdate.getApplyScope(),
-                toUpdate.getStrategyType(),
-                toUpdate.getPercentOff(),
-                fullAmounts
-        );
+        policy.update(name, applyScope, strategyType, percentOff, fullAmounts);
         return discountRepository.updatePolicy(policy);
     }
 

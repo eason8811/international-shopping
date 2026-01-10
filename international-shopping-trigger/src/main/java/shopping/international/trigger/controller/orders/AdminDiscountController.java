@@ -133,14 +133,14 @@ public class AdminDiscountController {
         BigDecimal percentOff = parseBigDecimalOrNull(req.getPercentOff(), "percentOff");
         List<DiscountPolicyAmount> amounts = toPolicyAmounts(req.getAmounts());
 
-        DiscountPolicy toUpdate = DiscountPolicy.create(
+        DiscountPolicy updated = adminDiscountService.updatePolicy(
+                policyId,
                 req.getName(),
                 req.getApplyScope(),
                 req.getStrategyType(),
                 percentOff,
                 amounts
         );
-        DiscountPolicy updated = adminDiscountService.updatePolicy(policyId, toUpdate);
         return ResponseEntity.ok(Result.ok(toRespond(updated)));
     }
 

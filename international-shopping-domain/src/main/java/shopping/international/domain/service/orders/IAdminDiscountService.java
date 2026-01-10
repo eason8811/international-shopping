@@ -4,13 +4,16 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
+import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
+import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
 import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteria;
 import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -70,14 +73,25 @@ public interface IAdminDiscountService {
     DiscountPolicy createPolicy(@NotNull DiscountPolicy policy);
 
     /**
-     * 更新折扣策略
+     * 更新折扣策略 (为 null 则不更新)
      *
-     * @param policyId 策略 ID
-     * @param toUpdate 用于更新的 Policy 对象
+     * @param policyId     策略 ID
+     * @param name         策略名称
+     * @param applyScope   策略适用范围
+     * @param strategyType 策略类型
+     * @param percentOff   策略百分比折扣
+     * @param amounts      策略金额配置
      * @return 更新后的策略
      */
     @NotNull
-    DiscountPolicy updatePolicy(@NotNull Long policyId, @NotNull DiscountPolicy toUpdate);
+    DiscountPolicy updatePolicy(
+            @NotNull Long policyId,
+            @Nullable String name,
+            @Nullable DiscountApplyScope applyScope,
+            @Nullable DiscountStrategyType strategyType,
+            @Nullable BigDecimal percentOff,
+            @NotNull List<DiscountPolicyAmount> amounts
+    );
 
     /**
      * 重算指定折扣策略(AMOUNT)的 FX_AUTO / 缺失币种金额配置
