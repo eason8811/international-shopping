@@ -28,6 +28,7 @@ import shopping.international.types.exceptions.ConflictException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -273,18 +274,65 @@ public class DiscountRepository implements IDiscountRepository {
     }
 
     /**
-     * 根据给定的策略 ID 查找对应的折扣码
+     * 统计指定策略下“仍可用”的折扣码数量
      *
-     * @param policyId 策略 ID, 用于定位与之关联的折扣码
-     * @return 若找到匹配的折扣码, 则返回一个包含该折扣码的 Optional 对象; 否则, 返回空的 Optional
+     * <p>仍可用的定义:</p>
+     * <ul>
+     *     <li>{@code permanent=true}</li>
+     *     <li>或 {@code expiresAt >= now}</li>
+     * </ul>
+     *
+     * @param policyId 策略 ID
+     * @param now      当前时间
+     * @return 可用折扣码数量
      */
     @Override
-    public @NotNull Long countCodeByPolicyId(@NotNull Long policyId) {
-        return discountCodeMapper.selectCount(
-                new LambdaQueryWrapper<DiscountCodePO>()
-                        .eq(DiscountCodePO::getPolicyId, policyId)
-                        .lt(DiscountCodePO::getExpiresAt, LocalDateTime.now())
-        );
+    public @NotNull Long countActiveCodesByPolicyId(@NotNull Long policyId, @NotNull LocalDateTime now) {
+        LambdaQueryWrapper<DiscountCodePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DiscountCodePO::getPolicyId, policyId)
+                .and(w -> w
+                        .eq(DiscountCodePO::getPermanent, true)
+                        .or()
+                        .isNull(DiscountCodePO::getExpiresAt)
+                        .or()
+                        .ge(DiscountCodePO::getExpiresAt, now)
+                );
+        return discountCodeMapper.selectCount(wrapper);
+    }
+
+    /**
+     * 删除指定策略下已过期的折扣码 (同时清理折扣码-商品映射)
+     *
+     * <p>已过期的定义: {@code permanent=false} 且 {@code expiresAt < now}</p>
+     *
+     * @param policyId 策略 ID
+     * @param now      当前时间
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteExpiredCodesByPolicyId(@NotNull Long policyId, @NotNull LocalDateTime now) {
+        LambdaQueryWrapper<DiscountCodePO> expiredWrapper = new LambdaQueryWrapper<>();
+        expiredWrapper.select(DiscountCodePO::getId)
+                .eq(DiscountCodePO::getPolicyId, policyId)
+                .isNotNull(DiscountCodePO::getExpiresAt)
+                .lt(DiscountCodePO::getExpiresAt, now)
+                .and(w -> w
+                        .eq(DiscountCodePO::getPermanent, false)
+                        .or()
+                        .isNull(DiscountCodePO::getPermanent)
+                );
+
+        List<DiscountCodePO> expiredPos = discountCodeMapper.selectList(expiredWrapper);
+        if (expiredPos == null || expiredPos.isEmpty())
+            return;
+
+        List<Long> ids = expiredPos.stream().map(DiscountCodePO::getId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty())
+            return;
+
+        discountCodeProductMapper.delete(new LambdaQueryWrapper<DiscountCodeProductPO>()
+                .in(DiscountCodeProductPO::getDiscountCodeId, ids));
+        discountCodeMapper.deleteByIds(ids);
     }
 
     /**
@@ -466,6 +514,8 @@ public class DiscountRepository implements IDiscountRepository {
             wrapper.eq(DiscountCodePO::getPolicyId, criteria.getPolicyId());
         if (criteria.getScopeMode() != null)
             wrapper.eq(DiscountCodePO::getScopeMode, criteria.getScopeMode().name());
+        if (criteria.getPermanent() != null)
+            wrapper.eq(DiscountCodePO::getPermanent, criteria.getPermanent());
         if (criteria.getExpiresFrom() != null)
             wrapper.ge(DiscountCodePO::getExpiresAt, criteria.getExpiresFrom());
         if (criteria.getExpiresTo() != null)
@@ -529,14 +579,22 @@ public class DiscountRepository implements IDiscountRepository {
         DiscountCodeText codeText = DiscountCodeText.ofNullable(po.getCode());
         if (codeText == null)
             throw new ConflictException("折扣码数据不合法");
+        LocalDateTime expiresAt = po.getExpiresAt();
+        Boolean permanent = po.getPermanent();
+        // 兼容历史数据: 当 permanent 为空时, 以 "expiresAt 是否为空" 推断其值
+        if (permanent == null)
+            permanent = expiresAt == null;
+        // 兜底: permanent=true 时强制忽略 expiresAt
+        if (permanent)
+            expiresAt = null;
         return DiscountCode.reconstitute(
                 po.getId(),
                 codeText,
                 po.getPolicyId(),
                 po.getName(),
                 DiscountScopeMode.valueOf(po.getScopeMode()),
-                po.getExpiresAt(),
-                po.getPermanent(),
+                expiresAt,
+                permanent,
                 po.getCreatedAt(),
                 po.getUpdatedAt()
         );

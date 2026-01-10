@@ -679,15 +679,18 @@ CREATE TABLE discount_code
     policy_id  BIGINT UNSIGNED                  NOT NULL COMMENT '折扣策略ID, 指向 discount_policy.id',
     name       VARCHAR(120)                     NOT NULL COMMENT '折扣码名称(运营标识)',
     scope_mode ENUM ('ALL','INCLUDE','EXCLUDE') NOT NULL DEFAULT 'INCLUDE' COMMENT '适用范围模式',
-    expires_at DATETIME(3)                      NOT NULL COMMENT '过期时间(到期不可用)',
+    expires_at DATETIME(3)                      NULL COMMENT '过期时间(到期不可用, permanent=1 时必须为空)',
+    permanent  TINYINT(1)                       NOT NULL DEFAULT 0 COMMENT '是否永久有效(1=永久;0=需expires_at)',
     created_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at DATETIME(3)                      NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_coupon_code (code),
     KEY idx_coupon_policy (policy_id),
     KEY idx_coupon_expires (expires_at),
+    KEY idx_coupon_permanent (permanent),
     KEY idx_coupon_scope (scope_mode),
-    CHECK (code REGEXP '^[A-Z0-9]{6}$')
+    CHECK (code REGEXP '^[A-Z0-9]{6}$'),
+    CHECK ((permanent = 1 AND expires_at IS NULL) OR (permanent = 0 AND expires_at IS NOT NULL))
 ) ENGINE = InnoDB COMMENT ='折扣码';
 
 -- 3.9 折扣码-商品SPU映射（限制适用范围）

@@ -97,7 +97,8 @@ public class DiscountCode implements Verifiable {
      * @return 新创建的 {@link DiscountCode} 实例
      */
     public static DiscountCode create(DiscountCodeText code, Long policyId, String name, DiscountScopeMode scopeMode, @Nullable LocalDateTime expiresAt, Boolean permanent) {
-        return new DiscountCode(null, code, policyId, name, scopeMode, expiresAt, permanent, LocalDateTime.now(), LocalDateTime.now());
+        LocalDateTime normalizedExpiresAt = Boolean.TRUE.equals(permanent) ? null : expiresAt;
+        return new DiscountCode(null, code, policyId, name, scopeMode, normalizedExpiresAt, permanent, LocalDateTime.now(), LocalDateTime.now());
     }
 
     /**
@@ -152,7 +153,7 @@ public class DiscountCode implements Verifiable {
      * @return 如果折扣码已过期则返回 <code>true</code>, 否则返回 <code>false</code>
      */
     public boolean isExpired(Clock clock) {
-        if (permanent)
+        if (Boolean.TRUE.equals(permanent))
             return false;
         requireNotNull(clock, "clock 不能为空");
         return expiresAt.isBefore(LocalDateTime.now(clock));
@@ -181,8 +182,9 @@ public class DiscountCode implements Verifiable {
         require(name.strip().length() <= 120, "折扣码名称最长 120 个字符");
         requireNotNull(scopeMode, "scopeMode 不能为空");
         requireNotNull(permanent, "permanent 不能为空");
-        if (!permanent)
+        if (permanent)
+            require(expiresAt == null, "折扣码永久有效时, expiresAt 必须为空");
+        else
             requireNotNull(expiresAt, "expiresAt 不能为空");
     }
 }
-

@@ -43,6 +43,10 @@ public class DiscountCodeRespond {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime expiresAt;
     /**
+     * 是否永久有效
+     */
+    private Boolean permanent;
+    /**
      * 创建时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -53,4 +57,3 @@ public class DiscountCodeRespond {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
 }
-

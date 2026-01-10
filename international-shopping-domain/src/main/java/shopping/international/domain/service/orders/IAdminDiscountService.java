@@ -6,10 +6,12 @@ import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
 import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.enums.orders.DiscountApplyScope;
+import shopping.international.domain.model.enums.orders.DiscountScopeMode;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
+import shopping.international.domain.model.vo.orders.DiscountCodeText;
 import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteria;
 import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
 
@@ -162,11 +164,22 @@ public interface IAdminDiscountService {
      * 更新折扣码
      *
      * @param codeId   折扣码 ID
-     * @param toUpdate 用于跟新的 Code 对象
+     * @param code     折扣码文本 (可为空; 若传入则必须与原值一致)
+     * @param policyId 折扣策略 ID (可为空; 为空表示不更新)
+     * @param name     折扣码名称 (可为空; 为空表示不更新)
+     * @param scopeMode 折扣范围模式 (可为空; 为空表示不更新)
+     * @param expiresAt 过期时间 (可为空; 为空表示不更新)
+     * @param permanent 是否永久有效 (可为空; 为空表示不更新)
      * @return 更新后的折扣码
      */
     @NotNull
-    DiscountCode updateCode(@NotNull Long codeId, @NotNull DiscountCode toUpdate);
+    DiscountCode updateCode(@NotNull Long codeId,
+                            @Nullable DiscountCodeText code,
+                            @Nullable Long policyId,
+                            @Nullable String name,
+                            @Nullable DiscountScopeMode scopeMode,
+                            @Nullable LocalDateTime expiresAt,
+                            @Nullable Boolean permanent);
 
     /**
      * 删除折扣码

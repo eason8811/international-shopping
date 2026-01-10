@@ -9,6 +9,7 @@ import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteri
 import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
 import shopping.international.domain.service.orders.IAdminDiscountService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -129,13 +130,30 @@ public interface IDiscountRepository {
     Optional<DiscountCode> findCodeByText(@NotNull DiscountCodeText code);
 
     /**
-     * 根据给定的策略 ID 统计关联的折扣码数量
+     * 统计指定策略下“仍可用”的折扣码数量
+     *
+     * <p>仍可用的定义:</p>
+     * <ul>
+     *     <li>{@code permanent=true}</li>
+     *     <li>或 {@code expiresAt >= now}</li>
+     * </ul>
      *
      * @param policyId 策略 ID
-     * @return 与该策略关联的折扣码总数
+     * @param now      当前时间
+     * @return 可用折扣码数量
      */
     @NotNull
-    Long countCodeByPolicyId(@NotNull Long policyId);
+    Long countActiveCodesByPolicyId(@NotNull Long policyId, @NotNull LocalDateTime now);
+
+    /**
+     * 删除指定策略下已过期的折扣码 (同时清理折扣码-商品映射)
+     *
+     * <p>已过期的定义: {@code permanent=false} 且 {@code expiresAt < now}</p>
+     *
+     * @param policyId 策略 ID
+     * @param now      当前时间
+     */
+    void deleteExpiredCodesByPolicyId(@NotNull Long policyId, @NotNull LocalDateTime now);
 
     /**
      * 保存新折扣码

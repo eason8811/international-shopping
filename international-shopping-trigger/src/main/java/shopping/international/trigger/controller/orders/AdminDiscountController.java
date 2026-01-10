@@ -305,16 +305,16 @@ public class AdminDiscountController {
     public ResponseEntity<Result<DiscountCodeRespond>> updateCode(@PathVariable("code_id") Long codeId,
                                                                   @RequestBody DiscountCodeUpsertRequest req) {
         req.updateValidate();
-
-        DiscountCode toUpdate = DiscountCode.create(
-                DiscountCodeText.ofNullable(req.getCode()),
+        DiscountCodeText codeText = req.getCode() == null ? null : DiscountCodeText.ofNullable(req.getCode());
+        DiscountCode updated = adminDiscountService.updateCode(
+                codeId,
+                codeText,
                 req.getPolicyId(),
                 req.getName(),
                 req.getScopeMode(),
                 req.getExpiresAt(),
                 req.getPermanent()
         );
-        DiscountCode updated = adminDiscountService.updateCode(codeId, toUpdate);
         return ResponseEntity.ok(Result.ok(toRespond(updated)));
     }
 
@@ -483,6 +483,7 @@ public class AdminDiscountController {
                 .name(code.getName())
                 .scopeMode(code.getScopeMode())
                 .expiresAt(code.getExpiresAt())
+                .permanent(code.getPermanent())
                 .createdAt(code.getCreatedAt())
                 .updatedAt(code.getUpdatedAt())
                 .build();

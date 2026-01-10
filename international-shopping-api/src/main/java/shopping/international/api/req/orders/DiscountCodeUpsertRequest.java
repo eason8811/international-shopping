@@ -48,6 +48,7 @@ public class DiscountCodeUpsertRequest implements Verifiable {
     /**
      * 是否永久有效
      */
+    @Nullable
     private Boolean permanent;
 
     /**
@@ -74,7 +75,9 @@ public class DiscountCodeUpsertRequest implements Verifiable {
         name = normalizeNotNullField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
         requireNotNull(scopeMode, "scopeMode 不能为空");
         requireNotNull(permanent, "permanent 不能为空");
-        if (!permanent)
+        if (permanent)
+            require(expiresAt == null, "折扣码永久有效时, expiresAt 必须为空");
+        else
             requireNotNull(expiresAt, "expiresAt 不能为空");
     }
 
@@ -94,4 +97,3 @@ public class DiscountCodeUpsertRequest implements Verifiable {
             require(!permanent, "传入过期时间时, 折扣码不能为永久有效");
     }
 }
-
