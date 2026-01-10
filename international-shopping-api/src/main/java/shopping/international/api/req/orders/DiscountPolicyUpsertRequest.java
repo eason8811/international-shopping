@@ -114,10 +114,8 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
     public void updateValidate() {
         validate();
         name = normalizeNotNullField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
-        requireNotNull(applyScope, "applyScope 不能为空");
-        requireNotNull(strategyType, "strategyType 不能为空");
 
-        if (strategyType == DiscountStrategyType.PERCENT) {
+        if (strategyType != null && strategyType == DiscountStrategyType.PERCENT) {
             requireNotNull(percentOff, "折扣策略类型为 PERCENT 时 percentOff 不能为空");
             if (amounts != null) {
                 for (DiscountPolicyAmountUpsertRequest a : amounts) {
@@ -126,7 +124,7 @@ public class DiscountPolicyUpsertRequest implements Verifiable {
                     require(a.getAmountOff() == null, "折扣策略类型为 PERCENT 时不允许提供 amountOff");
                 }
             }
-        } else if (strategyType == DiscountStrategyType.AMOUNT) {
+        } else if (strategyType != null && strategyType == DiscountStrategyType.AMOUNT) {
             require(percentOff == null, "折扣策略类型为 AMOUNT 时不允许提供 percentOff");
             require(amounts != null && !amounts.isEmpty(), "折扣策略类型为 AMOUNT 时 amounts 不能为空");
             for (DiscountPolicyAmountUpsertRequest a : amounts) {

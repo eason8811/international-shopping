@@ -9,6 +9,7 @@ import shopping.international.domain.model.aggregate.orders.DiscountCode;
 import shopping.international.domain.model.aggregate.orders.DiscountPolicy;
 import shopping.international.domain.model.entity.orders.DiscountPolicyAmount;
 import shopping.international.domain.model.enums.orders.DiscountPolicyAmountSource;
+import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
@@ -117,6 +118,18 @@ public class AdminDiscountService implements IAdminDiscountService {
                     .ifPresent(p -> {
                         throw new ConflictException("折扣策略已存在");
                     });
+        if (toUpdate.getStrategyType() == null) {
+            DiscountStrategyType originalType = policy.getStrategyType();
+            if (originalType == DiscountStrategyType.PERCENT)
+                require(
+                        toUpdate.getAmounts()
+                                .stream()
+                                .anyMatch(a -> a != null && a.getAmountOffMinor() != null),
+                        "策略类型为 PERCENT 时, 金额项不能传入"
+                );
+            if (originalType == DiscountStrategyType.AMOUNT)
+                require(toUpdate.getPercentOff() == null, "策略类型为 AMOUNT 时, 百分比不能传入");
+        }
         List<DiscountPolicyAmount> fullAmounts = deriveFxAmountsForUpsert(toUpdate.getAmounts(), policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
 
         policy.update(
