@@ -42,15 +42,21 @@ public class FxRateSyncJob {
     )
     public void sync() {
         try {
+            long start = System.currentTimeMillis();
             log.info("外汇汇率同步开始...");
             fxRateService.syncLatest(fxRateProperties.getBaseCurrency());
-            log.info("外汇汇率同步完成");
+            long end = System.currentTimeMillis();
+            log.info("外汇汇率同步完成, 耗时: {} ms", end - start);
+            start = System.currentTimeMillis();
             log.info("开始同步 SKU 价格...");
             skuService.recomputeFxPricesAll(50);
-            log.info("SKU 价格同步完成");
+            end = System.currentTimeMillis();
+            log.info("SKU 价格同步完成, 耗时: {} ms", end - start);
+            start = System.currentTimeMillis();
             log.info("开始同步折扣策略 Amounts...");
             discountService.recomputeFxAmountsAll(50);
-            log.info("折扣策略 Amounts 同步完成");
+            end = System.currentTimeMillis();
+            log.info("折扣策略 Amounts 同步完成, 耗时: {} ms", end - start);
         } catch (Exception e) {
             log.warn("FX 同步失败: {}", e.getMessage());
         }
