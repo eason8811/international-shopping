@@ -319,6 +319,7 @@ public class AdminDiscountService implements IAdminDiscountService {
      */
     @Override
     public @NotNull DiscountCode createCode(@NotNull DiscountCode code) {
+        code.validate();
         return discountRepository.saveCode(code);
     }
 
@@ -339,7 +340,8 @@ public class AdminDiscountService implements IAdminDiscountService {
                 toUpdate.getPolicyId(),
                 toUpdate.getName(),
                 toUpdate.getScopeMode(),
-                toUpdate.getExpiresAt()
+                toUpdate.getExpiresAt(),
+                toUpdate.getPermanent()
         );
         return discountRepository.updateCode(code);
     }

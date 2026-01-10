@@ -47,6 +47,11 @@ public class DiscountCodePO {
     @TableField("expires_at")
     private LocalDateTime expiresAt;
     /**
+     * 是否永久有效
+     */
+    @TableField("permanent")
+    private Boolean permanent;
+    /**
      * 创建时间
      */
     @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)

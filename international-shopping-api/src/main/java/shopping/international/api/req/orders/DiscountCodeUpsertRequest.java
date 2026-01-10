@@ -1,5 +1,6 @@
 package shopping.international.api.req.orders;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -42,7 +43,12 @@ public class DiscountCodeUpsertRequest implements Verifiable {
      * 过期时间
      */
     @Nullable
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime expiresAt;
+    /**
+     * 是否永久有效
+     */
+    private Boolean permanent;
 
     /**
      * 通用字段校验
@@ -67,7 +73,9 @@ public class DiscountCodeUpsertRequest implements Verifiable {
         requireNotNull(policyId, "policyId 不能为空");
         name = normalizeNotNullField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
         requireNotNull(scopeMode, "scopeMode 不能为空");
-        requireNotNull(expiresAt, "expiresAt 不能为空");
+        requireNotNull(permanent, "permanent 不能为空");
+        if (!permanent)
+            requireNotNull(expiresAt, "expiresAt 不能为空");
     }
 
     /**
@@ -80,8 +88,10 @@ public class DiscountCodeUpsertRequest implements Verifiable {
         validate();
         code = normalizeNullableField(code, "code 不能为空", s -> s.length() >= 4 && s.length() <= 32, "code 长度需在 4~32 之间");
         name = normalizeNullableField(name, "name 不能为空", s -> s.length() <= 120, "name 长度不能超过 120 个字符");
-        require(code != null || policyId != null || name != null || scopeMode != null || expiresAt != null,
+        require(code != null || policyId != null || name != null || scopeMode != null || expiresAt != null || permanent != null,
                 "更新折扣码时至少需要提供一个要更新的字段");
+        if (permanent != null && expiresAt != null)
+            require(!permanent, "传入过期时间时, 折扣码不能为永久有效");
     }
 }
 

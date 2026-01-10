@@ -301,6 +301,7 @@ public class DiscountRepository implements IDiscountRepository {
                 .name(code.getName())
                 .scopeMode(code.getScopeMode().name())
                 .expiresAt(code.getExpiresAt())
+                .permanent(code.getPermanent())
                 .build();
         try {
             discountCodeMapper.insert(po);
@@ -323,7 +324,8 @@ public class DiscountRepository implements IDiscountRepository {
                 .set(DiscountCodePO::getPolicyId, code.getPolicyId())
                 .set(DiscountCodePO::getName, code.getName())
                 .set(DiscountCodePO::getScopeMode, code.getScopeMode().name())
-                .set(DiscountCodePO::getExpiresAt, code.getExpiresAt());
+                .set(DiscountCodePO::getExpiresAt, code.getExpiresAt())
+                .set(DiscountCodePO::getPermanent, code.getPermanent());
         discountCodeMapper.update(null, wrapper);
         return findCodeById(code.getId()).orElseThrow(() -> new ConflictException("折扣码更新后回读失败"));
     }
@@ -534,6 +536,7 @@ public class DiscountRepository implements IDiscountRepository {
                 po.getName(),
                 DiscountScopeMode.valueOf(po.getScopeMode()),
                 po.getExpiresAt(),
+                po.getPermanent(),
                 po.getCreatedAt(),
                 po.getUpdatedAt()
         );

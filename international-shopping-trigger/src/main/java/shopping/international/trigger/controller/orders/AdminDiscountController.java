@@ -242,7 +242,8 @@ public class AdminDiscountController {
                                                                        @RequestParam(value = "policy_id", required = false) Long policyId,
                                                                        @RequestParam(value = "scope_mode", required = false) String scopeMode,
                                                                        @RequestParam(value = "expires_from", required = false) String expiresFrom,
-                                                                       @RequestParam(value = "expires_to", required = false) String expiresTo) {
+                                                                       @RequestParam(value = "expires_to", required = false) String expiresTo,
+                                                                       @RequestParam(value = "permanent", required = false) Boolean permanent) {
         PageQuery pageQuery = PageQuery.of(page, size, 500);
         DiscountScopeMode scopeModeEnum = parseEnum(scopeMode, DiscountScopeMode.class);
         LocalDateTime from = parseDateTime(expiresFrom);
@@ -253,6 +254,7 @@ public class AdminDiscountController {
                 .scopeMode(scopeModeEnum)
                 .expiresFrom(from)
                 .expiresTo(to)
+                .permanent(permanent)
                 .build();
         criteria.validate();
         PageResult<DiscountCode> pageData = adminDiscountService.listCodes(pageQuery, criteria);
@@ -285,7 +287,8 @@ public class AdminDiscountController {
                         req.getPolicyId(),
                         req.getName(),
                         req.getScopeMode(),
-                        req.getExpiresAt()
+                        req.getExpiresAt(),
+                        req.getPermanent()
                 )
         );
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus()).body(Result.created(toRespond(created)));
@@ -308,7 +311,8 @@ public class AdminDiscountController {
                 req.getPolicyId(),
                 req.getName(),
                 req.getScopeMode(),
-                req.getExpiresAt()
+                req.getExpiresAt(),
+                req.getPermanent()
         );
         DiscountCode updated = adminDiscountService.updateCode(codeId, toUpdate);
         return ResponseEntity.ok(Result.ok(toRespond(updated)));

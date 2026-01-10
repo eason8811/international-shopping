@@ -10,7 +10,6 @@ import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 import static shopping.international.types.utils.FieldValidateUtils.require;
 
 /**
@@ -46,6 +45,11 @@ public final class DiscountCodeSearchCriteria implements Verifiable {
      */
     @Nullable
     private LocalDateTime expiresTo;
+    /**
+     * 是否永久有效 (可空)
+     */
+    @Nullable
+    private Boolean permanent;
 
     /**
      * 校验筛选条件

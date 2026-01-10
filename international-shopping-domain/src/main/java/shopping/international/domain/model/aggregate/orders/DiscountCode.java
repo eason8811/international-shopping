@@ -46,6 +46,10 @@ public class DiscountCode implements Verifiable {
      */
     private LocalDateTime expiresAt;
     /**
+     * 是否永久有效
+     */
+    private Boolean permanent;
+    /**
      * 创建时间
      */
     private final LocalDateTime createdAt;
@@ -62,18 +66,20 @@ public class DiscountCode implements Verifiable {
      * @param policyId  折扣策略 ID, 必须非空
      * @param name      折扣码名称 (运营标识), 必须非空且长度不超过 120 个字符
      * @param scopeMode 折扣范围模式, 必须非空
-     * @param expiresAt 折扣码过期时间, 必须非空
+     * @param expiresAt 折扣码过期时间
+     * @param permanent 是否永久有效, 必须非空
      * @param createdAt 创建时间, 必须非空
      * @param updatedAt 更新时间, 必须非空
      */
     private DiscountCode(Long id, DiscountCodeText code, Long policyId, String name, DiscountScopeMode scopeMode,
-                         LocalDateTime expiresAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                         @Nullable LocalDateTime expiresAt, Boolean permanent, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.code = code;
         this.policyId = policyId;
         this.name = name;
         this.scopeMode = scopeMode;
         this.expiresAt = expiresAt;
+        this.permanent = permanent;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         validate();
@@ -86,11 +92,12 @@ public class DiscountCode implements Verifiable {
      * @param policyId  折扣策略 ID, 必须非空
      * @param name      折扣码名称 (运营标识), 必须非空且长度不超过 120 个字符
      * @param scopeMode 折扣范围模式, 必须非空
-     * @param expiresAt 折扣码过期时间, 必须非空
+     * @param expiresAt 折扣码过期时间
+     * @param permanent 是否永久有效, 必须非空
      * @return 新创建的 {@link DiscountCode} 实例
      */
-    public static DiscountCode create(DiscountCodeText code, Long policyId, String name, DiscountScopeMode scopeMode, LocalDateTime expiresAt) {
-        return new DiscountCode(null, code, policyId, name, scopeMode, expiresAt, LocalDateTime.now(), LocalDateTime.now());
+    public static DiscountCode create(DiscountCodeText code, Long policyId, String name, DiscountScopeMode scopeMode, @Nullable LocalDateTime expiresAt, Boolean permanent) {
+        return new DiscountCode(null, code, policyId, name, scopeMode, expiresAt, permanent, LocalDateTime.now(), LocalDateTime.now());
     }
 
     /**
@@ -101,14 +108,15 @@ public class DiscountCode implements Verifiable {
      * @param policyId  折扣策略 ID, 必须非空
      * @param name      折扣码名称 (运营标识), 必须非空且长度不超过 120 个字符
      * @param scopeMode 折扣范围模式, 必须非空
-     * @param expiresAt 折扣码过期时间, 必须非空
+     * @param expiresAt 折扣码过期时间
+     * @param permanent 是否永久有效, 必须非空
      * @param createdAt 创建时间, 必须非空
      * @param updatedAt 更新时间, 必须非空
      * @return 新构建的 {@link DiscountCode} 实例
      */
     public static DiscountCode reconstitute(Long id, DiscountCodeText code, Long policyId, String name, DiscountScopeMode scopeMode,
-                                            LocalDateTime expiresAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        return new DiscountCode(id, code, policyId, name, scopeMode, expiresAt, createdAt, updatedAt);
+                                            @Nullable LocalDateTime expiresAt, Boolean permanent, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        return new DiscountCode(id, code, policyId, name, scopeMode, expiresAt, permanent, createdAt, updatedAt);
     }
 
     /**
@@ -118,8 +126,10 @@ public class DiscountCode implements Verifiable {
      * @param name      可选的新名称, 如果为 null 或者仅包含空白字符则不更新
      * @param scopeMode 可选的新折扣范围模式, 如果为 null 刑不更新
      * @param expiresAt 可选的新过期时间, 如果为 null 则不更新
+     * @param permanent 可选的新永久性标志, 如果为 null 则不更新
      */
-    public void update(@Nullable Long policyId, @Nullable String name, @Nullable DiscountScopeMode scopeMode, @Nullable LocalDateTime expiresAt) {
+    public void update(@Nullable Long policyId, @Nullable String name, @Nullable DiscountScopeMode scopeMode,
+                       @Nullable LocalDateTime expiresAt, @Nullable Boolean permanent) {
         if (policyId != null)
             this.policyId = policyId;
         if (name != null)
@@ -128,6 +138,10 @@ public class DiscountCode implements Verifiable {
             this.scopeMode = scopeMode;
         if (expiresAt != null)
             this.expiresAt = expiresAt;
+        if (permanent != null) {
+            this.expiresAt = permanent ? null : this.expiresAt;
+            this.permanent = permanent;
+        }
         validate();
     }
 
@@ -138,6 +152,8 @@ public class DiscountCode implements Verifiable {
      * @return 如果折扣码已过期则返回 <code>true</code>, 否则返回 <code>false</code>
      */
     public boolean isExpired(Clock clock) {
+        if (permanent)
+            return false;
         requireNotNull(clock, "clock 不能为空");
         return expiresAt.isBefore(LocalDateTime.now(clock));
     }
@@ -164,7 +180,9 @@ public class DiscountCode implements Verifiable {
         requireNotBlank(name, "折扣码名称不能为空");
         require(name.strip().length() <= 120, "折扣码名称最长 120 个字符");
         requireNotNull(scopeMode, "scopeMode 不能为空");
-        requireNotNull(expiresAt, "expiresAt 不能为空");
+        requireNotNull(permanent, "permanent 不能为空");
+        if (!permanent)
+            requireNotNull(expiresAt, "expiresAt 不能为空");
     }
 }
 
