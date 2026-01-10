@@ -99,7 +99,9 @@ public class AdminDiscountService implements IAdminDiscountService {
                 .ifPresent(p -> {
                     throw new ConflictException("折扣策略已存在");
                 });
-        List<DiscountPolicyAmount> full = deriveFxAmountsForUpsert(policy.getAmounts(), List.of(), DiscountPolicy.DEFAULT_CURRENCY);
+        List<DiscountPolicyAmount> full = null;
+        if (!policy.getAmounts().isEmpty())
+            full = deriveFxAmountsForUpsert(policy.getAmounts(), List.of(), DiscountPolicy.DEFAULT_CURRENCY);
         policy.update(null, null, null, null, full);
         return discountRepository.savePolicy(policy);
     }
@@ -132,13 +134,13 @@ public class AdminDiscountService implements IAdminDiscountService {
             DiscountStrategyType originalType = policy.getStrategyType();
             if (originalType == DiscountStrategyType.PERCENT)
                 require(
-                        amounts.stream().anyMatch(a -> a != null && a.getAmountOffMinor() != null),
+                        amounts.stream().noneMatch(a -> a != null && a.getAmountOffMinor() != null),
                         "策略类型为 PERCENT 时, 金额项不能传入"
                 );
             if (originalType == DiscountStrategyType.AMOUNT)
                 require(percentOff == null, "策略类型为 AMOUNT 时, 百分比不能传入");
         }
-        List<DiscountPolicyAmount> fullAmounts = null;
+        List<DiscountPolicyAmount> fullAmounts = amounts;
         if (!amounts.isEmpty())
             fullAmounts = deriveFxAmountsForUpsert(amounts, policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
 

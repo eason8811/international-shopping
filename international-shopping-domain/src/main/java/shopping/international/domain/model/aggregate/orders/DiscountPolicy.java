@@ -13,6 +13,7 @@ import shopping.international.types.utils.Verifiable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -145,12 +146,34 @@ public class DiscountPolicy implements Verifiable {
             this.name = name.strip();
         if (applyScope != null)
             this.applyScope = applyScope;
-        if (strategyType != null)
-            this.strategyType = strategyType;
         if (percentOff != null)
             this.percentOff = percentOff;
         if (amounts != null)
             this.amounts = List.copyOf(amounts);
+        if (strategyType == DiscountStrategyType.PERCENT) {
+            List<DiscountPolicyAmount> originalAmounts = new ArrayList<>(this.amounts);
+            this.amounts = originalAmounts.stream()
+                    .map(a -> new DiscountPolicyAmount(
+                            a.getCurrency(),
+                            null,
+                            a.getMinOrderAmountMinor(),
+                            a.getMaxDiscountAmountMinor(),
+                            a.getSource(),
+                            a.getDerivedFrom(),
+                            a.getFxRate(),
+                            a.getFxAsOf(),
+                            a.getFxProvider(),
+                            a.getComputedAt()
+                    ))
+                    .toList();
+            requireNotNull(this.percentOff, "折扣策略类型为 PERCENT 时 percentOff 不能为空");
+            this.strategyType = strategyType;
+        }
+        if (strategyType == DiscountStrategyType.AMOUNT) {
+            this.percentOff = null;
+            require(!this.amounts.isEmpty(), "折扣策略类型为 AMOUNT 时 amounts 不能为空");
+            this.strategyType = strategyType;
+        }
         validate();
     }
 
