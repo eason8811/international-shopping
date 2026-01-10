@@ -138,7 +138,9 @@ public class AdminDiscountService implements IAdminDiscountService {
             if (originalType == DiscountStrategyType.AMOUNT)
                 require(percentOff == null, "策略类型为 AMOUNT 时, 百分比不能传入");
         }
-        List<DiscountPolicyAmount> fullAmounts = deriveFxAmountsForUpsert(amounts, policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
+        List<DiscountPolicyAmount> fullAmounts = new ArrayList<>();
+        if (!amounts.isEmpty())
+            fullAmounts = deriveFxAmountsForUpsert(amounts, policy.getAmounts(), DiscountPolicy.DEFAULT_CURRENCY);
 
         policy.update(name, applyScope, strategyType, percentOff, fullAmounts);
         return discountRepository.updatePolicy(policy);
