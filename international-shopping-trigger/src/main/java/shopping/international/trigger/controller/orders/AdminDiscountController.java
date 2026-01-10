@@ -34,6 +34,7 @@ import shopping.international.types.exceptions.IllegalParamException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -503,7 +504,7 @@ public class AdminDiscountController {
             return OffsetDateTime.parse(trimmed).toLocalDateTime();
         } catch (Exception ignore) {
             try {
-                return LocalDateTime.parse(trimmed);
+                return LocalDateTime.parse(trimmed, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             } catch (Exception ex) {
                 throw new IllegalParamException("时间格式不合法: " + value);
             }

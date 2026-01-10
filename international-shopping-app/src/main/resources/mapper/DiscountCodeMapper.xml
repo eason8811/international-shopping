@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.orders.DiscountCodeMapper">
+
+    <resultMap id="DiscountCodeMap"
+               type="shopping.international.infrastructure.dao.orders.po.DiscountCodePO"
+               autoMapping="true">
+        <id column="id" property="id"/>
+    </resultMap>
+
+    <sql id="where_condition">
+        <where>
+            <if test="criteria.policyId != null">
+                AND policy_id = #{criteria.policyId}
+            </if>
+            <if test="criteria.scopeMode != null">
+                AND scope_mode = #{criteria.scopeMode}
+            </if>
+            <if test="criteria.keyword != null and criteria.keyword != ''">
+                AND (code LIKE CONCAT('%', #{criteria.keyword}, '%')
+                OR name LIKE CONCAT('%', #{criteria.keyword}, '%'))
+            </if>
+
+            <!-- permanent & expires 条件 -->
+            <choose>
+                <!-- 显式指定 permanent -->
+                <when test="criteria.permanent != null">
+                    <choose>
+                        <when test="criteria.permanent">
+                            AND (permanent = 1 OR expires_at IS NULL)
+                            <!-- permanent=true 时, expiresFrom/expiresTo 忽略 -->
+                        </when>
+                        <otherwise>
+                            AND (expires_at IS NOT NULL AND (permanent = 0 OR permanent IS NULL))
+                            <if test="criteria.expiresFrom != null">
+                                AND expires_at <![CDATA[>=]]> #{criteria.expiresFrom}
+                            </if>
+                            <if test="criteria.expiresTo != null">
+                                AND expires_at <![CDATA[<=]]> #{criteria.expiresTo}
+                            </if>
+                        </otherwise>
+                    </choose>
+                </when>
+
+                <!-- 未指定 permanent: 当存在 expiresFrom/expiresTo 时, permanent=true 仍视为符合时间条件 -->
+                <otherwise>
+                    <if test="criteria.expiresFrom != null or criteria.expiresTo != null">
+                        AND (
+                            (permanent = 1 OR expires_at IS NULL)
+                            OR (
+                                expires_at IS NOT NULL AND (permanent = 0 OR permanent IS NULL)
+                                <if test="criteria.expiresFrom != null">
+                                    AND expires_at <![CDATA[>=]]> #{criteria.expiresFrom}
+                                </if>
+                                <if test="criteria.expiresTo != null">
+                                    AND expires_at <![CDATA[<=]]> #{criteria.expiresTo}
+                                </if>
+                            )
+                        )
+                    </if>
+                </otherwise>
+            </choose>
+        </where>
+    </sql>
+
+    <select id="pageCodes" resultMap="DiscountCodeMap">
+        SELECT id,
+               code,
+               policy_id,
+               name,
+               scope_mode,
+               expires_at,
+               permanent,
+               created_at,
+               updated_at
+        FROM discount_code
+        <include refid="where_condition"/>
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countCodes" resultType="long">
+        SELECT COUNT(1)
+        FROM discount_code
+        <include refid="where_condition"/>
+    </select>
+
+</mapper>
+

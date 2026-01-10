@@ -520,11 +520,14 @@ public class DiscountRepository implements IDiscountRepository {
             wrapper.ge(DiscountCodePO::getExpiresAt, criteria.getExpiresFrom());
         if (criteria.getExpiresTo() != null)
             wrapper.le(DiscountCodePO::getExpiresAt, criteria.getExpiresTo());
+        if (criteria.getPermanent() != null)
+            wrapper.eq(DiscountCodePO::getPermanent, criteria.getPermanent());
         if (criteria.getKeyword() != null)
             wrapper.and(w -> w
                     .like(DiscountCodePO::getCode, criteria.getKeyword())
                     .or()
-                    .like(DiscountCodePO::getName, criteria.getKeyword()));
+                    .like(DiscountCodePO::getName, criteria.getKeyword())
+            );
         return wrapper;
     }
 

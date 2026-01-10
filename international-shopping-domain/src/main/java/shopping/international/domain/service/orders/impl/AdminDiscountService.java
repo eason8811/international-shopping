@@ -126,8 +126,7 @@ public class AdminDiscountService implements IAdminDiscountService {
                                                 @Nullable DiscountStrategyType strategyType,
                                                 @Nullable BigDecimal percentOff,
                                                 @NotNull List<DiscountPolicyAmount> amounts) {
-        DiscountPolicy policy = discountRepository.findPolicyById(policyId)
-                .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
+        DiscountPolicy policy = ensureDiscountPolicy(policyId);
         if (name != null)
             discountRepository.findPolicyByName(name)
                     .ifPresent(p -> {
@@ -161,8 +160,7 @@ public class AdminDiscountService implements IAdminDiscountService {
      */
     @Override
     public @NotNull List<String> recomputeFxAmounts(@NotNull Long policyId) {
-        DiscountPolicy policy = discountRepository.findPolicyById(policyId)
-                .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
+        DiscountPolicy policy = ensureDiscountPolicy(policyId);
         List<DiscountPolicyAmount> full = recomputeFxAmountsForPolicy(policy);
         policy.update(null, null, null, null, full);
         discountRepository.updatePolicy(policy);
@@ -213,8 +211,7 @@ public class AdminDiscountService implements IAdminDiscountService {
      */
     @Override
     public @NotNull String switchPolicyAmountsToManual(@NotNull Long policyId, @NotNull String currency) {
-        DiscountPolicy policy = discountRepository.findPolicyById(policyId)
-                .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
+        DiscountPolicy policy = ensureDiscountPolicy(policyId);
 
         List<DiscountPolicyAmount> full = recomputeFxAmountsForPolicy(policy);
         DiscountPolicyAmount existedAmount = full.stream()
@@ -245,8 +242,7 @@ public class AdminDiscountService implements IAdminDiscountService {
     public @NotNull String switchPolicyAmountsToFxAuto(@NotNull Long policyId, @NotNull String currency) {
         if (DiscountPolicy.DEFAULT_CURRENCY.equalsIgnoreCase(currency))
             throw new IllegalParamException("无法将全站默认币种 " + DiscountPolicy.DEFAULT_CURRENCY + " 设为 FX_AUTO 模式, 该币种必须手动设置");
-        DiscountPolicy policy = discountRepository.findPolicyById(policyId)
-                .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
+        DiscountPolicy policy = ensureDiscountPolicy(policyId);
 
         DiscountPolicyAmount baseAmount = policy.resolveAmount(DiscountPolicy.DEFAULT_CURRENCY);
         requireNotNull(baseAmount, "策略缺少全站默认币种 " + DiscountPolicy.DEFAULT_CURRENCY + " 的金额项");
@@ -326,16 +322,17 @@ public class AdminDiscountService implements IAdminDiscountService {
     @Override
     public @NotNull DiscountCode createCode(@NotNull DiscountCode code) {
         code.validate();
+        ensureDiscountPolicy(code.getPolicyId());
         return discountRepository.saveCode(code);
     }
 
     /**
      * 更新折扣码
      *
-     * @param codeId   折扣码 ID
-     * @param codeText 折扣码文本 (可为空; 若传入则必须与原值一致)
-     * @param policyId 折扣策略 ID (可为空; 为空表示不更新)
-     * @param name     折扣码名称 (可为空; 为空表示不更新)
+     * @param codeId    折扣码 ID
+     * @param codeText  折扣码文本 (可为空; 若传入则必须与原值一致)
+     * @param policyId  折扣策略 ID (可为空; 为空表示不更新)
+     * @param name      折扣码名称 (可为空; 为空表示不更新)
      * @param scopeMode 折扣范围模式 (可为空; 为空表示不更新)
      * @param expiresAt 过期时间 (可为空; 为空表示不更新)
      * @param permanent 是否永久有效 (可为空; 为空表示不更新)
@@ -351,6 +348,7 @@ public class AdminDiscountService implements IAdminDiscountService {
                                             @Nullable Boolean permanent) {
         DiscountCode code = discountRepository.findCodeById(codeId)
                 .orElseThrow(() -> new IllegalParamException("折扣码不存在"));
+        ensureDiscountPolicy(policyId);
 
         if (codeText != null && !codeText.equals(code.getCode()))
             throw new ConflictException("折扣码不支持修改");
@@ -415,6 +413,18 @@ public class AdminDiscountService implements IAdminDiscountService {
         List<OrderDiscountAppliedView> items = discountRepository.pageOrderDiscountApplied(criteria, offset, limit);
         long total = discountRepository.countOrderDiscountApplied(criteria);
         return new PageResult<>(items, total);
+    }
+
+    /**
+     * 确保给定的折扣策略代码对应的有效折扣策略存在, 如果不存在则抛出异常
+     *
+     * @param code 折扣策略的唯一标识码
+     * @return 返回找到的 {@link DiscountPolicy} 实例
+     * @throws IllegalParamException 当提供的折扣策略代码未对应任何有效的折扣策略时抛出
+     */
+    private DiscountPolicy ensureDiscountPolicy(Long code) {
+        return discountRepository.findPolicyById(code)
+                .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
     }
 
     /**
