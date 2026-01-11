@@ -343,7 +343,8 @@ public class AdminDiscountService implements IAdminDiscountService {
                                             @Nullable Boolean permanent) {
         DiscountCode code = discountRepository.findCodeById(codeId)
                 .orElseThrow(() -> new IllegalParamException("折扣码不存在"));
-        ensureDiscountPolicy(policyId);
+        if (policyId != null)
+            ensureDiscountPolicy(policyId);
 
         if (codeText != null && !codeText.equals(code.getCode()))
             throw new ConflictException("折扣码不支持修改");
