@@ -22,6 +22,8 @@ import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchC
 import shopping.international.domain.service.orders.IAdminDiscountService;
 import shopping.international.infrastructure.dao.orders.*;
 import shopping.international.infrastructure.dao.orders.po.*;
+import shopping.international.infrastructure.dao.products.ProductMapper;
+import shopping.international.infrastructure.dao.products.po.ProductPO;
 import shopping.international.types.enums.FxRateProvider;
 import shopping.international.types.exceptions.ConflictException;
 
@@ -58,6 +60,10 @@ public class DiscountRepository implements IDiscountRepository {
      * 折扣实际使用流水 Mapper
      */
     private final OrderDiscountAppliedMapper orderDiscountAppliedMapper;
+    /**
+     * 商品 Mapper
+     */
+    private final ProductMapper productMapper;
 
     /**
      * 分页查询折扣策略
@@ -479,6 +485,18 @@ public class DiscountRepository implements IDiscountRepository {
                 criteria.getFrom(),
                 criteria.getTo()
         );
+    }
+
+    /**
+     * 统计给定商品 ID 列表中对应的商品数量
+     *
+     * @param productIdList 商品 ID 列表, 不能为空
+     * @return 对应的商品数量
+     */
+    @Override
+    public long countProductByIdList(@NotNull List<Long> productIdList) {
+        return productMapper.selectCount(new LambdaQueryWrapper<ProductPO>()
+                .in(ProductPO::getId, productIdList));
     }
 
     /**

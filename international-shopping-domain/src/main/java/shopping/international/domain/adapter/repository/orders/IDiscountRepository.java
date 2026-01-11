@@ -221,4 +221,12 @@ public interface IDiscountRepository {
      * @return 总数
      */
     long countOrderDiscountApplied(@NotNull OrderDiscountAppliedSearchCriteria criteria);
+
+    /**
+     * 统计给定商品 ID 列表中对应的商品数量
+     *
+     * @param productIdList 商品 ID 列表, 不能为空
+     * @return 对应的商品数量
+     */
+    long countProductByIdList(@NotNull List<Long> productIdList);
 }

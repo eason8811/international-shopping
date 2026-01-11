@@ -16,11 +16,11 @@ import shopping.international.domain.model.enums.orders.DiscountScopeMode;
 import shopping.international.domain.model.enums.orders.DiscountStrategyType;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.common.FxRateLatest;
 import shopping.international.domain.model.vo.orders.DiscountCodeSearchCriteria;
 import shopping.international.domain.model.vo.orders.DiscountCodeText;
 import shopping.international.domain.model.vo.orders.DiscountPolicySearchCriteria;
 import shopping.international.domain.model.vo.orders.OrderDiscountAppliedSearchCriteria;
-import shopping.international.domain.model.vo.common.FxRateLatest;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.common.IFxRateService;
 import shopping.international.domain.service.orders.IAdminDiscountService;
@@ -32,12 +32,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -381,6 +376,7 @@ public class AdminDiscountService implements IAdminDiscountService {
      */
     @Override
     public @NotNull List<Long> listCodeProducts(@NotNull Long codeId) {
+        ensureDiscountCode(codeId);
         return discountRepository.listCodeProductIds(codeId);
     }
 
@@ -393,6 +389,12 @@ public class AdminDiscountService implements IAdminDiscountService {
      */
     @Override
     public @NotNull List<Long> replaceCodeProducts(@NotNull Long codeId, @NotNull List<Long> productIds) {
+        DiscountCode code = ensureDiscountCode(codeId);
+        if (code.getScopeMode() == DiscountScopeMode.ALL && !productIds.isEmpty())
+            throw new IllegalParamException("全站范围折扣码不支持指定商品");
+        long count = discountRepository.countProductByIdList(productIds);
+        if (count != productIds.size())
+            throw new IllegalParamException("存在不存在的 SPU ID");
         return discountRepository.replaceCodeProducts(codeId, productIds);
     }
 
@@ -418,13 +420,25 @@ public class AdminDiscountService implements IAdminDiscountService {
     /**
      * 确保给定的折扣策略代码对应的有效折扣策略存在, 如果不存在则抛出异常
      *
-     * @param code 折扣策略的唯一标识码
+     * @param policyId 折扣策略的唯一标识码
      * @return 返回找到的 {@link DiscountPolicy} 实例
      * @throws IllegalParamException 当提供的折扣策略代码未对应任何有效的折扣策略时抛出
      */
-    private DiscountPolicy ensureDiscountPolicy(Long code) {
-        return discountRepository.findPolicyById(code)
+    private DiscountPolicy ensureDiscountPolicy(Long policyId) {
+        return discountRepository.findPolicyById(policyId)
                 .orElseThrow(() -> new IllegalParamException("折扣策略不存在"));
+    }
+
+    /**
+     * 确保指定 id 的折扣码存在, 如果不存在则抛出异常
+     *
+     * @param codeId 折扣码的 id
+     * @return 存在的 DiscountCode 对象
+     * @throws IllegalParamException 如果通过给定 id 未找到任何折扣码, 则抛出此异常
+     */
+    private DiscountCode ensureDiscountCode(Long codeId) {
+        return discountRepository.findCodeById(codeId)
+                .orElseThrow(() -> new IllegalParamException("折扣码不存在"));
     }
 
     /**
