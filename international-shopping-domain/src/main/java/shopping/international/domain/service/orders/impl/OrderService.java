@@ -450,18 +450,7 @@ public class OrderService implements IOrderService {
 
         DiscountPolicyAmount amountConfig = policy.resolveAmount(currency);
 
-        Money orderTotal = Money.zero(currency);
-        for (OrderItem item : items)
-            orderTotal = orderTotal.add(item.getSubtotalAmount());
-
-        // 2) 门槛约束
-        if (amountConfig != null && amountConfig.getMinOrderAmountMinor() != null) {
-            Money min = Money.ofMinor(currency, amountConfig.getMinOrderAmountMinor());
-            if (orderTotal.compareTo(min) < 0)
-                throw new ConflictException("未满足折扣门槛");
-        }
-
-        // 3) 计算可用明细集合
+        // 2) 计算可用明细集合
         Set<Long> mappedProducts = null;
         if (code.getScopeMode() != DiscountScopeMode.ALL) {
             List<Long> ids = discountRepository.listCodeProductIds(code.getId());
@@ -480,6 +469,16 @@ public class OrderService implements IOrderService {
         }
         if (eligible.isEmpty())
             throw new ConflictException("折扣码不适用于当前商品");
+
+        // 3) 门槛约束: 按“可折扣子集”小计判断 (尤其 EXCLUDE 场景)
+        if (amountConfig != null && amountConfig.getMinOrderAmountMinor() != null) {
+            Money eligibleTotal = Money.zero(currency);
+            for (OrderItem item : eligible)
+                eligibleTotal = eligibleTotal.add(item.getSubtotalAmount());
+            Money min = Money.ofMinor(currency, amountConfig.getMinOrderAmountMinor());
+            if (eligibleTotal.compareTo(min) < 0)
+                throw new ConflictException("未满足折扣门槛");
+        }
 
         // 4) 计算折扣拆分
         List<IOrderService.OrderDiscountApplied> appliedList = new ArrayList<>();
@@ -524,6 +523,9 @@ public class OrderService implements IOrderService {
             for (OrderItem item : eligible) {
                 Money base = item.getSubtotalAmount();
                 Money raw = computeRawDiscount(currencyConfig, policy, amountConfig, base);
+                // AMOUNT 折扣在 ITEM 模式下按“每件立减”语义：单件折扣 * quantity
+                if (policy.getStrategyType() == DiscountStrategyType.AMOUNT)
+                    raw = raw.multiply(item.getQuantity());
                 Money capped = capDiscount(currency, amountConfig, raw, base);
                 lineDiscounts.add(new LineDiscount(item.getSkuId(), capped));
                 sum = sum.add(capped);

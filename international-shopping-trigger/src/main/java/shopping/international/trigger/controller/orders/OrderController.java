@@ -30,6 +30,7 @@ import shopping.international.types.exceptions.IllegalParamException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -336,13 +337,22 @@ public class OrderController {
      * @return 响应
      */
     private static OrderItemRespond toRespond(OrderItem item, CurrencyConfig currencyConfig) {
+        Map<String, Object> skuAttrs = item.getSkuAttrs();
+        if (skuAttrs != null && !skuAttrs.isEmpty() && skuAttrs.containsKey("list_price") && skuAttrs.get("list_price") instanceof Number) {
+            long listPrice = ((Number) skuAttrs.get("list_price")).longValue();
+            skuAttrs.put("list_price", currencyConfig.toMajor(listPrice));
+        }
+        if (skuAttrs != null && !skuAttrs.isEmpty() && skuAttrs.containsKey("sale_price") && skuAttrs.get("sale_price") instanceof Number) {
+            long salePrice = ((Number) skuAttrs.get("sale_price")).longValue();
+            skuAttrs.put("sale_price", currencyConfig.toMajor(salePrice));
+        }
         return OrderItemRespond.builder()
                 .id(item.getId())
                 .productId(item.getProductId())
                 .skuId(item.getSkuId())
                 .discountCodeId(item.getDiscountCodeId())
                 .title(item.getTitle())
-                .skuAttrs(item.getSkuAttrs())
+                .skuAttrs(skuAttrs)
                 .coverImageUrl(item.getCoverImageUrl())
                 .unitPrice(item.getUnitPrice() == null ? null : item.getUnitPrice().toMajorString(currencyConfig))
                 .quantity(item.getQuantity())
