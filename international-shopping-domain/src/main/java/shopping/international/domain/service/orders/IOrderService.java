@@ -75,15 +75,15 @@ public interface IOrderService {
      *
      * <p>用于在订单落库后写入 {@code order_discount_applied}</p>
      *
-     * @param discountCodeId     折扣码 ID
-     * @param appliedScope       应用范围
-     * @param skuId              明细级折扣关联的 SKU ID (订单级折扣为 null)
-     * @param appliedAmountMinor 实际抵扣金额 (最小货币单位)
-     * @param baseCurrency       统一记账币种(如 USD)
+     * @param discountCodeId         折扣码 ID
+     * @param appliedScope           应用范围
+     * @param skuId                  明细级折扣关联的 SKU ID (订单级折扣为 null)
+     * @param appliedAmountMinor     实际抵扣金额 (最小货币单位)
+     * @param baseCurrency           统一记账币种(如 USD)
      * @param appliedAmountBaseMinor 实际抵扣金额(统一记账币种,最小货币单位)
-     * @param fxRate             折扣换算汇率快照(1 base = rate quote), base=baseCurrency, quote=订单币种
-     * @param fxAsOf             汇率时间点/采样时间(快照)
-     * @param fxProvider         汇率数据源(快照)
+     * @param fxRate                 折扣换算汇率快照(1 base = rate quote), base=baseCurrency, quote=订单币种
+     * @param fxAsOf                 汇率时间点/采样时间(快照)
+     * @param fxProvider             汇率数据源(快照)
      */
     record OrderDiscountApplied(Long discountCodeId,
                                 @NotNull DiscountApplyScope appliedScope,
@@ -130,15 +130,17 @@ public interface IOrderService {
     /**
      * 预览计算内部结果
      *
-     * @param items               用于创建订单的商品项列表
-     * @param totalAmount         订单总金额
-     * @param discountAmount      折扣金额
-     * @param shippingAmount      运费金额
-     * @param payAmount           应付金额
-     * @param currency            货币类型
-     * @param discountCodeId      折扣码 ID
-     * @param cartItemIdsToDelete 需要从购物车中删除的商品项 ID 列表
-     * @param discountApplied     应用到订单上的折扣创建列表
+     * @param items                 用于创建订单的商品项列表
+     * @param totalAmount           订单总金额
+     * @param discountAmount        折扣金额
+     * @param shippingAmount        运费金额
+     * @param payAmount             应付金额
+     * @param currency              货币类型
+     * @param discountCodeId        折扣码 ID
+     * @param cartItemIdsToDelete   需要从购物车中删除的商品项 ID 列表
+     * @param discountApplied       应用到订单上的折扣创建列表
+     * @param usedDiscount          是否使用了折扣 (true: 使用了折扣, false: 未使用折扣)
+     * @param discountFailureReason 未使用折扣的原因 (可为空)
      */
     record PreviewComputation(List<OrderItem> items,
                               Money totalAmount,
@@ -148,19 +150,23 @@ public interface IOrderService {
                               String currency,
                               Long discountCodeId,
                               @NotNull List<Long> cartItemIdsToDelete,
-                              @NotNull List<OrderDiscountApplied> discountApplied) {
+                              @NotNull List<OrderDiscountApplied> discountApplied,
+                              @NotNull Boolean usedDiscount,
+                              @Nullable String discountFailureReason) {
         /**
          * 构造函数, 用于初始化一个预览计算对象, 该对象包含了订单创建时需要的所有金额相关的信息和可能的折扣信息
          *
-         * @param items               用于创建订单的商品项列表
-         * @param totalAmount         订单总金额
-         * @param discountAmount      折扣金额
-         * @param shippingAmount      运费金额
-         * @param payAmount           应付金额
-         * @param currency            货币类型
-         * @param discountCodeId      折扣码 ID
-         * @param cartItemIdsToDelete 需要从购物车中删除的商品项 ID 列表
-         * @param discountApplied     应用到订单上的折扣创建列表
+         * @param items                 用于创建订单的商品项列表
+         * @param totalAmount           订单总金额
+         * @param discountAmount        折扣金额
+         * @param shippingAmount        运费金额
+         * @param payAmount             应付金额
+         * @param currency              货币类型
+         * @param discountCodeId        折扣码 ID
+         * @param cartItemIdsToDelete   需要从购物车中删除的商品项 ID 列表
+         * @param discountApplied       应用到订单上的折扣创建列表
+         * @param usedDiscount          是否使用了折扣 (true: 使用了折扣, false: 未使用折扣)
+         * @param discountFailureReason 未使用折扣的原因 (可为空)
          */
         public PreviewComputation(List<OrderItem> items,
                                   Money totalAmount,
@@ -170,7 +176,9 @@ public interface IOrderService {
                                   String currency,
                                   @Nullable Long discountCodeId,
                                   @Nullable List<Long> cartItemIdsToDelete,
-                                  @Nullable List<OrderDiscountApplied> discountApplied) {
+                                  @Nullable List<OrderDiscountApplied> discountApplied,
+                                  @NotNull Boolean usedDiscount,
+                                  @Nullable String discountFailureReason) {
             this.items = items;
             this.totalAmount = totalAmount;
             this.discountAmount = discountAmount;
@@ -180,6 +188,8 @@ public interface IOrderService {
             this.discountCodeId = discountCodeId;
             this.cartItemIdsToDelete = cartItemIdsToDelete == null ? List.of() : List.copyOf(cartItemIdsToDelete);
             this.discountApplied = discountApplied == null ? List.of() : List.copyOf(discountApplied);
+            this.usedDiscount = usedDiscount;
+            this.discountFailureReason = discountFailureReason;
         }
     }
 

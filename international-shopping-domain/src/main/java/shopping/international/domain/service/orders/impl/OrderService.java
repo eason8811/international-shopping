@@ -1,6 +1,7 @@
 package shopping.international.domain.service.orders.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
@@ -21,12 +22,13 @@ import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.common.FxRateLatest;
 import shopping.international.domain.model.vo.orders.*;
-import shopping.international.domain.service.common.IFxRateService;
 import shopping.international.domain.service.common.ICurrencyConfigService;
+import shopping.international.domain.service.common.IFxRateService;
 import shopping.international.domain.service.orders.IOrderService;
 import shopping.international.types.config.FxRateProperties;
 import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.ConflictException;
+import shopping.international.types.exceptions.DiscountFailureException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
@@ -38,9 +40,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeCurrency;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 用户侧订单领域服务默认实现
@@ -52,6 +52,7 @@ import static shopping.international.types.utils.FieldValidateUtils.normalizeCur
  *     <li>协调聚合 {@link Order} 与仓储 {@link IOrderRepository} 完成“创建订单并预占库存”等事务性落库</li>
  * </ul>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService implements IOrderService {
@@ -380,20 +381,46 @@ public class OrderService implements IOrderService {
         Money tax = Money.zero(orderCurrency);
 
         // 4) 折扣试算
-        DiscountComputation discountComputation = computeDiscount(orderCurrency, orderItems, discountCode);
+        DiscountComputation discountComputation = null;
+        String discountFailureReason = null;
+        try {
+            discountComputation = computeDiscount(orderCurrency, orderItems, discountCode);
+        } catch (DiscountFailureException e) {
+            log.warn("折扣计算失败, 原因: '{}'", e.getMessage());
+            discountFailureReason = e.getMessage();
+        }
 
-        Money payAmount = totalAmount.subtract(discountComputation.discountAmount()).add(shipping).add(tax);
 
+        if (discountComputation != null) {
+            Money payAmount = totalAmount.subtract(discountComputation.discountAmount()).add(shipping).add(tax);
+            return new PreviewComputation(
+                    discountComputation.itemsWithDiscountCode(),
+                    totalAmount,
+                    discountComputation.discountAmount(),
+                    shipping,
+                    payAmount,
+                    orderCurrency,
+                    discountComputation.discountCodeId(),
+                    source == OrderSource.CART ? resolved.cartItemIdsToDelete() : null,
+                    discountComputation.discountApplied(),
+                    true,
+                    discountFailureReason
+            );
+        }
+
+        Money payAmount = totalAmount.add(shipping).add(tax);
         return new PreviewComputation(
-                discountComputation.itemsWithDiscountCode(),
+                orderItems,
                 totalAmount,
-                discountComputation.discountAmount(),
+                Money.zero(orderCurrency),
                 shipping,
                 payAmount,
                 orderCurrency,
-                discountComputation.discountCodeId(),
+                null,
                 source == OrderSource.CART ? resolved.cartItemIdsToDelete() : null,
-                discountComputation.discountApplied()
+                List.of(),
+                false,
+                discountFailureReason
         );
     }
 
@@ -441,9 +468,9 @@ public class OrderService implements IOrderService {
         DiscountCodeText codeText = DiscountCodeText.ofNullable(discountCode);
 
         DiscountCode code = discountRepository.findCodeByText(codeText)
-                .orElseThrow(() -> new ConflictException("折扣码不存在或不可用"));
+                .orElseThrow(() -> new DiscountFailureException("折扣码不存在或不可用"));
         if (code.isExpired(Clock.systemUTC()))
-            throw new ConflictException("折扣码已过期");
+            throw new DiscountFailureException("折扣码已过期");
 
         DiscountPolicy policy = discountRepository.findPolicyById(code.getPolicyId())
                 .orElseThrow(() -> new ConflictException("折扣策略不存在"));
@@ -468,7 +495,7 @@ public class OrderService implements IOrderService {
                 eligible.add(item);
         }
         if (eligible.isEmpty())
-            throw new ConflictException("折扣码不适用于当前商品");
+            throw new DiscountFailureException("折扣码不适用于当前商品");
 
         // 3) 门槛约束: 按“可折扣子集”小计判断 (尤其 EXCLUDE 场景)
         if (amountConfig != null && amountConfig.getMinOrderAmountMinor() != null) {
@@ -477,7 +504,7 @@ public class OrderService implements IOrderService {
                 eligibleTotal = eligibleTotal.add(item.getSubtotalAmount());
             Money min = Money.ofMinor(currency, amountConfig.getMinOrderAmountMinor());
             if (eligibleTotal.compareTo(min) < 0)
-                throw new ConflictException("未满足折扣门槛");
+                throw new DiscountFailureException("未满足折扣门槛");
         }
 
         // 4) 计算折扣拆分
@@ -491,7 +518,8 @@ public class OrderService implements IOrderService {
             baseCurrency = "USD";
         if (!baseCurrency.equalsIgnoreCase(currency)) {
             fxRateLatest = fxRateService.getLatest(baseCurrency, currency);
-            requireNotNull(fxRateLatest, "汇率 '" + baseCurrency + "' -> '" + currency + "' 不存在, 无法计算折扣记账金额");
+            if (fxRateLatest == null)
+                throw new ConflictException("汇率 '" + baseCurrency + "' -> '" + currency + "' 不存在, 无法计算折扣记账金额");
             baseCurrencyConfig = currencyConfigService.get(baseCurrency);
         }
 
@@ -581,11 +609,22 @@ public class OrderService implements IOrderService {
         List<OrderItem> itemsWithCode = new ArrayList<>();
         for (OrderItem item : items) {
             Long dcId = eligibleSkuIds.contains(item.getSkuId()) ? code.getId() : null;
-            itemsWithCode.add(OrderItem.reconstitute(
-                    item.getId(), item.getOrderId(), item.getProductId(), item.getSkuId(), dcId,
-                    item.getTitle(), item.getSkuAttrs(), item.getCoverImageUrl(),
-                    item.getUnitPrice(), item.getQuantity(), item.getSubtotalAmount(), item.getCreatedAt()
-            ));
+            itemsWithCode.add(
+                    OrderItem.reconstitute(
+                            item.getId(),
+                            item.getOrderId(),
+                            item.getProductId(),
+                            item.getSkuId(),
+                            dcId,
+                            item.getTitle(),
+                            item.getSkuAttrs(),
+                            item.getCoverImageUrl(),
+                            item.getUnitPrice(),
+                            item.getQuantity(),
+                            item.getSubtotalAmount(),
+                            item.getCreatedAt()
+                    )
+            );
         }
 
         return new DiscountComputation(discountAmount, itemsWithCode, code.getId(), appliedList);

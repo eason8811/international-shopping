@@ -21,8 +21,8 @@ import shopping.international.domain.model.vo.orders.AddressSnapshot;
 import shopping.international.domain.model.vo.orders.OrderNo;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IOrderService;
-import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
 import shopping.international.types.exceptions.IllegalParamException;
@@ -85,6 +85,8 @@ public class OrderController {
                 req.getLocale()
         );
         CurrencyConfig currencyConfig = currencyConfigService.get(preview.currency());
+        if (req.getDiscountCode() != null && !preview.usedDiscount())
+            return ResponseEntity.ok(Result.ok(toRespond(preview, currencyConfig), preview.discountFailureReason()));
         return ResponseEntity.ok(Result.ok(toRespond(preview, currencyConfig)));
     }
 
