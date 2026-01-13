@@ -383,7 +383,7 @@ public class OrderRepository implements IOrderRepository {
 
         // 6) 写入折扣实际应用流水
         if (discountAppliedCreates != null && !discountAppliedCreates.isEmpty())
-            insertDiscountApplied(orderId, skuIdToOrderItemId, discountAppliedCreates);
+            insertDiscountApplied(orderId, order.getCurrency(), skuIdToOrderItemId, discountAppliedCreates);
 
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单创建后回读失败"));
     }
@@ -582,11 +582,11 @@ public class OrderRepository implements IOrderRepository {
                 orderNo,
                 orderPo.getUserId(),
                 OrderStatus.valueOf(orderPo.getStatus()),
-	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getTotalAmount())),
-	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getDiscountAmount())),
-	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getShippingAmount())),
-	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getTaxAmount())),
-	                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getPayAmount())),
+                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getTotalAmount())),
+                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getDiscountAmount())),
+                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getShippingAmount())),
+                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getTaxAmount())),
+                Money.ofMinor(orderPo.getCurrency(), nullToZero(orderPo.getPayAmount())),
                 orderPo.getCurrency(),
                 PayChannel.valueOf(orderPo.getPayChannel()),
                 PayStatus.valueOf(orderPo.getPayStatus()),
@@ -614,17 +614,17 @@ public class OrderRepository implements IOrderRepository {
                 .id(order.getId())
                 .orderNo(order.getOrderNo().getValue())
                 .userId(order.getUserId())
-	                .status(order.getStatus().name())
-	                .itemsCount(order.getItemsCount())
-	                .totalAmount(order.getTotalAmount().getAmountMinor())
-	                .discountAmount(order.getDiscountAmount().getAmountMinor())
-	                .shippingAmount(order.getShippingAmount().getAmountMinor())
-	                .taxAmount(order.getTaxAmount().getAmountMinor())
-	                .payAmount(order.getPayAmount().getAmountMinor())
-	                .currency(order.getCurrency())
-	                .payChannel(order.getPayChannel() == null ? PayChannel.NONE.name() : order.getPayChannel().name())
-	                .payStatus(order.getPayStatus() == null ? PayStatus.NONE.name() : order.getPayStatus().name())
-	                .paymentExternalId(order.getPaymentExternalId())
+                .status(order.getStatus().name())
+                .itemsCount(order.getItemsCount())
+                .totalAmount(order.getTotalAmount().getAmountMinor())
+                .discountAmount(order.getDiscountAmount().getAmountMinor())
+                .shippingAmount(order.getShippingAmount().getAmountMinor())
+                .taxAmount(order.getTaxAmount().getAmountMinor())
+                .payAmount(order.getPayAmount().getAmountMinor())
+                .currency(order.getCurrency())
+                .payChannel(order.getPayChannel() == null ? PayChannel.NONE.name() : order.getPayChannel().name())
+                .payStatus(order.getPayStatus() == null ? PayStatus.NONE.name() : order.getPayStatus().name())
+                .paymentExternalId(order.getPaymentExternalId())
                 .payTime(order.getPayTime())
                 .addressSnapshot(toJsonOrNull(order.getAddressSnapshot()))
                 .buyerRemark(order.getBuyerRemark() == null ? null : order.getBuyerRemark().getValue())
@@ -647,13 +647,13 @@ public class OrderRepository implements IOrderRepository {
                 .skuId(item.getSkuId())
                 .discountCodeId(item.getDiscountCodeId())
                 .title(item.getTitle())
-	                .skuAttrs(toJsonOrNull(item.getSkuAttrs()))
-	                .coverImageUrl(item.getCoverImageUrl())
-	                .unitPrice(item.getUnitPrice().getAmountMinor())
-	                .quantity(item.getQuantity())
-	                .subtotalAmount(item.getSubtotalAmount().getAmountMinor())
-	                .build();
-	    }
+                .skuAttrs(toJsonOrNull(item.getSkuAttrs()))
+                .coverImageUrl(item.getCoverImageUrl())
+                .unitPrice(item.getUnitPrice().getAmountMinor())
+                .quantity(item.getQuantity())
+                .subtotalAmount(item.getSubtotalAmount().getAmountMinor())
+                .build();
+    }
 
     /**
      * OrderItemPO → OrderItem 实体
@@ -668,16 +668,16 @@ public class OrderRepository implements IOrderRepository {
                 po.getOrderId(),
                 po.getProductId(),
                 po.getSkuId(),
-	                po.getDiscountCodeId(),
-	                po.getTitle(),
-	                parseMap(po.getSkuAttrs()),
-	                po.getCoverImageUrl(),
-	                Money.ofMinor(currency, nullToZero(po.getUnitPrice())),
-	                po.getQuantity() == null ? 0 : po.getQuantity(),
-	                Money.ofMinor(currency, nullToZero(po.getSubtotalAmount())),
-	                po.getCreatedAt()
-	        );
-	    }
+                po.getDiscountCodeId(),
+                po.getTitle(),
+                parseMap(po.getSkuAttrs()),
+                po.getCoverImageUrl(),
+                Money.ofMinor(currency, nullToZero(po.getUnitPrice())),
+                po.getQuantity() == null ? 0 : po.getQuantity(),
+                Money.ofMinor(currency, nullToZero(po.getSubtotalAmount())),
+                po.getCreatedAt()
+        );
+    }
 
     /**
      * 写入状态流转日志
@@ -769,24 +769,37 @@ public class OrderRepository implements IOrderRepository {
      * @param skuIdToOrderItemId skuId → order_item.id 的映射
      * @param appliedList        写入参数
      */
-    private void insertDiscountApplied(Long orderId, Map<Long, Long> skuIdToOrderItemId, List<IOrderService.OrderDiscountApplied> appliedList) {
+    private void insertDiscountApplied(Long orderId, String currency, Map<Long, Long> skuIdToOrderItemId, List<IOrderService.OrderDiscountApplied> appliedList) {
+        requireNotNull(currency, "currency 不能为空");
         for (IOrderService.OrderDiscountApplied applied : appliedList) {
+            requireNotNull(applied, "折扣应用参数不能为空");
+            requireNotNull(applied.discountCodeId(), "折扣应用缺少 discountCodeId");
+            requireNotNull(applied.appliedScope(), "折扣应用缺少 appliedScope");
+            requireNotNull(applied.baseCurrency(), "折扣应用缺少 baseCurrency");
+
             Long orderItemId = null;
             if (applied.appliedScope() == DiscountApplyScope.ITEM) {
                 requireNotNull(applied.skuId(), "明细级折扣缺少 skuId");
                 orderItemId = skuIdToOrderItemId.get(applied.skuId());
                 requireNotNull(orderItemId, "明细级折扣找不到对应 order_item");
             }
-	            OrderDiscountAppliedPO po = OrderDiscountAppliedPO.builder()
-	                    .orderId(orderId)
-	                    .orderItemId(orderItemId)
-	                    .discountCodeId(applied.discountCodeId())
-	                    .appliedScope(applied.appliedScope().name())
-	                    .appliedAmount(applied.appliedAmountMinor())
-	                    .build();
-	            orderDiscountAppliedMapper.insert(po);
-	        }
-	    }
+
+            OrderDiscountAppliedPO po = OrderDiscountAppliedPO.builder()
+                    .orderId(orderId)
+                    .orderItemId(orderItemId)
+                    .discountCodeId(applied.discountCodeId())
+                    .appliedScope(applied.appliedScope().name())
+                    .currency(currency)
+                    .appliedAmount(applied.appliedAmountMinor())
+                    .baseCurrency(applied.baseCurrency())
+                    .appliedAmountBase(applied.appliedAmountBaseMinor())
+                    .fxRate(applied.fxRate())
+                    .fxAsOf(applied.fxAsOf())
+                    .fxProvider(applied.fxProvider() == null ? null : applied.fxProvider().name())
+                    .build();
+            orderDiscountAppliedMapper.insert(po);
+        }
+    }
 
     /**
      * 解析 address_snapshot JSON
