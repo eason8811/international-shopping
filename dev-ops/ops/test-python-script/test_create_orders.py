@@ -8,8 +8,8 @@ BASE_URL = "http://127.0.0.1:8080"
 ORDER_URL = f"{BASE_URL}/api/v1/users/me/orders"
 
 # ====== 你需要填完整值（你消息里用 *** 打码了）======
-CSRF_TOKEN = "ec562f27-410f-***-9272-****"
-ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJzd****GVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MT****TVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9p****rDvHs"
+CSRF_TOKEN = "ec562f27-410f*****2"
+ACCESS_TOKEN = "eyJhb***I1NiJ9.e9****haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9**BUXk00-p-CebwCDtrDvHs"
 
 # 货币小数位（本次用到的）
 MINOR_UNIT = {
