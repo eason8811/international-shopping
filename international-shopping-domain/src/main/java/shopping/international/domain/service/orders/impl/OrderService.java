@@ -326,7 +326,7 @@ public class OrderService implements IOrderService {
                         Function.identity()
                 ));
 
-        // 汇率缺失/过期时回退 USD: 如果任一 SKU 在目标币种下价格不可用，则整单回退 USD 重新取价
+        // 汇率缺失/过期时回退 USD: 如果任一 SKU 在目标币种下价格不可用, 则整单回退 USD 重新取价
         if (!"USD".equalsIgnoreCase(orderCurrency)) {
             Map<Long, SkuSaleSnapshot> finalSnapshotMap = snapshotMap;
             boolean missingPrice = skuIds.stream().anyMatch(skuId -> {
@@ -554,9 +554,9 @@ public class OrderService implements IOrderService {
                 // AMOUNT 折扣在 ITEM 模式下按“每件立减”语义：单件折扣 * quantity
                 if (policy.getStrategyType() == DiscountStrategyType.AMOUNT)
                     raw = raw.multiply(item.getQuantity());
-                Money capped = capDiscount(currency, amountConfig, raw, base);
-                lineDiscounts.add(new LineDiscount(item.getSkuId(), capped));
-                sum = sum.add(capped);
+                Money lineCapped = raw.compareTo(base) > 0 ? base : raw;
+                lineDiscounts.add(new LineDiscount(item.getSkuId(), lineCapped, base.getAmountMinor()));
+                sum = sum.add(lineCapped);
             }
 
             // maxDiscountAmount 作为订单级上限再次裁剪
@@ -564,18 +564,7 @@ public class OrderService implements IOrderService {
                     ? null
                     : Money.ofMinor(currency, amountConfig.getMaxDiscountAmountMinor());
             if (max != null && sum.compareTo(max) > 0) {
-                Money remaining = max;
-                List<LineDiscount> adjusted = new ArrayList<>();
-                for (LineDiscount ld : lineDiscounts) {
-                    if (remaining.isZero()) {
-                        adjusted.add(new LineDiscount(ld.skuId, Money.zero(currency)));
-                        continue;
-                    }
-                    Money use = ld.amount.compareTo(remaining) <= 0 ? ld.amount : remaining;
-                    adjusted.add(new LineDiscount(ld.skuId, use));
-                    remaining = remaining.subtract(use);
-                }
-                lineDiscounts = adjusted;
+                lineDiscounts = applyOrderCapBySubtotalProportion(currency, max.getAmountMinor(), lineDiscounts);
                 sum = max;
             }
             discountAmount = sum;
@@ -707,7 +696,189 @@ public class OrderService implements IOrderService {
     /**
      * 单行折扣临时结构
      */
-    private record LineDiscount(Long skuId, Money amount) {
+    private record LineDiscount(Long skuId, Money amount, long subtotalAmountMinor) {
+    }
+
+    /**
+     * 根据订单小计比例分配订单折扣上限, 并调整每个商品行的折扣金额
+     *
+     * @param currency                 货币代码 不能为空
+     * @param cappedOrderDiscountMinor 订单折扣上限 (以最小货币单位表示) 不能为负数
+     * @param lineDiscounts            商品行折扣列表 不能为空
+     * @return 调整后的商品行折扣列表
+     */
+    static @NotNull List<LineDiscount> applyOrderCapBySubtotalProportion(@NotNull String currency,
+                                                                         long cappedOrderDiscountMinor,
+                                                                         @NotNull List<LineDiscount> lineDiscounts) {
+        requireNotNull(currency, "currency 不能为空");
+        require(cappedOrderDiscountMinor >= 0, "cappedOrderDiscountMinor 不能为负数");
+        requireNotNull(lineDiscounts, "lineDiscounts 不能为空");
+        if (lineDiscounts.isEmpty())
+            return List.of();
+
+        int n = lineDiscounts.size();
+        long[] weights = new long[n];
+        long[] caps = new long[n];
+        for (int i = 0; i < n; i++) {
+            LineDiscount ld = lineDiscounts.get(i);
+            weights[i] = Math.max(0L, ld.subtotalAmountMinor);
+            caps[i] = ld.amount.getAmountMinor();
+        }
+
+        long[] allocated = splitDiscountMinorWithCaps(cappedOrderDiscountMinor, weights, caps);
+        List<LineDiscount> adjusted = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            LineDiscount ld = lineDiscounts.get(i);
+            adjusted.add(new LineDiscount(ld.skuId, Money.ofMinor(currency, allocated[i]), ld.subtotalAmountMinor));
+        }
+        return adjusted;
+    }
+
+    /**
+     * 将订单级折扣总额按权重拆分到各行, 同时不超过各行 cap
+     *
+     * <p>算法：按权重做比例分摊 (largest remainder 处理舍入), 若某行触顶则将剩余折扣在剩余行中继续按权重分摊</p>
+     *
+     * @param totalMinor 需拆分的折扣总额 (最小单位) 
+     * @param weights    权重 (例如各行 subtotalMinor), 可为 0
+     * @param caps       各行可承接的折扣上限 (最小单位) 
+     * @return 每行拆分后的折扣 (最小单位) , sum=totalMinor 且每行 <= cap
+     */
+    static long[] splitDiscountMinorWithCaps(long totalMinor, long[] weights, long[] caps) {
+        require(totalMinor >= 0, "totalMinor 不能为负数");
+        requireNotNull(weights, "weights 不能为空");
+        requireNotNull(caps, "caps 不能为空");
+        require(weights.length == caps.length, "weights/caps 长度不一致");
+
+        int n = weights.length;
+        long capSum = 0L;
+        for (int i = 0; i < n; i++) {
+            require(caps[i] >= 0, "cap 不能为负数");
+            capSum = Math.addExact(capSum, caps[i]);
+        }
+        if (totalMinor >= capSum)
+            return Arrays.copyOf(caps, n);
+
+        long[] allocated = new long[n];
+        boolean[] active = new boolean[n];
+        int activeCount = 0;
+        for (int i = 0; i < n; i++) {
+            if (caps[i] > 0) {
+                active[i] = true;
+                activeCount++;
+            }
+        }
+
+        long remaining = totalMinor;
+        while (remaining > 0 && activeCount > 0) {
+            int[] activeIdx = new int[activeCount];
+            long[] activeWeights = new long[activeCount];
+            int p = 0;
+            for (int i = 0; i < n; i++) {
+                if (!active[i])
+                    continue;
+                long capRemaining = caps[i] - allocated[i];
+                if (capRemaining <= 0) {
+                    active[i] = false;
+                    activeCount--;
+                    continue;
+                }
+                activeIdx[p] = i;
+                activeWeights[p] = Math.max(0L, weights[i]);
+                p++;
+            }
+            if (p == 0)
+                break;
+            if (p != activeCount) {
+                activeIdx = Arrays.copyOf(activeIdx, p);
+                activeWeights = Arrays.copyOf(activeWeights, p);
+                activeCount = p;
+            }
+
+            long[] addition = splitMinorByWeights(remaining, activeWeights);
+            long unallocated = 0L;
+            for (int j = 0; j < activeIdx.length; j++) {
+                int i = activeIdx[j];
+                long capRemaining = caps[i] - allocated[i];
+                long add = addition[j];
+                long use = Math.min(add, capRemaining);
+                allocated[i] += use;
+                unallocated += (add - use);
+                if (allocated[i] == caps[i]) {
+                    active[i] = false;
+                    activeCount--;
+                }
+            }
+            remaining = unallocated;
+        }
+
+        return allocated;
+    }
+
+    /**
+     * 根据给定的权重数组将总数 totalMinor 分配到各个部分
+     *
+     * @param totalMinor 总数, 必须是非负数
+     * @param weights    权重数组, 用于确定每个部分应分配的数量比例, 不能为空
+     * @return 返回一个 long 数组, 其中每个元素表示对应于输入 weights 数组中相同位置权重所分配到的数值
+     */
+    private static long[] splitMinorByWeights(long totalMinor, long[] weights) {
+        require(totalMinor >= 0, "totalMinor 不能为负数");
+        requireNotNull(weights, "weights 不能为空");
+        int n = weights.length;
+        long[] result = new long[n];
+        if (n == 0 || totalMinor == 0)
+            return result;
+
+        long weightSum = 0L;
+        for (long weight : weights)
+            weightSum = Math.addExact(weightSum, Math.max(0L, weight));
+
+        if (weightSum == 0L) {
+            long base = totalMinor / n;
+            long rem = totalMinor % n;
+            Arrays.fill(result, base);
+            for (int i = 0; i < rem; i++)
+                result[i]++;
+            return result;
+        }
+
+        BigDecimal total = BigDecimal.valueOf(totalMinor);
+        BigDecimal weightSumBd = BigDecimal.valueOf(weightSum);
+        BigDecimal[] remainders = new BigDecimal[n];
+        long floorSum = 0L;
+        for (int i = 0; i < n; i++) {
+            long w = Math.max(0L, weights[i]);
+            if (w == 0L) {
+                remainders[i] = BigDecimal.ZERO;
+                continue;
+            }
+            BigDecimal exact = total
+                    .multiply(BigDecimal.valueOf(w))
+                    .divide(weightSumBd, 20, RoundingMode.DOWN);
+            long floor = exact.setScale(0, RoundingMode.DOWN).longValueExact();
+            result[i] = floor;
+            floorSum += floor;
+            remainders[i] = exact.subtract(BigDecimal.valueOf(floor));
+        }
+
+        long leftover = totalMinor - floorSum;
+        if (leftover <= 0L)
+            return result;
+
+        Integer[] order = new Integer[n];
+        for (int i = 0; i < n; i++)
+            order[i] = i;
+        Arrays.sort(order, (a, b) -> {
+            int cmp = remainders[b].compareTo(remainders[a]);
+            if (cmp != 0)
+                return cmp;
+            return Integer.compare(a, b);
+        });
+        for (int k = 0; k < leftover; k++)
+            result[order[k]]++;
+
+        return result;
     }
 
     /**
