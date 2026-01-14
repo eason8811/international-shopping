@@ -572,6 +572,13 @@ public class OrderService implements IOrderService {
             final String baseCurrencyFinal = baseCurrency;
             final CurrencyConfig baseCurrencyConfigFinal = baseCurrencyConfig;
             final FxRateLatest fxRateLatestFinal = fxRateLatest;
+
+            Map<Long, LineDiscount> lineDiscountBySkuIdMap = lineDiscounts.stream()
+                    .collect(Collectors.toMap(LineDiscount::skuId, Function.identity()));
+            for (OrderItem item : items) {
+                String discountAmountString = lineDiscountBySkuIdMap.get(item.getSkuId()).amount().toMajorString(currencyConfig);
+                item.getSkuAttrs().put("applied_discount_amount", discountAmountString);
+            }
             appliedList.addAll(lineDiscounts.stream()
                     .map(ld ->
                             toAccountingApplied(
@@ -739,9 +746,9 @@ public class OrderService implements IOrderService {
      *
      * <p>算法：按权重做比例分摊 (largest remainder 处理舍入), 若某行触顶则将剩余折扣在剩余行中继续按权重分摊</p>
      *
-     * @param totalMinor 需拆分的折扣总额 (最小单位) 
+     * @param totalMinor 需拆分的折扣总额 (最小单位)
      * @param weights    权重 (例如各行 subtotalMinor), 可为 0
-     * @param caps       各行可承接的折扣上限 (最小单位) 
+     * @param caps       各行可承接的折扣上限 (最小单位)
      * @return 每行拆分后的折扣 (最小单位) , sum=totalMinor 且每行 <= cap
      */
     static long[] splitDiscountMinorWithCaps(long totalMinor, long[] weights, long[] caps) {
