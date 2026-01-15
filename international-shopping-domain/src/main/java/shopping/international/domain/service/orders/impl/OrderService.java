@@ -509,6 +509,10 @@ public class OrderService implements IOrderService {
         if (eligible.isEmpty())
             throw new DiscountFailureException("折扣码不适用于当前商品");
 
+        Money totalAmount = Money.zero(currency);
+        for (OrderItem item : items)
+            totalAmount = totalAmount.add(item.getSubtotalAmount());
+
         // 3) 门槛约束: 按“可折扣子集”小计判断 (尤其 EXCLUDE 场景)
         if (amountConfig != null && amountConfig.getMinOrderAmountMinor() != null) {
             Money eligibleTotal = Money.zero(currency);
@@ -541,6 +545,8 @@ public class OrderService implements IOrderService {
                 base = base.add(item.getSubtotalAmount());
             Money raw = computeRawDiscount(currencyConfig, policy, amountConfig, base);
             Money capped = capDiscount(currency, amountConfig, raw, base);
+            if (capped.compareTo(totalAmount) >= 0)
+                capped = Money.ofMinor(currency, Math.max(0L, totalAmount.getAmountMinor() - 1L));
             discountAmount = capped;
             if (discountAmount.isZero())
                 throw new DiscountFailureException("折扣金额为 0");
@@ -580,6 +586,11 @@ public class OrderService implements IOrderService {
             if (max != null && sum.compareTo(max) > 0) {
                 lineDiscounts = applyOrderCapBySubtotalProportion(currency, max.getAmountMinor(), lineDiscounts);
                 sum = max;
+            }
+            if (sum.compareTo(totalAmount) >= 0) {
+                long capMinor = Math.max(0L, totalAmount.getAmountMinor() - 1L);
+                lineDiscounts = applyOrderCapBySubtotalProportion(currency, capMinor, lineDiscounts);
+                sum = Money.ofMinor(currency, capMinor);
             }
             discountAmount = sum;
             if (discountAmount.isZero())
