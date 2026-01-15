@@ -22,6 +22,7 @@ import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -161,7 +162,7 @@ public class AdminStatsController {
             return null;
         String trimmed = value.strip();
         try {
-            return OffsetDateTime.parse(trimmed).toLocalDateTime();
+            return LocalDateTime.parse(trimmed, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         } catch (Exception ignore) {
             try {
                 return LocalDateTime.parse(trimmed);
