@@ -221,7 +221,7 @@ public class DiscountPolicy implements Verifiable {
 
         if (strategyType == DiscountStrategyType.PERCENT) {
             requireNotNull(percentOff, "percentOff 不能为空");
-            require(percentOff.compareTo(BigDecimal.ZERO) >= 0 && percentOff.compareTo(BigDecimal.valueOf(100)) <= 0, "percentOff 需在 0-100 之间");
+            require(percentOff.compareTo(BigDecimal.ZERO) > 0 && percentOff.compareTo(BigDecimal.valueOf(100)) < 0, "percentOff 需在 0-100 之间且不含边界");
             for (DiscountPolicyAmount a : amounts) {
                 if (a == null)
                     continue;

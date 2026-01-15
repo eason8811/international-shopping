@@ -114,6 +114,11 @@ public class OrdersPO {
     @TableField("cancel_time")
     private LocalDateTime cancelTime;
     /**
+     * 退款原因快照 JSON
+     */
+    @TableField("refund_reason_snapshot")
+    private String refundReasonSnapshot;
+    /**
      * 创建时间
      */
     @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)

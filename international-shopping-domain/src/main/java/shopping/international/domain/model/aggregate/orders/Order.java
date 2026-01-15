@@ -258,6 +258,7 @@ public class Order implements Verifiable {
      * @param cancelReason      取消原因 {@link CancelReason}
      * @param cancelTime        取消时间
      * @param addressChanged    地址是否变更
+     * @param lastRefundReason  最后一次退款原因
      * @param items             订单项列表
      * @param createdAt         创建时间
      * @param updatedAt         更新时间
@@ -269,12 +270,12 @@ public class Order implements Verifiable {
                                      String paymentExternalId, LocalDateTime payTime,
                                      AddressSnapshot addressSnapshot, BuyerRemark buyerRemark,
                                      CancelReason cancelReason, LocalDateTime cancelTime,
-                                     boolean addressChanged,
+                                     boolean addressChanged, @Nullable OrderRefundReason lastRefundReason,
                                      List<OrderItem> items, LocalDateTime createdAt, LocalDateTime updatedAt) {
         return new Order(id, orderNo, userId, status, totalAmount, discountAmount, shippingAmount, taxAmount, payAmount,
                 currency, payChannel, payStatus, paymentExternalId, payTime,
                 addressSnapshot, buyerRemark, cancelReason, cancelTime,
-                addressChanged, null, items, createdAt, updatedAt);
+                addressChanged, lastRefundReason, items, createdAt, updatedAt);
     }
 
     /**

@@ -419,7 +419,7 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order cancelAndReleaseStock(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                                 @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        ordersMapper.updateById(toOrdersPO(order));
+        updateOrderByStatusOrThrow(order, fromStatus, "取消");
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         reserveStockAndWriteInventoryLogs(order.getId(), order.getItems(), InventoryChangeType.RELEASE, note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单取消后回读失败"));
@@ -438,7 +438,7 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order requestRefund(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                         @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        ordersMapper.updateById(toOrdersPO(order));
+        updateOrderByStatusOrThrow(order, fromStatus, "申请退款");
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单退款申请后回读失败"));
     }
@@ -456,7 +456,7 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order confirmRefundAndRestock(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                                   @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        ordersMapper.updateById(toOrdersPO(order));
+        updateOrderByStatusOrThrow(order, fromStatus, "确认退款");
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         reserveStockAndWriteInventoryLogs(order.getId(), order.getItems(), InventoryChangeType.RESTOCK, note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单确认退款后回读失败"));
@@ -475,7 +475,7 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order close(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                 @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        ordersMapper.updateById(toOrdersPO(order));
+        updateOrderByStatusOrThrow(order, fromStatus, "关闭");
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单关闭后回读失败"));
     }
@@ -597,6 +597,7 @@ public class OrderRepository implements IOrderRepository {
                 orderPo.getCancelReason() == null ? null : CancelReason.of(orderPo.getCancelReason()),
                 orderPo.getCancelTime(),
                 addressChanged,
+                parseRefundReason(orderPo.getRefundReasonSnapshot()),
                 items,
                 orderPo.getCreatedAt(),
                 orderPo.getUpdatedAt()
@@ -630,6 +631,7 @@ public class OrderRepository implements IOrderRepository {
                 .buyerRemark(order.getBuyerRemark() == null ? null : order.getBuyerRemark().getValue())
                 .cancelReason(order.getCancelReason() == null ? null : order.getCancelReason().getValue())
                 .cancelTime(order.getCancelTime())
+                .refundReasonSnapshot(toJsonOrNull(order.getLastRefundReason()))
                 .build();
     }
 
@@ -759,7 +761,26 @@ public class OrderRepository implements IOrderRepository {
         LambdaUpdateWrapper<ProductSkuPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ProductSkuPO::getId, skuId)
                 .setSql("stock = stock + " + qty);
-        productSkuMapper.update(null, wrapper);
+        int updated = productSkuMapper.update(null, wrapper);
+        if (updated <= 0)
+            throw new ConflictException("库存回补失败: skuId=" + skuId);
+    }
+
+    /**
+     * 根据指定的订单状态更新订单信息, 如果订单状态已变更, 则抛出异常
+     *
+     * @param order      待更新的 {@link Order} 对象
+     * @param fromStatus 更新前的订单状态, 用于确认订单当前状态是否符合条件
+     * @param action     尝试执行的操作名称, 用于在抛出异常时提供上下文信息
+     * @throws ConflictException 当订单状态与预期不符, 导致无法执行更新操作时抛出
+     */
+    private void updateOrderByStatusOrThrow(@NotNull Order order, @NotNull OrderStatus fromStatus, @NotNull String action) {
+        LambdaUpdateWrapper<OrdersPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(OrdersPO::getId, order.getId())
+                .eq(OrdersPO::getStatus, fromStatus.name());
+        int updated = ordersMapper.update(toOrdersPO(order), wrapper);
+        if (updated <= 0)
+            throw new ConflictException("订单状态已变更, 无法" + action);
     }
 
     /**
@@ -824,6 +845,38 @@ public class OrderRepository implements IOrderRepository {
                     asNullableString(map.get("addressLine2")),
                     asNullableString(map.get("zipcode"))
             );
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    /**
+     * 解析 refund_reason_snapshot JSON
+     *
+     * @param json JSON 文本
+     * @return 退款原因或 null
+     */
+    private OrderRefundReason parseRefundReason(@Nullable String json) {
+        if (json == null || json.isBlank())
+            return null;
+        try {
+            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {
+            });
+            String reasonCode = asNullableString(map.get("reasonCode"));
+            if (reasonCode == null)
+                return null;
+            String reasonText = asNullableString(map.get("reasonText"));
+            List<String> attachments = null;
+            Object raw = map.get("attachments");
+            if (raw instanceof List<?> list) {
+                attachments = list.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::valueOf)
+                        .map(String::strip)
+                        .filter(s -> !s.isBlank())
+                        .toList();
+            }
+            return OrderRefundReason.of(OrderRefundReasonCode.valueOf(reasonCode), reasonText, attachments);
         } catch (Exception ignore) {
             return null;
         }

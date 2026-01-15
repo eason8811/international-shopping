@@ -159,7 +159,7 @@ public class OrderService implements IOrderService {
         Order order = Order.create(
                 orderNo,
                 userId,
-                currency,
+                computation.currency(),
                 computation.items(),
                 computation.discountAmount(),
                 computation.shippingAmount(),
@@ -249,17 +249,22 @@ public class OrderService implements IOrderService {
         Order order = orderRepository.findUserOrderDetail(userId, orderNo)
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
 
+        AddressSnapshot newSnapshot = buildAddressSnapshot(userId, newAddressId);
         // 1) 抢占“改址权”, 并发下保证仅一次
         boolean ok = orderAddressChangePort.tryMarkChanged(orderNo, ADDRESS_CHANGED_TTL);
         if (!ok)
             throw new ConflictException("订单已修改过地址");
 
         // 2) 聚合内维护“不允许重复修改”与状态机约束
-        AddressSnapshot newSnapshot = buildAddressSnapshot(userId, newAddressId);
-        order.changeAddress(newSnapshot, note);
+        try {
+            order.changeAddress(newSnapshot, note);
 
-        // 3) 持久化 address_snapshot
-        return orderRepository.updateAddressSnapshot(order, newSnapshot);
+            // 3) 持久化 address_snapshot
+            return orderRepository.updateAddressSnapshot(order, newSnapshot);
+        } catch (RuntimeException e) {
+            orderAddressChangePort.clear(orderNo);
+            throw e;
+        }
     }
 
     /**
@@ -466,6 +471,8 @@ public class OrderService implements IOrderService {
             return new DiscountComputation(Money.zero(currency), items, null, null);
 
         DiscountCodeText codeText = DiscountCodeText.ofNullable(discountCode);
+        if (codeText == null)
+            return new DiscountComputation(Money.zero(currency), items, null, null);
 
         DiscountCode code = discountRepository.findCodeByText(codeText)
                 .orElseThrow(() -> new DiscountFailureException("折扣码不存在或不可用"));
@@ -476,6 +483,11 @@ public class OrderService implements IOrderService {
                 .orElseThrow(() -> new ConflictException("折扣策略不存在"));
 
         DiscountPolicyAmount amountConfig = policy.resolveAmount(currency);
+        if (amountConfig != null && !currency.equalsIgnoreCase(amountConfig.getCurrency()))
+            throw new DiscountFailureException("折扣码不支持当前币种");
+        if (policy.getStrategyType() == DiscountStrategyType.AMOUNT
+                && (amountConfig == null || amountConfig.getAmountOffMinor() == null))
+            throw new DiscountFailureException("折扣码不支持当前币种");
 
         // 2) 计算可用明细集合
         Set<Long> mappedProducts = null;
@@ -530,6 +542,8 @@ public class OrderService implements IOrderService {
             Money raw = computeRawDiscount(currencyConfig, policy, amountConfig, base);
             Money capped = capDiscount(currency, amountConfig, raw, base);
             discountAmount = capped;
+            if (discountAmount.isZero())
+                throw new DiscountFailureException("折扣金额为 0");
 
             appliedList.add(
                     toAccountingApplied(
@@ -568,6 +582,8 @@ public class OrderService implements IOrderService {
                 sum = max;
             }
             discountAmount = sum;
+            if (discountAmount.isZero())
+                throw new DiscountFailureException("折扣金额为 0");
 
             final String baseCurrencyFinal = baseCurrency;
             final CurrencyConfig baseCurrencyConfigFinal = baseCurrencyConfig;
@@ -576,10 +592,21 @@ public class OrderService implements IOrderService {
             Map<Long, LineDiscount> lineDiscountBySkuIdMap = lineDiscounts.stream()
                     .collect(Collectors.toMap(LineDiscount::skuId, Function.identity()));
             for (OrderItem item : items) {
-                String discountAmountString = lineDiscountBySkuIdMap.get(item.getSkuId()).amount().toMajorString(currencyConfig);
-                item.getSkuAttrs().put("applied_discount_amount", discountAmountString);
+                LineDiscount lineDiscount = lineDiscountBySkuIdMap.get(item.getSkuId());
+                Map<String, Object> skuAttrs = item.getSkuAttrs();
+                if (skuAttrs == null)
+                    continue;
+                if (lineDiscount == null)
+                    continue;
+                String discountAmountString = lineDiscount.amount().toMajorString(currencyConfig);
+                try {
+                    skuAttrs.put("applied_discount_amount", discountAmountString);
+                } catch (UnsupportedOperationException ignore) {
+                    // ignore immutable map
+                }
             }
             appliedList.addAll(lineDiscounts.stream()
+                    .filter(ld -> ld.amount.getAmountMinor() > 0)
                     .map(ld ->
                             toAccountingApplied(
                                     code.getId(),

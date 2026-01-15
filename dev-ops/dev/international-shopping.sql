@@ -487,30 +487,31 @@ idx_order_payment_ext：由 externalId 反查订单（回调/轮询场景）
  */
 CREATE TABLE orders
 (
-    id                  BIGINT UNSIGNED                                           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_no            CHAR(26)                                                  NOT NULL COMMENT '业务单号(如ULID/雪花, 对外展示)',
-    user_id             BIGINT UNSIGNED                                           NOT NULL COMMENT '下单用户ID, 指向 user_account.id',
-    status              ENUM ('CREATED','PENDING_PAYMENT','PAID','CANCELLED','CLOSED','FULFILLED','REFUNDING','REFUNDED')
-                                                                                  NOT NULL DEFAULT 'CREATED' COMMENT '订单状态机',
-    items_count         INT                                                       NOT NULL DEFAULT 0 COMMENT '商品总件数',
+    id                     BIGINT UNSIGNED                                           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_no               CHAR(26)                                                  NOT NULL COMMENT '业务单号(如ULID/雪花, 对外展示)',
+    user_id                BIGINT UNSIGNED                                           NOT NULL COMMENT '下单用户ID, 指向 user_account.id',
+    status                 ENUM ('CREATED','PENDING_PAYMENT','PAID','CANCELLED','CLOSED','FULFILLED','REFUNDING','REFUNDED')
+                                                                                     NOT NULL DEFAULT 'CREATED' COMMENT '订单状态机',
+    items_count            INT                                                       NOT NULL DEFAULT 0 COMMENT '商品总件数',
 
-    total_amount        BIGINT UNSIGNED                                           NOT NULL COMMENT '商品总额(未税/未含运费/未含折扣, 最小货币单位)',
-    discount_amount     BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '折扣总额(最小货币单位)',
-    shipping_amount     BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '运费(最小货币单位)',
-    tax_amount          BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '税费(结算计算, 最小货币单位)',
-    pay_amount          BIGINT UNSIGNED                                           NOT NULL COMMENT '应付金额=总额-折扣+运费+税费(最小货币单位)',
+    total_amount           BIGINT UNSIGNED                                           NOT NULL COMMENT '商品总额(未税/未含运费/未含折扣, 最小货币单位)',
+    discount_amount        BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '折扣总额(最小货币单位)',
+    shipping_amount        BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '运费(最小货币单位)',
+    tax_amount             BIGINT UNSIGNED                                           NOT NULL DEFAULT 0 COMMENT '税费(结算计算, 最小货币单位)',
+    pay_amount             BIGINT UNSIGNED                                           NOT NULL COMMENT '应付金额=总额-折扣+运费+税费(最小货币单位)',
 
-    currency            CHAR(3)                                                   NOT NULL DEFAULT 'USD' COMMENT '币种, 指向 currency.code',
-    pay_channel         ENUM ('NONE','ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL DEFAULT 'NONE' COMMENT '支付通道',
-    pay_status          ENUM ('NONE','INIT','SUCCESS','FAIL','CLOSED')            NOT NULL DEFAULT 'NONE' COMMENT '支付状态(网关侧)',
-    payment_external_id VARCHAR(128)                                              NULL COMMENT '支付单 externalId(网关唯一标记)',
-    pay_time            DATETIME(3)                                               NULL COMMENT '支付成功时间',
-    address_snapshot    JSON                                                      NULL COMMENT '收货信息快照(JSON)',
-    buyer_remark        VARCHAR(500)                                              NULL COMMENT '买家留言',
-    cancel_reason       VARCHAR(255)                                              NULL COMMENT '取消原因',
-    cancel_time         DATETIME(3)                                               NULL COMMENT '取消时间',
-    created_at          DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at          DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    currency               CHAR(3)                                                   NOT NULL DEFAULT 'USD' COMMENT '币种, 指向 currency.code',
+    pay_channel            ENUM ('NONE','ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER') NOT NULL DEFAULT 'NONE' COMMENT '支付通道',
+    pay_status             ENUM ('NONE','INIT','SUCCESS','FAIL','CLOSED')            NOT NULL DEFAULT 'NONE' COMMENT '支付状态(网关侧)',
+    payment_external_id    VARCHAR(128)                                              NULL COMMENT '支付单 externalId(网关唯一标记)',
+    pay_time               DATETIME(3)                                               NULL COMMENT '支付成功时间',
+    address_snapshot       JSON                                                      NULL COMMENT '收货信息快照(JSON)',
+    buyer_remark           VARCHAR(500)                                              NULL COMMENT '买家留言',
+    cancel_reason          VARCHAR(255)                                              NULL COMMENT '取消原因',
+    cancel_time            DATETIME(3)                                               NULL COMMENT '取消时间',
+    refund_reason_snapshot JSON                                                      NULL COMMENT '退款原因快照(JSON)',
+    created_at             DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at             DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_order_no (order_no),
     KEY idx_order_user (user_id),
@@ -623,7 +624,7 @@ CREATE TABLE discount_policy
     PRIMARY KEY (id),
     KEY idx_policy_scope_type (apply_scope, strategy_type),
     -- 约束：百分比策略必须有 percent_off, 金额策略必须没有 percent_off
-    CHECK (strategy_type <> 'PERCENT' OR (percent_off IS NOT NULL AND percent_off >= 0 AND percent_off <= 100)),
+    CHECK (strategy_type <> 'PERCENT' OR (percent_off IS NOT NULL AND percent_off > 0 AND percent_off < 100)),
     CHECK (strategy_type <> 'AMOUNT' OR percent_off IS NULL)
 ) ENGINE = InnoDB COMMENT ='折扣策略模板(骨架,金额配置下沉到 discount_policy_amount)';
 
