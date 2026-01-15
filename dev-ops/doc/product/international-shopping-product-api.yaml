@@ -280,14 +280,14 @@ paths:
           in: query
           description: 价格币种（ISO 4217），用于匹配 product_price
           required: true
-          example: CNY
+          example: USD
           schema:
             type: string
         - name: category_slug
           in: query
           description: 分类 slug（默认匹配指定语言的 slug）
           required: false
-          example: dress
+          example: T-shirt
           schema:
             type: string
         - name: query
@@ -612,21 +612,21 @@ paths:
           in: path
           description: 商品路由别名（可为多语言 slug）
           required: true
-          example: white-night-dress
+          example: sport-T-shirt
           schema:
             type: string
         - name: locale
           in: query
           description: 语言代码，用于读取 product_i18n / product_spec_i18n / product_spec_value_i18n
           required: false
-          example: zh-CN
+          example: en-US
           schema:
             type: string
         - name: currency
           in: query
           description: 价格币种（ISO 4217），用于匹配 product_price
           required: false
-          example: CNY
+          example: USD
           schema:
             type: string
       responses:
@@ -1761,7 +1761,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: csrf_token
@@ -2017,7 +2017,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: csrf_token
@@ -2040,18 +2040,20 @@ paths:
             schema:
               $ref: '#/components/schemas/CategoryUpsertRequest'
             example:
-              name: black hats
-              slug: black-hats
-              parent_id: 9
-              sort_order: 35
+              name: T-shirt
+              slug: T-shirt
+              sort_order: 0
               is_enabled: true
               i18n:
                 - locale: zh-CN
-                  name: 黑色帽子
-                  slug: black-hats
+                  name: T-恤
+                  slug: T-shirt
                 - locale: en-US
-                  name: black hats
-                  slug: black-hats
+                  name: T-shirt
+                  slug: T-shirt
+                - locale: es-ES
+                  name: Camiseta
+                  slug: Camiseta
         required: true
       responses:
         '201':
@@ -2264,7 +2266,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjYxNTEzODQsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY0MTA1ODQsImlhdCI6MTc2NjE1MTM4NCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.2q02v9SPVENMGbg2y_yhE0eMd1-dSs0Zx4k8Mqu9gFk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: csrf_token
@@ -3917,7 +3919,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: csrf_token
@@ -4226,7 +4228,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY0NjExNzcsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY3MjAzNzcsImlhdCI6MTc2NjQ2MTE3NywiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.3evTE8qnNuGwvzYeQHbhHJJ4EAd0YWjInD2xctPFO0s
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: csrf_token
@@ -4249,18 +4251,18 @@ paths:
             schema:
               $ref: '#/components/schemas/ProductSpuBasicUpsertRequest'
             example:
-              slug: white-nignt-dress1
-              title: white nignt dress
-              description: this white night dress is very beautiful
-              category_id: 1
-              brand: our white night dress is the most beautiful
+              slug: sport-T-shirt
+              title: sport T-shirt
+              description: this sport T-shirt is very useful
+              category_id: 2
+              brand: our sport T-shirt is very useful
               cover_image_url: >-
                 https://chatgpt.com/g/g-p-68f07987abc88191af653ec73b9153fd-shang-pin-wang-zhan-kai-fa
               sku_type: VARIANT
-              status: DELETED
+              status: DRAFT
               tags:
-                - white
-                - night dress
+                - sport
+                - T-shirt
         required: true
       responses:
         '201':
@@ -4472,7 +4474,8 @@ paths:
           in: cookie
           description: ''
           required: false
-          example: ec562f27-410f-4c67-9272-7905c5607172
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: access_token
@@ -4487,7 +4490,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 2
           schema:
             type: integer
             format: int64
@@ -4708,7 +4711,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 1
           schema:
             type: integer
             format: int64
@@ -4939,6 +4942,363 @@ paths:
       x-apifox-folder: products/Admin Products
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361159-run
+  /admin/products/{product_id}/price/recompute:
+    post:
+      summary: 重算商品下所有 SKU 的 FX_AUTO / 缺失币种价格
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin Products
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: ''
+          required: true
+          example: '2'
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KE1WK38X86YYYD98W9J95TXJ:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        properties:
+                          processed_skus: &ref_7
+                            type: integer
+                        x-apifox-orders:
+                          - processed_skus
+                        description: 业务数据（随具体接口定义）
+                        required:
+                          - processed_skus
+                    required: []
+                x-apifox-orders:
+                  - 01KE1WK38X86YYYD98W9J95TXJ
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    properties:
+                      processed_skus: *ref_7
+                    x-apifox-orders:
+                      - processed_skus
+                    description: 业务数据（随具体接口定义）
+                    required:
+                      - processed_skus
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin Products
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-399709660-run
+  /admin/products/price/recompute:
+    post:
+      summary: 全量重算 FX_AUTO / 缺失币种价格
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin Products
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KE1WKHCW4Y80SXW6NSZWYTNM:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        properties:
+                          processed_skus: &ref_8
+                            type: integer
+                        x-apifox-orders:
+                          - processed_skus
+                        description: 业务数据（随具体接口定义）
+                        required:
+                          - processed_skus
+                    required: []
+                x-apifox-orders:
+                  - 01KE1WKHCW4Y80SXW6NSZWYTNM
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    properties:
+                      processed_skus: *ref_8
+                    x-apifox-orders:
+                      - processed_skus
+                    description: 业务数据（随具体接口定义）
+                    required:
+                      - processed_skus
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin Products
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-399710184-run
   /admin/products/{product_id}/status:
     patch:
       summary: 更新商品状态（上架/下架/删除/草稿）
@@ -4967,7 +5327,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 2
           schema:
             type: integer
             format: int64
@@ -5011,7 +5371,7 @@ paths:
                         type: object
                         description: 状态更新结果
                         properties:
-                          status: &ref_7
+                          status: &ref_9
                             $ref: '#/components/schemas/ProductStatus'
                         x-apifox-orders:
                           - status
@@ -5100,7 +5460,7 @@ paths:
                     type: object
                     description: 状态更新结果
                     properties:
-                      status: *ref_7
+                      status: *ref_9
                     x-apifox-orders:
                       - status
                     x-apifox-ignore-properties: []
@@ -5215,7 +5575,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 2
           schema:
             type: integer
             format: int64
@@ -5233,12 +5593,12 @@ paths:
               $ref: '#/components/schemas/ProductI18nUpsertRequest'
             example:
               locale: es-ES
-              title: vestido de noche blanco
-              description: este vestido de noche blanco es muy hermoso
-              slug: vestido-de-noche-blanco
+              title: camiseta deportiva
+              description: Esta camiseta deportiva es muy útil
+              slug: camiseta-deportiva
               tags:
-                - blanco
-                - vestido
+                - deporte
+                - Camiseta
         required: true
       responses:
         '200':
@@ -5257,7 +5617,7 @@ paths:
                         type: object
                         description: 多语言覆盖结果
                         properties:
-                          locale: &ref_8
+                          locale: &ref_10
                             type:
                               - string
                               - 'null'
@@ -5349,7 +5709,7 @@ paths:
                     type: object
                     description: 多语言覆盖结果
                     properties:
-                      locale: *ref_8
+                      locale: *ref_10
                     x-apifox-orders:
                       - locale
                     x-apifox-ignore-properties: []
@@ -5518,7 +5878,7 @@ paths:
                         type: object
                         description: 多语言覆盖结果
                         properties:
-                          locale: &ref_9
+                          locale: &ref_11
                             type:
                               - string
                               - 'null'
@@ -5610,7 +5970,7 @@ paths:
                     type: object
                     description: 多语言覆盖结果
                     properties:
-                      locale: *ref_9
+                      locale: *ref_11
                     x-apifox-orders:
                       - locale
                     x-apifox-ignore-properties: []
@@ -5769,7 +6129,7 @@ paths:
                       data:
                         type: object
                         properties:
-                          locale: &ref_10
+                          locale: &ref_12
                             type: string
                         x-apifox-orders:
                           - locale
@@ -5861,7 +6221,7 @@ paths:
                   data:
                     type: object
                     properties:
-                      locale: *ref_10
+                      locale: *ref_12
                     x-apifox-orders:
                       - locale
                     description: 业务数据（随具体接口定义）
@@ -5985,10 +6345,10 @@ paths:
                         type: object
                         description: 图库更新结果
                         properties:
-                          product_id: &ref_11
+                          product_id: &ref_13
                             type: integer
                             format: int64
-                          image_count: &ref_12
+                          image_count: &ref_14
                             type:
                               - integer
                               - 'null'
@@ -6083,8 +6443,8 @@ paths:
                     type: object
                     description: 图库更新结果
                     properties:
-                      product_id: *ref_11
-                      image_count: *ref_12
+                      product_id: *ref_13
+                      image_count: *ref_14
                     required:
                       - product_id
                     x-apifox-orders:
@@ -6412,7 +6772,8 @@ paths:
           in: cookie
           description: ''
           required: false
-          example: ec562f27-410f-4c67-9272-7905c5607172
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: access_token
@@ -6427,7 +6788,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 2
           schema:
             type: integer
             format: int64
@@ -6444,19 +6805,19 @@ paths:
             schema:
               $ref: '#/components/schemas/ProductSpecUpsertRequest'
             example:
-              spec_code: dimension
-              spec_name: dimension
-              spec_type: OTHER
+              spec_code: color
+              spec_name: color
+              spec_type: COLOR
               is_required: true
               sort_order: 1
               enabled: true
               i18n_list:
-                - locale: ez-EZ
-                  spec_name: dimensión
+                - locale: es-ES
+                  spec_name: color
                 - locale: en-US
-                  spec_name: dimension
+                  spec_name: color
                 - locale: zh-CN
-                  spec_name: 维度
+                  spec_name: 颜色
         required: true
       responses:
         '200':
@@ -6475,7 +6836,7 @@ paths:
                         type: object
                         description: 规格更新结果
                         properties:
-                          spec_id: &ref_13
+                          spec_id: &ref_15
                             type:
                               - integer
                               - 'null'
@@ -6568,7 +6929,7 @@ paths:
                     type: object
                     description: 规格更新结果
                     properties:
-                      spec_id: *ref_13
+                      spec_id: *ref_15
                     x-apifox-orders:
                       - spec_id
                     x-apifox-ignore-properties: []
@@ -6741,7 +7102,7 @@ paths:
                         type: object
                         description: 规格更新结果
                         properties:
-                          spec_id: &ref_14
+                          spec_id: &ref_16
                             type:
                               - integer
                               - 'null'
@@ -6834,7 +7195,7 @@ paths:
                     type: object
                     description: 规格更新结果
                     properties:
-                      spec_id: *ref_14
+                      spec_id: *ref_16
                     x-apifox-orders:
                       - spec_id
                     x-apifox-ignore-properties: []
@@ -6999,7 +7360,7 @@ paths:
                         type: object
                         description: 删除结果
                         properties:
-                          deleted: &ref_15
+                          deleted: &ref_17
                             type: boolean
                             default: true
                         x-apifox-orders:
@@ -7089,7 +7450,7 @@ paths:
                     type: object
                     description: 删除结果
                     properties:
-                      deleted: *ref_15
+                      deleted: *ref_17
                     x-apifox-orders:
                       - deleted
                     x-apifox-ignore-properties: []
@@ -7436,7 +7797,8 @@ paths:
           in: cookie
           description: ''
           required: false
-          example: ec562f27-410f-4c67-9272-7905c5607172
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: access_token
@@ -7451,7 +7813,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 2
           schema:
             type: integer
             format: int64
@@ -7459,7 +7821,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 7
+          example: 4
           schema:
             type: integer
             format: int64
@@ -7476,17 +7838,17 @@ paths:
             schema:
               $ref: '#/components/schemas/ProductSpecValueUpsertRequest'
             example:
-              value_code: 100-CM
-              value_name: 100 CM
+              value_code: green
+              value_name: green
               sort_order: 0
               is_enabled: true
               i18n_list:
                 - locale: en-US
-                  value_name: 100 CM
+                  value_name: green
                 - locale: zh-CN
-                  value_name: 100 CM
+                  value_name: 绿色
                 - locale: es-ES
-                  value_name: 100 CM
+                  value_name: verde
         required: true
       responses:
         '200':
@@ -7505,7 +7867,7 @@ paths:
                         type: object
                         description: 规格取值更新结果
                         properties:
-                          value_id: &ref_16
+                          value_id: &ref_18
                             type:
                               - integer
                               - 'null'
@@ -7598,7 +7960,7 @@ paths:
                     type: object
                     description: 规格取值更新结果
                     properties:
-                      value_id: *ref_16
+                      value_id: *ref_18
                     x-apifox-orders:
                       - value_id
                     x-apifox-ignore-properties: []
@@ -7780,7 +8142,7 @@ paths:
                         type: object
                         description: 规格取值更新结果
                         properties:
-                          value_id: &ref_17
+                          value_id: &ref_19
                             type:
                               - integer
                               - 'null'
@@ -7873,7 +8235,7 @@ paths:
                     type: object
                     description: 规格取值更新结果
                     properties:
-                      value_id: *ref_17
+                      value_id: *ref_19
                     x-apifox-orders:
                       - value_id
                     x-apifox-ignore-properties: []
@@ -8046,7 +8408,7 @@ paths:
                         type: object
                         description: 删除结果
                         properties:
-                          deleted: &ref_18
+                          deleted: &ref_20
                             type: boolean
                             default: true
                         x-apifox-orders:
@@ -8136,7 +8498,7 @@ paths:
                     type: object
                     description: 删除结果
                     properties:
-                      deleted: *ref_18
+                      deleted: *ref_20
                     x-apifox-orders:
                       - deleted
                     x-apifox-ignore-properties: []
@@ -8476,7 +8838,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: csrf_token
@@ -8490,7 +8852,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 2
           schema:
             type: integer
             format: int64
@@ -8507,35 +8869,26 @@ paths:
             schema:
               $ref: '#/components/schemas/ProductSkuCreateRequest'
             example:
-              sku_code: white-night-dress-M-95-CM
+              sku_code: test
               stock: 10
-              weight: 78
+              weight: 6
               status: ENABLED
               is_default: true
               price:
                 - currency: USD
                   list_price: 120
-                  sale_price: 110
-                  is_active: true
-                - currency: CNY
-                  list_price: 800
-                  sale_price: 760
-                  is_active: true
-                - currency: EUR
-                  list_price: 120
-                  sale_price: 100
                   is_active: true
               specs:
-                - spec_id: 6
-                  value_id: 13
-                - spec_id: 7
-                  value_id: 16
+                - spec_id: 2
+                  value_id: 8
+                - spec_id: 4
+                  value_id: 10
               images:
                 - url: ht666
                   is_main: false
                   sort_order: 0
                 - url: ht666
-                  is_main: false
+                  is_main: true
                   sort_order: 0
                 - url: ht666
                   is_main: false
@@ -8810,10 +9163,10 @@ paths:
                         type: object
                         description: SKU 更新结果
                         properties:
-                          product_id: &ref_19
+                          product_id: &ref_21
                             type: integer
                             format: int64
-                          sku_id: &ref_20
+                          sku_id: &ref_22
                             type: integer
                             format: int64
                         required:
@@ -8907,8 +9260,8 @@ paths:
                     type: object
                     description: SKU 更新结果
                     properties:
-                      product_id: *ref_19
-                      sku_id: *ref_20
+                      product_id: *ref_21
+                      sku_id: *ref_22
                     required:
                       - product_id
                       - sku_id
@@ -9025,7 +9378,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY3Mjg0NjgsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3NjY5ODc2NjgsImlhdCI6MTc2NjcyODQ2OCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.rTcEmJPNCq59F2bCgzpks5LDBLpu0aIoi3SrCTAZ2tA
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
           schema:
             type: string
         - name: csrf_token
@@ -9039,14 +9392,14 @@ paths:
           in: path
           description: ''
           required: true
-          example: '3'
+          example: '2'
           schema:
             type: string
         - name: sku_id
           in: path
           description: ''
           required: true
-          example: '3'
+          example: '9'
           schema:
             type: string
         - name: X-CSRF-Token
@@ -9070,7 +9423,7 @@ paths:
                       data:
                         type: object
                         properties:
-                          deleted: &ref_21
+                          deleted: &ref_23
                             type: boolean
                         x-apifox-orders:
                           - deleted
@@ -9162,7 +9515,7 @@ paths:
                   data:
                     type: object
                     properties:
-                      deleted: *ref_21
+                      deleted: *ref_23
                     x-apifox-orders:
                       - deleted
                     description: 业务数据（随具体接口定义）
@@ -9287,10 +9640,10 @@ paths:
                         type: object
                         description: 规格绑定更新结果
                         properties:
-                          product_id: &ref_22
+                          product_id: &ref_24
                             type: integer
                             format: int64
-                          sku_id: &ref_23
+                          sku_id: &ref_25
                             type: integer
                             format: int64
                           spec_ids:
@@ -9298,7 +9651,7 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的规格ID 列表
-                            items: &ref_24
+                            items: &ref_26
                               type: integer
                               format: int64
                         required:
@@ -9393,14 +9746,14 @@ paths:
                     type: object
                     description: 规格绑定更新结果
                     properties:
-                      product_id: *ref_22
-                      sku_id: *ref_23
+                      product_id: *ref_24
+                      sku_id: *ref_25
                       spec_ids:
                         type:
                           - array
                           - 'null'
                         description: 受影响的规格ID 列表
-                        items: *ref_24
+                        items: *ref_26
                     required:
                       - product_id
                       - sku_id
@@ -9578,7 +9931,7 @@ paths:
                         type: object
                         description: 解绑结果
                         properties:
-                          deleted: &ref_25
+                          deleted: &ref_27
                             type: boolean
                             default: true
                         x-apifox-orders:
@@ -9668,7 +10021,7 @@ paths:
                     type: object
                     description: 解绑结果
                     properties:
-                      deleted: *ref_25
+                      deleted: *ref_27
                     x-apifox-orders:
                       - deleted
                     x-apifox-ignore-properties: []
@@ -9797,7 +10150,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 3
+          example: 1
           schema:
             type: integer
             format: int64
@@ -9805,7 +10158,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 9
+          example: 1
           schema:
             type: integer
             format: int64
@@ -9825,16 +10178,7 @@ paths:
                 $ref: '#/components/schemas/ProductPriceUpsertRequest'
             example:
               - currency: USD
-                list_price: 700
-                sale_price: 600
-                is_active: true
-              - currency: CNY
-                list_price: 7000
-                sale_price: 6000
-                is_active: true
-              - currency: EUR
-                list_price: 700
-                sale_price: 600
+                list_price: 100
                 is_active: true
         required: true
       responses:
@@ -9854,10 +10198,10 @@ paths:
                         type: object
                         description: 价格更新结果
                         properties:
-                          product_id: &ref_26
+                          product_id: &ref_28
                             type: integer
                             format: int64
-                          sku_id: &ref_27
+                          sku_id: &ref_29
                             type: integer
                             format: int64
                           currencies:
@@ -9865,7 +10209,7 @@ paths:
                               - array
                               - 'null'
                             description: 受影响的币种列表
-                            items: &ref_28
+                            items: &ref_30
                               type: string
                         required:
                           - product_id
@@ -9959,14 +10303,14 @@ paths:
                     type: object
                     description: 价格更新结果
                     properties:
-                      product_id: *ref_26
-                      sku_id: *ref_27
+                      product_id: *ref_28
+                      sku_id: *ref_29
                       currencies:
                         type:
                           - array
                           - 'null'
                         description: 受影响的币种列表
-                        items: *ref_28
+                        items: *ref_30
                     required:
                       - product_id
                       - sku_id
@@ -10072,6 +10416,664 @@ paths:
       x-apifox-folder: products/Admin SKUs
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-384361174-run
+  /admin/products/{product_id}/skus/{sku_id}/price/recompute:
+    post:
+      summary: 重算指定SKU的 FX_AUTO / 缺失币种价格信息
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin SKUs
+      parameters:
+        - name: product_id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: sku_id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KARHQCY28NEYXDT1V56VX8VZ:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        description: 价格更新结果
+                        properties:
+                          product_id: &ref_31
+                            type: integer
+                            format: int64
+                          sku_id: &ref_32
+                            type: integer
+                            format: int64
+                          currencies:
+                            type:
+                              - array
+                              - 'null'
+                            description: 受影响的币种列表
+                            items: &ref_33
+                              type: string
+                        required:
+                          - product_id
+                          - sku_id
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
+                          - currencies
+                x-apifox-orders:
+                  - 01KARHQCY28NEYXDT1V56VX8VZ
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    description: 价格更新结果
+                    properties:
+                      product_id: *ref_31
+                      sku_id: *ref_32
+                      currencies:
+                        type:
+                          - array
+                          - 'null'
+                        description: 受影响的币种列表
+                        items: *ref_33
+                    required:
+                      - product_id
+                      - sku_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                      - currencies
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin SKUs
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-399712238-run
+  /admin/products/{product_id}/skus/{sku_id}/price/{currency}/manual:
+    patch:
+      summary: 将指定 SKU 的价格模式切换为 MANUAL 模式
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin SKUs
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: ''
+          required: true
+          example: '1'
+          schema:
+            type: string
+        - name: sku_id
+          in: path
+          description: ''
+          required: true
+          example: '1'
+          schema:
+            type: string
+        - name: currency
+          in: path
+          description: ''
+          required: true
+          example: USD
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KARHQCY28NEYXDT1V56VX8VZ:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        description: 价格更新结果
+                        properties:
+                          product_id: &ref_34
+                            type: integer
+                            format: int64
+                          sku_id: &ref_35
+                            type: integer
+                            format: int64
+                          currencies:
+                            type:
+                              - array
+                              - 'null'
+                            description: 受影响的币种列表
+                            items: &ref_36
+                              type: string
+                        required:
+                          - product_id
+                          - sku_id
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
+                          - currencies
+                x-apifox-orders:
+                  - 01KARHQCY28NEYXDT1V56VX8VZ
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    description: 价格更新结果
+                    properties:
+                      product_id: *ref_34
+                      sku_id: *ref_35
+                      currencies:
+                        type:
+                          - array
+                          - 'null'
+                        description: 受影响的币种列表
+                        items: *ref_36
+                    required:
+                      - product_id
+                      - sku_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                      - currencies
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin SKUs
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-399712318-run
+  /admin/products/{product_id}/skus/{sku_id}/price/{currency}/fx-auto:
+    patch:
+      summary: 将指定 SKU 的价格模式切换为 FX_AUTO 模式
+      deprecated: false
+      description: ''
+      tags:
+        - products/Admin SKUs
+      parameters:
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3Njc1MDgwNTAsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODMwNjAwNTAsImlhdCI6MTc2NzUwODA1MCwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.R6pnVCOAcl9SoVCRcgQJabWhZH3ACK5P2b-snb3nioo
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: product_id
+          in: path
+          description: ''
+          required: true
+          example: '1'
+          schema:
+            type: string
+        - name: sku_id
+          in: path
+          description: ''
+          required: true
+          example: '1'
+          schema:
+            type: string
+        - name: currency
+          in: path
+          description: ''
+          required: true
+          example: CNY
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KARHQCY28NEYXDT1V56VX8VZ:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        description: 价格更新结果
+                        properties:
+                          product_id: &ref_37
+                            type: integer
+                            format: int64
+                          sku_id: &ref_38
+                            type: integer
+                            format: int64
+                          currencies:
+                            type:
+                              - array
+                              - 'null'
+                            description: 受影响的币种列表
+                            items: &ref_39
+                              type: string
+                        required:
+                          - product_id
+                          - sku_id
+                        x-apifox-orders:
+                          - product_id
+                          - sku_id
+                          - currencies
+                x-apifox-orders:
+                  - 01KARHQCY28NEYXDT1V56VX8VZ
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    description: 价格更新结果
+                    properties:
+                      product_id: *ref_37
+                      sku_id: *ref_38
+                      currencies:
+                        type:
+                          - array
+                          - 'null'
+                        description: 受影响的币种列表
+                        items: *ref_39
+                    required:
+                      - product_id
+                      - sku_id
+                    x-apifox-orders:
+                      - product_id
+                      - sku_id
+                      - currencies
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: products/Admin SKUs
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-400204330-run
   /admin/products/{product_id}/skus/{sku_id}/stock:
     patch:
       summary: 调整 SKU 库存
@@ -10146,13 +11148,13 @@ paths:
                         type: object
                         description: 库存调整结果
                         properties:
-                          product_id: &ref_29
+                          product_id: &ref_40
                             type: integer
                             format: int64
-                          sku_id: &ref_30
+                          sku_id: &ref_41
                             type: integer
                             format: int64
-                          stock: &ref_31
+                          stock: &ref_42
                             type: integer
                         required:
                           - product_id
@@ -10246,9 +11248,9 @@ paths:
                     type: object
                     description: 库存调整结果
                     properties:
-                      product_id: *ref_29
-                      sku_id: *ref_30
-                      stock: *ref_31
+                      product_id: *ref_40
+                      sku_id: *ref_41
+                      stock: *ref_42
                     required:
                       - product_id
                       - sku_id

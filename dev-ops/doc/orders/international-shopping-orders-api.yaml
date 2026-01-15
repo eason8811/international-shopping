@@ -68,14 +68,14 @@ paths:
           in: query
           description: 语言代码（如 en-US），用于展示商品标题本地化（若实现）
           required: false
-          example: es-ES
+          example: zh-CN
           schema:
             type: string
         - name: currency
           in: query
           description: 结算币种（如 USD），用于展示单价/小计（若实现）
           required: false
-          example: CNY
+          example: USD
           schema:
             type: string
             minLength: 3
@@ -180,8 +180,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CartItemUpsertRequest'
             example:
-              sku_id: 5
-              quantity: 6
+              sku_id: 1
+              quantity: 3
               selected: true
         required: true
       responses:
@@ -496,9 +496,13 @@ paths:
             schema:
               $ref: '#/components/schemas/OrderPreviewRequest'
             example:
-              source: CART
+              source: DIRECT
+              items:
+                - sku_id: 2
+                  quantity: 2
               address_id: 97822245
               currency: CNY
+              discount_code: LBCY6Q
               buyer_remark: null
               locale: zh-CN
         required: true
@@ -605,6 +609,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             enum:
@@ -844,25 +849,33 @@ paths:
           in: cookie
           description: ''
           required: false
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
           required: false
-          example: ''
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFPSM28WM166FQQV1PFAN74
           schema:
             type: string
             minLength: 10
             maxLength: 32
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -942,31 +955,32 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFGNCNS74RH3FTAZZJ79WW0
           schema:
             type: string
             minLength: 10
             maxLength: 32
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: ''
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       requestBody:
@@ -974,7 +988,8 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderCancelRequest'
-            examples: {}
+            example:
+              reason: 取消
         required: true
       responses:
         '200':
@@ -1056,31 +1071,32 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFPRM4VREP4QNMVJR14T4Q8
           schema:
             type: string
             minLength: 10
             maxLength: 32
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: ''
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       requestBody:
@@ -1088,7 +1104,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderChangeAddressRequest'
-            examples: {}
+            example:
+              address_id: 1
+              note: 修改地址
         required: true
       responses:
         '200':
@@ -1170,31 +1188,32 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: true
-          example: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFPR6CQ8VX5B9Z6YV85XHSG
           schema:
             type: string
             minLength: 10
             maxLength: 32
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: ''
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       requestBody:
@@ -1202,7 +1221,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderRefundRequest'
-            examples: {}
+            example:
+              reason_code: LOST
+              reason_text: incididunt aliquip
+              attachments: null
         required: true
       responses:
         '202':
@@ -1278,6 +1300,21 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: page
           in: query
           description: ''
@@ -1299,12 +1336,14 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
         - name: user_id
           in: query
           description: ''
           required: false
+          example: 0
           schema:
             type: integer
             format: int64
@@ -1312,6 +1351,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             enum:
@@ -1352,6 +1392,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             enum:
@@ -1428,6 +1469,13 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -1493,15 +1541,37 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFPR6CQ8VX5B9Z6YV85XHSG
           schema:
             type: string
             minLength: 10
             maxLength: 32
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -1576,11 +1646,33 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFGMY00A4X0TV96PW7RR4CM
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -1648,11 +1740,33 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFGMY00A4X0TV96PW7RR4CM
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -1721,6 +1835,21 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: page
           in: query
           description: 页码（从 1 开始）
@@ -1742,6 +1871,7 @@ paths:
           in: query
           description: 库存变动类型
           required: false
+          example: RELEASE
           schema:
             type: string
             enum:
@@ -1766,6 +1896,7 @@ paths:
           in: query
           description: SKU ID
           required: false
+          example: 4
           schema:
             type: integer
             format: int64
@@ -1774,6 +1905,7 @@ paths:
           in: query
           description: 订单 ID（orders.id）
           required: false
+          example: 0
           schema:
             type: integer
             format: int64
@@ -1806,6 +1938,13 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           x-apifox-name: 成功
@@ -1882,21 +2021,44 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFNBKYAZY2SG1H4KNPBMF9G
           schema:
             type: string
             minLength: 10
             maxLength: 32
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderCancelRequest'
-            examples: {}
+            example:
+              reason: sit magna ut voluptate et
         required: true
       responses:
         '200':
@@ -1973,20 +2135,44 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFPR6CQ8VX5B9Z6YV85XHSG
           schema:
             type: string
             minLength: 10
             maxLength: 32
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/OrderCloseRequest'
+            example:
+              reason: 管理侧关闭
         required: true
       responses:
         '200':
@@ -2065,20 +2251,44 @@ paths:
         - orders/Admin Orders
         - Admin Orders
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06DVFPSM28WM166FQQV1PFAN74
           schema:
             type: string
             minLength: 10
             maxLength: 32
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminConfirmRefundRequest'
+            example:
+              note: null
         required: true
       responses:
         '200':
@@ -2189,12 +2399,14 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
         - name: apply_scope
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             enum:
@@ -2211,6 +2423,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             enum:
@@ -2322,13 +2535,13 @@ paths:
             schema:
               $ref: '#/components/schemas/DiscountPolicyUpsertRequest'
             example:
-              name: ORDER-PERCENT-300-100
-              apply_scope: ORDER
+              name: ITEM-PERCENT-50-300
+              apply_scope: ITEM
               strategy_type: PERCENT
-              percent_off: '10'
-              currency: null
-              min_order_amount: '300'
-              max_discount_amount: '100'
+              percent_off: '50'
+              amounts:
+                - currency: USD
+                  min_order_amount: '300.00'
         required: true
       responses:
         '201':
@@ -2395,21 +2608,44 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: policy_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 7
           schema:
             type: integer
             format: int64
             minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DiscountPolicyUpsertRequest'
-            examples: {}
+            example:
+              amounts: []
         required: true
       responses:
         '200':
@@ -2475,15 +2711,37 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: policy_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 9
           schema:
             type: integer
             format: int64
             minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: Deleted
@@ -2540,6 +2798,319 @@ paths:
       x-apifox-folder: orders/Admin Discounts
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-391157234-run
+  /admin/discount-policies/{policy_id}/amount/recompute:
+    post:
+      summary: 重算指定折扣策略的 FX_AUTO / 缺失币种金额配置
+      deprecated: false
+      description: ''
+      tags:
+        - orders/Admin Discounts
+      parameters:
+        - name: policy_id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultDiscountPolicyAmountUpdate'
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: orders/Admin Discounts
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402648465-run
+  /admin/discount-policies/amount/recompute:
+    post:
+      summary: 全量重算所有折扣策略(AMOUNT)的 FX_AUTO / 缺失币种金额配置
+      deprecated: false
+      description: ''
+      tags:
+        - orders/Admin Discounts
+      parameters:
+        - name: batch_size
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KEEEVYMQDRSGK4VAT6CDWQDQ:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: object
+                        properties:
+                          processed_policies: &ref_0
+                            type: integer
+                            format: int64
+                        x-apifox-orders:
+                          - processed_policies
+                        description: 业务数据（随具体接口定义）
+                        required:
+                          - processed_policies
+                    required: []
+                x-apifox-orders:
+                  - 01KEEEVYMQDRSGK4VAT6CDWQDQ
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: object
+                    properties:
+                      processed_policies: *ref_0
+                    x-apifox-orders:
+                      - processed_policies
+                    description: 业务数据（随具体接口定义）
+                    required:
+                      - processed_policies
+                    x-apifox-ignore-properties: []
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: orders/Admin Discounts
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402651468-run
+  /admin/discount-policies/{policy_id}/amount/{currency}/manual:
+    patch:
+      summary: 将指定折扣策略的金额配置模式切换为 MANUAL
+      deprecated: false
+      description: ''
+      tags:
+        - orders/Admin Discounts
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
+        - name: policy_id
+          in: path
+          description: ''
+          required: true
+          example: '9'
+          schema:
+            type: string
+        - name: currency
+          in: path
+          description: ''
+          required: true
+          example: CHF
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultDiscountPolicyAmountUpdate'
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: orders/Admin Discounts
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402652681-run
+  /admin/discount-policies/{policy_id}/amount/{currency}/fx-auto:
+    patch:
+      summary: 将指定折扣策略的金额配置模式切换为 FX_AUTO
+      deprecated: false
+      description: ''
+      tags:
+        - orders/Admin Discounts
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
+        - name: policy_id
+          in: path
+          description: ''
+          required: true
+          example: '9'
+          schema:
+            type: string
+        - name: currency
+          in: path
+          description: ''
+          required: true
+          example: CHF
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultDiscountPolicyAmountUpdate'
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: orders/Admin Discounts
+      x-apifox-status: developing
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402653044-run
   /admin/discount-codes:
     get:
       summary: 查询折扣码列表
@@ -2550,10 +3121,26 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: page
           in: query
           description: ''
           required: false
+          example: 1
           schema:
             type: integer
             default: 1
@@ -2561,6 +3148,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: 20
           schema:
             type: integer
             default: 20
@@ -2568,12 +3156,14 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
         - name: policy_id
           in: query
           description: ''
           required: false
+          example: 0
           schema:
             type: integer
             format: int64
@@ -2581,6 +3171,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             enum:
@@ -2601,6 +3192,7 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             format: date-time
@@ -2608,9 +3200,24 @@ paths:
           in: query
           description: ''
           required: false
+          example: ''
           schema:
             type: string
             format: date-time
+        - name: permanent
+          in: query
+          description: ''
+          required: false
+          example: ''
+          schema:
+            type: boolean
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -2677,13 +3284,41 @@ paths:
       tags:
         - orders/Admin Discounts
         - Admin Discounts
-      parameters: []
+      parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DiscountCodeUpsertRequest'
-            examples: {}
+            example:
+              code: CPCYWX
+              policy_id: 10
+              name: ITEM-PERCENT-50-300-ALL
+              scope_mode: ALL
+              expires_at: '2026-01-15 00:00:00'
+              permanent: false
         required: true
       responses:
         '201':
@@ -2759,21 +3394,44 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: code_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
             minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DiscountCodeUpsertRequest'
-            examples: {}
+            example:
+              expires_at: '2026-01-15 00:00:00'
         required: true
       responses:
         '200':
@@ -2839,15 +3497,37 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: code_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
             minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: Deleted
@@ -2913,15 +3593,37 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: code_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 2
           schema:
             type: integer
             format: int64
             minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -2987,21 +3689,45 @@ paths:
         - orders/Admin Discounts
         - Admin Discounts
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: code_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 1
           schema:
             type: integer
             format: int64
             minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DiscountCodeProductUpsertRequest'
-            examples: {}
+            example:
+              product_ids:
+                - 1
         required: true
       responses:
         '200':
@@ -3193,10 +3919,26 @@ paths:
         - orders/Admin Stats
         - Admin Stats
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: from
           in: query
           description: ''
           required: true
+          example: '2026-01-01 01:01:01'
           schema:
             type: string
             format: date-time
@@ -3204,6 +3946,7 @@ paths:
           in: query
           description: ''
           required: true
+          example: '2026-01-20 00:00:00'
           schema:
             type: string
             format: date-time
@@ -3251,10 +3994,18 @@ paths:
           in: query
           description: 若统计口径需要按币种分组，建议前端分别传入统计
           required: false
+          example: ''
           schema:
             type: string
             minLength: 3
             maxLength: 3
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -3332,10 +4083,26 @@ paths:
         - orders/Admin Stats
         - Admin Stats
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: false
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
         - name: from
           in: query
           description: ''
           required: true
+          example: '2026-01-01 01:01:01'
           schema:
             type: string
             format: date-time
@@ -3343,6 +4110,7 @@ paths:
           in: query
           description: ''
           required: true
+          example: '2026-01-20 00:00:00'
           schema:
             type: string
             format: date-time
@@ -3350,6 +4118,7 @@ paths:
           in: query
           description: ''
           required: true
+          example: SPU
           schema:
             type: string
             enum:
@@ -3431,6 +4200,13 @@ paths:
             default: 100
             minimum: 1
             maximum: 1000
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -3615,6 +4391,435 @@ components:
         - meta
       x-apifox-ignore-properties: []
       x-apifox-folder: user
+    DiscountPolicy:
+      type: object
+      required:
+        - id
+        - name
+        - apply_scope
+        - strategy_type
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        apply_scope:
+          $ref: '#/components/schemas/DiscountApplyScope'
+        strategy_type:
+          $ref: '#/components/schemas/DiscountStrategyType'
+        percent_off:
+          type:
+            - number
+            - 'null'
+          format: double
+        amounts:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/DiscountPolicyAmount'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      x-apifox-orders:
+        - id
+        - name
+        - apply_scope
+        - strategy_type
+        - percent_off
+        - amounts
+        - created_at
+        - updated_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: orders
+    DiscountPolicyAmount:
+      type: object
+      properties:
+        currency:
+          type: string
+        amount_off:
+          type: string
+        min_order_amount:
+          type: string
+        max_discount_amount:
+          type: string
+        source:
+          type: string
+          enum:
+            - MANUAL
+            - FX_AUTO
+          x-apifox-enum:
+            - value: MANUAL
+              name: ''
+              description: ''
+            - value: FX_AUTO
+              name: ''
+              description: ''
+          description: 金额来源 (MANUAL / FX_AUTO)
+        derived_from:
+          type: string
+          description: FX 派生基准币种 (source=FX_AUTO 时有效)
+        fx_rate:
+          type: number
+          format: float64
+          description: FX 派生汇率(1 derived_from = fx_rate currency)
+        fx_as_of:
+          type: string
+          format: date-time
+          description: FX 汇率时间点/采样时间
+        fx_provider:
+          type: string
+          description: FX 数据源
+        computed_at:
+          type: string
+          format: date-time
+          description: 派生计算时间
+      x-apifox-orders:
+        - currency
+        - amount_off
+        - min_order_amount
+        - max_discount_amount
+        - source
+        - derived_from
+        - fx_rate
+        - fx_as_of
+        - fx_provider
+        - computed_at
+      required:
+        - currency
+        - source
+      x-apifox-ignore-properties: []
+      x-apifox-folder: orders
+    OrderPreviewRequest:
+      type: object
+      required:
+        - source
+        - address_id
+        - currency
+      properties:
+        source:
+          type: string
+          enum:
+            - CART
+            - DIRECT
+        items:
+          type:
+            - array
+            - 'null'
+          description: source=DIRECT 时必填
+          items:
+            $ref: '#/components/schemas/OrderPreviewItemInput'
+        address_id:
+          type: integer
+          format: int64
+          minimum: 1
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        discount_code:
+          type:
+            - string
+            - 'null'
+          description: 折扣码（不支持叠加，最多 1 个）
+          minLength: 6
+          maxLength: 32
+        buyer_remark:
+          type:
+            - string
+            - 'null'
+        locale:
+          type:
+            - string
+            - 'null'
+      x-apifox-orders:
+        - source
+        - items
+        - address_id
+        - currency
+        - discount_code
+        - buyer_remark
+        - locale
+      x-apifox-ignore-properties: []
+      x-apifox-folder: orders
+    OrderItem:
+      type: object
+      required:
+        - product_id
+        - sku_id
+        - title
+        - unit_price
+        - quantity
+        - subtotal_amount
+      properties:
+        id:
+          type: integer
+          format: int64
+        product_id:
+          type: integer
+          format: int64
+        sku_id:
+          type: integer
+          format: int64
+        discount_code_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        title:
+          type: string
+        sku_attrs:
+          type:
+            - object
+            - 'null'
+          x-apifox-orders: []
+          properties: {}
+          x-apifox-ignore-properties: []
+        cover_image_url:
+          type:
+            - string
+            - 'null'
+        unit_price:
+          type: string
+          description: 金额字符串（如 19.99）
+        quantity:
+          type: integer
+          minimum: 1
+        subtotal_amount:
+          type: string
+          description: 金额字符串（如 39.98）
+      x-apifox-orders:
+        - id
+        - product_id
+        - sku_id
+        - discount_code_id
+        - title
+        - sku_attrs
+        - cover_image_url
+        - unit_price
+        - quantity
+        - subtotal_amount
+      x-apifox-ignore-properties: []
+      x-apifox-folder: orders
+    OrderCreateRequest:
+      type: object
+      required:
+        - source
+        - address_id
+        - currency
+      properties:
+        source:
+          type: string
+          enum:
+            - CART
+            - DIRECT
+        items:
+          type:
+            - array
+            - 'null'
+          description: source=DIRECT 时必填
+          items:
+            $ref: '#/components/schemas/OrderPreviewItemInput'
+        address_id:
+          type: integer
+          format: int64
+          minimum: 1
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        discount_code:
+          type:
+            - string
+            - 'null'
+          description: 折扣码（不支持叠加，最多 1 个）
+          minLength: 6
+          maxLength: 32
+        buyer_remark:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+        locale:
+          type:
+            - string
+            - 'null'
+      x-apifox-orders:
+        - source
+        - items
+        - address_id
+        - currency
+        - discount_code
+        - buyer_remark
+        - locale
+      x-apifox-ignore-properties: []
+      x-apifox-folder: orders
+    ResultDiscountPolicyAmountUpdate:
+      type: object
+      x-apifox-refs:
+        01KEEE68GJVVQ73DGKGSBXQGX4:
+          $ref: '#/components/schemas/Result'
+          x-apifox-overrides:
+            data:
+              type: object
+              properties:
+                policy_id: &ref_1
+                  type: integer
+                  format: int64
+                  description: 折扣策略 ID
+                currencies:
+                  type: array
+                  items: &ref_2
+                    type: string
+                  description: 受影响的币种列表
+              x-apifox-orders:
+                - policy_id
+                - currencies
+              description: 业务数据（随具体接口定义）
+              required:
+                - policy_id
+                - currencies
+          required: []
+      x-apifox-orders:
+        - 01KEEE68GJVVQ73DGKGSBXQGX4
+      properties:
+        success:
+          type: boolean
+          description: 业务是否成功（非 HTTP 含义）
+          examples:
+            - true
+        code:
+          type: string
+          description: 业务码
+          examples:
+            - OK
+          enum:
+            - OK
+            - CREATED
+            - ACCEPTED
+            - FOUND
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - UNPROCESSABLE_ENTITY
+            - TOO_MANY_REQUESTS
+            - INTERNAL_SERVER_ERROR
+          x-apifox-enum:
+            - value: OK
+              name: OK
+              description: 成功
+            - value: CREATED
+              name: Created
+              description: 已创建
+            - value: ACCEPTED
+              name: Accepted
+              description: 已接受
+            - value: FOUND
+              name: Found / Redirect
+              description: 重定向
+            - value: BAD_REQUEST
+              name: Bad Request
+              description: 参数错误
+            - value: UNAUTHORIZED
+              name: Unauthorized
+              description: 未授权
+            - value: FORBIDDEN
+              name: Forbidden
+              description: 没有权限
+            - value: NOT_FOUND
+              name: Not Found
+              description: 未找到
+            - value: CONFLICT
+              name: Conflict
+              description: 冲突
+            - value: UNPROCESSABLE_ENTITY
+              name: Unprocessable Entity
+              description: 不能处理的实体
+            - value: TOO_MANY_REQUESTS
+              name: Too Many Requests
+              description: 请求过多
+            - value: INTERNAL_SERVER_ERROR
+              name: Internal Server Error
+              description: 服务器内部错误
+        message:
+          type: string
+          description: 人类可读的简短信息
+          examples:
+            - OK
+        timestamp:
+          type: string
+          format: date-time
+          description: 服务器时间
+          examples:
+            - '2025-10-26T06:30:00.123Z'
+        traceId:
+          type:
+            - string
+            - 'null'
+          description: 请求追踪ID
+          examples:
+            - af9c5b1f0e2a4c1b
+        data:
+          type: object
+          properties:
+            policy_id: *ref_1
+            currencies:
+              type: array
+              items: *ref_2
+              description: 受影响的币种列表
+          x-apifox-orders:
+            - policy_id
+            - currencies
+          description: 业务数据（随具体接口定义）
+          required:
+            - policy_id
+            - currencies
+          x-apifox-ignore-properties: []
+        meta:
+          description: 附加元信息（分页等，可选）
+          type:
+            - object
+            - 'null'
+          properties:
+            page:
+              type: integer
+              examples:
+                - 1
+            size:
+              type: integer
+              examples:
+                - 20
+            total:
+              type: integer
+              examples:
+                - 135
+          x-apifox-orders:
+            - page
+            - size
+            - total
+          x-apifox-ignore-properties: []
+      required:
+        - success
+        - code
+        - message
+        - timestamp
+      x-apifox-ignore-properties:
+        - success
+        - code
+        - message
+        - timestamp
+        - traceId
+        - data
+        - meta
+      x-apifox-folder: orders
     OrderStatus:
       type: string
       enum:
@@ -3797,66 +5002,6 @@ components:
         - selected
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderItem:
-      type: object
-      required:
-        - id
-        - product_id
-        - sku_id
-        - title
-        - unit_price
-        - quantity
-        - subtotal_amount
-      properties:
-        id:
-          type: integer
-          format: int64
-        product_id:
-          type: integer
-          format: int64
-        sku_id:
-          type: integer
-          format: int64
-        discount_code_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-        title:
-          type: string
-        sku_attrs:
-          type:
-            - object
-            - 'null'
-          x-apifox-orders: []
-          properties: {}
-          x-apifox-ignore-properties: []
-        cover_image_url:
-          type:
-            - string
-            - 'null'
-        unit_price:
-          type: string
-          description: 金额字符串（如 19.99）
-        quantity:
-          type: integer
-          minimum: 1
-        subtotal_amount:
-          type: string
-          description: 金额字符串（如 39.98）
-      x-apifox-orders:
-        - id
-        - product_id
-        - sku_id
-        - discount_code_id
-        - title
-        - sku_attrs
-        - cover_image_url
-        - unit_price
-        - quantity
-        - subtotal_amount
-      x-apifox-ignore-properties: []
-      x-apifox-folder: orders
     OrderSummary:
       type: object
       required:
@@ -4027,58 +5172,6 @@ components:
         - quantity
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderPreviewRequest:
-      type: object
-      required:
-        - source
-        - address_id
-        - currency
-      properties:
-        source:
-          type: string
-          enum:
-            - CART
-            - DIRECT
-        items:
-          type:
-            - array
-            - 'null'
-          description: source=DIRECT 时必填
-          items:
-            $ref: '#/components/schemas/OrderPreviewItemInput'
-        address_id:
-          type: integer
-          format: int64
-          minimum: 1
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-        discount_code:
-          type:
-            - string
-            - 'null'
-          description: 折扣码（不支持叠加，最多 1 个）
-          minLength: 6
-          maxLength: 32
-        buyer_remark:
-          type:
-            - string
-            - 'null'
-        locale:
-          type:
-            - string
-            - 'null'
-      x-apifox-orders:
-        - source
-        - items
-        - address_id
-        - currency
-        - discount_code
-        - buyer_remark
-        - locale
-      x-apifox-ignore-properties: []
-      x-apifox-folder: orders
     OrderPreview:
       type: object
       required:
@@ -4123,60 +5216,7 @@ components:
         - discount_breakdown
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderCreateRequest:
-      type: object
-      required:
-        - source
-        - address_id
-        - currency
-      properties:
-        source:
-          type: string
-          enum:
-            - CART
-            - DIRECT
-        items:
-          type:
-            - array
-            - 'null'
-          description: source=DIRECT 时必填
-          items:
-            $ref: '#/components/schemas/OrderPreviewItemInput'
-        address_id:
-          type: integer
-          format: int64
-          minimum: 1
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-        discount_code:
-          type:
-            - string
-            - 'null'
-          description: 折扣码（不支持叠加，最多 1 个）
-          minLength: 6
-          maxLength: 32
-        buyer_remark:
-          type:
-            - string
-            - 'null'
-          maxLength: 500
-        locale:
-          type:
-            - string
-            - 'null'
-      x-apifox-orders:
-        - source
-        - items
-        - address_id
-        - currency
-        - discount_code
-        - buyer_remark
-        - locale
-      x-apifox-ignore-properties: []
-      x-apifox-folder: orders
-    OrderCancelRequest: &ref_0
+    OrderCancelRequest: &ref_3
       type: object
       required:
         - reason
@@ -4188,7 +5228,7 @@ components:
         - reason
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderCloseRequest: *ref_0
+    OrderCloseRequest: *ref_3
     OrderChangeAddressRequest:
       type: object
       required:
@@ -4344,66 +5384,6 @@ components:
         - created_at
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    DiscountPolicy:
-      type: object
-      required:
-        - id
-        - name
-        - apply_scope
-        - strategy_type
-        - created_at
-        - updated_at
-      properties:
-        id:
-          type: integer
-          format: int64
-        name:
-          type: string
-        apply_scope:
-          $ref: '#/components/schemas/DiscountApplyScope'
-        strategy_type:
-          $ref: '#/components/schemas/DiscountStrategyType'
-        percent_off:
-          type:
-            - number
-            - 'null'
-          format: double
-        amount_off:
-          type:
-            - string
-            - 'null'
-        currency:
-          type:
-            - string
-            - 'null'
-        min_order_amount:
-          type:
-            - string
-            - 'null'
-        max_discount_amount:
-          type:
-            - string
-            - 'null'
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-      x-apifox-orders:
-        - id
-        - name
-        - apply_scope
-        - strategy_type
-        - percent_off
-        - amount_off
-        - currency
-        - min_order_amount
-        - max_discount_amount
-        - created_at
-        - updated_at
-      x-apifox-ignore-properties: []
-      x-apifox-folder: orders
     DiscountPolicyUpsertRequest:
       type: object
       required:
@@ -4423,32 +5403,19 @@ components:
             - string
             - 'null'
           description: strategy_type=PERCENT 时必填
-        amount_off:
+        amounts:
           type:
-            - string
+            - array
             - 'null'
+          items:
+            $ref: '#/components/schemas/DiscountPolicyAmount'
           description: strategy_type=AMOUNT 时必填
-        currency:
-          type:
-            - string
-            - 'null'
-        min_order_amount:
-          type:
-            - string
-            - 'null'
-        max_discount_amount:
-          type:
-            - string
-            - 'null'
       x-apifox-orders:
         - name
         - apply_scope
         - strategy_type
         - percent_off
-        - amount_off
-        - currency
-        - min_order_amount
-        - max_discount_amount
+        - amounts
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
     DiscountCode:
@@ -4459,9 +5426,9 @@ components:
         - policy_id
         - name
         - scope_mode
-        - expires_at
         - created_at
         - updated_at
+        - permanent
       properties:
         id:
           type: integer
@@ -4478,6 +5445,8 @@ components:
         expires_at:
           type: string
           format: date-time
+        permanent:
+          type: boolean
         created_at:
           type: string
           format: date-time
@@ -4491,6 +5460,7 @@ components:
         - name
         - scope_mode
         - expires_at
+        - permanent
         - created_at
         - updated_at
       x-apifox-ignore-properties: []
@@ -4503,12 +5473,15 @@ components:
         - name
         - scope_mode
         - expires_at
+        - permanent
       properties:
         code:
           type: string
           description: 折扣码（建议 6 位大写字母数字）
           minLength: 4
           maxLength: 32
+          x-apifox-mock: >-
+            {{$string.alphanumeric(length=6,casing='upper',exclude='[I,O,0,l]')}}
         policy_id:
           type: integer
           format: int64
@@ -4521,12 +5494,18 @@ components:
         expires_at:
           type: string
           format: date-time
+          x-apifox-mock: >-
+            {{$date.anytime(refDate='2026-01-08T16:00:00.910Z')|format('yyyy-MM-dd
+            HH:mm:ss')}}
+        permanent:
+          type: boolean
       x-apifox-orders:
         - code
         - policy_id
         - name
         - scope_mode
         - expires_at
+        - permanent
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
     DiscountCodeProductUpsertRequest:
@@ -4550,7 +5529,6 @@ components:
         - discount_code_id
         - applied_scope
         - applied_amount
-        - order_no
       properties:
         order_no:
           type: string
@@ -6558,7 +7536,7 @@ components:
           x-apifox-overrides:
             data:
               type: array
-              items: &ref_1
+              items: &ref_4
                 type: integer
                 format: int64
               description: 业务数据（随具体接口定义）
@@ -6645,7 +7623,7 @@ components:
             - af9c5b1f0e2a4c1b
         data:
           type: array
-          items: *ref_1
+          items: *ref_4
           description: 业务数据（随具体接口定义）
         meta:
           description: 附加元信息（分页等，可选）
