@@ -12,6 +12,7 @@ import shopping.international.domain.adapter.repository.products.ISkuRepository;
 import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.enums.products.ProductPriceSource;
 import shopping.international.domain.model.enums.products.SkuStatus;
+import shopping.international.domain.model.enums.products.StockAdjustMode;
 import shopping.international.domain.model.vo.products.ProductImage;
 import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
@@ -199,18 +200,26 @@ public class SkuRepository implements ISkuRepository {
     /**
      * 覆盖更新库存
      *
-     * @param skuId SKU ID
-     * @param stock 新库存
-     * @return 更新后的库存值
+     * @param skuId    SKU ID
+     * @param mode     调整模式
+     * @param quantity 数量
+     * @return 影响的条数
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int updateStock(@NotNull Long skuId, int stock) {
+    public int updateStock(@NotNull Long skuId, @NotNull StockAdjustMode mode, int quantity) {
         LambdaUpdateWrapper<ProductSkuPO> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ProductSkuPO::getId, skuId)
-                .set(ProductSkuPO::getStock, stock);
-        productSkuMapper.update(null, wrapper);
-        return stock;
+        if (mode == StockAdjustMode.SET)
+            wrapper.eq(ProductSkuPO::getId, skuId)
+                    .set(ProductSkuPO::getStock, quantity);
+        if (mode == StockAdjustMode.INCREASE)
+            wrapper.eq(ProductSkuPO::getId, skuId)
+                    .setSql("stock = stock + " + quantity);
+        if (mode == StockAdjustMode.DECREASE)
+            wrapper.eq(ProductSkuPO::getId, skuId)
+                    .ge(ProductSkuPO::getStock, quantity)
+                    .setSql("stock = stock - " + quantity);
+        return productSkuMapper.update(null, wrapper);
     }
 
     /**
@@ -233,7 +242,7 @@ public class SkuRepository implements ISkuRepository {
         int skuSpecDeleteRow = productSkuSpecMapper.delete(
                 new LambdaQueryWrapper<ProductSkuSpecPO>().eq(ProductSkuSpecPO::getSkuId, skuId)
         );
-        return skuDeletedRow == 1 && imageSkuDeleteRow > 0 && priceDeleteRow > 0 && skuSpecDeleteRow > 0;
+        return skuDeletedRow == 1 && imageSkuDeleteRow >= 0 && priceDeleteRow >= 0 && skuSpecDeleteRow >= 0;
     }
 
     /**

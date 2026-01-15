@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.products.Sku;
 import shopping.international.domain.model.enums.products.SkuStatus;
+import shopping.international.domain.model.enums.products.StockAdjustMode;
 import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
 
@@ -86,11 +87,12 @@ public interface ISkuRepository {
     /**
      * 覆盖更新库存
      *
-     * @param skuId SKU ID
-     * @param stock 新库存
-     * @return 更新后的库存值
+     * @param skuId    SKU ID
+     * @param mode     调整模式
+     * @param quantity 数量
+     * @return 影响的条数
      */
-    int updateStock(@NotNull Long skuId, int stock);
+    int updateStock(@NotNull Long skuId, @NotNull StockAdjustMode mode, int quantity);
 
     /**
      * 删除指定商品下的特定 SKU 聚合

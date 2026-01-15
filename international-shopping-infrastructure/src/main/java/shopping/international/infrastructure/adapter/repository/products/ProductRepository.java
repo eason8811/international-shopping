@@ -371,6 +371,7 @@ public class ProductRepository implements IProductRepository {
             return Collections.emptyList();
         Map<Long, List<ProductImagePO>> galleryMap = pos.stream()
                 .map(ProductPO::getGallery)
+                .filter(Objects::nonNull)
                 .flatMap(List::stream)
                 .collect(Collectors.groupingBy(ProductImagePO::getProductId));
         List<Product> result = new ArrayList<>();
@@ -689,6 +690,7 @@ public class ProductRepository implements IProductRepository {
             return Collections.emptyList();
         Map<Long, List<ProductImagePO>> galleryMap = pos.stream()
                 .map(PublicProductSnapshotPO::getGallery)
+                .filter(Objects::nonNull)
                 .flatMap(List::stream)
                 .collect(Collectors.groupingBy(ProductImagePO::getProductId));
         List<ProductPublicSnapshot> snapshots = new ArrayList<>();
