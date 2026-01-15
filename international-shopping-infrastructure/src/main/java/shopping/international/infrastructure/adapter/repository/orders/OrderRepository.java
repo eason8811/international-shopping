@@ -401,8 +401,11 @@ public class OrderRepository implements IOrderRepository {
         String json = toJsonOrNull(addressSnapshot);
         LambdaUpdateWrapper<OrdersPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(OrdersPO::getId, order.getId())
+                .eq(OrdersPO::getStatus, order.getStatus().name())
                 .set(OrdersPO::getAddressSnapshot, json);
-        ordersMapper.update(null, wrapper);
+        int updated = ordersMapper.update(null, wrapper);
+        if (updated <= 0)
+            throw new ConflictException("订单状态已变更, 无法修改地址");
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单更新后回读失败"));
     }
 
