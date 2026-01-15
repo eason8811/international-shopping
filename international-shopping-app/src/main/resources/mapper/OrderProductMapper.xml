@@ -97,7 +97,7 @@
                             WHEN pp.is_active = 1
                                  AND pp.price_source = 'FX_AUTO'
                                  AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
-                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN DATE_FORMAT(pp.fx_as_of, '%Y-%m-%dT%H:%i:%s.%f')
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN DATE_FORMAT(pp.fx_as_of, '%Y-%m-%d %H:%i:%s')
                             ELSE NULL
                         END,
                         '$.fx_provider', CASE
@@ -111,7 +111,7 @@
                             WHEN pp.is_active = 1
                                  AND pp.price_source = 'FX_AUTO'
                                  AND pp.fx_as_of <![CDATA[>=]]> DATE_SUB(NOW(3), INTERVAL 8 HOUR)
-                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN DATE_FORMAT(pp.computed_at, '%Y-%m-%dT%H:%i:%s.%f')
+                                 AND pp.fx_as_of <![CDATA[<=]]> NOW(3) THEN DATE_FORMAT(pp.computed_at, '%Y-%m-%d %H:%i:%s')
                             ELSE NULL
                         END,
                         '$.algo_ver', CASE
