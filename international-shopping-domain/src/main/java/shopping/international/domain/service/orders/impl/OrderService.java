@@ -468,11 +468,11 @@ public class OrderService implements IOrderService {
      */
     private DiscountComputation computeDiscount(@NotNull String currency, @NotNull List<OrderItem> items, @Nullable String discountCode) {
         if (discountCode == null || discountCode.isBlank())
-            return new DiscountComputation(Money.zero(currency), items, null, null);
+            throw new DiscountFailureException("折扣码不能为空");
 
         DiscountCodeText codeText = DiscountCodeText.ofNullable(discountCode);
         if (codeText == null)
-            return new DiscountComputation(Money.zero(currency), items, null, null);
+            throw new DiscountFailureException("折扣码不能为空");
 
         DiscountCode code = discountRepository.findCodeByText(codeText)
                 .orElseThrow(() -> new DiscountFailureException("折扣码不存在或不可用"));
