@@ -535,7 +535,7 @@ public class OrderService implements IOrderService {
         if (!baseCurrency.equalsIgnoreCase(currency)) {
             fxRateLatest = fxRateService.getLatest(baseCurrency, currency);
             if (fxRateLatest == null)
-                throw new ConflictException("汇率 '" + baseCurrency + "' -> '" + currency + "' 不存在, 无法计算折扣记账金额");
+                throw new DiscountFailureException("汇率 '" + baseCurrency + "' -> '" + currency + "' 不存在, 无法计算折扣记账金额");
             baseCurrencyConfig = currencyConfigService.get(baseCurrency);
         }
 
