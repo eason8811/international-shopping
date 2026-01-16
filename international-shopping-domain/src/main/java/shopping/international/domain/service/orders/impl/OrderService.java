@@ -138,7 +138,7 @@ public class OrderService implements IOrderService {
                                  @Nullable String discountCode,
                                  @Nullable String buyerRemark,
                                  @Nullable String locale,
-                                 @Nullable String idempotencyKey) {
+                                 @NotNull String idempotencyKey) {
         PreviewComputation computation = computePreview(userId, source, items, currency, discountCode, locale);
         if (discountCode != null && !computation.usedDiscount()) {
             String reason = computation.discountFailureReason() == null ? "折扣码不可用" : computation.discountFailureReason();

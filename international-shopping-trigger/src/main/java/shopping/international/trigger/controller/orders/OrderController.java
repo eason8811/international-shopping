@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 
 /**
@@ -152,7 +153,7 @@ public class OrderController {
                                                              @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         req.validate();
         Long userId = requireCurrentUserId();
-        String normalizedIdempotencyKey = normalizeNullableField(idempotencyKey, "Idempotency-Key 不能为空",
+        String normalizedIdempotencyKey = normalizeNotNullField(idempotencyKey, "Idempotency-Key 不能为空",
                 s -> s.length() <= 64, "Idempotency-Key 长度不能超过 64 个字符");
         List<IOrderService.ItemInput> items = req.getItems() == null
                 ? null

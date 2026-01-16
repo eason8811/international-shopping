@@ -271,7 +271,7 @@ public interface IOrderService {
                  @Nullable String discountCode,
                  @Nullable String buyerRemark,
                  @Nullable String locale,
-                 @Nullable String idempotencyKey);
+                 @NotNull String idempotencyKey);
 
     /**
      * 列出当前用户订单摘要
