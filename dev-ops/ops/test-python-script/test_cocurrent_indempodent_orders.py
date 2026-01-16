@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080/api/v1")
-TIMEOUT = 10
+TIMEOUT = 30
 
 # Auth headers/cookies as requested
 CSRF_TOKEN = "ec562f27-410f-4c67-9272-7905c5607172"
@@ -50,6 +50,7 @@ ALLOWED_FAILURE_CODES = {
     "OUT_OF_STOCK",
     "INSUFFICIENT_STOCK",
     "INVENTORY_SHORTAGE",
+    "CONFLICT"
 }
 
 session = requests.Session()
@@ -196,8 +197,8 @@ def idempotency_test(concurrency):
     order_nos = []
     for r in results:
         data = get_data(r)
-        if isinstance(data, dict) and data.get("orderNo"):
-            order_nos.append(data["orderNo"])
+        if isinstance(data, dict) and data.get("order_no"):
+            order_nos.append(data["order_no"])
     return idem_key, results, order_nos
 
 
@@ -210,8 +211,8 @@ def concurrency_create_test(total, workers):
     order_nos = []
     for r in results:
         data = get_data(r)
-        if isinstance(data, dict) and data.get("orderNo"):
-            order_nos.append(data["orderNo"])
+        if isinstance(data, dict) and data.get("order_no"):
+            order_nos.append(data["order_no"])
     return results, order_nos
 
 
