@@ -561,9 +561,11 @@ public class SkuService implements ISkuService {
                            @NotNull StockAdjustMode mode, int quantity) {
         Sku sku = ensureSku(productId, skuId);
         sku.adjustStock(mode, quantity);
-        int stock = skuRepository.updateStock(skuId, sku.getStock());
+        int row = skuRepository.updateStock(skuId, mode, quantity);
+        if (row <= 0)
+            throw new ConflictException("更新库存失败");
         refreshProductStock(productId);
-        return stock;
+        return ensureSku(productId, skuId).getStock();
     }
 
     /**

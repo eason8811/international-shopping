@@ -177,7 +177,7 @@
             <if test="status != null and status != ''">
                 AND p.status = #{status}
             </if>
-            <if test="skuType != null and skuType != null">
+            <if test="skuType != null and skuType != ''">
                 AND p.sku_type = #{skuType}
             </if>
             <if test="categoryId != null">
