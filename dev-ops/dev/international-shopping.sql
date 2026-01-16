@@ -506,7 +506,9 @@ CREATE TABLE orders
     payment_external_id    VARCHAR(128)                                              NULL COMMENT '支付单 externalId(网关唯一标记)',
     pay_time               DATETIME(3)                                               NULL COMMENT '支付成功时间',
     address_snapshot       JSON                                                      NULL COMMENT '收货信息快照(JSON)',
+    address_changed        TINYINT(1)                                                NOT NULL DEFAULT 0 COMMENT '是否已修改过地址(仅一次)',
     buyer_remark           VARCHAR(500)                                              NULL COMMENT '买家留言',
+    idempotency_key        VARCHAR(64)                                               NULL COMMENT '幂等键(防重复下单)',
     cancel_reason          VARCHAR(255)                                              NULL COMMENT '取消原因',
     cancel_time            DATETIME(3)                                               NULL COMMENT '取消时间',
     refund_reason_snapshot JSON                                                      NULL COMMENT '退款原因快照(JSON)',
@@ -514,6 +516,7 @@ CREATE TABLE orders
     updated_at             DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_order_no (order_no),
+    UNIQUE KEY uk_order_idempotency (user_id, idempotency_key),
     KEY idx_order_user (user_id),
     KEY idx_order_status_time (status, created_at),
     KEY idx_order_created (created_at),
@@ -585,6 +588,7 @@ CREATE TABLE inventory_log
     reason      VARCHAR(255)                                  NULL COMMENT '原因备注',
     created_at  DATETIME(3)                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_inv_order_sku_type (order_id, sku_id, change_type),
     KEY idx_inv_sku_time (sku_id, created_at),
     KEY idx_inv_order (order_id)
 ) ENGINE = InnoDB COMMENT ='库存变动日志';

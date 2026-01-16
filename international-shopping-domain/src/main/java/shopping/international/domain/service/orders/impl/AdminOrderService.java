@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import shopping.international.domain.adapter.port.orders.IOrderAddressChangePort;
 import shopping.international.domain.adapter.repository.orders.IOrderRepository;
 import shopping.international.domain.model.aggregate.orders.Order;
 import shopping.international.domain.model.entity.orders.InventoryLog;
@@ -34,10 +33,6 @@ public class AdminOrderService implements IAdminOrderService {
      * 订单仓储
      */
     private final IOrderRepository orderRepository;
-    /**
-     * 改址标记端口, 用于终态清理
-     */
-    private final IOrderAddressChangePort orderAddressChangePort;
 
     /**
      * 查询订单列表 (管理侧)
@@ -81,9 +76,7 @@ public class AdminOrderService implements IAdminOrderService {
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
         OrderStatus from = order.getStatus();
         order.cancel(CancelReason.of(reason), OrderStatusEventSource.ADMIN);
-        Order cancelled = orderRepository.cancelAndReleaseStock(order, from, OrderStatusEventSource.ADMIN, reason);
-        orderAddressChangePort.clear(orderNo);
-        return cancelled;
+        return orderRepository.cancelAndReleaseStock(order, from, OrderStatusEventSource.ADMIN, reason);
     }
 
     /**
@@ -99,9 +92,7 @@ public class AdminOrderService implements IAdminOrderService {
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
         OrderStatus from = order.getStatus();
         order.close(reason);
-        Order closed = orderRepository.close(order, from, OrderStatusEventSource.ADMIN, reason);
-        orderAddressChangePort.clear(orderNo);
-        return closed;
+        return orderRepository.close(order, from, OrderStatusEventSource.ADMIN, reason);
     }
 
     /**
@@ -117,9 +108,7 @@ public class AdminOrderService implements IAdminOrderService {
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
         OrderStatus from = order.getStatus();
         order.confirmRefund(note);
-        Order refunded = orderRepository.confirmRefundAndRestock(order, from, OrderStatusEventSource.ADMIN, note);
-        orderAddressChangePort.clear(orderNo);
-        return refunded;
+        return orderRepository.confirmRefundAndRestock(order, from, OrderStatusEventSource.ADMIN, note);
     }
 
     /**

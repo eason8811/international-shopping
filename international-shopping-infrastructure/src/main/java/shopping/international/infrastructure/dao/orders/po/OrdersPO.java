@@ -99,10 +99,20 @@ public class OrdersPO {
     @TableField("address_snapshot")
     private String addressSnapshot;
     /**
+     * 地址是否已修改
+     */
+    @TableField("address_changed")
+    private Boolean addressChanged;
+    /**
      * 买家备注
      */
     @TableField("buyer_remark")
     private String buyerRemark;
+    /**
+     * 幂等键
+     */
+    @TableField("idempotency_key")
+    private String idempotencyKey;
     /**
      * 取消原因
      */

@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
+
 /**
  * 用户侧订单接口 {@code /users/me/orders}
  *
@@ -146,9 +148,12 @@ public class OrderController {
      * @return 已创建订单
      */
     @PostMapping
-    public ResponseEntity<Result<OrderDetailRespond>> create(@RequestBody OrderCreateRequest req) {
+    public ResponseEntity<Result<OrderDetailRespond>> create(@RequestBody OrderCreateRequest req,
+                                                             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         req.validate();
         Long userId = requireCurrentUserId();
+        String normalizedIdempotencyKey = normalizeNullableField(idempotencyKey, "Idempotency-Key 不能为空",
+                s -> s.length() <= 64, "Idempotency-Key 长度不能超过 64 个字符");
         List<IOrderService.ItemInput> items = req.getItems() == null
                 ? null
                 : req.getItems().stream()
@@ -163,7 +168,8 @@ public class OrderController {
                 req.getCurrency(),
                 req.getDiscountCode(),
                 req.getBuyerRemark(),
-                req.getLocale()
+                req.getLocale(),
+                normalizedIdempotencyKey
         );
         CurrencyConfig currencyConfig = currencyConfigService.get(created.getCurrency());
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())

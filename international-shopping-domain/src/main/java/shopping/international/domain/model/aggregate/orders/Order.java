@@ -511,13 +511,13 @@ public class Order implements Verifiable {
 
     /**
      * 判断给定的订单状态是否允许取消订单<br/>
-     * 只有当订单处于 {@code CREATED}, {@code PENDING_PAYMENT} 或 {@code PAID} 状态时, 才能被取消
+     * 只有当订单处于 {@code CREATED}, {@code PENDING_PAYMENT} 状态时, 才能被取消
      *
      * @param status 订单的状态 {@link OrderStatus}
      * @return 如果订单处于可以被取消的状态, 返回 <code>true</code>; 否则返回 <code>false</code>
      */
     private static boolean canCancel(OrderStatus status) {
-        return status == OrderStatus.CREATED || status == OrderStatus.PENDING_PAYMENT || status == OrderStatus.PAID;
+        return status == OrderStatus.CREATED || status == OrderStatus.PENDING_PAYMENT;
     }
 
     /**

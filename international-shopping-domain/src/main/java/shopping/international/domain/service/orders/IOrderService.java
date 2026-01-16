@@ -259,6 +259,7 @@ public interface IOrderService {
      * @param discountCode 折扣码 (可为空)
      * @param buyerRemark  买家备注 (可为空)
      * @param locale       展示语言 (可为空)
+     * @param idempotencyKey 幂等键 (可为空, 用于防重复下单)
      * @return 已创建的订单聚合 (含明细)
      */
     @NotNull
@@ -269,7 +270,8 @@ public interface IOrderService {
                  @NotNull String currency,
                  @Nullable String discountCode,
                  @Nullable String buyerRemark,
-                 @Nullable String locale);
+                 @Nullable String locale,
+                 @Nullable String idempotencyKey);
 
     /**
      * 列出当前用户订单摘要

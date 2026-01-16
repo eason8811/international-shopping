@@ -7,9 +7,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-import shopping.international.domain.adapter.port.orders.IOrderAddressChangePort;
 import shopping.international.domain.adapter.repository.orders.IOrderRepository;
 import shopping.international.domain.model.aggregate.orders.Order;
 import shopping.international.domain.model.entity.orders.InventoryLog;
@@ -27,6 +28,7 @@ import shopping.international.types.exceptions.ConflictException;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
@@ -78,10 +80,6 @@ public class OrderRepository implements IOrderRepository {
      * JSON 序列化/反序列化工具
      */
     private final ObjectMapper objectMapper;
-    /**
-     * 订单改址标记端口 (用于注入 addressChanged 投影)
-     */
-    private final IOrderAddressChangePort orderAddressChangePort;
 
     // ========================= 用户侧查询 =========================
 
@@ -233,6 +231,24 @@ public class OrderRepository implements IOrderRepository {
         return Optional.of(assembleOrder(orderPo));
     }
 
+    /**
+     * 根据用户 id 和幂等性键查找订单信息
+     *
+     * @param userId         用户的唯一标识符 不能为 null
+     * @param idempotencyKey 幂等性键 用于确保操作的幂等性 不能为 null
+     * @return 如果找到匹配的订单, 则返回包含该订单信息的 {@link Optional} 对象; 否则返回空的 {@link Optional}
+     * <p>此方法通过提供的用户 id 和幂等性键来查询数据库中的订单记录 如果没有找到相应的订单, 将返回一个空的 {@code Optional} 对象</p>
+     */
+    private @NotNull Optional<Order> findOrderByIdempotencyKey(@NotNull Long userId, @NotNull String idempotencyKey) {
+        OrdersPO orderPo = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
+                .eq(OrdersPO::getUserId, userId)
+                .eq(OrdersPO::getIdempotencyKey, idempotencyKey)
+                .last("limit 1"));
+        if (orderPo == null)
+            return Optional.empty();
+        return Optional.of(assembleOrder(orderPo));
+    }
+
     // ========================= 审计查询 =========================
 
     /**
@@ -355,10 +371,25 @@ public class OrderRepository implements IOrderRepository {
                                                      @NotNull OrderStatusEventSource eventSource,
                                                      @Nullable String note,
                                                      @Nullable List<Long> cartItemIdsToDelete,
-                                                     @Nullable List<IOrderService.OrderDiscountApplied> discountAppliedCreates) {
+                                                     @Nullable List<IOrderService.OrderDiscountApplied> discountAppliedCreates,
+                                                     @Nullable String idempotencyKey) {
+        // 0) 幂等键命中直接回读
+        if (idempotencyKey != null) {
+            Optional<Order> existing = findOrderByIdempotencyKey(order.getUserId(), idempotencyKey);
+            if (existing.isPresent())
+                return existing.get();
+        }
+
         // 1) 插入 orders
-        OrdersPO ordersPO = toOrdersPO(order);
-        ordersMapper.insert(ordersPO);
+        OrdersPO ordersPO = toOrdersPO(order, idempotencyKey);
+        try {
+            ordersMapper.insert(ordersPO);
+        } catch (DataIntegrityViolationException e) {
+            if (idempotencyKey != null)
+                return findOrderByIdempotencyKey(order.getUserId(), idempotencyKey)
+                        .orElseThrow(() -> new ConflictException("订单幂等键已存在但回读失败", e));
+            throw e;
+        }
         Long orderId = ordersPO.getId();
 
         // 2) 插入 order_item
@@ -402,10 +433,12 @@ public class OrderRepository implements IOrderRepository {
         LambdaUpdateWrapper<OrdersPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(OrdersPO::getId, order.getId())
                 .eq(OrdersPO::getStatus, order.getStatus().name())
-                .set(OrdersPO::getAddressSnapshot, json);
+                .eq(OrdersPO::getAddressChanged, Boolean.FALSE)
+                .set(OrdersPO::getAddressSnapshot, json)
+                .set(OrdersPO::getAddressChanged, Boolean.TRUE);
         int updated = ordersMapper.update(null, wrapper);
         if (updated <= 0)
-            throw new ConflictException("订单状态已变更, 无法修改地址");
+            throw new ConflictException("订单状态已变更或已修改过地址, 无法修改地址");
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单更新后回读失败"));
     }
 
@@ -422,7 +455,12 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order cancelAndReleaseStock(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                                 @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        updateOrderByStatusOrThrow(order, fromStatus, "取消");
+        updateOrderByStatusOrThrow(order, fromStatus, "取消", wrapper -> wrapper
+                .set(OrdersPO::getStatus, order.getStatus().name())
+                .set(OrdersPO::getCancelReason, order.getCancelReason() == null ? null : order.getCancelReason().getValue())
+                .set(OrdersPO::getCancelTime, order.getCancelTime())
+                .set(OrdersPO::getPayStatus, order.getPayStatus() == null ? PayStatus.NONE.name() : order.getPayStatus().name())
+        );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         reserveStockAndWriteInventoryLogs(order.getId(), order.getItems(), InventoryChangeType.RELEASE, note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单取消后回读失败"));
@@ -441,7 +479,10 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order requestRefund(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                         @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        updateOrderByStatusOrThrow(order, fromStatus, "申请退款");
+        updateOrderByStatusOrThrow(order, fromStatus, "申请退款", wrapper -> wrapper
+                .set(OrdersPO::getStatus, order.getStatus().name())
+                .set(OrdersPO::getRefundReasonSnapshot, toJsonOrNull(order.getLastRefundReason()))
+        );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单退款申请后回读失败"));
     }
@@ -459,7 +500,9 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order confirmRefundAndRestock(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                                   @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        updateOrderByStatusOrThrow(order, fromStatus, "确认退款");
+        updateOrderByStatusOrThrow(order, fromStatus, "确认退款", wrapper -> wrapper
+                .set(OrdersPO::getStatus, order.getStatus().name())
+        );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         reserveStockAndWriteInventoryLogs(order.getId(), order.getItems(), InventoryChangeType.RESTOCK, note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单确认退款后回读失败"));
@@ -478,7 +521,9 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order close(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                 @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
-        updateOrderByStatusOrThrow(order, fromStatus, "关闭");
+        updateOrderByStatusOrThrow(order, fromStatus, "关闭", wrapper -> wrapper
+                .set(OrdersPO::getStatus, order.getStatus().name())
+        );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单关闭后回读失败"));
     }
@@ -563,7 +608,7 @@ public class OrderRepository implements IOrderRepository {
     }
 
     /**
-     * 装配订单聚合 (含明细), 并注入改址标记投影
+     * 装配订单聚合 (含明细)
      *
      * @param orderPo orders 持久化对象
      * @return 订单聚合
@@ -578,7 +623,7 @@ public class OrderRepository implements IOrderRepository {
                 .toList();
 
         OrderNo orderNo = OrderNo.of(orderPo.getOrderNo());
-        boolean addressChanged = orderAddressChangePort.isChanged(orderNo);
+        boolean addressChanged = Boolean.TRUE.equals(orderPo.getAddressChanged());
 
         return Order.reconstitute(
                 orderPo.getId(),
@@ -613,7 +658,7 @@ public class OrderRepository implements IOrderRepository {
      * @param order 订单聚合
      * @return 持久化对象
      */
-    private OrdersPO toOrdersPO(Order order) {
+    private OrdersPO toOrdersPO(Order order, @Nullable String idempotencyKey) {
         return OrdersPO.builder()
                 .id(order.getId())
                 .orderNo(order.getOrderNo().getValue())
@@ -631,7 +676,9 @@ public class OrderRepository implements IOrderRepository {
                 .paymentExternalId(order.getPaymentExternalId())
                 .payTime(order.getPayTime())
                 .addressSnapshot(toJsonOrNull(order.getAddressSnapshot()))
+                .addressChanged(order.isAddressChanged())
                 .buyerRemark(order.getBuyerRemark() == null ? null : order.getBuyerRemark().getValue())
+                .idempotencyKey(idempotencyKey)
                 .cancelReason(order.getCancelReason() == null ? null : order.getCancelReason().getValue())
                 .cancelTime(order.getCancelTime())
                 .refundReasonSnapshot(toJsonOrNull(order.getLastRefundReason()))
@@ -720,19 +767,39 @@ public class OrderRepository implements IOrderRepository {
         sorted.sort(Comparator.comparing(OrderItem::getSkuId));
         for (OrderItem item : sorted) {
             int qty = item.getQuantity();
+            boolean inserted = tryInsertInventoryLog(orderId, item.getSkuId(), changeType, qty, reason);
+            if (!inserted)
+                continue;
             if (changeType == InventoryChangeType.RESERVE)
                 decreaseStockOrThrow(item.getSkuId(), qty);
             else if (changeType == InventoryChangeType.RELEASE || changeType == InventoryChangeType.RESTOCK)
                 increaseStock(item.getSkuId(), qty);
+        }
+    }
 
-            InventoryLogPO log = InventoryLogPO.builder()
-                    .skuId(item.getSkuId())
-                    .orderId(orderId)
-                    .changeType(changeType.name())
-                    .quantity(qty)
-                    .reason(reason == null ? null : (reason.length() <= 255 ? reason : reason.substring(0, 255)))
-                    .build();
+    /**
+     * 尝试插入一条库存变更日志 如果存在联合唯一索引 {@code (order_id, sku_id, change_type)} 冲突则插入失败
+     *
+     * @param orderId    订单 id
+     * @param skuId      商品 sku id
+     * @param changeType 库存变更类型, 详见 {@link InventoryChangeType}
+     * @param qty        变更数量
+     * @param reason     变更原因, 最大长度为 255 字符, 超过会被截断
+     * @return 如果成功插入返回 true, 否则返回 false
+     */
+    private boolean tryInsertInventoryLog(Long orderId, Long skuId, InventoryChangeType changeType, int qty, @Nullable String reason) {
+        InventoryLogPO log = InventoryLogPO.builder()
+                .skuId(skuId)
+                .orderId(orderId)
+                .changeType(changeType.name())
+                .quantity(qty)
+                .reason(reason == null ? null : (reason.length() <= 255 ? reason : reason.substring(0, 255)))
+                .build();
+        try {
             inventoryLogMapper.insert(log);
+            return true;
+        } catch (DuplicateKeyException e) {
+            return false;
         }
     }
 
@@ -775,13 +842,17 @@ public class OrderRepository implements IOrderRepository {
      * @param order      待更新的 {@link Order} 对象
      * @param fromStatus 更新前的订单状态, 用于确认订单当前状态是否符合条件
      * @param action     尝试执行的操作名称, 用于在抛出异常时提供上下文信息
+     * @param updater    {@link LambdaUpdateWrapper} 处理器
      * @throws ConflictException 当订单状态与预期不符, 导致无法执行更新操作时抛出
      */
-    private void updateOrderByStatusOrThrow(@NotNull Order order, @NotNull OrderStatus fromStatus, @NotNull String action) {
+    private void updateOrderByStatusOrThrow(@NotNull Order order, @NotNull OrderStatus fromStatus,
+                                            @NotNull String action,
+                                            @NotNull Consumer<LambdaUpdateWrapper<OrdersPO>> updater) {
         LambdaUpdateWrapper<OrdersPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(OrdersPO::getId, order.getId())
                 .eq(OrdersPO::getStatus, fromStatus.name());
-        int updated = ordersMapper.update(toOrdersPO(order), wrapper);
+        updater.accept(wrapper);
+        int updated = ordersMapper.update(null, wrapper);
         if (updated <= 0)
             throw new ConflictException("订单状态已变更, 无法" + action);
     }

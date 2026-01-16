@@ -163,6 +163,7 @@ public interface IOrderRepository {
      * @param note                  状态日志备注 (可为空)
      * @param cartItemIdsToDelete   需要删除的购物车条目 ID 列表 (可为空)
      * @param discountAppliedCreates 折扣流水写入参数 (可为空)
+     * @param idempotencyKey        幂等键 (可为空)
      * @return 保存后的订单聚合 (携带持久化 ID 与明细 ID)
      */
     @NotNull
@@ -170,7 +171,8 @@ public interface IOrderRepository {
                                      @NotNull OrderStatusEventSource eventSource,
                                      @Nullable String note,
                                      @Nullable List<Long> cartItemIdsToDelete,
-                                     @Nullable List<IOrderService.OrderDiscountApplied> discountAppliedCreates);
+                                     @Nullable List<IOrderService.OrderDiscountApplied> discountAppliedCreates,
+                                     @Nullable String idempotencyKey);
 
     /**
      * 更新订单收货地址快照

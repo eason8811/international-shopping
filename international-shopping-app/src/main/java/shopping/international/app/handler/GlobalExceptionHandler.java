@@ -145,18 +145,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return respond(HttpStatus.CONFLICT, ApiCode.CONFLICT, ex.getMessage(), request);
     }
 
-
     /**
      * 处理参数错误异常: 返回 400
      *
-     * @param ex      抛出的 {@link IllegalParamException} 或 {@link RefreshTokenInvalidException}
+     * @param ex      抛出的 {@link IllegalParamException} 或 {@link RefreshTokenInvalidException} 或 {@link OrderDiscountRejectedException}
      * @param request 当前请求
      * @return 统一返回结构 {@link Result}, HTTP 400
      */
-    @ExceptionHandler({IllegalParamException.class, RefreshTokenInvalidException.class})
+    @ExceptionHandler({
+            IllegalParamException.class,
+            RefreshTokenInvalidException.class,
+            OrderDiscountRejectedException.class
+    })
     public ResponseEntity<Result<Void>> handleIllegalParam(final Exception ex,
                                                            final HttpServletRequest request) {
-        // 统一格式日志 (参数类异常一般不需要打印堆栈, 避免噪音)
         log.warn(buildLogFormat(),
                 ex.getClass().getSimpleName(),
                 ApiCode.BAD_REQUEST,

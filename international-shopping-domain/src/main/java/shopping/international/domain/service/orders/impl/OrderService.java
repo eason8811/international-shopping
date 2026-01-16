@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import shopping.international.domain.adapter.port.orders.IOrderAddressChangePort;
 import shopping.international.domain.adapter.repository.orders.ICartRepository;
 import shopping.international.domain.adapter.repository.orders.IDiscountRepository;
 import shopping.international.domain.adapter.repository.orders.IOrderProductRepository;
@@ -30,11 +29,11 @@ import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.DiscountFailureException;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.exceptions.OrderDiscountRejectedException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -78,10 +77,6 @@ public class OrderService implements IOrderService {
      */
     private final IUserRepository userRepository;
     /**
-     * 订单改址标记端口, 用于 "仅一次改址"
-     */
-    private final IOrderAddressChangePort orderAddressChangePort;
-    /**
      * 货币配置服务, 用于金额换算与舍入
      */
     private final ICurrencyConfigService currencyConfigService;
@@ -94,12 +89,6 @@ public class OrderService implements IOrderService {
      */
     private final FxRateProperties fxRateProperties;
 
-    /**
-     * 订单改址标记 TTL
-     *
-     * <p>终态会主动清理, TTL 用于防止极端情况下的脏数据长期驻留</p>
-     */
-    private static final Duration ADDRESS_CHANGED_TTL = Duration.ofDays(180);
 
     /**
      * 下单试算
@@ -137,6 +126,7 @@ public class OrderService implements IOrderService {
      * @param discountCode 折扣码
      * @param buyerRemark  买家备注
      * @param locale       展示语言
+     * @param idempotencyKey 幂等键 (可为空)
      * @return 已创建的订单聚合 (含明细)
      */
     @Override
@@ -147,8 +137,13 @@ public class OrderService implements IOrderService {
                                  @NotNull String currency,
                                  @Nullable String discountCode,
                                  @Nullable String buyerRemark,
-                                 @Nullable String locale) {
+                                 @Nullable String locale,
+                                 @Nullable String idempotencyKey) {
         PreviewComputation computation = computePreview(userId, source, items, currency, discountCode, locale);
+        if (discountCode != null && !computation.usedDiscount()) {
+            String reason = computation.discountFailureReason() == null ? "折扣码不可用" : computation.discountFailureReason();
+            throw new OrderDiscountRejectedException(reason);
+        }
 
         // 1) 地址快照与留言
         AddressSnapshot addressSnapshot = buildAddressSnapshot(userId, addressId);
@@ -173,7 +168,8 @@ public class OrderService implements IOrderService {
                 OrderStatusEventSource.USER,
                 null,
                 computation.cartItemIdsToDelete(),
-                computation.discountApplied()
+                computation.discountApplied(),
+                idempotencyKey
         );
     }
 
@@ -228,11 +224,7 @@ public class OrderService implements IOrderService {
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
         OrderStatus from = order.getStatus();
         order.cancel(CancelReason.of(reason), OrderStatusEventSource.USER);
-        Order cancelled = orderRepository.cancelAndReleaseStock(order, from, OrderStatusEventSource.USER, reason);
-
-        // 终态清理改址标记
-        orderAddressChangePort.clear(orderNo);
-        return cancelled;
+        return orderRepository.cancelAndReleaseStock(order, from, OrderStatusEventSource.USER, reason);
     }
 
     /**
@@ -250,21 +242,9 @@ public class OrderService implements IOrderService {
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
 
         AddressSnapshot newSnapshot = buildAddressSnapshot(userId, newAddressId);
-        // 1) 抢占“改址权”, 并发下保证仅一次
-        boolean ok = orderAddressChangePort.tryMarkChanged(orderNo, ADDRESS_CHANGED_TTL);
-        if (!ok)
-            throw new ConflictException("订单已修改过地址");
+        order.changeAddress(newSnapshot, note);
 
-        // 2) 聚合内维护“不允许重复修改”与状态机约束
-        try {
-            order.changeAddress(newSnapshot, note);
-
-            // 3) 持久化 address_snapshot
-            return orderRepository.updateAddressSnapshot(order, newSnapshot);
-        } catch (RuntimeException e) {
-            orderAddressChangePort.clear(orderNo);
-            throw e;
-        }
+        return orderRepository.updateAddressSnapshot(order, newSnapshot);
     }
 
     /**
