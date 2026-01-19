@@ -41,7 +41,7 @@ public class OrderTimeoutRecoveryJob {
             var candidates = orderService.listTimeoutCandidates(deadline, batchSize);
             if (candidates.isEmpty())
                 return;
-            log.info("订单超时兜底扫描, 批次大小: {}, DDL: {}", candidates.size(), deadline.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.xxx")));
+            log.info("订单超时兜底扫描, 批次大小: {}, DDL: {}", candidates.size(), deadline.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
             for (var order : candidates) {
                 try {
                     OrderNo orderNo = order.getOrderNo();

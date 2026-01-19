@@ -2,20 +2,16 @@ package shopping.international.app.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.CustomExchange;
-import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.amqp.core.AcknowledgeMode;
-import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import shopping.international.types.config.OrderTimeoutSettings;
 
 import java.util.Map;
@@ -127,7 +123,7 @@ public class OrderTimeoutRabbitConfig {
     /**
      * 注入一个 {@link SimpleRabbitListenerContainerFactory} Bean, 用于处理订单相关的消息监听器容器
      *
-     * @param connectionFactory 提供连接到 RabbitMQ 服务器的工厂
+     * @param connectionFactory     提供连接到 RabbitMQ 服务器的工厂
      * @param orderMessageConverter 配置的消息转换器, 用于消息内容的序列化和反序列化
      * @return 返回已配置好的 {@link SimpleRabbitListenerContainerFactory} 实例, 包含了连接工厂, 消息转换器, 手动确认模式等设置, 根据配置文件中的相关属性还可能设置了预取计数和并发消费者数量
      */
