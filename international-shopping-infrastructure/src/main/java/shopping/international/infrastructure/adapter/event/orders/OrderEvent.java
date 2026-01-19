@@ -7,7 +7,7 @@ import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
-import shopping.international.domain.adapter.event.orders.IOrderEventPublisher;
+import shopping.international.domain.adapter.event.orders.IOrderEvent;
 import shopping.international.domain.model.vo.orders.OrderTimeoutMessage;
 import shopping.international.types.config.OrderTimeoutSettings;
 
@@ -17,7 +17,7 @@ import shopping.international.types.config.OrderTimeoutSettings;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OrderEventPublisher implements IOrderEventPublisher {
+public class OrderEvent implements IOrderEvent {
 
     /**
      * 消息投递 template

@@ -6,7 +6,7 @@ import shopping.international.domain.model.vo.orders.OrderTimeoutMessage;
 /**
  * 订单事件发布端口
  */
-public interface IOrderEventPublisher {
+public interface IOrderEvent {
 
     /**
      * 发布订单超时取消的延迟消息

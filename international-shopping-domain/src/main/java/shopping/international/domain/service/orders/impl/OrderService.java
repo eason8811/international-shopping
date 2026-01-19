@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import shopping.international.domain.adapter.event.orders.IOrderEventPublisher;
+import shopping.international.domain.adapter.event.orders.IOrderEvent;
 import shopping.international.domain.adapter.repository.orders.ICartRepository;
 import shopping.international.domain.adapter.repository.orders.IDiscountRepository;
 import shopping.international.domain.adapter.repository.orders.IOrderProductRepository;
@@ -93,7 +93,7 @@ public class OrderService implements IOrderService {
     /**
      * 订单事件发布器
      */
-    private final IOrderEventPublisher orderEventPublisher;
+    private final IOrderEvent orderEvent;
     /**
      * 订单超时配置
      */
@@ -198,7 +198,7 @@ public class OrderService implements IOrderService {
                     order.getCreatedAt()
             );
             long delayMillis = orderTimeoutSettings.ttl().toMillis();
-            orderEventPublisher.publishOrderTimeout(message, delayMillis);
+            orderEvent.publishOrderTimeout(message, delayMillis);
         } catch (Exception e) {
             log.warn("下单成功但发送超时取消消息失败, orderNo={}, err={}", order.getOrderNo().getValue(), e.getMessage(), e);
         }
