@@ -56,6 +56,11 @@
             <groupId>com.resend</groupId>
             <artifactId>resend-java</artifactId>
         </dependency>
+        <!-- RabbitMQ 依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
 
         <!-- domain 子模块依赖 -->
         <dependency>
