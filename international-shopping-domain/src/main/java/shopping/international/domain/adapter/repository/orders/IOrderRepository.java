@@ -103,6 +103,16 @@ public interface IOrderRepository {
     @NotNull
     Optional<Order> findOrderDetail(@NotNull OrderNo orderNo);
 
+    /**
+     * 查询待支付且已超时的订单
+     *
+     * @param createdBefore 创建时间上限 (含)
+     * @param limit         最大返回数量
+     * @return 订单列表
+     */
+    @NotNull
+    List<Order> listTimeoutCandidates(@NotNull LocalDateTime createdBefore, int limit);
+
     // ========================= 审计查询 =========================
 
     /**

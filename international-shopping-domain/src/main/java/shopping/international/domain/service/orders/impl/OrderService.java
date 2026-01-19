@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import shopping.international.domain.adapter.event.orders.IOrderEventPublisher;
 import shopping.international.domain.adapter.repository.orders.ICartRepository;
 import shopping.international.domain.adapter.repository.orders.IDiscountRepository;
 import shopping.international.domain.adapter.repository.orders.IOrderProductRepository;
@@ -25,6 +26,7 @@ import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.common.IFxRateService;
 import shopping.international.domain.service.orders.IOrderService;
 import shopping.international.types.config.FxRateProperties;
+import shopping.international.types.config.OrderTimeoutSettings;
 import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.DiscountFailureException;
@@ -88,6 +90,14 @@ public class OrderService implements IOrderService {
      * FX 配置(包含全站默认基准币种)
      */
     private final FxRateProperties fxRateProperties;
+    /**
+     * 订单事件发布器
+     */
+    private final IOrderEventPublisher orderEventPublisher;
+    /**
+     * 订单超时配置
+     */
+    private final OrderTimeoutSettings orderTimeoutSettings;
 
 
     /**
@@ -163,7 +173,7 @@ public class OrderService implements IOrderService {
         );
 
         // 3) 事务落库 + 预占库存 + 可选清理购物车
-        return orderRepository.createOrderAndReserveStock(
+        Order persisted = orderRepository.createOrderAndReserveStock(
                 order,
                 OrderStatusEventSource.USER,
                 null,
@@ -171,6 +181,27 @@ public class OrderService implements IOrderService {
                 computation.discountApplied(),
                 idempotencyKey
         );
+        publishOrderTimeoutMessage(persisted);
+        return persisted;
+    }
+
+    /**
+     * 推送订单超时取消的延迟消息
+     *
+     * @param order 已创建的订单
+     */
+    private void publishOrderTimeoutMessage(@NotNull Order order) {
+        try {
+            OrderTimeoutMessage message = new OrderTimeoutMessage(
+                    order.getOrderNo().getValue(),
+                    order.getUserId(),
+                    order.getCreatedAt()
+            );
+            long delayMillis = orderTimeoutSettings.ttl().toMillis();
+            orderEventPublisher.publishOrderTimeout(message, delayMillis);
+        } catch (Exception e) {
+            log.warn("下单成功但发送超时取消消息失败, orderNo={}, err={}", order.getOrderNo().getValue(), e.getMessage(), e);
+        }
     }
 
     /**

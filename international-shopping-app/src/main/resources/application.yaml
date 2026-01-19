@@ -31,6 +31,19 @@ spring:
           max-idle: 8
           min-idle: 0
           time-between-eviction-runs: 120s
+  rabbitmq:
+    host: ${spring.rabbitmq.host}
+    port: ${spring.rabbitmq.port}
+    username: ${spring.rabbitmq.username}
+    password: ${spring.rabbitmq.password}
+    virtual-host: ${spring.rabbitmq.virtual-host:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        acknowledge-mode: manual
 
 mybatis-plus:
   configuration:
@@ -126,3 +139,18 @@ fx:
       initialDelay: 30s
       # 汇率同步任务：执行间隔(固定延迟)
       fixedDelay: 1h
+
+orders:
+  timeout:
+    ttl: 15m
+    cancel-reason: 支付超时自动取消
+    mq:
+      exchange: orders.delay.exchange
+      queue: orders.timeout.delay.queue
+      routing-key: orders.timeout
+      delayed-type: direct
+      listener-concurrency: 2
+      listener-prefetch: 10
+    recovery:
+      fixed-delay: 5m
+      batch-size: 100

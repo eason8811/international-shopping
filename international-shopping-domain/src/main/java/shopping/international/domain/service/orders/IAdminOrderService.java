@@ -5,10 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.orders.Order;
 import shopping.international.domain.model.entity.orders.InventoryLog;
 import shopping.international.domain.model.entity.orders.OrderStatusLog;
-import shopping.international.domain.model.enums.orders.InventoryChangeType;
-import shopping.international.domain.model.enums.orders.OrderStatus;
-import shopping.international.domain.model.enums.orders.PayChannel;
-import shopping.international.domain.model.enums.orders.PayStatus;
+import shopping.international.domain.model.enums.orders.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.AdminOrderSearchCriteria;
@@ -101,6 +98,25 @@ public interface IAdminOrderService {
      */
     @NotNull
     Order cancel(@NotNull OrderNo orderNo, @NotNull String reason);
+
+    /**
+     * 列出指定时间前仍待支付的订单 (用于超时兜底)
+     *
+     * @param createdBefore 创建时间上限
+     * @param limit         最大返回数量
+     * @return 订单列表
+     */
+    @NotNull
+    List<Order> listTimeoutCandidates(@NotNull LocalDateTime createdBefore, int limit);
+
+    /**
+     * 系统/调度侧取消未支付订单 (用于超时、兜底任务)
+     *
+     * @param orderNo 订单号
+     * @param reason  取消原因
+     * @param source  事件来源 (SYSTEM/SCHEDULER 等)
+     */
+    void cancelUnpaid(@NotNull OrderNo orderNo, @NotNull String reason, @NotNull OrderStatusEventSource source);
 
     /**
      * 关闭订单 (管理侧)

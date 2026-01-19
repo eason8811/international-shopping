@@ -232,6 +232,28 @@ public class OrderRepository implements IOrderRepository {
     }
 
     /**
+     * 查询待支付且已超时的订单
+     *
+     * @param createdBefore 创建时间上限
+     * @param limit         最大返回数量
+     * @return 订单列表
+     */
+    @Override
+    public @NotNull List<Order> listTimeoutCandidates(@NotNull LocalDateTime createdBefore, int limit) {
+        int safeLimit = Math.max(limit, 1);
+        LambdaQueryWrapper<OrdersPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(OrdersPO::getStatus, OrderStatus.CREATED.name(), OrderStatus.PENDING_PAYMENT.name())
+                .ne(OrdersPO::getPayStatus, PayStatus.SUCCESS.name())
+                .le(OrdersPO::getCreatedAt, createdBefore)
+                .orderByAsc(OrdersPO::getCreatedAt)
+                .last("limit " + safeLimit);
+        List<OrdersPO> pos = ordersMapper.selectList(wrapper);
+        if (pos == null || pos.isEmpty())
+            return List.of();
+        return pos.stream().map(this::assembleOrder).toList();
+    }
+
+    /**
      * 根据用户 id 和幂等性键查找订单信息
      *
      * @param userId         用户的唯一标识符 不能为 null
