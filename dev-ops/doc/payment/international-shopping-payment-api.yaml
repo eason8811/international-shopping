@@ -1,0 +1,949 @@
+openapi: 3.1.0
+info:
+  title: Payment 域 API（PayPal）
+  version: 1.0.0
+  description: |
+    ## Payment 域职责（中心思想）
+    Payment 域只承担：
+    - **网关交互**：创建 PayPal Checkout、Capture、取消支付尝试
+    - **状态回写**：同库情况下，将 payment_order 状态与 orders 的冗余支付字段（pay_status/pay_channel/payment_external_id/pay_time）同步推进
+    - **兜底任务**：回调失败/不可靠场景下，定时轮询 PayPal 刷新支付/退款状态（任务不对外暴露）
+
+    Payment 域**不对外提供用户侧查询型接口**（订单支付/退款信息由 Orders 域聚合查询返回）。
+
+    ## 幂等（强约定）
+    - 所有会产生副作用的接口必须支持幂等：
+      - 客户端建议传 `Idempotency-Key`
+      - 服务端必须以 DB 唯一约束（如 uk_order_id_channel / uk_pay_external） + “插入优先，冲突回读”实现幂等
+    - Webhook 必须幂等：同一事件重复投递不得导致重复推进或重复退款。
+
+    ## 同事务（强约定：同库/同 DB）
+    - 以下动作必须在同一事务内完成（要么都成功，要么都失败）：
+      - 变更/写入 payment_order 状态 与 回写 orders 的冗余支付字段（pay_channel/pay_status/payment_external_id/pay_time）及订单状态（CREATED/PENDING_PAYMENT/PAID/EXCEPTION 等）
+    - 外部网关 HTTP 调用建议在事务外（避免长事务），失败后用重试/兜底任务收敛。
+
+    ## 并发安全（强约定）
+    - 所有状态推进必须采用 CAS 条件更新（UPDATE ... WHERE status IN (...)）
+    - “发起支付/换渠道”必须锁定 orders 行（SELECT ... FOR UPDATE 或同等）作为并发闸门：
+      - 先关闭该订单下所有 INIT/PENDING 的 payment_order
+      - 再创建/复用目标渠道的 payment_order（同渠道只能一条，失败也只能重试同一条）
+
+    ## 状态机语义一致（强约定）
+    - orders.pay_channel / orders.pay_status / orders.payment_external_id 为冗余字段，必须与“当前有效支付单”语义一致。
+    - 查询时以 orders 与 payment_order（order_id 关联）为事实来源进行聚合（不引入 orders.current_payment_order_id）。
+
+    ## 晚到支付（以 capture 时间为准）
+    - 以 **capture 事件时间**（或 PayPal capture create_time）作为“是否在有效期内”的判定依据：
+      1) 若 capture_time <= orders.created_at + TTL：视为**有效支付成功**，进入支付成功分支
+      2) 否则：直接进入 **EXCEPTION + 自动退款**
+    - 支付成功分支下：若订单已关闭并释放库存，且此时库存不足/不可履约：直接 **EXCEPTION + 自动退款**
+      否则：视为支付成功并继续履约。
+    - 自动退款的执行可通过内部服务/任务触发（本 API 不暴露“创建退款”入口，退款入口收口在 Orders 域）。
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Payments
+    description: PayPal 支付网关交互
+  - name: PayPalWebhook
+    description: PayPal Webhook 回调（匿名）
+  - name: OpsSync
+    description: 运维/排障同步刷新（可选保留）
+  - name: AdminPayments
+    description: 管理侧支付单查询（分页/详情）
+  - name: AdminRefunds
+    description: 管理侧退款单查询（分页/详情）
+
+security:
+  - CookieAuth: []
+
+paths:
+  # =========================
+  # Payments - 网关交互（最少对外接口）
+  # =========================
+  /payments/paypal/checkout:
+    post:
+      tags: [Payments]
+      summary: 创建 PayPal Checkout（返回收银台跳转链接）
+      description: |
+        ### 目的
+        用户点击“去支付”时调用：创建/复用支付单并向 PayPal 创建 Order，返回 `approve_url`。
+
+        ### 关键约定
+        - **幂等**：同一订单 + 同一渠道（PAYPAL）只能存在一条 payment_order；失败也只能重试同一条。
+        - **并发闸门**：必须锁定 orders 行，确保同一订单同一时刻只有一个待支付支付单。
+        - **同事务（同库）**：payment_order 的创建/状态推进 与 orders 的冗余字段/状态推进必须同事务完成。
+
+        ### 推荐实现步骤（同库/同服务）
+        1) `SELECT orders ... FOR UPDATE` 锁单
+        2) 校验订单可支付（未 PAID、未超时、未进入不可支付状态）
+        3) 关闭该订单下所有 `payment_order.status IN (INIT,PENDING)`（换渠道场景）
+        4) 创建/复用 payment_order（channel=PAYPAL，利用 `uk_order_id_channel(order_id, channel)`）
+        5) 推进 orders：
+           - `status: CREATED -> PENDING_PAYMENT`（若已是 PENDING_PAYMENT 可保持）
+           - `pay_channel=PAYPAL, pay_status=INIT, payment_external_id=NULL`
+        6) 事务外调用 PayPal Orders API，获取 PayPal Order ID
+        7) 回填 `payment_order.external_id`，并更新 `orders.payment_external_id`
+
+        > 注意：如果第 6 步失败，不应回滚前面事务结果；允许客户端重试（幂等复用同一 payment_order 再次创建 PayPal Order）。
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - $ref: '#/components/parameters/idempotency_key_required'
+        - $ref: '#/components/parameters/csrf_token_cookie_required'
+        - $ref: '#/components/parameters/csrf_token_header_required'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayPalCheckoutCreateRequest' }
+            example:
+              order_no: 01JAZ9H1E9E3YQ9Y8KQ8X7W3QZ
+              return_url: https://shopping.example.com/pay/return
+              cancel_url: https://shopping.example.com/pay/cancel
+      responses:
+        '201':
+          $ref: '#/components/responses/Created_PayPalCheckout'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      security: []
+
+  /payments/paypal/{payment_id}/capture:
+    post:
+      tags: [Payments]
+      summary: Capture PayPal 支付（回跳后确认扣款）
+      description: |
+        ### 目的
+        前端在用户从 PayPal 回跳后调用：对 PayPal Order 执行 capture，完成扣款确认。
+
+        ### 晚到支付规则（以 capture 时间为准）
+        - 以 `capture_time` 判断：
+          - 若 `capture_time <= orders.created_at + TTL`：进入“支付成功分支”
+          - 否则：直接 `EXCEPTION + 自动退款`
+        - 支付成功分支下：
+          - 若订单已 CLOSED/CANCELLED 且库存已释放，并且当前库存不足/不可履约：`EXCEPTION + 自动退款`
+          - 否则：推进为支付成功并继续履约（orders.status->PAID 等）
+
+        ### 并发与事务
+        - 建议锁定 orders 行（或严格 CAS）避免与关闭/取消并发冲突
+        - 同事务内（同库）：
+          - payment_order.status -> SUCCESS/FAIL/EXCEPTION（CAS）
+          - 回写 orders 的 pay_status/pay_time/payment_external_id 以及 orders.status（PAID/EXCEPTION 等）
+
+        ### 幂等
+        - 重复 capture 必须幂等：已 SUCCESS 直接返回 SUCCESS
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - $ref: '#/components/parameters/idempotency_key_optional'
+        - $ref: '#/components/parameters/csrf_token_cookie_required'
+        - $ref: '#/components/parameters/csrf_token_header_required'
+        - name: payment_id
+          in: path
+          required: true
+          description: payment_order.id
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayPalCaptureRequest' }
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok_PaymentResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      security: []
+
+  /payments/paypal/{payment_id}/cancel:
+    post:
+      tags: [Payments]
+      summary: 取消本次支付尝试（关闭支付单，不等于关闭订单）
+      description: |
+        - 同事务内：
+          - payment_order.status INIT/PENDING -> CLOSED（CAS）
+          - 回写 orders.pay_status -> CLOSED（冗余同步）
+        - 不负责关闭订单；订单关闭入口收口在 Orders 域
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - $ref: '#/components/parameters/idempotency_key_optional'
+        - $ref: '#/components/parameters/csrf_token_cookie_required'
+        - $ref: '#/components/parameters/csrf_token_header_required'
+        - name: payment_id
+          in: path
+          required: true
+          description: payment_order.id
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok_PaymentResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      security: []
+
+  # =========================
+  # PayPal Webhook - 匿名回调
+  # =========================
+  /webhooks/paypal:
+    post:
+      tags: [PayPalWebhook]
+      summary: PayPal Webhook 回调入口（匿名）
+      description: |
+        - 必须验签、防重放
+        - 必须幂等
+        - 建议落库原始事件（notify_payload 或审计表）
+        - 同事务（同库）内更新 payment_order 并回写 orders 状态
+        - 晚到支付规则同 capture：以 capture_time 判定是否在 TTL 内
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayPalWebhookEvent' }
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok_Generic'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # =========================
+  # OpsSync - 运维/排障（可选保留）
+  # =========================
+  /admin/payments/{payment_id}/sync:
+    post:
+      tags: [OpsSync]
+      summary: 运维/排障：强制查询 PayPal 刷新支付状态
+      description: |
+        - 用于排障/对账/补偿，不作为日常业务入口
+        - 查询 PayPal -> 刷新 payment_order -> 回写 orders
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - $ref: '#/components/parameters/csrf_token_cookie_required'
+        - $ref: '#/components/parameters/csrf_token_header_required'
+        - name: payment_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '202':
+          $ref: '#/components/responses/Accepted_Generic'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================
+  # AdminPayments - 管理侧支付单查询（分页/详情）
+  # =========================
+  /admin/payments:
+    get:
+      tags: [AdminPayments]
+      summary: 管理侧分页查询支付单
+      description: |
+        - 仅用于管理后台/排障/对账（不对用户侧开放）
+        - 支持按订单号、外部单号、状态、时间范围筛选
+        - 返回列表为轻量字段；详细 payload 请用详情接口
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - name: order_no
+          in: query
+          required: false
+          schema: { type: string }
+          description: 按订单号筛选（建议内部联表查询 orders.id）
+        - name: external_id
+          in: query
+          required: false
+          schema: { type: string }
+          description: PayPal Order ID
+        - name: channel
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/PaymentChannelAny' }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/PaymentStatus' }
+        - name: created_from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: created_to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, default: 20, minimum: 1, maximum: 200 }
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: created_at,desc
+          description: 排序字段与方向（示例：created_at,desc / updated_at,desc）
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok_AdminPaymentPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/payments/{payment_id}:
+    get:
+      tags: [AdminPayments]
+      summary: 管理侧查询支付单详细信息
+      description: |
+        - 返回支付单的完整信息（含 request/response/notify payload）
+        - 可用于排障、对账、审计
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - name: payment_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok_AdminPaymentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================
+  # AdminRefunds - 管理侧退款单查询（分页/详情）
+  # 说明：退款创建入口收口在 Orders 域，但 Payment 域提供只读查询便于对账/排障
+  # =========================
+  /admin/refunds:
+    get:
+      tags: [AdminRefunds]
+      summary: 管理侧分页查询退款单
+      description: |
+        - 仅用于管理后台/排障/对账（不对用户侧开放）
+        - 退款创建入口收口在 Orders 域；Payment 域仅提供只读查询
+        - 支持按订单号、外部退款单号、状态、时间范围筛选
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - name: order_no
+          in: query
+          required: false
+          schema: { type: string }
+          description: 按订单号筛选（建议内部联表查询 orders.id）
+        - name: external_id
+          in: query
+          required: false
+          schema: { type: string }
+          description: PayPal Refund ID（或网关退款标识）
+        - name: channel
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/PaymentChannelAny' }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/RefundStatus' }
+        - name: created_from
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: created_to
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, default: 20, minimum: 1, maximum: 200 }
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: created_at,desc
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok_AdminRefundPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/refunds/{refund_id}:
+    get:
+      tags: [AdminRefunds]
+      summary: 管理侧查询退款单详细信息
+      description: |
+        - 返回退款单的完整信息（含 request/response/notify payload）
+        - 用于排障、对账、审计
+      parameters:
+        - $ref: '#/components/parameters/access_token'
+        - name: refund_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok_AdminRefundDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: Cookie 会话访问令牌（HttpOnly）
+
+  parameters:
+    access_token:
+      name: access_token
+      in: cookie
+      required: false
+      schema: { type: string }
+      description: 会话访问令牌（HttpOnly Cookie）
+
+    csrf_token_cookie_required:
+      name: csrf_token
+      in: cookie
+      required: true
+      schema: { type: string }
+      description: CSRF Cookie（双提交）
+
+    csrf_token_header_required:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string }
+      description: CSRF Header（必须与 Cookie csrf_token 相等）
+
+    idempotency_key_required:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, maxLength: 64 }
+      description: 幂等键（建议 UUID/ULID；同一幂等键重复请求必须返回同一结果）
+
+    idempotency_key_optional:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, maxLength: 64 }
+      description: 幂等键（可选；对重复点击/重试友好）
+
+  schemas:
+    ApiCode:
+      type: string
+      enum:
+        - OK
+        - CREATED
+        - ACCEPTED
+        - BAD_REQUEST
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - UNPROCESSABLE_ENTITY
+        - TOO_MANY_REQUESTS
+        - INTERNAL_SERVER_ERROR
+
+    Result:
+      type: object
+      required: [success, code, message, timestamp]
+      properties:
+        success: { type: boolean, description: 业务是否成功（非 HTTP 含义） }
+        code: { $ref: '#/components/schemas/ApiCode' }
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
+        traceId: { type: [string, 'null'] }
+        data: {}
+        meta:
+          type: [object, 'null']
+          additionalProperties: true
+
+    CurrencyCode:
+      type: string
+      description: ISO 4217 货币代码
+      examples: [USD]
+
+    MoneyMinor:
+      type: integer
+      format: int64
+      description: 最小货币单位金额（如 USD cents）
+
+    PaymentChannel:
+      type: string
+      description: 支付通道（当前仅 PayPal）
+      enum: [PAYPAL]
+
+    PaymentChannelAny:
+      type: string
+      description: 支付通道（管理侧查询用，可扩展）
+      enum: [NONE, PAYPAL]
+
+    PaymentStatus:
+      type: string
+      description: 支付单状态（对应 payment_order.status）
+      enum: [NONE, INIT, PENDING, SUCCESS, FAIL, CLOSED, EXCEPTION]
+
+    RefundStatus:
+      type: string
+      description: 退款单状态（示例；与 payment_refund.status 对齐）
+      enum: [INIT, PENDING, SUCCESS, FAIL, CLOSED, EXCEPTION]
+
+    PayPalCheckoutCreateRequest:
+      type: object
+      required: [order_no, return_url, cancel_url]
+      properties:
+        order_no:
+          type: string
+          description: 业务订单号（orders.order_no）
+        return_url:
+          type: string
+          description: 支付成功回跳地址（前端）
+        cancel_url:
+          type: string
+          description: 用户取消回跳地址（前端）
+
+    PayPalCheckoutRespond:
+      type: object
+      required: [payment_id, order_no, channel, amount, currency, status, paypal_order_id, approve_url]
+      properties:
+        payment_id:
+          type: integer
+          format: int64
+          description: 支付单ID（payment_order.id）
+        order_no:
+          type: string
+          description: 业务订单号
+        channel:
+          $ref: '#/components/schemas/PaymentChannel'
+        amount:
+          $ref: '#/components/schemas/MoneyMinor'
+        currency:
+          $ref: '#/components/schemas/CurrencyCode'
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        paypal_order_id:
+          type: string
+          description: PayPal Order ID（落在 payment_order.external_id）
+        approve_url:
+          type: string
+          description: PayPal 跳转链接（前端跳转使用）
+
+    PayPalCaptureRequest:
+      type: object
+      properties:
+        payer_id:
+          type: [string, 'null']
+          description: 可选：回跳携带的 payer_id（如有）
+        note:
+          type: [string, 'null']
+          description: 可选：备注
+
+    PaymentResultRespond:
+      type: object
+      required: [payment_id, status]
+      properties:
+        payment_id:
+          type: integer
+          format: int64
+          description: 支付单ID（payment_order.id）
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        external_id:
+          type: [string, 'null']
+          description: PayPal Order ID
+        order_no:
+          type: [string, 'null']
+          description: 业务订单号（可选回传）
+        message:
+          type: [string, 'null']
+          description: 结果说明（可选）
+
+    PayPalWebhookEvent:
+      type: object
+      description: PayPal webhook 事件（保持宽松结构，便于兼容不同 event_type）
+      additionalProperties: true
+
+    PageMeta:
+      type: object
+      required: [page, size, total]
+      properties:
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+
+    PageResult_AdminPaymentListItem:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminPaymentListItem' }
+        page:
+          $ref: '#/components/schemas/PageMeta'
+
+    PageResult_AdminRefundListItem:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminRefundListItem' }
+        page:
+          $ref: '#/components/schemas/PageMeta'
+
+    AdminPaymentListItem:
+      type: object
+      required: [payment_id, order_id, channel, status, amount, currency, created_at, updated_at]
+      properties:
+        payment_id: { type: integer, format: int64, description: payment_order.id }
+        order_id: { type: integer, format: int64, description: orders.id }
+        order_no: { type: [string, 'null'], description: 业务订单号（联表返回，便于后台展示） }
+        external_id: { type: [string, 'null'], description: PayPal Order ID }
+        channel: { $ref: '#/components/schemas/PaymentChannelAny' }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        amount: { $ref: '#/components/schemas/MoneyMinor' }
+        currency: { $ref: '#/components/schemas/CurrencyCode' }
+        last_polled_at: { type: [string, 'null'], format: date-time }
+        last_notified_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AdminPaymentDetail:
+      type: object
+      required: [payment_id, order_id, channel, status, amount, currency, created_at, updated_at]
+      properties:
+        payment_id: { type: integer, format: int64 }
+        order_id: { type: integer, format: int64 }
+        order_no: { type: [string, 'null'] }
+        external_id: { type: [string, 'null'] }
+        channel: { $ref: '#/components/schemas/PaymentChannelAny' }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        amount: { $ref: '#/components/schemas/MoneyMinor' }
+        currency: { $ref: '#/components/schemas/CurrencyCode' }
+        request_payload:
+          type: [object, 'null']
+          additionalProperties: true
+        response_payload:
+          type: [object, 'null']
+          additionalProperties: true
+        notify_payload:
+          type: [object, 'null']
+          additionalProperties: true
+        last_polled_at: { type: [string, 'null'], format: date-time }
+        last_notified_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AdminRefundListItem:
+      type: object
+      required: [refund_id, order_id, channel, status, amount, currency, created_at, updated_at]
+      properties:
+        refund_id: { type: integer, format: int64, description: payment_refund.id }
+        refund_no: { type: [string, 'null'], description: 退款业务单号（若你有） }
+        order_id: { type: integer, format: int64 }
+        order_no: { type: [string, 'null'] }
+        payment_id: { type: [integer, 'null'], format: int64, description: 关联 payment_order.id（如有） }
+        external_id: { type: [string, 'null'], description: PayPal Refund ID（或网关退款标识） }
+        channel: { $ref: '#/components/schemas/PaymentChannelAny' }
+        status: { $ref: '#/components/schemas/RefundStatus' }
+        amount: { $ref: '#/components/schemas/MoneyMinor' }
+        currency: { $ref: '#/components/schemas/CurrencyCode' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AdminRefundDetail:
+      type: object
+      required: [refund_id, order_id, channel, status, amount, currency, created_at, updated_at]
+      properties:
+        refund_id: { type: integer, format: int64 }
+        refund_no: { type: [string, 'null'] }
+        order_id: { type: integer, format: int64 }
+        order_no: { type: [string, 'null'] }
+        payment_id: { type: [integer, 'null'], format: int64 }
+        external_id: { type: [string, 'null'] }
+        channel: { $ref: '#/components/schemas/PaymentChannelAny' }
+        status: { $ref: '#/components/schemas/RefundStatus' }
+        amount: { $ref: '#/components/schemas/MoneyMinor' }
+        currency: { $ref: '#/components/schemas/CurrencyCode' }
+        request_payload:
+          type: [object, 'null']
+          additionalProperties: true
+        response_payload:
+          type: [object, 'null']
+          additionalProperties: true
+        notify_payload:
+          type: [object, 'null']
+          additionalProperties: true
+        last_polled_at: { type: [string, 'null'], format: date-time }
+        last_notified_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+  responses:
+    Ok_Generic:
+      description: OK
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: true
+            code: OK
+            message: OK
+            timestamp: '2026-01-20T14:30:00+08:00'
+            data: null
+
+    Accepted_Generic:
+      description: 已受理（异步处理/任务执行）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: true
+            code: ACCEPTED
+            message: Accepted
+            timestamp: '2026-01-20T14:30:00+08:00'
+            data: null
+
+    BadRequest:
+      description: 参数错误
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: false
+            code: BAD_REQUEST
+            message: Bad Request
+            timestamp: '2026-01-20T14:30:00+08:00'
+
+    Unauthorized:
+      description: 未登录/未鉴权
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: false
+            code: UNAUTHORIZED
+            message: Unauthorized
+            timestamp: '2026-01-20T14:30:00+08:00'
+
+    Forbidden:
+      description: 权限不足
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: false
+            code: FORBIDDEN
+            message: Forbidden
+            timestamp: '2026-01-20T14:30:00+08:00'
+
+    NotFound:
+      description: 未找到
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: false
+            code: NOT_FOUND
+            message: Not Found
+            timestamp: '2026-01-20T14:30:00+08:00'
+
+    Conflict:
+      description: 冲突（状态不允许/幂等冲突/并发冲突等）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: false
+            code: CONFLICT
+            message: Conflict
+            timestamp: '2026-01-20T14:30:00+08:00'
+
+    Unprocessable:
+      description: 无法处理（网关失败/业务校验失败等）
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: false
+            code: UNPROCESSABLE_ENTITY
+            message: Unprocessable Entity
+            timestamp: '2026-01-20T14:30:00+08:00'
+
+    TooManyRequests:
+      description: 请求过多
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Result' }
+          example:
+            success: false
+            code: TOO_MANY_REQUESTS
+            message: Too Many Requests
+            timestamp: '2026-01-20T14:30:00+08:00'
+
+    Created_PayPalCheckout:
+      description: Created
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Result'
+              - type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PayPalCheckoutRespond' }
+          example:
+            success: true
+            code: CREATED
+            message: Created
+            timestamp: '2026-01-20T14:30:00+08:00'
+            data:
+              payment_id: 90001
+              order_no: 01JAZ9H1E9E3YQ9Y8KQ8X7W3QZ
+              channel: PAYPAL
+              amount: 12999
+              currency: USD
+              status: PENDING
+              paypal_order_id: 6KD12345AB6789012
+              approve_url: https://www.paypal.com/checkoutnow?token=6KD12345AB6789012
+
+    Ok_PaymentResult:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Result'
+              - type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PaymentResultRespond' }
+          example:
+            success: true
+            code: OK
+            message: OK
+            timestamp: '2026-01-20T14:30:00+08:00'
+            data:
+              payment_id: 90001
+              status: SUCCESS
+              external_id: 6KD12345AB6789012
+              order_no: 01JAZ9H1E9E3YQ9Y8KQ8X7W3QZ
+              message: capture success
+
+    Ok_AdminPaymentPage:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Result'
+              - type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PageResult_AdminPaymentListItem' }
+          example:
+            success: true
+            code: OK
+            message: OK
+            timestamp: '2026-01-20T14:30:00+08:00'
+            data:
+              items:
+                - payment_id: 90001
+                  order_id: 10001
+                  order_no: 01JAZ9H1E9E3YQ9Y8KQ8X7W3QZ
+                  external_id: 6KD12345AB6789012
+                  channel: PAYPAL
+                  status: PENDING
+                  amount: 12999
+                  currency: USD
+                  last_polled_at: null
+                  last_notified_at: null
+                  created_at: '2026-01-20T14:05:12+08:00'
+                  updated_at: '2026-01-20T14:05:18+08:00'
+              page:
+                page: 1
+                size: 20
+                total: 1
+
+    Ok_AdminPaymentDetail:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Result'
+              - type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminPaymentDetail' }
+
+    Ok_AdminRefundPage:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Result'
+              - type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PageResult_AdminRefundListItem' }
+
+    Ok_AdminRefundDetail:
+      description: OK
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Result'
+              - type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AdminRefundDetail' }
