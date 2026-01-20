@@ -61,15 +61,17 @@ public class OrderTimeoutRabbitConfig {
     /**
      * 注入 {@link RabbitTemplate} Bean, 用于发送和接收消息
      *
+     * @param template {@link RabbitTemplate} Bean
      * @param connectionFactory     提供连接到 RabbitMQ 服务器的工厂
      * @param orderMessageConverter 配置的 JSON 消息转换器
      * @return {@link RabbitTemplate} Bean, 已配置可靠投递和可靠消费
      */
     @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter orderMessageConverter) {
-        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+    public RabbitTemplate rabbitTemplate(RabbitTemplate template,
+                                         ConnectionFactory connectionFactory,
+                                         MessageConverter orderMessageConverter) {
+        template.setConnectionFactory(connectionFactory);
         template.setMessageConverter(orderMessageConverter);
-        template.setMandatory(true);
         template.setConfirmCallback((correlationData, ack, cause) -> {
             if (!ack)
                 log.warn("订单超时消息发布失败, correlationId={}, cause={}",
