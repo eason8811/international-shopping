@@ -364,8 +364,7 @@ public class Order implements Verifiable {
         this.cancelReason = reason;
         this.cancelTime = LocalDateTime.now();
         this.status = OrderStatus.CANCELLED;
-        // TODO: 后续 支付领域 (payment) 实现后可能需要与支付领域进行联动
-        if (this.payStatus != PayStatus.SUCCESS && this.payStatus != PayStatus.CLOSED)
+        if (this.payStatus != PayStatus.SUCCESS)
             this.payStatus = PayStatus.CLOSED;
     }
 

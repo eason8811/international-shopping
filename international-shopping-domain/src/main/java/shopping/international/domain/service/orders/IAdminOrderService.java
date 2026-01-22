@@ -90,16 +90,6 @@ public interface IAdminOrderService {
     Optional<Order> getDetail(@NotNull OrderNo orderNo);
 
     /**
-     * 取消订单 (管理侧)
-     *
-     * @param orderNo 订单号
-     * @param reason  取消原因
-     * @return 取消后的订单聚合
-     */
-    @NotNull
-    Order cancel(@NotNull OrderNo orderNo, @NotNull String reason);
-
-    /**
      * 列出指定时间前仍待支付的订单 (用于超时兜底)
      *
      * @param createdBefore 创建时间上限
@@ -110,13 +100,14 @@ public interface IAdminOrderService {
     List<Order> listTimeoutCandidates(@NotNull LocalDateTime createdBefore, int limit);
 
     /**
-     * 系统/调度侧取消未支付订单 (用于超时、兜底任务)
+     * 系统/调度侧取消未支付订单 (用于超时兜底)
      *
      * @param orderNo 订单号
      * @param reason  取消原因
-     * @param source  事件来源 (SYSTEM/SCHEDULER 等)
+     * @param source  事件来源
+     * @return 取消后的订单
      */
-    void cancelUnpaid(@NotNull OrderNo orderNo, @NotNull String reason, @NotNull OrderStatusEventSource source);
+    @NotNull Order cancelUnpaid(@NotNull OrderNo orderNo, @NotNull String reason, @NotNull OrderStatusEventSource source);
 
     /**
      * 关闭订单 (管理侧)

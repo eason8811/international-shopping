@@ -478,6 +478,10 @@ public class OrderRepository implements IOrderRepository {
     public @NotNull Order cancelAndReleaseStock(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                                 @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
         updateOrderByStatusOrThrow(order, fromStatus, "取消", wrapper -> wrapper
+                .ne(OrdersPO::getPayStatus, PayStatus.SUCCESS.name())
+                .and(w ->
+                        w.eq(OrdersPO::getStatus, OrderStatus.CREATED.name()).or().eq(OrdersPO::getStatus, OrderStatus.PENDING_PAYMENT)
+                )
                 .set(OrdersPO::getStatus, order.getStatus().name())
                 .set(OrdersPO::getCancelReason, order.getCancelReason() == null ? null : order.getCancelReason().getValue())
                 .set(OrdersPO::getCancelTime, order.getCancelTime())

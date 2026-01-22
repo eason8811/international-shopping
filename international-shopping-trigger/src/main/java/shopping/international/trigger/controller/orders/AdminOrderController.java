@@ -13,10 +13,7 @@ import shopping.international.domain.model.aggregate.orders.Order;
 import shopping.international.domain.model.entity.orders.InventoryLog;
 import shopping.international.domain.model.entity.orders.OrderItem;
 import shopping.international.domain.model.entity.orders.OrderStatusLog;
-import shopping.international.domain.model.enums.orders.InventoryChangeType;
-import shopping.international.domain.model.enums.orders.OrderStatus;
-import shopping.international.domain.model.enums.orders.PayChannel;
-import shopping.international.domain.model.enums.orders.PayStatus;
+import shopping.international.domain.model.enums.orders.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.AddressSnapshot;
@@ -30,7 +27,6 @@ import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.IllegalParamException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -230,7 +226,7 @@ public class AdminOrderController {
     public ResponseEntity<Result<AdminOrderDetailRespond>> cancel(@PathVariable("order_no") String orderNo,
                                                                   @RequestBody OrderCancelRequest req) {
         req.validate();
-        Order cancelled = adminOrderService.cancel(OrderNo.of(orderNo), req.getReason());
+        Order cancelled = adminOrderService.cancelUnpaid(OrderNo.of(orderNo), req.getReason(), OrderStatusEventSource.ADMIN);
         return ResponseEntity.ok(Result.ok(toRespond(cancelled, currencyConfigService.get(cancelled.getCurrency()))));
     }
 

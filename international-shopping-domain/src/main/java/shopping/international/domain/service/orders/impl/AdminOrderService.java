@@ -10,7 +10,6 @@ import shopping.international.domain.model.entity.orders.InventoryLog;
 import shopping.international.domain.model.entity.orders.OrderStatusLog;
 import shopping.international.domain.model.enums.orders.OrderStatus;
 import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
-import shopping.international.domain.model.enums.orders.PayStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.AdminOrderSearchCriteria;
@@ -66,22 +65,6 @@ public class AdminOrderService implements IAdminOrderService {
     }
 
     /**
-     * 取消订单 (管理侧)
-     *
-     * @param orderNo 订单号
-     * @param reason  取消原因
-     * @return 取消后的订单
-     */
-    @Override
-    public @NotNull Order cancel(@NotNull OrderNo orderNo, @NotNull String reason) {
-        Order order = orderRepository.findOrderDetail(orderNo)
-                .orElseThrow(() -> new IllegalParamException("订单不存在"));
-        OrderStatus from = order.getStatus();
-        order.cancel(CancelReason.of(reason), OrderStatusEventSource.ADMIN);
-        return orderRepository.cancelAndReleaseStock(order, from, OrderStatusEventSource.ADMIN, reason);
-    }
-
-    /**
      * 列出待支付且已超时的订单 (用于兜底)
      *
      * @param createdBefore 创建时间上限
@@ -99,18 +82,15 @@ public class AdminOrderService implements IAdminOrderService {
      * @param orderNo 订单号
      * @param reason  取消原因
      * @param source  事件来源
+     * @return 取消后的订单
      */
     @Override
-    public void cancelUnpaid(@NotNull OrderNo orderNo, @NotNull String reason, @NotNull OrderStatusEventSource source) {
+    public @NotNull Order cancelUnpaid(@NotNull OrderNo orderNo, @NotNull String reason, @NotNull OrderStatusEventSource source) {
         Order order = orderRepository.findOrderDetail(orderNo)
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
-        if (order.getPayStatus() == PayStatus.SUCCESS)
-            return;
-        if (order.getStatus() != OrderStatus.CREATED && order.getStatus() != OrderStatus.PENDING_PAYMENT)
-            return;
         OrderStatus from = order.getStatus();
         order.cancel(CancelReason.of(reason), source);
-        orderRepository.cancelAndReleaseStock(order, from, source, reason);
+        return orderRepository.cancelAndReleaseStock(order, from, source, reason);
     }
 
     /**
