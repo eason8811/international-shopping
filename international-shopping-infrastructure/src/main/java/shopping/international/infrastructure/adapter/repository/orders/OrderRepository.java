@@ -527,6 +527,7 @@ public class OrderRepository implements IOrderRepository {
     public @NotNull Order confirmRefundAndRestock(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                                   @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
         updateOrderByStatusOrThrow(order, fromStatus, "确认退款", wrapper -> wrapper
+                .eq(OrdersPO::getStatus, OrderStatus.REFUNDING)
                 .set(OrdersPO::getStatus, order.getStatus().name())
         );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
@@ -548,6 +549,11 @@ public class OrderRepository implements IOrderRepository {
     public @NotNull Order close(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                 @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
         updateOrderByStatusOrThrow(order, fromStatus, "关闭", wrapper -> wrapper
+                .and(w -> w
+                        .eq(OrdersPO::getStatus, OrderStatus.CANCELLED).or()
+                        .eq(OrdersPO::getStatus, OrderStatus.REFUNDED).or()
+                        .eq(OrdersPO::getStatus, OrderStatus.FULFILLED)
+                )
                 .set(OrdersPO::getStatus, order.getStatus().name())
         );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
