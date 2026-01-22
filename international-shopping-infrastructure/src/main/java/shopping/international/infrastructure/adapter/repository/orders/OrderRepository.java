@@ -506,6 +506,10 @@ public class OrderRepository implements IOrderRepository {
     public @NotNull Order requestRefund(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                         @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
         updateOrderByStatusOrThrow(order, fromStatus, "申请退款", wrapper -> wrapper
+                .and(w -> w
+                        .eq(OrdersPO::getStatus, OrderStatus.PAID).or()
+                        .eq(OrdersPO::getStatus, OrderStatus.FULFILLED)
+                )
                 .set(OrdersPO::getStatus, order.getStatus().name())
                 .set(OrdersPO::getRefundReasonSnapshot, toJsonOrNull(order.getLastRefundReason()))
         );
