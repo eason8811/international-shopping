@@ -2396,10 +2396,13 @@ components:
         - order_no
         - return_url
         - cancel_url
+        - channel
       properties:
         order_no:
           type: string
           description: 业务订单号（orders.order_no）
+        channel:
+          $ref: '#/components/schemas/PaymentChannel'
         return_url:
           type: string
           description: 支付成功回跳地址（前端）
@@ -2408,6 +2411,7 @@ components:
           description: 用户取消回跳地址（前端）
       x-apifox-orders:
         - order_no
+        - channel
         - return_url
         - cancel_url
       x-apifox-ignore-properties: []
@@ -2515,8 +2519,63 @@ components:
       type: object
       description: PayPal webhook 事件（保持宽松结构，便于兼容不同 event_type）
       additionalProperties: true
-      x-apifox-orders: []
-      properties: {}
+      x-apifox-orders:
+        - id
+        - create_time
+        - event_version
+        - event_type
+        - summary
+        - resource_version
+        - resource
+        - links
+      properties:
+        id:
+          type: string
+        create_time:
+          type: string
+          format: date-time
+        event_version:
+          type: string
+        event_type:
+          type: string
+        summary:
+          type: string
+        resource_version:
+          type: string
+        resource:
+          type: object
+          properties: {}
+          x-apifox-orders: []
+          x-apifox-ignore-properties: []
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              href:
+                type: string
+              rel:
+                type: string
+              method:
+                type: string
+            x-apifox-orders:
+              - href
+              - rel
+              - method
+            required:
+              - href
+              - rel
+              - method
+            x-apifox-ignore-properties: []
+      required:
+        - id
+        - create_time
+        - event_version
+        - event_type
+        - summary
+        - resource_version
+        - resource
+        - links
       x-apifox-ignore-properties: []
       x-apifox-folder: payment
     PaymentListItem:
