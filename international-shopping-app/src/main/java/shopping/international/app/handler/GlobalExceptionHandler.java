@@ -146,6 +146,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * 处理资源未找到异常: 返回 404
+     *
+     * @param ex      抛出的 {@link NotFoundException}
+     * @param request 当前请求
+     * @return 统一返回结构 {@link Result}, HTTP 404
+     */
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<Result<Void>> handleNotFound(final NotFoundException ex,
+                                                       final HttpServletRequest request) {
+        log.warn(buildLogFormat(),
+                ex.getClass().getSimpleName(),
+                ApiCode.NOT_FOUND,
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                request.getMethod(),
+                request.getRemoteAddr(),
+                resolveTraceId(request), ex);
+
+        return respond(HttpStatus.NOT_FOUND, ApiCode.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    /**
      * 处理参数错误异常: 返回 400
      *
      * @param ex      抛出的 {@link IllegalParamException} 或 {@link RefreshTokenInvalidException} 或 {@link OrderDiscountRejectedException}

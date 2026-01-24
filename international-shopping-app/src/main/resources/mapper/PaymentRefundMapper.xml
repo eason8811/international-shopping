@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.payment.PaymentRefundMapper">
+
+    <!-- 退款单详情（含 items）ResultMap：通过 LEFT JOIN 一次性加载，避免循环查库 -->
+    <resultMap id="RefundDetailWithItemsMap" type="shopping.international.infrastructure.dao.payment.po.PaymentRefundPO">
+        <id column="id" property="id"/>
+        <result column="refund_no" property="refundNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="payment_order_id" property="paymentOrderId"/>
+        <result column="external_refund_id" property="externalRefundId"/>
+        <result column="client_refund_no" property="clientRefundNo"/>
+        <result column="amount" property="amount"/>
+        <result column="currency" property="currency"/>
+        <result column="items_amount" property="itemsAmount"/>
+        <result column="shipping_amount" property="shippingAmount"/>
+        <result column="status" property="status"/>
+        <result column="reason_code" property="reasonCode"/>
+        <result column="reason_text" property="reasonText"/>
+        <result column="initiator" property="initiator"/>
+        <result column="ticket_id" property="ticketId"/>
+        <result column="request_payload" property="requestPayload"/>
+        <result column="response_payload" property="responsePayload"/>
+        <result column="notify_payload" property="notifyPayload"/>
+        <result column="last_polled_at" property="lastPolledAt"/>
+        <result column="last_notified_at" property="lastNotifiedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="orderNo" property="orderNo"/>
+        <result column="channel" property="channel"/>
+
+        <collection property="items" ofType="shopping.international.infrastructure.dao.payment.po.PaymentRefundItemPO">
+            <id column="item_id" property="id"/>
+            <result column="item_refund_id" property="refundId"/>
+            <result column="order_item_id" property="orderItemId"/>
+            <result column="quantity" property="quantity"/>
+            <result column="item_amount" property="amount"/>
+            <result column="reason" property="reason"/>
+            <result column="item_created_at" property="createdAt"/>
+        </collection>
+    </resultMap>
+
+    <select id="pageAdminRefunds" resultType="shopping.international.infrastructure.dao.payment.po.PaymentRefundPO">
+        SELECT
+            r.id,
+            r.refund_no,
+            r.order_id,
+            r.payment_order_id,
+            r.external_refund_id,
+            r.client_refund_no,
+            r.amount,
+            r.currency,
+            r.items_amount,
+            r.shipping_amount,
+            r.status,
+            r.reason_code,
+            r.reason_text,
+            r.initiator,
+            r.ticket_id,
+            r.request_payload,
+            r.response_payload,
+            r.notify_payload,
+            r.last_polled_at,
+            r.last_notified_at,
+            r.created_at,
+            r.updated_at,
+            o.order_no AS orderNo,
+            p.channel AS channel
+        FROM payment_refund r
+        JOIN orders o ON o.id = r.order_id
+        JOIN payment_order p ON p.id = r.payment_order_id
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="externalId != null and externalId != ''">
+                AND r.external_refund_id = #{externalId}
+            </if>
+            <if test="channel != null and channel != ''">
+                AND p.channel = #{channel}
+            </if>
+            <if test="status != null and status != ''">
+                AND r.status = #{status}
+            </if>
+            <if test="createdFrom != null">
+                AND r.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND r.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+        ORDER BY r.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminRefunds" resultType="long">
+        SELECT COUNT(1)
+        FROM payment_refund r
+        JOIN orders o ON o.id = r.order_id
+        JOIN payment_order p ON p.id = r.payment_order_id
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="externalId != null and externalId != ''">
+                AND r.external_refund_id = #{externalId}
+            </if>
+            <if test="channel != null and channel != ''">
+                AND p.channel = #{channel}
+            </if>
+            <if test="status != null and status != ''">
+                AND r.status = #{status}
+            </if>
+            <if test="createdFrom != null">
+                AND r.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND r.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectDetailWithItems" resultMap="RefundDetailWithItemsMap">
+        SELECT
+            r.id,
+            r.refund_no,
+            r.order_id,
+            r.payment_order_id,
+            r.external_refund_id,
+            r.client_refund_no,
+            r.amount,
+            r.currency,
+            r.items_amount,
+            r.shipping_amount,
+            r.status,
+            r.reason_code,
+            r.reason_text,
+            r.initiator,
+            r.ticket_id,
+            r.request_payload,
+            r.response_payload,
+            r.notify_payload,
+            r.last_polled_at,
+            r.last_notified_at,
+            r.created_at,
+            r.updated_at,
+            o.order_no AS orderNo,
+            p.channel AS channel,
+            i.id AS item_id,
+            i.refund_id AS item_refund_id,
+            i.order_item_id,
+            i.quantity,
+            i.amount AS item_amount,
+            i.reason,
+            i.created_at AS item_created_at
+        FROM payment_refund r
+        JOIN orders o ON o.id = r.order_id
+        JOIN payment_order p ON p.id = r.payment_order_id
+        LEFT JOIN payment_refund_item i ON i.refund_id = r.id
+        WHERE r.id = #{refundId}
+    </select>
+
+</mapper>
+

@@ -1,1 +1,0 @@
-package shopping.international.trigger.job;

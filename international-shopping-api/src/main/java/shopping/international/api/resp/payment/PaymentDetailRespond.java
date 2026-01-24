@@ -1,0 +1,109 @@
+package shopping.international.api.resp.payment;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.JsonNode;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.payment.PaymentChannel;
+import shopping.international.domain.model.enums.payment.PaymentStatus;
+
+import java.time.LocalDateTime;
+
+/**
+ * 管理侧支付单详情响应体 (含 {@code request/response/notify} payload)
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PaymentDetailRespond {
+
+    /**
+     * 支付单 ID (payment_order.id)
+     */
+    private Long paymentId;
+
+    /**
+     * 订单 ID (orders.id)
+     */
+    private Long orderId;
+
+    /**
+     * 业务订单号 (联表返回)
+     */
+    private String orderNo;
+
+    /**
+     * 网关外部单号 (如 PayPal Order ID)
+     */
+    @Nullable
+    private String externalId;
+
+    /**
+     * 支付通道
+     */
+    private PaymentChannel channel;
+
+    /**
+     * 支付单状态
+     */
+    private PaymentStatus status;
+
+    /**
+     * 支付金额 (金额字符串)
+     */
+    private String amount;
+
+    /**
+     * 币种
+     */
+    private String currency;
+
+    /**
+     * 下单请求报文 (JSON, 可为空)
+     */
+    @Nullable
+    private JsonNode requestPayload;
+
+    /**
+     * 下单响应报文 (JSON, 可为空)
+     */
+    @Nullable
+    private JsonNode responsePayload;
+
+    /**
+     * 最近一次回调报文 (JSON, 可为空)
+     */
+    @Nullable
+    private JsonNode notifyPayload;
+
+    /**
+     * 最近轮询时间
+     */
+    @Nullable
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastPolledAt;
+
+    /**
+     * 最近回调处理时间
+     */
+    @Nullable
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastNotifiedAt;
+
+    /**
+     * 创建时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdAt;
+
+    /**
+     * 更新时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime updatedAt;
+}
+

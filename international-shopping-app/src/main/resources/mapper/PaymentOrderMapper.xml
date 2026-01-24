@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.payment.PaymentOrderMapper">
+
+    <!--
+      支付单列表查询（联表 orders 返回 order_no）
+      注意：本 XML 仅用于管理侧读模型，写入/状态变更使用 MyBatis-Plus Wrapper + CAS。
+    -->
+    <select id="pageAdminPayments" resultType="shopping.international.infrastructure.dao.payment.po.PaymentOrderPO">
+        SELECT
+            p.id,
+            p.order_id,
+            p.external_id,
+            p.channel,
+            p.amount,
+            p.currency,
+            p.status,
+            p.request_payload,
+            p.response_payload,
+            p.notify_payload,
+            p.last_polled_at,
+            p.last_notified_at,
+            p.created_at,
+            p.updated_at,
+            o.order_no AS orderNo
+        FROM payment_order p
+        JOIN orders o ON o.id = p.order_id
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="externalId != null and externalId != ''">
+                AND p.external_id = #{externalId}
+            </if>
+            <if test="channel != null and channel != ''">
+                AND p.channel = #{channel}
+            </if>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+            <if test="createdFrom != null">
+                AND p.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND p.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+        ORDER BY p.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminPayments" resultType="long">
+        SELECT COUNT(1)
+        FROM payment_order p
+        JOIN orders o ON o.id = p.order_id
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="externalId != null and externalId != ''">
+                AND p.external_id = #{externalId}
+            </if>
+            <if test="channel != null and channel != ''">
+                AND p.channel = #{channel}
+            </if>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+            <if test="createdFrom != null">
+                AND p.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND p.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectDetail" resultType="shopping.international.infrastructure.dao.payment.po.PaymentOrderPO">
+        SELECT
+            p.id,
+            p.order_id,
+            p.external_id,
+            p.channel,
+            p.amount,
+            p.currency,
+            p.status,
+            p.request_payload,
+            p.response_payload,
+            p.notify_payload,
+            p.last_polled_at,
+            p.last_notified_at,
+            p.created_at,
+            p.updated_at,
+            o.order_no AS orderNo
+        FROM payment_order p
+        JOIN orders o ON o.id = p.order_id
+        WHERE p.id = #{paymentId}
+        LIMIT 1
+    </select>
+
+</mapper>
+

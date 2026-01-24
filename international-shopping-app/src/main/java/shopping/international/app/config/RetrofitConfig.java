@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
 import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
 import shopping.international.infrastructure.gateway.common.IExchangeRateApi;
+import shopping.international.infrastructure.gateway.payment.IPayPalApi;
 import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
 import shopping.international.infrastructure.gateway.user.IOidcUserInfoApi;
 
@@ -171,5 +172,15 @@ public class RetrofitConfig {
     @Bean
     public IExchangeRateApi exchangeRateApi(Retrofit retrofit) {
         return retrofit.create(IExchangeRateApi.class);
+    }
+
+    /**
+     * 创建并返回一个实现 {@link IPayPalApi} 接口的 Retrofit 客户端实例
+     *
+     * <p>说明：PayPal 端点使用 {@code @Url} 传入完整地址，避免在此处固化 baseUrl。</p>
+     */
+    @Bean
+    public IPayPalApi payPalApi(Retrofit retrofit) {
+        return retrofit.create(IPayPalApi.class);
     }
 }

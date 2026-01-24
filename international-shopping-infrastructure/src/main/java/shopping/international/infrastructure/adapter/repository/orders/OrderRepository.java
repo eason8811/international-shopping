@@ -3,6 +3,7 @@ package shopping.international.infrastructure.adapter.repository.orders;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -22,15 +23,26 @@ import shopping.international.domain.service.orders.IAdminOrderService;
 import shopping.international.domain.service.orders.IOrderService;
 import shopping.international.infrastructure.dao.orders.*;
 import shopping.international.infrastructure.dao.orders.po.*;
+import shopping.international.infrastructure.dao.payment.PaymentOrderMapper;
+import shopping.international.infrastructure.dao.payment.PaymentRefundMapper;
+import shopping.international.infrastructure.dao.payment.po.PaymentOrderPO;
+import shopping.international.infrastructure.dao.payment.po.PaymentRefundPO;
 import shopping.international.infrastructure.dao.products.ProductSkuMapper;
 import shopping.international.infrastructure.dao.products.po.ProductSkuPO;
+import shopping.international.domain.adapter.port.payment.IPayPalPort;
+import shopping.international.domain.model.enums.payment.RefundInitiator;
+import shopping.international.domain.model.enums.payment.RefundReasonCode;
+import shopping.international.domain.model.enums.payment.RefundStatus;
+import shopping.international.domain.model.vo.payment.RefundNo;
 import shopping.international.types.exceptions.ConflictException;
+import shopping.international.types.exceptions.PaymentOrderMissingException;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
@@ -80,6 +92,18 @@ public class OrderRepository implements IOrderRepository {
      * JSON 序列化/反序列化工具
      */
     private final ObjectMapper objectMapper;
+    /**
+     * payment_order Mapper (用于同库事务内创建占位支付单, 以及在订单侧保证跨域一致性)
+     */
+    private final PaymentOrderMapper paymentOrderMapper;
+    /**
+     * payment_refund Mapper (用于订单域确认退款时落库退款事实表)
+     */
+    private final PaymentRefundMapper paymentRefundMapper;
+    /**
+     * PayPal 网关端口 (用于订单域确认退款时调用网关退款)
+     */
+    private final IPayPalPort payPalPort;
 
     // ========================= 用户侧查询 =========================
 
@@ -438,6 +462,22 @@ public class OrderRepository implements IOrderRepository {
         if (discountAppliedCreates != null && !discountAppliedCreates.isEmpty())
             insertDiscountApplied(orderId, order.getCurrency(), skuIdToOrderItemId, discountAppliedCreates);
 
+        // 7) 创建占位支付单 (channel=NONE, status=NONE), 用于后续 /payments/paypal/checkout 将其升级为真实支付单
+        PaymentOrderPO placeholderPayment = PaymentOrderPO.builder()
+                .orderId(orderId)
+                .externalId(null)
+                .channel(PayChannel.NONE.name())
+                .amount(ordersPO.getPayAmount())
+                .currency(ordersPO.getCurrency())
+                .status(PayStatus.NONE.name())
+                .requestPayload(null)
+                .responsePayload(null)
+                .notifyPayload(null)
+                .lastPolledAt(null)
+                .lastNotifiedAt(null)
+                .build();
+        paymentOrderMapper.insert(placeholderPayment);
+
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单创建后回读失败"));
     }
 
@@ -489,6 +529,10 @@ public class OrderRepository implements IOrderRepository {
         );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         reserveStockAndWriteInventoryLogs(order.getId(), order.getItems(), InventoryChangeType.RELEASE, note);
+
+        // 同事务内同步支付单状态 (跨域一致性保证): 订单取消后, 关闭该订单下所有非 SUCCESS 的支付单
+        syncPaymentOrdersAfterOrderCancelled(order.getId(), order.getOrderNo().getValue());
+
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单取消后回读失败"));
     }
 
@@ -530,12 +574,163 @@ public class OrderRepository implements IOrderRepository {
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order confirmRefundAndRestock(@NotNull Order order, @NotNull OrderStatus fromStatus,
                                                   @NotNull OrderStatusEventSource eventSource, @Nullable String note) {
+        // 0) 同事务内: 向支付网关发起退款请求 (目前仅实现 PayPal)
+        PaymentOrderPO paidPayment = findPaidPaymentOrThrow(order.getId(), order.getOrderNo().getValue());
+        String paypalOrderId = requireNotBlankOrThrow(paidPayment.getExternalId(), "支付单 external_id 为空, 无法退款");
+        String captureId = extractCaptureIdOrNull(paidPayment.getResponsePayload());
+        if (captureId == null) {
+            // 兜底: 若本地未存 captureId, 则尝试从 PayPal 查询订单拿到 captureId
+            IPayPalPort.GetOrderResult paypalOrder = payPalPort.getOrder(paypalOrderId);
+            captureId = paypalOrder.captureId();
+        }
+        if (captureId == null || captureId.isBlank())
+            throw new ConflictException("无法获取 PayPal capture_id, 无法发起退款");
+
+        long refundAmountMinor = order.getPayAmount().getAmountMinor();
+        IPayPalPort.RefundCaptureResult refunded = payPalPort.refundCapture(
+                new IPayPalPort.RefundCaptureCommand(
+                        null,
+                        captureId,
+                        refundAmountMinor,
+                        order.getCurrency(),
+                        note
+                )
+        );
+
+        // 1) 落库退款事实表 (payment_refund)
+        String refundNo = RefundNo.generate().getValue();
+        RefundStatus refundStatus = "COMPLETED".equalsIgnoreCase(refunded.status()) || "SUCCESS".equalsIgnoreCase(refunded.status())
+                ? RefundStatus.SUCCESS
+                : RefundStatus.PENDING;
+        PaymentRefundPO refundPO = PaymentRefundPO.builder()
+                .refundNo(refundNo)
+                .orderId(order.getId())
+                .paymentOrderId(paidPayment.getId())
+                .externalRefundId(refunded.refundId())
+                .clientRefundNo(null)
+                .amount(refundAmountMinor)
+                .currency(order.getCurrency())
+                .itemsAmount(null)
+                .shippingAmount(null)
+                .status(refundStatus.name())
+                .reasonCode(RefundReasonCode.CUSTOMER_REQUEST.name())
+                .reasonText(null)
+                .initiator(eventSource == OrderStatusEventSource.ADMIN ? RefundInitiator.ADMIN.name() : RefundInitiator.SYSTEM.name())
+                .ticketId(null)
+                .requestPayload(refunded.requestJson())
+                .responsePayload(refunded.responseJson())
+                .notifyPayload(null)
+                .lastPolledAt(null)
+                .lastNotifiedAt(null)
+                .build();
+        paymentRefundMapper.insert(refundPO);
+
+        // 2) 同事务内同步支付单状态: 退款确认后, 关闭原支付单 (SUCCESS -> CLOSED)
+        int closed = paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getId, paidPayment.getId())
+                .eq(PaymentOrderPO::getStatus, PayStatus.SUCCESS.name())
+                .set(PaymentOrderPO::getStatus, PayStatus.CLOSED.name()));
+        if (closed <= 0) {
+            // 幂等/并发: 若已被其它流程关闭, 则不强制失败, 但若缺失则抛错
+            PaymentOrderPO reRead = paymentOrderMapper.selectById(paidPayment.getId());
+            if (reRead == null)
+                throw PaymentOrderMissingException.of("订单关联支付单不存在, orderNo: " + order.getOrderNo().getValue());
+        }
+
+        // 3) 同事务内同步 orders 冗余支付状态 (SUCCESS -> CLOSED), 避免与 payment_order 冗余不一致
+        ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, order.getId())
+                .eq(OrdersPO::getPayStatus, PayStatus.SUCCESS.name())
+                .set(OrdersPO::getPayStatus, PayStatus.CLOSED.name()));
+
+        // 4) 原有逻辑: 更新订单状态 + 写日志 + 回补库存
         updateOrderByStatusOrThrow(order, fromStatus, "确认退款", wrapper -> wrapper
                 .set(OrdersPO::getStatus, order.getStatus().name())
         );
         insertStatusLog(order.getId(), eventSource, fromStatus, order.getStatus(), note);
         reserveStockAndWriteInventoryLogs(order.getId(), order.getItems(), InventoryChangeType.RESTOCK, note);
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单确认退款后回读失败"));
+    }
+
+    /**
+     * 订单取消后同步 payment_order 状态 (跨域一致性)
+     *
+     * <p>规则: 关闭该订单下所有非 SUCCESS 的支付单, 将其推进为 CLOSED。</p>
+     *
+     * @param orderId 订单 ID
+     * @param orderNo 订单号 (用于错误信息)
+     */
+    private void syncPaymentOrdersAfterOrderCancelled(@NotNull Long orderId, @NotNull String orderNo) {
+        List<PaymentOrderPO> payments = paymentOrderMapper.selectList(new LambdaQueryWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getOrderId, orderId));
+        if (payments == null || payments.isEmpty())
+            throw PaymentOrderMissingException.of("订单关联支付单不存在, orderNo: " + orderNo);
+
+        // 关闭占位/NONE 或待支付支付单 (避免用户取消订单后仍可继续支付)
+        paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getOrderId, orderId)
+                .in(PaymentOrderPO::getStatus, PayStatus.NONE.name(), PayStatus.INIT.name(), PayStatus.PENDING.name())
+                .set(PaymentOrderPO::getStatus, PayStatus.CLOSED.name()));
+    }
+
+    /**
+     * 查找订单下已支付成功的支付单 (用于退款)
+     *
+     * @param orderId 订单 ID
+     * @param orderNo 订单号 (用于错误信息)
+     * @return 支付单
+     */
+    private @NotNull PaymentOrderPO findPaidPaymentOrThrow(@NotNull Long orderId, @NotNull String orderNo) {
+        List<PaymentOrderPO> all = paymentOrderMapper.selectList(new LambdaQueryWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getOrderId, orderId));
+        if (all == null || all.isEmpty())
+            throw PaymentOrderMissingException.of("订单关联支付单不存在, orderNo: " + orderNo);
+
+        PaymentOrderPO paid = paymentOrderMapper.selectOne(new LambdaQueryWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getOrderId, orderId)
+                .eq(PaymentOrderPO::getStatus, PayStatus.SUCCESS.name())
+                .orderByDesc(PaymentOrderPO::getUpdatedAt)
+                .last("limit 1"));
+        if (paid == null)
+            throw new ConflictException("未找到可退款的成功支付单, orderNo: " + orderNo);
+        return paid;
+    }
+
+    /**
+     * 从 payment_order.response_payload 中提取 PayPal capture_id (尽力而为)
+     *
+     * @param responsePayloadJson 支付单的响应报文 JSON
+     * @return capture_id 或 null
+     */
+    private @Nullable String extractCaptureIdOrNull(@Nullable String responsePayloadJson) {
+        if (responsePayloadJson == null || responsePayloadJson.isBlank())
+            return null;
+        try {
+            JsonNode root = objectMapper.readTree(responsePayloadJson);
+            JsonNode purchaseUnits = root.path("purchase_units");
+            if (!purchaseUnits.isArray() || purchaseUnits.isEmpty())
+                return null;
+            JsonNode captures = purchaseUnits.get(0).path("payments").path("captures");
+            if (!captures.isArray() || captures.isEmpty())
+                return null;
+            String capId = captures.get(0).path("id").asText(null);
+            return capId == null || capId.isBlank() ? null : capId;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 检查给定字符串是否非空且不只包含空白字符, 如果条件不满足则抛出异常
+     *
+     * @param v   要检查的字符串, 可以为 null
+     * @param msg 当 v 为空或仅包含空白时抛出异常所使用的消息
+     * @return 去掉首尾空白后的字符串
+     * @throws IllegalArgumentException 如果 v 为空或仅由空白字符组成
+     */
+    private static @NotNull String requireNotBlankOrThrow(@Nullable String v, @NotNull String msg) {
+        requireNotBlank(v, msg);
+        return v.strip();
     }
 
     /**
@@ -653,9 +848,10 @@ public class OrderRepository implements IOrderRepository {
         List<OrderItemPO> itemPos = orderItemMapper.selectList(new LambdaQueryWrapper<OrderItemPO>()
                 .eq(OrderItemPO::getOrderId, orderId)
                 .orderByAsc(OrderItemPO::getId));
-        List<OrderItem> items = (itemPos == null || itemPos.isEmpty()) ? List.of() : itemPos.stream()
-                .map(po -> toEntityOrderItem(orderPo.getCurrency(), po))
-                .toList();
+        List<OrderItem> items = (itemPos == null || itemPos.isEmpty()) ? List.of()
+                : itemPos.stream()
+                  .map(po -> toEntityOrderItem(orderPo.getCurrency(), po))
+                  .toList();
 
         OrderNo orderNo = OrderNo.of(orderPo.getOrderNo());
         boolean addressChanged = Boolean.TRUE.equals(orderPo.getAddressChanged());
