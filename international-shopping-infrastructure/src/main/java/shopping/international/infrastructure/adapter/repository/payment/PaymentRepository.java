@@ -10,11 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.payment.IAdminPaymentRepository;
 import shopping.international.domain.adapter.repository.payment.IPaymentRepository;
-import shopping.international.domain.model.enums.payment.PaymentChannel;
-import shopping.international.domain.model.enums.payment.PaymentStatus;
-import shopping.international.domain.model.enums.payment.RefundInitiator;
-import shopping.international.domain.model.enums.payment.RefundReasonCode;
-import shopping.international.domain.model.enums.payment.RefundStatus;
+import shopping.international.domain.model.enums.payment.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.payment.*;
@@ -106,6 +102,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
             if (PaymentStatus.SUCCESS.name().equals(paymentOrderPO.getStatus()))
                 throw new ConflictException("支付单已成功, 无法重复发起同渠道支付");
         } else {
+            // paymentOrderPO == null
             PaymentOrderPO placeholder = paymentOrderMapper.selectOne(new LambdaQueryWrapper<PaymentOrderPO>()
                     .eq(PaymentOrderPO::getOrderId, orderId)
                     .eq(PaymentOrderPO::getChannel, PaymentChannel.NONE.name())
@@ -192,27 +189,8 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (payment == null)
             throw new NotFoundException("支付单不存在");
 
-        // 幂等: external_id 已存在时不覆盖 (避免并发重复创建网关订单导致覆盖)
-        if (payment.getExternalId() == null || payment.getExternalId().isBlank()) {
-            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getId, paymentId)
-                    .and(w ->
-                            w.isNull(PaymentOrderPO::getExternalId).or()
-                                    .eq(PaymentOrderPO::getExternalId, "")
-                    )
-                    .set(PaymentOrderPO::getExternalId, paypalOrderId)
-                    .set(PaymentOrderPO::getRequestPayload, requestPayload)
-                    .set(PaymentOrderPO::getResponsePayload, responsePayload));
-            // 并发下可能已经被回填, 无需报错
-        } else
-            // 仅补齐 payload
-            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getId, paymentId)
-                    .set(PaymentOrderPO::getRequestPayload, requestPayload)
-                    .set(PaymentOrderPO::getResponsePayload, responsePayload));
-
-        // 轻量并发控制: 仅在 "订单仍可支付" 的条件下推进 orders 冗余字段为 PENDING (CAS) 
-        // 说明: 
+        // 轻量并发控制: 仅在 "订单仍可支付" 的条件下推进 orders 冗余字段为 PENDING (CAS)
+        // 说明:
         // 1) 若该订单在 prepare 之后被取消/关闭, 则这里的更新会因 status 条件不满足而失败
         // 2) 若用户取消的是 "本次支付尝试" (仅关单, 不取消订单), 则 orders.pay_status 会被推进为 CLOSED, 这里通过 pay_status=INIT 约束避免覆盖回 PENDING
         int synced = ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
@@ -223,8 +201,27 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .set(OrdersPO::getPayStatus, PaymentStatus.PENDING.name())
                 .set(OrdersPO::getPaymentExternalId, paypalOrderId));
 
+        // 幂等回填 external_id 和 请求响应 payload: external_id 已存在时不覆盖 (避免并发重复创建网关订单导致覆盖)
+        if (payment.getExternalId() == null || payment.getExternalId().isBlank())
+            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                    .eq(PaymentOrderPO::getId, paymentId)
+                    .and(w ->
+                            w.isNull(PaymentOrderPO::getExternalId).or()
+                                    .eq(PaymentOrderPO::getExternalId, "")
+                    )
+                    .set(PaymentOrderPO::getExternalId, paypalOrderId)
+                    .set(PaymentOrderPO::getRequestPayload, requestPayload)
+                    .set(PaymentOrderPO::getResponsePayload, responsePayload));
+            // 并发下可能已经被回填, 无需报错
+        else
+            // 仅补齐 payload
+            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                    .eq(PaymentOrderPO::getId, paymentId)
+                    .set(PaymentOrderPO::getRequestPayload, requestPayload)
+                    .set(PaymentOrderPO::getResponsePayload, responsePayload));
+
         if (synced > 0) {
-            // orders 推进成功, 则同步 payment_order -> PENDING (仅推进 INIT/PENDING, 不覆盖 FAIL/EXCEPTION/SUCCESS 等) 
+            // orders 推进成功, 则同步 payment_order -> PENDING (仅推进 INIT/PENDING, 不覆盖 FAIL/EXCEPTION/SUCCESS 等)
             paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                     .eq(PaymentOrderPO::getId, paymentId)
                     .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
@@ -232,9 +229,9 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
             return;
         }
 
-        // orders 未推进成功: 
+        // orders 未推进成功:
         // - 可能订单已取消/已关闭/已成功
-        // - 也可能 orders 已是 PENDING (重复回填/并发重试) 
+        // - 也可能 orders 已是 PENDING (重复回填/并发重试)
         OrdersPO current = ordersMapper.selectById(payment.getOrderId());
         if (current == null)
             throw new NotFoundException("订单不存在");
@@ -250,7 +247,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
             return;
         }
 
-        // 兜底: 若订单已不可支付, 则尝试关闭本次支付尝试 (仅关闭 INIT/PENDING, 避免覆盖其它语义状态) 
+        // 兜底: 若订单已不可支付, 则尝试关闭本次支付尝试 (仅关闭 INIT/PENDING, 避免覆盖其它语义状态)
         paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                 .eq(PaymentOrderPO::getId, paymentId)
                 .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
@@ -380,15 +377,19 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public @NotNull PaymentResultView txApplyCaptureResult(@NotNull CaptureApplyCommand cmd) {
+    public @NotNull PaymentResultView applyCaptureResult(@NotNull CaptureApplyCommand cmd) {
         requireNotNull(cmd, "cmd 不能为空");
 
-        // 1) 锁单, 避免与取消/关单并发竞争造成 "成功支付后被覆盖" 
+        // 1) 锁单, 避免与取消/关单并发竞争造成 "成功支付后被覆盖"
         OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
                 .eq(OrdersPO::getId, cmd.orderId())
                 .last("limit 1 for update"));
         if (order == null)
             throw new NotFoundException("订单不存在");
+
+        // 订单状态以“事务内持锁读取”为准: 避免事务外读取到旧状态导致误推进为 PAID
+        boolean orderClosedOrCancelled = "CANCELLED".equals(order.getStatus()) || "CLOSED".equals(order.getStatus());
+        boolean wantsToAdvanceOrderStatus = cmd.newOrderStatus() != null && !cmd.newOrderStatus().isBlank();
 
         PaymentOrderPO payment = paymentOrderMapper.selectById(cmd.paymentId());
         if (payment == null)
@@ -396,24 +397,34 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (!cmd.orderId().equals(payment.getOrderId()))
             throw new IllegalParamException("支付单与订单不匹配");
 
-        // 幂等: 已是 SUCCESS 直接返回
-        if (PaymentStatus.SUCCESS.name().equals(payment.getStatus()) && cmd.newPaymentStatus() == PaymentStatus.SUCCESS) {
-            return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), PaymentStatus.SUCCESS, payment.getExternalId(), "已 SUCCESS (幂等返回) ");
+        // 若订单已被取消/关闭/进入不可支付状态, 则不允许在此处将 orders.status 推进为 PAID
+        // 并将 SUCCESS 降级为 EXCEPTION, 以便上层触发补偿(如自动退款)
+        PaymentStatus effectivePaymentStatus = cmd.newPaymentStatus();
+        PaymentStatus effectiveOrderPayStatus = cmd.newOrderPayStatus();
+        String effectiveOrderStatus = cmd.newOrderStatus();
+        if (wantsToAdvanceOrderStatus && orderClosedOrCancelled)
+            effectiveOrderStatus = null;
+        if (wantsToAdvanceOrderStatus && orderClosedOrCancelled && cmd.newPaymentStatus() == PaymentStatus.SUCCESS) {
+            effectivePaymentStatus = PaymentStatus.EXCEPTION;
+            effectiveOrderPayStatus = PaymentStatus.EXCEPTION;
         }
 
+        // 幂等: 已是 SUCCESS 直接返回
+        PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
+        if (PaymentStatus.SUCCESS == currentStatus && effectivePaymentStatus == PaymentStatus.SUCCESS)
+            return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), PaymentStatus.SUCCESS, payment.getExternalId(), "已 SUCCESS (幂等返回)");
+
         // 2) CAS 更新 payment_order.status
-        PaymentStatus current = PaymentStatus.valueOf(payment.getStatus());
-        if (current == PaymentStatus.SUCCESS) {
+        if (PaymentStatus.SUCCESS == currentStatus)
             // SUCCESS 不允许被覆盖
-            return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), PaymentStatus.SUCCESS, payment.getExternalId(), "已 SUCCESS (忽略更新) ");
-        }
+            return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), PaymentStatus.SUCCESS, payment.getExternalId(), "已 SUCCESS (忽略更新)");
 
         String notifyJson = toJsonOrNull(cmd.notifyPayload());
 
         int updatedPayment = paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                 .eq(PaymentOrderPO::getId, cmd.paymentId())
-                .eq(PaymentOrderPO::getStatus, current.name())
-                .set(PaymentOrderPO::getStatus, cmd.newPaymentStatus().name())
+                .eq(PaymentOrderPO::getStatus, currentStatus.name())
+                .set(PaymentOrderPO::getStatus, effectivePaymentStatus.name())
                 .set(PaymentOrderPO::getExternalId, cmd.paypalOrderId())
                 .set(PaymentOrderPO::getResponsePayload, cmd.responsePayload())
                 .set(PaymentOrderPO::getNotifyPayload, notifyJson)
@@ -421,22 +432,26 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (updatedPayment <= 0)
             throw new ConflictException("支付单状态已变更, 落库失败");
 
-        // 3) 同步 orders 冗余字段 (幂等: 不回退 SUCCESS) 
-        LambdaUpdateWrapper<OrdersPO> ow = new LambdaUpdateWrapper<>();
-        ow.eq(OrdersPO::getId, cmd.orderId())
+        // 3) 同步 orders 冗余字段 (幂等: 不回退 SUCCESS)
+        // 3.1) pay_* 冗余字段可独立更新，不应被 orders.status 的 CAS 条件阻断
+        LambdaUpdateWrapper<OrdersPO> payW = new LambdaUpdateWrapper<>();
+        payW.eq(OrdersPO::getId, cmd.orderId())
+                .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
                 .set(OrdersPO::getPayChannel, cmd.channel().name())
-                .set(OrdersPO::getPayStatus, cmd.newOrderPayStatus().name())
+                .set(OrdersPO::getPayStatus, effectiveOrderPayStatus.name())
                 .set(OrdersPO::getPaymentExternalId, cmd.paypalOrderId());
         if (cmd.payTime() != null)
-            ow.set(OrdersPO::getPayTime, cmd.payTime());
-        if (cmd.newOrderStatus() != null && !cmd.newOrderStatus().isBlank())
-            ow.set(OrdersPO::getStatus, cmd.newOrderStatus());
+            payW.set(OrdersPO::getPayTime, cmd.payTime());
+        ordersMapper.update(null, payW);
 
-        // 不覆盖已成功支付的订单支付状态
-        ow.ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name());
-        ordersMapper.update(null, ow);
+        // 3.2) orders.status 状态推进使用 CAS: 仅允许在 CREATED/PENDING_PAYMENT 下写入(避免覆盖 CANCELLED/CLOSED 等)
+        if (effectiveOrderStatus != null && !effectiveOrderStatus.isBlank())
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, cmd.orderId())
+                    .in(OrdersPO::getStatus, "CREATED", "PENDING_PAYMENT")
+                    .set(OrdersPO::getStatus, effectiveOrderStatus));
 
-        return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), cmd.newPaymentStatus(), cmd.paypalOrderId(), "OK");
+        return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), effectivePaymentStatus, cmd.paypalOrderId(), "OK");
     }
 
     /**

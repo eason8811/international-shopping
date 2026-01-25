@@ -122,20 +122,18 @@ public class PaymentService implements IPaymentService {
                                                            @Nullable String payerId,
                                                            @Nullable String note,
                                                            @Nullable String idempotencyKey) {
-        requireNotNull(userId, "userId 不能为空");
-        requireNotNull(paymentId, "paymentId 不能为空");
-
         CaptureTarget target = paymentRepository.getCaptureTarget(userId, paymentId);
-        if (target.paymentStatus() == PaymentStatus.SUCCESS) {
-            return new PaymentResultView(target.paymentId(), PaymentStatus.SUCCESS, target.paypalOrderId(), target.orderNo(), "已支付成功 (幂等返回)");
-        }
+        if (target.paymentStatus() == PaymentStatus.SUCCESS)
+            return new PaymentResultView(target.paymentId(), target.orderNo(), PaymentStatus.SUCCESS, target.paypalOrderId(), "已支付成功 (幂等返回)");
 
-        IPayPalPort.CaptureOrderResult captured = payPalPort.captureOrder(new IPayPalPort.CaptureOrderCommand(
-                idempotencyKey,
-                target.paypalOrderId(),
-                payerId,
-                note
-        ));
+        IPayPalPort.CaptureOrderResult captured = payPalPort.captureOrder(
+                new IPayPalPort.CaptureOrderCommand(
+                        idempotencyKey,
+                        target.paypalOrderId(),
+                        payerId,
+                        note
+                )
+        );
 
         boolean success = isPayPalCaptureSuccess(captured.status());
         LocalDateTime captureTime = toLocalDateTimeOrNow(captured.captureTime());
@@ -148,6 +146,7 @@ public class PaymentService implements IPaymentService {
         String newOrderStatus = null;
         LocalDateTime payTime = null;
 
+        // TODO: 当前逻辑为只要订单已 CLOSED/CANCELLED, 即使回调为 success 也标记支付状态为 EXCEPTION
         if (success && !orderAlreadyClosed && !isLate) {
             newPaymentStatus = PaymentStatus.SUCCESS;
             newOrderPayStatus = PaymentStatus.SUCCESS;
@@ -162,27 +161,28 @@ public class PaymentService implements IPaymentService {
             newOrderPayStatus = PaymentStatus.FAIL;
         }
 
-        shopping.international.domain.model.vo.payment.PaymentResultView applied = paymentRepository.txApplyCaptureResult(new CaptureApplyCommand(
-                target.paymentId(),
-                target.orderId(),
-                target.orderNo(),
-                PaymentChannel.PAYPAL,
-                newPaymentStatus,
-                target.paypalOrderId(),
-                payTime,
-                captured.responseJson(),
-                null,
-                null,
-                newOrderStatus,
-                newOrderPayStatus
-        ));
+        PaymentResultView applied = paymentRepository.applyCaptureResult(
+                new CaptureApplyCommand(
+                        target.paymentId(),
+                        target.orderId(),
+                        target.orderNo(),
+                        PaymentChannel.PAYPAL,
+                        newPaymentStatus,
+                        target.paypalOrderId(),
+                        payTime,
+                        captured.responseJson(),
+                        null,
+                        null,
+                        newOrderStatus,
+                        newOrderPayStatus
+                )
+        );
 
         // 晚到支付/已关单支付: 自动退款 (尽量不在同库事务内做外部调用)
-        if (success && (orderAlreadyClosed || isLate)) {
+        if (success && applied.status() == PaymentStatus.EXCEPTION)
             tryAutoRefundLatePayment(target, captured, note);
-        }
 
-        return new PaymentResultView(applied.paymentId(), applied.status(), applied.externalId(), applied.orderNo(), applied.message());
+        return applied;
     }
 
     /**
@@ -196,8 +196,8 @@ public class PaymentService implements IPaymentService {
     public @NotNull PaymentResultView cancelPayPalPayment(@NotNull Long userId, @NotNull Long paymentId) {
         requireNotNull(userId, "userId 不能为空");
         requireNotNull(paymentId, "paymentId 不能为空");
-        shopping.international.domain.model.vo.payment.PaymentResultView view = paymentRepository.txCancelPayPalPayment(userId, paymentId);
-        return new PaymentResultView(view.paymentId(), view.status(), view.externalId(), view.orderNo(), view.message());
+        PaymentResultView view = paymentRepository.txCancelPayPalPayment(userId, paymentId);
+        return new PaymentResultView(view.paymentId(), view.orderNo(), view.status(), view.externalId(), view.message());
     }
 
     /**
@@ -254,7 +254,7 @@ public class PaymentService implements IPaymentService {
         PaymentStatus newOrderPayStatus = (orderAlreadyClosed || isLate) ? PaymentStatus.EXCEPTION : PaymentStatus.SUCCESS;
         String newOrderStatus = (!orderAlreadyClosed && !isLate) ? "PAID" : null;
 
-        paymentRepository.txApplyCaptureResult(new CaptureApplyCommand(
+        paymentRepository.applyCaptureResult(new CaptureApplyCommand(
                 target.paymentId(),
                 target.orderId(),
                 target.orderNo(),
@@ -310,7 +310,7 @@ public class PaymentService implements IPaymentService {
         PaymentStatus newOrderPayStatus = (orderAlreadyClosed || isLate) ? PaymentStatus.EXCEPTION : PaymentStatus.SUCCESS;
         String newOrderStatus = (!orderAlreadyClosed && !isLate) ? "PAID" : null;
 
-        paymentRepository.txApplyCaptureResult(new CaptureApplyCommand(
+        paymentRepository.applyCaptureResult(new CaptureApplyCommand(
                 target.paymentId(),
                 target.orderId(),
                 target.orderNo(),

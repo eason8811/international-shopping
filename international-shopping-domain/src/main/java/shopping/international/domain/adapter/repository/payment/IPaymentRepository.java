@@ -72,7 +72,7 @@ public interface IPaymentRepository {
      *
      * <p>该方法应承载幂等与并发安全的 "权威落库逻辑" </p>
      */
-    @NotNull PaymentResultView txApplyCaptureResult(@NotNull CaptureApplyCommand cmd);
+    @NotNull PaymentResultView applyCaptureResult(@NotNull CaptureApplyCommand cmd);
 
     /**
      * 按 PayPal Order ID 查找本地支付单 ID (payment_order.external_id 唯一)

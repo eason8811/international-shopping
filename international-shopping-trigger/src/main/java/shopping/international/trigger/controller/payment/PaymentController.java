@@ -10,6 +10,7 @@ import shopping.international.api.req.payment.PayPalCheckoutCreateRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.payment.PayPalCheckoutRespond;
 import shopping.international.api.resp.payment.PaymentResultRespond;
+import shopping.international.domain.model.vo.payment.PaymentResultView;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.payment.IPaymentService;
 import shopping.international.types.constant.SecurityConstants;
@@ -17,8 +18,8 @@ import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
+import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 
 /**
  * 用户侧支付接口 (PayPal)
@@ -97,7 +98,7 @@ public class PaymentController {
         String normalizedIdempotencyKey = normalizeNullableField(idempotencyKey, "Idempotency-Key 不能为空",
                 s -> s.length() <= 64, "Idempotency-Key 长度不能超过 64 个字符");
 
-        IPaymentService.PaymentResultView view = paymentService.capturePayPalPayment(
+        PaymentResultView view = paymentService.capturePayPalPayment(
                 userId,
                 paymentId,
                 req == null ? null : req.getPayerId(),
@@ -124,7 +125,7 @@ public class PaymentController {
     @PostMapping("/paypal/{payment_id}/cancel")
     public ResponseEntity<Result<PaymentResultRespond>> cancel(@PathVariable("payment_id") Long paymentId) {
         Long userId = requireCurrentUserId();
-        IPaymentService.PaymentResultView view = paymentService.cancelPayPalPayment(userId, paymentId);
+        PaymentResultView view = paymentService.cancelPayPalPayment(userId, paymentId);
         PaymentResultRespond resp = PaymentResultRespond.builder()
                 .paymentId(view.paymentId())
                 .status(view.status())

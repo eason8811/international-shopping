@@ -175,17 +175,20 @@ public class PayPalPort implements IPayPalPort {
                 ? UUID.randomUUID().toString()
                 : cmd.idempotencyKey();
 
-        Map<String, Object> body = new LinkedHashMap<>();
+        Map<String, Object> request = new LinkedHashMap<>();
         if (cmd.note() != null && !cmd.note().isBlank())
-            body.put("note_to_payer", cmd.note().strip());
+            request.put("note_to_payer", cmd.note().strip());
 
-        PayPalCaptureOrderRespond resp = executeOrThrow(api.captureOrder(
-                url,
-                bearer,
-                requestId,
-                "return=representation",
-                body
-        ), "Capture PayPal Order 失败");
+        PayPalCaptureOrderRespond resp = executeOrThrow(
+                api.captureOrder(
+                        url,
+                        bearer,
+                        requestId,
+                        "return=representation",
+                        request
+                ),
+                "Capture PayPal Order 失败"
+        );
 
         CaptureInfo capture = firstCapture(resp.getPurchaseUnits());
         return new CaptureOrderResult(
@@ -193,7 +196,7 @@ public class PayPalPort implements IPayPalPort {
                 capture == null ? null : capture.captureId,
                 capture == null ? null : capture.captureTime,
                 resp.getStatus() == null ? "" : resp.getStatus(),
-                toJson(body),
+                toJson(request),
                 toJson(resp)
         );
     }

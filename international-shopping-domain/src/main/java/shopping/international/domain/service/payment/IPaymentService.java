@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.payment.PaymentChannel;
 import shopping.international.domain.model.enums.payment.PaymentStatus;
+import shopping.international.domain.model.vo.payment.PaymentResultView;
 
 import java.util.Map;
 
@@ -109,20 +110,5 @@ public interface IPaymentService {
                               @NotNull String approveUrl) {
     }
 
-    /**
-     * 支付结果视图
-     *
-     * @param paymentId  支付单 ID
-     * @param status     当前支付的状态, 参见 {@link PaymentStatus} 枚举
-     * @param externalId 外部 ID
-     * @param orderNo    订单号
-     * @param message    消息
-     */
-    record PaymentResultView(@NotNull Long paymentId,
-                             @NotNull PaymentStatus status,
-                             @Nullable String externalId,
-                             @Nullable String orderNo,
-                             @Nullable String message) {
-    }
 }
 
