@@ -10,6 +10,7 @@ package shopping.international.domain.model.enums.payment;
  *     <li><code>{@link #DAMAGED}:</code> 损坏</li>
  *     <li><code>{@link #PRICE_ADJUST}:</code> 价格调整</li>
  *     <li><code>{@link #DUPLICATE}:</code> 重复支付/重复退款等</li>
+ *     <li><code>{@link #EXCEPTION}:</code> 支付单异常</li>
  *     <li><code>{@link #OTHER}:</code> 其他</li>
  * </ul>
  */
@@ -38,6 +39,10 @@ public enum RefundReasonCode {
      * 重复支付/重复退款等
      */
     DUPLICATE,
+    /**
+     * 支付单异常
+     */
+    EXCEPTION,
     /**
      * 其他
      */

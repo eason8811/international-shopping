@@ -504,6 +504,7 @@ CREATE TABLE orders
     pay_channel            ENUM ('NONE','ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER')            NOT NULL DEFAULT 'NONE' COMMENT '支付通道',
     pay_status             ENUM ('NONE','INIT','PENDING','SUCCESS','FAIL','CLOSED','EXCEPTION') NOT NULL DEFAULT 'NONE' COMMENT '支付状态(网关侧)',
     payment_external_id    VARCHAR(128)                                                         NULL COMMENT '支付单 externalId(网关唯一标记)',
+    active_payment_id      BIGINT UNSIGNED                                                      NULL COMMENT '当前有效支付单ID, 指向 payment_order.id',
     pay_time               DATETIME(3)                                                          NULL COMMENT '支付成功时间',
     address_snapshot       JSON                                                                 NULL COMMENT '收货信息快照(JSON)',
     address_changed        TINYINT(1)                                                           NOT NULL DEFAULT 0 COMMENT '是否已修改过地址(仅一次)',
@@ -521,6 +522,7 @@ CREATE TABLE orders
     KEY idx_order_status_time (status, created_at),
     KEY idx_order_created (created_at),
     KEY idx_order_payment_ext (payment_external_id),
+    KEY idx_order_active_payment (active_payment_id),
 
     CHECK (total_amount > 0),
     CHECK (discount_amount >= 0),
@@ -774,7 +776,6 @@ CREATE TABLE payment_order
     updated_at       DATETIME(3)                                                          NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_pay_external (external_id),
-    UNIQUE KEY uk_order_id_channel (order_id, channel),
     KEY idx_pay_order (order_id),
     KEY idx_pay_status_update (status, updated_at)
 ) ENGINE = InnoDB COMMENT ='支付单(网关externalId对应)';

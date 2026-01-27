@@ -86,79 +86,85 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
 
         Long orderId = order.getId();
 
-        // 1) 关闭该订单下所有 INIT/PENDING 的支付单 (换渠道并发闸门) 
+        // 并发协议: orders.active_payment_id 作为 "当前有效支付尝试" 的权威闸门
+        // 仅 active_payment_id 指向的 payment_order 才允许推进 orders 的冗余支付字段与订单状态
+        PaymentOrderPO paymentOrderPO = null;
+        Long activePaymentId = order.getActivePaymentId();
+        if (activePaymentId != null)
+            paymentOrderPO = paymentOrderMapper.selectById(activePaymentId);
+
+        // 1) 优先复用当前有效支付尝试 (PAYPAL 且仍处于 INIT/PENDING)
+        boolean canReuse = paymentOrderPO != null
+                && PaymentChannel.PAYPAL.name().equals(paymentOrderPO.getChannel())
+                && (PaymentStatus.INIT.name().equals(paymentOrderPO.getStatus()) || PaymentStatus.PENDING.name().equals(paymentOrderPO.getStatus()));
+
+        // 2) 若当前有效为占位支付单 (NONE/NONE), 则原地升级为 PAYPAL/INIT
+        boolean canUpgradePlaceholder = paymentOrderPO != null
+                && PaymentChannel.NONE.name().equals(paymentOrderPO.getChannel())
+                && PaymentStatus.NONE.name().equals(paymentOrderPO.getStatus());
+
+        if (paymentOrderPO != null && PaymentStatus.SUCCESS.name().equals(paymentOrderPO.getStatus()))
+            throw new ConflictException("支付单已成功, 无法重复发起支付");
+
+        if (!canReuse && canUpgradePlaceholder) {
+            int upgraded = paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                    .eq(PaymentOrderPO::getId, paymentOrderPO.getId())
+                    .eq(PaymentOrderPO::getChannel, PaymentChannel.NONE.name())
+                    .eq(PaymentOrderPO::getStatus, PaymentStatus.NONE.name())
+                    .set(PaymentOrderPO::getChannel, PaymentChannel.PAYPAL.name())
+                    .set(PaymentOrderPO::getStatus, PaymentStatus.INIT.name())
+                    .set(PaymentOrderPO::getAmount, order.getPayAmount())
+                    .set(PaymentOrderPO::getCurrency, order.getCurrency())
+                    .set(PaymentOrderPO::getExternalId, null));
+            if (upgraded <= 0)
+                throw new ConflictException("占位支付单并发升级失败");
+            paymentOrderPO = paymentOrderMapper.selectById(paymentOrderPO.getId());
+        }
+
+        // 3) 若不可复用, 则关闭旧的有效尝试(仅 INIT/PENDING)并创建新支付单作为有效尝试
+        else if (!canReuse) {
+            if (paymentOrderPO != null)
+                paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                        .eq(PaymentOrderPO::getId, paymentOrderPO.getId())
+                        .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
+                        .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
+
+            PaymentOrderPO created = PaymentOrderPO.builder()
+                    .orderId(orderId)
+                    .externalId(null)
+                    .channel(PaymentChannel.PAYPAL.name())
+                    .amount(order.getPayAmount())
+                    .currency(order.getCurrency())
+                    .status(PaymentStatus.INIT.name())
+                    .build();
+            paymentOrderMapper.insert(created);
+            paymentOrderPO = created;
+        }
+
+        // 4) 关闭该订单下除 "当前有效尝试" 外的所有 INIT/PENDING 支付单 (切换渠道/重复发起的并发闸门)
         paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                 .eq(PaymentOrderPO::getOrderId, orderId)
+                .ne(PaymentOrderPO::getId, paymentOrderPO.getId())
                 .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
                 .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
 
-        // 2) 创建/复用 PAYPAL 支付单: 优先复用已存在的 PAYPAL 行, 否则尝试升级占位 NONE/NONE, 仍无则插入新行
-        PaymentOrderPO paymentOrderPO = paymentOrderMapper.selectOne(new LambdaQueryWrapper<PaymentOrderPO>()
-                .eq(PaymentOrderPO::getOrderId, orderId)
-                .eq(PaymentOrderPO::getChannel, PaymentChannel.PAYPAL.name())
-                .last("limit 1"));
-
-        if (paymentOrderPO != null) {
-            if (PaymentStatus.SUCCESS.name().equals(paymentOrderPO.getStatus()))
-                throw new ConflictException("支付单已成功, 无法重复发起同渠道支付");
-        } else {
-            // paymentOrderPO == null
-            PaymentOrderPO placeholder = paymentOrderMapper.selectOne(new LambdaQueryWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getOrderId, orderId)
-                    .eq(PaymentOrderPO::getChannel, PaymentChannel.NONE.name())
-                    .eq(PaymentOrderPO::getStatus, PaymentStatus.NONE.name())
-                    .last("limit 1"));
-            if (placeholder != null) {
-                int updated = paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                        .eq(PaymentOrderPO::getId, placeholder.getId())
-                        .eq(PaymentOrderPO::getChannel, PaymentChannel.NONE.name())
-                        .eq(PaymentOrderPO::getStatus, PaymentStatus.NONE.name())
-                        .set(PaymentOrderPO::getChannel, PaymentChannel.PAYPAL.name())
-                        .set(PaymentOrderPO::getStatus, PaymentStatus.INIT.name())
-                        .set(PaymentOrderPO::getAmount, order.getPayAmount())
-                        .set(PaymentOrderPO::getCurrency, order.getCurrency())
-                        .set(PaymentOrderPO::getExternalId, null));
-                if (updated <= 0)
-                    throw new ConflictException("占位支付单并发升级失败");
-                paymentOrderPO = paymentOrderMapper.selectById(placeholder.getId());
-            } else {
-                PaymentOrderPO created = PaymentOrderPO.builder()
-                        .orderId(orderId)
-                        .externalId(null)
-                        .channel(PaymentChannel.PAYPAL.name())
-                        .amount(order.getPayAmount())
-                        .currency(order.getCurrency())
-                        .status(PaymentStatus.INIT.name())
-                        .build();
-                paymentOrderMapper.insert(created);
-                paymentOrderPO = created;
-            }
-        }
-
-        // 3) 同步 orders 冗余字段: 订单状态推进为 PENDING_PAYMENT (若尚未进入待支付) 
-        String targetOrderStatus = "CREATED".equals(order.getStatus()) ? "PENDING_PAYMENT" : order.getStatus();
-        String targetPayStatus = (paymentOrderPO.getExternalId() != null && !paymentOrderPO.getExternalId().isBlank())
-                ? PaymentStatus.PENDING.name()
-                : PaymentStatus.INIT.name();
+        // 5) 同步 orders 冗余字段 + active_payment_id
+        boolean hasExternalId = paymentOrderPO.getExternalId() != null && !paymentOrderPO.getExternalId().isBlank();
+        PaymentStatus targetPayStatus = hasExternalId ? PaymentStatus.PENDING : PaymentStatus.INIT;
 
         ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
                 .eq(OrdersPO::getId, orderId)
-                .set(OrdersPO::getStatus, targetOrderStatus)
+                .set(OrdersPO::getStatus, "PENDING_PAYMENT")
                 .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
                 .set(OrdersPO::getPayStatus, targetPayStatus)
-                .set(OrdersPO::getPaymentExternalId, paymentOrderPO.getExternalId()));
+                .set(OrdersPO::getPaymentExternalId, paymentOrderPO.getExternalId())
+                .set(OrdersPO::getActivePaymentId, paymentOrderPO.getId()));
 
-        // 4) 确保没有 externalId 的支付单状态为 INIT, 有 externalId 的支付单状态为 PENDING
-        if (paymentOrderPO.getExternalId() != null && !paymentOrderPO.getExternalId().isBlank())
-            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getId, paymentOrderPO.getId())
-                    .ne(PaymentOrderPO::getStatus, PaymentStatus.SUCCESS.name())
-                    .set(PaymentOrderPO::getStatus, PaymentStatus.PENDING.name()));
-        else
-            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getId, paymentOrderPO.getId())
-                    .ne(PaymentOrderPO::getStatus, PaymentStatus.SUCCESS.name())
-                    .set(PaymentOrderPO::getStatus, PaymentStatus.INIT.name()));
+        // 6) 确保支付单状态与 externalId 一致 (不覆盖 SUCCESS)
+        paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getId, paymentOrderPO.getId())
+                .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
+                .set(PaymentOrderPO::getStatus, targetPayStatus.name()));
 
         LocalDateTime orderCreatedAt = order.getCreatedAt() == null ? LocalDateTime.now() : order.getCreatedAt();
         return new PayPalCheckoutResult(
@@ -169,7 +175,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 order.getCurrency(),
                 order.getPayAmount() == null ? 0L : order.getPayAmount(),
                 PaymentChannel.PAYPAL,
-                paymentOrderPO.getExternalId() == null ? PaymentStatus.INIT : PaymentStatus.PENDING,
+                targetPayStatus,
                 paymentOrderPO.getExternalId()
         );
     }
@@ -178,80 +184,96 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      * 回填 PayPal Order ID, 并将支付单推进为 PENDING, 同时同步 orders.payment_external_id / orders.pay_status
      *
      * @param paymentId       支付单 ID
-     * @param paypalOrderId   PayPal Order ID
+     * @param externalId      PayPal Order ID
      * @param requestPayload  下单请求报文 (JSON 字符串)
      * @param responsePayload 下单响应报文 (JSON 字符串)
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void bindPayPalOrder(@NotNull Long paymentId, @NotNull String paypalOrderId, @Nullable String requestPayload, @Nullable String responsePayload) {
+    @Transactional(rollbackFor = Exception.class, noRollbackFor = ConflictException.class)
+    public void bindPayPalOrder(@NotNull Long paymentId, @NotNull String externalId, @Nullable String requestPayload, @Nullable String responsePayload) {
+        PaymentOrderPO po = paymentOrderMapper.selectById(paymentId);
+        if (po == null)
+            throw new NotFoundException("支付单不存在");
+
+        OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, po.getOrderId())
+                .last("limit 1 for update"));
+        if (order == null)
+            throw new NotFoundException("订单不存在");
+
+        // 在 orders 行锁内重新读取 payment_order，避免并发下拿到旧 external_id 导致错误覆盖 orders.payment_external_id
         PaymentOrderPO payment = paymentOrderMapper.selectById(paymentId);
         if (payment == null)
             throw new NotFoundException("支付单不存在");
+        if (!order.getId().equals(payment.getOrderId()))
+            throw new ConflictException("支付单与订单不匹配");
 
-        // 轻量并发控制: 仅在 "订单仍可支付" 的条件下推进 orders 冗余字段为 PENDING (CAS)
-        // 说明:
-        // 1) 若该订单在 prepare 之后被取消/关闭, 则这里的更新会因 status 条件不满足而失败
-        // 2) 若用户取消的是 "本次支付尝试" (仅关单, 不取消订单), 则 orders.pay_status 会被推进为 CLOSED, 这里通过 pay_status=INIT 约束避免覆盖回 PENDING
-        int synced = ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
-                .eq(OrdersPO::getId, payment.getOrderId())
-                .in(OrdersPO::getStatus, "CREATED", "PENDING_PAYMENT")
-                .eq(OrdersPO::getPayStatus, PaymentStatus.INIT.name())
-                .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
-                .set(OrdersPO::getPayStatus, PaymentStatus.PENDING.name())
-                .set(OrdersPO::getPaymentExternalId, paypalOrderId));
+        if (!PaymentChannel.PAYPAL.name().equals(payment.getChannel()))
+            throw new ConflictException("仅支持回填 PAYPAL 支付单");
 
-        // 幂等回填 external_id 和 请求响应 payload: external_id 已存在时不覆盖 (避免并发重复创建网关订单导致覆盖)
-        if (payment.getExternalId() == null || payment.getExternalId().isBlank())
+        String existingExternalId = payment.getExternalId();
+        if (existingExternalId != null && !existingExternalId.isBlank() && !existingExternalId.equals(externalId))
+            throw new ConflictException("支付单 externalId 不一致, 无法回填");
+
+        // 兼容旧数据: 若 active_payment_id 为空但 orders.payment_external_id 已指向该 paypalOrderId, 则认定为当前有效尝试并补齐 active_payment_id
+        if (order.getActivePaymentId() == null && externalId.equals(order.getPaymentExternalId())) {
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, order.getId())
+                    .isNull(OrdersPO::getActivePaymentId)
+                    .set(OrdersPO::getActivePaymentId, paymentId));
+            order.setActivePaymentId(paymentId);
+        }
+
+        // 经过上面的归一化, isActiveAttempt 与条件 (active_payment_id == null && orders.payment_external_id == 当前 external_id) 同真同假
+        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentId);
+        boolean orderPayable = ("CREATED".equals(order.getStatus()) || "PENDING_PAYMENT".equals(order.getStatus()))
+                && !PaymentStatus.SUCCESS.name().equals(order.getPayStatus());
+
+        boolean shouldCloseAttempt = !isActiveAttempt
+                || !orderPayable
+                || PaymentStatus.CLOSED.name().equals(payment.getStatus())
+                || PaymentStatus.FAIL.name().equals(payment.getStatus())
+                || PaymentStatus.EXCEPTION.name().equals(payment.getStatus());
+
+        if (shouldCloseAttempt) {
             paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                     .eq(PaymentOrderPO::getId, paymentId)
-                    .and(w ->
-                            w.isNull(PaymentOrderPO::getExternalId).or()
-                                    .eq(PaymentOrderPO::getExternalId, "")
+                    .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
+                    .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
+            throw new ConflictException("支付尝试已失效或订单已不可支付, 回填被拒绝");
+        }
+
+        // 幂等回填 external_id 与 payload (external_id 已存在时不覆盖)
+        if (existingExternalId == null || existingExternalId.isBlank())
+            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                    .eq(PaymentOrderPO::getId, paymentId)
+                    .and(w -> w
+                            .isNull(PaymentOrderPO::getExternalId).or()
+                            .eq(PaymentOrderPO::getExternalId, "")
                     )
-                    .set(PaymentOrderPO::getExternalId, paypalOrderId)
+                    .set(PaymentOrderPO::getExternalId, externalId)
                     .set(PaymentOrderPO::getRequestPayload, requestPayload)
                     .set(PaymentOrderPO::getResponsePayload, responsePayload));
-            // 并发下可能已经被回填, 无需报错
         else
-            // 仅补齐 payload
             paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                     .eq(PaymentOrderPO::getId, paymentId)
                     .set(PaymentOrderPO::getRequestPayload, requestPayload)
                     .set(PaymentOrderPO::getResponsePayload, responsePayload));
 
-        if (synced > 0) {
-            // orders 推进成功, 则同步 payment_order -> PENDING (仅推进 INIT/PENDING, 不覆盖 FAIL/EXCEPTION/SUCCESS 等)
-            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getId, paymentId)
-                    .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
-                    .set(PaymentOrderPO::getStatus, PaymentStatus.PENDING.name()));
-            return;
-        }
-
-        // orders 未推进成功:
-        // - 可能订单已取消/已关闭/已成功
-        // - 也可能 orders 已是 PENDING (重复回填/并发重试)
-        OrdersPO current = ordersMapper.selectById(payment.getOrderId());
-        if (current == null)
-            throw new NotFoundException("订单不存在");
-
-        boolean alreadyPending = ("CREATED".equals(current.getStatus()) || "PENDING_PAYMENT".equals(current.getStatus()))
-                && PaymentStatus.PENDING.name().equals(current.getPayStatus())
-                && paypalOrderId.equals(current.getPaymentExternalId());
-        if (alreadyPending) {
-            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getId, paymentId)
-                    .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
-                    .set(PaymentOrderPO::getStatus, PaymentStatus.PENDING.name()));
-            return;
-        }
-
-        // 兜底: 若订单已不可支付, 则尝试关闭本次支付尝试 (仅关闭 INIT/PENDING, 避免覆盖其它语义状态)
+        // 当前有效尝试: 推进 payment_order -> PENDING 与同步 orders 冗余字段
         paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                 .eq(PaymentOrderPO::getId, paymentId)
                 .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
-                .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
+                .set(PaymentOrderPO::getStatus, PaymentStatus.PENDING.name()));
+
+        ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, order.getId())
+                .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
+                .set(OrdersPO::getStatus, "PENDING_PAYMENT")
+                .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
+                .set(OrdersPO::getPayStatus, PaymentStatus.PENDING.name())
+                .set(OrdersPO::getPaymentExternalId, externalId)
+                .set(OrdersPO::getActivePaymentId, paymentId));
     }
 
     /**
@@ -263,26 +285,31 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public @NotNull PaymentResultView txCancelPayPalPayment(@NotNull Long userId, @NotNull Long paymentId) {
-        PaymentOrderPO payment = paymentOrderMapper.selectById(paymentId);
-        if (payment == null)
+    public @NotNull PaymentResultView cancelPayPalPayment(@NotNull Long userId, @NotNull Long paymentId) {
+        PaymentOrderPO po = paymentOrderMapper.selectById(paymentId);
+        if (po == null)
             throw new NotFoundException("支付单不存在");
 
         OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
-                .eq(OrdersPO::getId, payment.getOrderId())
+                .eq(OrdersPO::getId, po.getOrderId())
                 .eq(OrdersPO::getUserId, userId)
                 .last("limit 1 for update"));
         if (order == null)
             throw new NotFoundException("订单不存在");
 
+        PaymentOrderPO payment = paymentOrderMapper.selectById(paymentId);
+        if (payment == null)
+            throw new NotFoundException("支付单不存在");
+
         if (!PaymentChannel.PAYPAL.name().equals(payment.getChannel()))
             throw new ConflictException("仅支持取消 PAYPAL 支付单");
 
         // 幂等: 已关闭直接返回
-        if (PaymentStatus.CLOSED.name().equals(payment.getStatus()))
-            return new PaymentResultView(paymentId, order.getOrderNo(), PaymentStatus.CLOSED, payment.getExternalId(), "已关闭 (幂等返回) ");
+        PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
+        if (PaymentStatus.CLOSED == currentStatus)
+            return new PaymentResultView(paymentId, order.getOrderNo(), PaymentStatus.CLOSED, payment.getExternalId(), "已关闭 (幂等返回)");
 
-        if (PaymentStatus.SUCCESS.name().equals(payment.getStatus()))
+        if (PaymentStatus.SUCCESS == currentStatus)
             throw new ConflictException("支付已成功, 无法取消本次支付尝试");
 
         int updated = paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
@@ -290,14 +317,27 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
                 .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
         if (updated <= 0)
-            throw new ConflictException("支付单状态已变更, 无法取消");
+            throw new ConflictException("支付单状态已变更, 取消支付单失败");
 
-        // 同步 orders.pay_status -> CLOSED (仅当未成功支付)
-        ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
-                .eq(OrdersPO::getId, payment.getOrderId())
-                .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
-                .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
-                .set(OrdersPO::getPayStatus, PaymentStatus.CLOSED.name()));
+        // 兼容旧数据: 若 active_payment_id 为空但 orders.payment_external_id 已指向该 paypalOrderId, 则认定为当前有效尝试并补齐 active_payment_id
+        if (order.getActivePaymentId() == null && payment.getExternalId() != null
+                && !payment.getExternalId().isBlank() && payment.getExternalId().equals(order.getPaymentExternalId())) {
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, order.getId())
+                    .isNull(OrdersPO::getActivePaymentId)
+                    .set(OrdersPO::getActivePaymentId, paymentId));
+            order.setActivePaymentId(paymentId);
+        }
+
+        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentId);
+
+        // 仅当取消的是 "当前有效支付尝试" 时才同步 orders.pay_status, 避免影响已切换的其它尝试
+        if (isActiveAttempt)
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, payment.getOrderId())
+                    .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
+                    .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
+                    .set(OrdersPO::getPayStatus, PaymentStatus.CLOSED.name()));
 
         return new PaymentResultView(paymentId, order.getOrderNo(), PaymentStatus.CLOSED, payment.getExternalId(), "OK");
     }
@@ -318,24 +358,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .eq(OrdersPO::getId, payment.getOrderId())
                 .eq(OrdersPO::getUserId, userId)
                 .last("limit 1"));
-        if (order == null)
-            throw new NotFoundException("订单不存在");
-        if (!PaymentChannel.PAYPAL.name().equals(payment.getChannel()))
-            throw new ConflictException("仅支持 PAYPAL 支付单 capture");
-        if (payment.getExternalId() == null || payment.getExternalId().isBlank())
-            throw new ConflictException("支付单尚未生成外部单号, 无法 capture");
-
-        return new CaptureTarget(
-                payment.getId(),
-                order.getId(),
-                order.getOrderNo(),
-                order.getStatus(),
-                order.getCreatedAt() == null ? LocalDateTime.now() : order.getCreatedAt(),
-                order.getCurrency(),
-                order.getPayAmount() == null ? 0L : order.getPayAmount(),
-                payment.getExternalId(),
-                PaymentStatus.valueOf(payment.getStatus())
-        );
+        return actualGetCaptureTarget(paymentId, payment, order);
     }
 
     /**
@@ -349,13 +372,43 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         PaymentOrderPO payment = paymentOrderMapper.selectById(paymentId);
         if (payment == null)
             throw new NotFoundException("支付单不存在");
-        OrdersPO order = ordersMapper.selectById(payment.getOrderId());
+        OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, payment.getOrderId())
+                .last("limit 1"));
+        return actualGetCaptureTarget(paymentId, payment, order);
+    }
+
+    /**
+     * 获取用于 capture 的目标信息, 包括支付单和订单的相关数据
+     *
+     * @param paymentId 支付单 ID
+     * @param payment   支付单实体
+     * @param order     订单实体
+     * @return 返回一个包含捕获目标信息的 {@link CaptureTarget} 对象
+     * @throws NotFoundException 如果订单不存在
+     * @throws ConflictException 如果出现以下情况之一:
+     *         <ul>
+     *           <li>支付渠道不是 PAYPAL</li>
+     *           <li>支付单尚未生成外部单号</li>
+     *           <li>支付单已关闭</li>
+     *           <li>当前支付单不是订单的有效支付尝试</li>
+     *         </ul>
+     */
+    @NotNull
+    private CaptureTarget actualGetCaptureTarget(@NotNull Long paymentId, PaymentOrderPO payment, OrdersPO order) {
         if (order == null)
             throw new NotFoundException("订单不存在");
         if (!PaymentChannel.PAYPAL.name().equals(payment.getChannel()))
-            throw new ConflictException("仅支持 PAYPAL 支付单");
+            throw new ConflictException("仅支持 PAYPAL 支付单 capture");
         if (payment.getExternalId() == null || payment.getExternalId().isBlank())
-            throw new ConflictException("支付单 externalId 为空");
+            throw new ConflictException("支付单尚未生成外部单号, 无法 capture");
+        if (PaymentStatus.CLOSED.name().equals(payment.getStatus()))
+            throw new ConflictException("支付单已关闭, 无法 capture");
+
+        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentId);
+        boolean legacyActiveAttempt = order.getActivePaymentId() == null && payment.getExternalId().equals(order.getPaymentExternalId());
+        if (!isActiveAttempt && !legacyActiveAttempt)
+            throw new ConflictException("当前支付单不是订单的有效支付尝试, 无法 capture");
 
         return new CaptureTarget(
                 payment.getId(),
@@ -371,13 +424,15 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     }
 
     /**
-     * 在同库事务内应用 capture 结果 (CAS 更新 payment_order 与同步 orders 冗余字段)
-     *
+     * 在同库事务内应用 PayPal capture 结果 (更新 payment_order 与同步 orders 冗余字段)
      * <p>该方法应承载幂等与并发安全的 "权威落库逻辑" </p>
+     *
+     * @param cmd PayPal Capture 结果应用命令
+     * @return 支付结果视图
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public @NotNull PaymentResultView applyCaptureResult(@NotNull CaptureApplyCommand cmd) {
+    public @NotNull PaymentResultView applyPayPalCaptureResult(@NotNull PayPalCaptureApplyCommand cmd) {
         requireNotNull(cmd, "cmd 不能为空");
 
         // 1) 锁单, 避免与取消/关单并发竞争造成 "成功支付后被覆盖"
@@ -387,9 +442,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (order == null)
             throw new NotFoundException("订单不存在");
 
-        // 订单状态以“事务内持锁读取”为准: 避免事务外读取到旧状态导致误推进为 PAID
-        boolean orderClosedOrCancelled = "CANCELLED".equals(order.getStatus()) || "CLOSED".equals(order.getStatus());
-        boolean wantsToAdvanceOrderStatus = cmd.newOrderStatus() != null && !cmd.newOrderStatus().isBlank();
+        LocalDateTime orderCreatedAt = order.getCreatedAt() == null ? LocalDateTime.now() : order.getCreatedAt();
 
         PaymentOrderPO payment = paymentOrderMapper.selectById(cmd.paymentId());
         if (payment == null)
@@ -397,59 +450,95 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (!cmd.orderId().equals(payment.getOrderId()))
             throw new IllegalParamException("支付单与订单不匹配");
 
-        // 若订单已被取消/关闭/进入不可支付状态, 则不允许在此处将 orders.status 推进为 PAID
-        // 并将 SUCCESS 降级为 EXCEPTION, 以便上层触发补偿(如自动退款)
-        PaymentStatus effectivePaymentStatus = cmd.newPaymentStatus();
-        PaymentStatus effectiveOrderPayStatus = cmd.newOrderPayStatus();
-        String effectiveOrderStatus = cmd.newOrderStatus();
-        if (wantsToAdvanceOrderStatus && orderClosedOrCancelled)
-            effectiveOrderStatus = null;
-        if (wantsToAdvanceOrderStatus && orderClosedOrCancelled && cmd.newPaymentStatus() == PaymentStatus.SUCCESS) {
-            effectivePaymentStatus = PaymentStatus.EXCEPTION;
-            effectiveOrderPayStatus = PaymentStatus.EXCEPTION;
+        // 并发协议: 仅 orders.active_payment_id 指向的 payment_order 才允许写入 orders 冗余支付字段/订单状态
+        // 兼容旧数据: 若 active_payment_id 为空但 orders.payment_external_id 已指向该 paypalOrderId, 则认定为有效尝试并补齐 active_payment_id
+        if (order.getActivePaymentId() == null && cmd.paypalOrderId().equals(order.getPaymentExternalId())) {
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, order.getId())
+                    .isNull(OrdersPO::getActivePaymentId)
+                    .set(OrdersPO::getActivePaymentId, cmd.paymentId()));
+            order.setActivePaymentId(cmd.paymentId());
         }
 
-        // 幂等: 已是 SUCCESS 直接返回
-        PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
-        if (PaymentStatus.SUCCESS == currentStatus && effectivePaymentStatus == PaymentStatus.SUCCESS)
-            return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), PaymentStatus.SUCCESS, payment.getExternalId(), "已 SUCCESS (幂等返回)");
+        // 经过上面的归一化, isActiveAttempt 与条件 (active_payment_id == null && orders.payment_external_id == 当前 external_id) 同真同假
+        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(cmd.paymentId());
+        boolean orderPayable = ("CREATED".equals(order.getStatus()) || "PENDING_PAYMENT".equals(order.getStatus()))
+                && !PaymentStatus.SUCCESS.name().equals(order.getPayStatus());
 
-        // 2) CAS 更新 payment_order.status
+        boolean orderClosedOrCancelled = "CANCELLED".equals(order.getStatus()) || "CLOSED".equals(order.getStatus());
+        boolean attemptPayable = PaymentStatus.INIT.name().equals(payment.getStatus()) || PaymentStatus.PENDING.name().equals(payment.getStatus());
+        boolean isLate = cmd.captureTime().isAfter(orderCreatedAt.plus(cmd.ttl()));
+
+        // 权威判定: SUCCESS/EXCEPTION/FAIL + 是否推进订单为 PAID
+        PaymentStatus effectivePaymentStatus;
+        PaymentStatus effectiveOrderPayStatus;
+        boolean canAdvanceOrderStatusToPaid = false;
+        LocalDateTime payTime = null;
+
+        if (!cmd.captureSuccess()) {
+            effectivePaymentStatus = PaymentStatus.FAIL;
+            effectiveOrderPayStatus = PaymentStatus.FAIL;
+        } else {
+            payTime = cmd.captureTime();
+            boolean canAdvance = isActiveAttempt && orderPayable && attemptPayable && !orderClosedOrCancelled && !isLate;
+            if (canAdvance) {
+                effectivePaymentStatus = PaymentStatus.SUCCESS;
+                effectiveOrderPayStatus = PaymentStatus.SUCCESS;
+                canAdvanceOrderStatusToPaid = true;
+            } else {
+                effectivePaymentStatus = PaymentStatus.EXCEPTION;
+                effectiveOrderPayStatus = PaymentStatus.EXCEPTION;
+            }
+        }
+
+        // 幂等: SUCCESS 不允许被覆盖
+        PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
         if (PaymentStatus.SUCCESS == currentStatus)
-            // SUCCESS 不允许被覆盖
             return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), PaymentStatus.SUCCESS, payment.getExternalId(), "已 SUCCESS (忽略更新)");
 
         String notifyJson = toJsonOrNull(cmd.notifyPayload());
 
-        int updatedPayment = paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                .eq(PaymentOrderPO::getId, cmd.paymentId())
-                .eq(PaymentOrderPO::getStatus, currentStatus.name())
+        String existingExternalId = payment.getExternalId();
+        if (existingExternalId != null && !existingExternalId.isBlank() && !existingExternalId.equals(cmd.paypalOrderId()))
+            throw new ConflictException("支付单现有 externalId 与当前 capture 的 externalId 不一致, 回填失败");
+
+        LambdaUpdateWrapper<PaymentOrderPO> paymentW = new LambdaUpdateWrapper<>();
+        paymentW.eq(PaymentOrderPO::getId, cmd.paymentId())
+                .ne(PaymentOrderPO::getStatus, PaymentStatus.SUCCESS.name())
                 .set(PaymentOrderPO::getStatus, effectivePaymentStatus.name())
-                .set(PaymentOrderPO::getExternalId, cmd.paypalOrderId())
                 .set(PaymentOrderPO::getResponsePayload, cmd.responsePayload())
                 .set(PaymentOrderPO::getNotifyPayload, notifyJson)
-                .set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt()));
+                .set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt());
+        if (existingExternalId == null || existingExternalId.isBlank())
+            paymentW.and(w -> w
+                            .isNull(PaymentOrderPO::getExternalId).or()
+                            .eq(PaymentOrderPO::getExternalId, "")
+                    )
+                    .set(PaymentOrderPO::getExternalId, cmd.paypalOrderId());
+
+        int updatedPayment = paymentOrderMapper.update(null, paymentW);
         if (updatedPayment <= 0)
-            throw new ConflictException("支付单状态已变更, 落库失败");
+            throw new ConflictException("支付单 capture 信息回填失败, 已经支付成功或已被并发回填");
 
-        // 3) 同步 orders 冗余字段 (幂等: 不回退 SUCCESS)
-        // 3.1) pay_* 冗余字段可独立更新，不应被 orders.status 的 CAS 条件阻断
-        LambdaUpdateWrapper<OrdersPO> payW = new LambdaUpdateWrapper<>();
-        payW.eq(OrdersPO::getId, cmd.orderId())
-                .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
-                .set(OrdersPO::getPayChannel, cmd.channel().name())
-                .set(OrdersPO::getPayStatus, effectiveOrderPayStatus.name())
-                .set(OrdersPO::getPaymentExternalId, cmd.paypalOrderId());
-        if (cmd.payTime() != null)
-            payW.set(OrdersPO::getPayTime, cmd.payTime());
-        ordersMapper.update(null, payW);
+        // 3) 仅对 "当前有效尝试" 同步 orders 冗余字段与订单状态，避免旧尝试回调污染订单
+        if (isActiveAttempt) {
+            LambdaUpdateWrapper<OrdersPO> payW = new LambdaUpdateWrapper<>();
+            payW.eq(OrdersPO::getId, cmd.orderId())
+                    .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
+                    .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
+                    .set(OrdersPO::getPayStatus, effectiveOrderPayStatus.name())
+                    .set(OrdersPO::getPaymentExternalId, cmd.paypalOrderId())
+                    .set(OrdersPO::getActivePaymentId, cmd.paymentId());
+            if (payTime != null)
+                payW.set(OrdersPO::getPayTime, payTime);
+            ordersMapper.update(null, payW);
 
-        // 3.2) orders.status 状态推进使用 CAS: 仅允许在 CREATED/PENDING_PAYMENT 下写入(避免覆盖 CANCELLED/CLOSED 等)
-        if (effectiveOrderStatus != null && !effectiveOrderStatus.isBlank())
-            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
-                    .eq(OrdersPO::getId, cmd.orderId())
-                    .in(OrdersPO::getStatus, "CREATED", "PENDING_PAYMENT")
-                    .set(OrdersPO::getStatus, effectiveOrderStatus));
+            if (canAdvanceOrderStatusToPaid)
+                ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                        .eq(OrdersPO::getId, cmd.orderId())
+                        .in(OrdersPO::getStatus, "CREATED", "PENDING_PAYMENT")
+                        .set(OrdersPO::getStatus, "PAID"));
+        }
 
         return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), effectivePaymentStatus, cmd.paypalOrderId(), "OK");
     }
@@ -547,7 +636,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .itemsAmount(null)
                 .shippingAmount(null)
                 .status(status.name())
-                .reasonCode(RefundReasonCode.OTHER.name())
+                .reasonCode(RefundReasonCode.EXCEPTION.name())
                 .reasonText(null)
                 .initiator(RefundInitiator.SYSTEM.name())
                 .ticketId(null)

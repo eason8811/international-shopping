@@ -89,6 +89,11 @@ public class OrdersPO {
     @TableField("payment_external_id")
     private String paymentExternalId;
     /**
+     * 当前有效支付单 ID (指向 payment_order.id)
+     */
+    @TableField("active_payment_id")
+    private Long activePaymentId;
+    /**
      * 支付时间
      */
     @TableField("pay_time")

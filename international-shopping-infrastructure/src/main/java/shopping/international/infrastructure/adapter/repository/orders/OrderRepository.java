@@ -478,6 +478,14 @@ public class OrderRepository implements IOrderRepository {
                 .build();
         paymentOrderMapper.insert(placeholderPayment);
 
+        // 8) 记录当前有效支付单: 初始指向占位支付单 (后续 checkout 将其升级为真实通道支付单)
+        int activeSet = ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, orderId)
+                .isNull(OrdersPO::getActivePaymentId)
+                .set(OrdersPO::getActivePaymentId, placeholderPayment.getId()));
+        if (activeSet <= 0)
+            throw new ConflictException("写入 active_payment_id 失败");
+
         return findOrderDetail(order.getOrderNo()).orElseThrow(() -> new ConflictException("订单创建后回读失败"));
     }
 
