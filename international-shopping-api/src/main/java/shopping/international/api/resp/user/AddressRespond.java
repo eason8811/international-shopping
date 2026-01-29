@@ -24,9 +24,13 @@ public class AddressRespond {
      */
     private String receiverName;
     /**
-     * 电话
+     * 联系电话国家码 (可能为空, E.164, 不含 '+')
      */
-    private String phone;
+    private String phoneCountryCode;
+    /**
+     * 联系电话 national number (可能为空, E.164, 国家码之后的 National Significant Number, 仅数字)
+     */
+    private String phoneNationalNumber;
     /**
      * 国家/省/市/区县
      */
@@ -62,7 +66,8 @@ public class AddressRespond {
         return new AddressRespond(
                 address.getId(),
                 address.getReceiverName(),
-                address.getPhone() == null ? null : address.getPhone().getValue(),
+                address.getPhone() == null ? null : address.getPhone().getCountryCode(),
+                address.getPhone() == null ? null : address.getPhone().getNationalNumber(),
                 address.getCountry(),
                 address.getProvince(),
                 address.getCity(),

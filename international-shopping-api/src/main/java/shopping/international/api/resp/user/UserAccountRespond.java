@@ -33,9 +33,13 @@ public class UserAccountRespond {
      */
     private String email;
     /**
-     * 手机 (可能为空)
+     * 联系电话国家代码
      */
-    private String phone;
+    private String phoneCountryCode;
+    /**
+     * 联系电话本地号码
+     */
+    private String phoneNationalNumber;
     /**
      * 账户状态
      */
@@ -70,7 +74,8 @@ public class UserAccountRespond {
                 user.getUsername() == null ? null : user.getUsername().getValue(),
                 user.getNickname() == null ? null : user.getNickname().getValue(),
                 user.getEmail() == null ? null : user.getEmail().getValue(),
-                user.getPhone() == null ? null : user.getPhone().getValue(),
+                user.getPhone() == null ? null : user.getPhone().getCountryCode(),
+                user.getPhone() == null ? null : user.getPhone().getNationalNumber(),
                 user.getStatus(),
                 user.getLastLoginAt(),
                 user.getCreatedAt(),

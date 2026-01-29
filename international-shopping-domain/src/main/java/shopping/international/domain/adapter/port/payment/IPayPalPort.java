@@ -1,7 +1,9 @@
 package shopping.international.domain.adapter.port.payment;
 
+import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.types.currency.CurrencyConfig;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -62,17 +64,60 @@ public interface IPayPalPort {
     /**
      * 创建 PayPal Order 命令
      *
-     * @param idempotencyKey 幂等键 (将透传到 PayPal-Request-Id)
-     * @param returnUrl      支付成功回跳地址
-     * @param cancelUrl      用户取消回跳地址
-     * @param amountMinor    金额 (最小货币单位)
-     * @param currency       币种 (如 USD)
+     * @param idempotencyKey      幂等键 (将透传到 PayPal-Request-Id)
+     * @param returnUrl           成功后返回的 URL
+     * @param cancelUrl           取消时返回的 URL
+     * @param brandName           商家名称
+     * @param local               地区标识
+     * @param shippingPreference  配送偏好, 可选
+     * @param userAction          用户动作, 如 "PAY_NOW" 或 "CONTINUE"
+     * @param currency            货币代码
+     * @param config              {@link CurrencyConfig} 对象, 包含货币转换和舍入规则
+     * @param totalAmount         总金额, 最小货币单位
+     * @param itemTotal           商品总金额, 最小货币单位, 可选
+     * @param shipping            运费, 最小货币单位, 可选
+     * @param handling            处理费, 最小货币单位, 可选
+     * @param taxTotal            税费总额, 最小货币单位, 可选
+     * @param shippingDiscount    运费折扣, 最小货币单位, 可选
+     * @param discount            折扣额, 最小货币单位, 可选
+     * @param fullName            客户全名
+     * @param emailAddress        客户邮箱地址
+     * @param phoneCountryCode    客户电话国家代码
+     * @param phoneNationalNumber 客户国内电话号码
+     * @param addressLine1        客户地址行 1
+     * @param addressLine2        客户地址行 2, 可选
+     * @param adminArea2          行政区域 2 (如城市), 可选
+     * @param adminArea1          行政区域 1 (如省份)
+     * @param postalCode          邮政编码
+     * @param countryCode         国家代码
      */
+    @Builder
     record CreateOrderCommand(@NotNull String idempotencyKey,
                               @NotNull String returnUrl,
                               @NotNull String cancelUrl,
-                              long amountMinor,
-                              @NotNull String currency) {
+                              @NotNull String brandName,
+                              @NotNull String local,
+                              @Nullable String shippingPreference,
+                              @NotNull String userAction,
+                              @NotNull String currency,
+                              @NotNull CurrencyConfig config,
+                              @NotNull Long totalAmount,
+                              @Nullable Long itemTotal,
+                              @Nullable Long shipping,
+                              @Nullable Long handling,
+                              @Nullable Long taxTotal,
+                              @Nullable Long shippingDiscount,
+                              @Nullable Long discount,
+                              @NotNull String fullName,
+                              @NotNull String emailAddress,
+                              @NotNull String phoneCountryCode,
+                              @NotNull String phoneNationalNumber,
+                              @NotNull String addressLine1,
+                              @Nullable String addressLine2,
+                              @Nullable String adminArea2,
+                              @NotNull String adminArea1,
+                              @NotNull String postalCode,
+                              @NotNull String countryCode) {
     }
 
     /**
@@ -97,6 +142,7 @@ public interface IPayPalPort {
      * @param approveUrl    收银台跳转链接 (可能为空)
      * @param captureId     若已 capture, 返回 capture_id (可能为空)
      * @param captureTime   若已 capture, 返回 capture_time (可能为空)
+     * @param captureStatus 若已 capture, 返回 capture_status (可能为空)
      * @param responseJson  原始响应 JSON (用于落库快照/排障)
      */
     record GetOrderResult(@NotNull String paypalOrderId,
@@ -104,6 +150,7 @@ public interface IPayPalPort {
                           @Nullable String approveUrl,
                           @Nullable String captureId,
                           @Nullable OffsetDateTime captureTime,
+                          @Nullable String captureStatus,
                           @NotNull String responseJson) {
     }
 
@@ -174,14 +221,14 @@ public interface IPayPalPort {
     /**
      * Webhook 验签命令
      *
-     * @param authAlgo          PAYPAL-AUTH-ALGO
-     * @param certUrl           PAYPAL-CERT-URL
-     * @param transmissionId    PAYPAL-TRANSMISSION-ID
-     * @param transmissionSig   PAYPAL-TRANSMISSION-SIG
-     * @param transmissionTime  PAYPAL-TRANSMISSION-TIME
-     * @param webhookEvent      webhook_event 原始对象 (建议为 Map 结构)
-     * @param eventIdForDedupe  事件 ID (用于去重, 通常为 webhook_event.id)
-     * @param replayTtl         防重放 TTL
+     * @param authAlgo         PAYPAL-AUTH-ALGO
+     * @param certUrl          PAYPAL-CERT-URL
+     * @param transmissionId   PAYPAL-TRANSMISSION-ID
+     * @param transmissionSig  PAYPAL-TRANSMISSION-SIG
+     * @param transmissionTime PAYPAL-TRANSMISSION-TIME
+     * @param webhookEvent     webhook_event 原始对象 (建议为 Map 结构)
+     * @param eventIdForDedupe 事件 ID (用于去重, 通常为 webhook_event.id)
+     * @param replayTtl        防重放 TTL
      */
     record VerifyWebhookCommand(@NotNull String authAlgo,
                                 @NotNull String certUrl,

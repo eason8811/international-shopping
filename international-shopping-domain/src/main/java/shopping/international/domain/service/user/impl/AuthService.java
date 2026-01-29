@@ -184,14 +184,15 @@ public class AuthService implements IAuthService {
     }
 
     /**
-     * 发起找回密码流程: 生成并发送重置验证码
+     * 发起忘记密码流程: 生成并发送重置验证码 (若账号不存在则幂等忽略)
      *
-     * @param account 账号 (用户名/邮箱/手机号)
+     * @param countryCode 电话国家代码
+     * @param account     账号 (用户名/邮箱/手机号)
      */
     @Override
-    public void forgotPassword(@NotNull String account) {
+    public void forgotPassword(@Nullable String countryCode, @NotNull String account) {
         requireNotBlank(account, "账号不能为空");
-        Optional<User> optionalUser = userRepository.findByLoginAccount(account);
+        Optional<User> optionalUser = userRepository.findByLoginAccount(countryCode, account);
         if (optionalUser.isEmpty()) {
             log.warn("找回密码请求的账号不存在, account={}", account);
             return;
@@ -217,18 +218,19 @@ public class AuthService implements IAuthService {
     /**
      * 校验验证码并重置密码
      *
+     * @param countryCode 电话国家代码
      * @param account     账号 (用户名/邮箱/手机号)
      * @param code        邮件验证码
      * @param newPassword 新密码
      * @return 更新后的用户聚合
      */
     @Override
-    public @NotNull User resetPassword(@NotNull String account, @NotNull String code, @NotNull Password newPassword) {
+    public @NotNull User resetPassword(@Nullable String countryCode, @NotNull String account, @NotNull String code, @NotNull Password newPassword) {
         requireNotBlank(account, "账号不能为空");
         requireNotBlank(code, "验证码不能为空");
         requireNotNull(newPassword, "新密码不能为空");
 
-        User user = userRepository.findByLoginAccount(account)
+        User user = userRepository.findByLoginAccount(countryCode, account)
                 .orElseThrow(() -> new IllegalParamException("账户不存在"));
         EmailAddress email = user.getEmail();
         if (email == null)
@@ -249,14 +251,15 @@ public class AuthService implements IAuthService {
     /**
      * 本地登录: 支持 {@code 用户名 / 邮箱 / 手机号其一} + 明文密码, 校验成功返回用户聚合快照
      *
+     * @param countryCode 电话国家代码
      * @param account     用户名 / 邮箱 / 手机号
      * @param rawPassword 明文密码
      * @return 登录成功的用户聚合快照
      * @throws AccountException 当账户未激活或被禁用时抛出
      */
     @Override
-    public User login(@NotNull String account, @NotNull Password rawPassword) {
-        User user = userRepository.findByLoginAccount(account)
+    public User login(@Nullable String countryCode, @NotNull String account, @NotNull Password rawPassword) {
+        User user = userRepository.findByLoginAccount(countryCode, account)
                 .orElseThrow(() -> new IllegalParamException("账户不存在"));
 
         // 必须存在 LOCAL 绑定, 且密码匹配

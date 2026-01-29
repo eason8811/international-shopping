@@ -18,22 +18,40 @@ idx_user_last_login：近期登录活跃度排序/检索
 */
 CREATE TABLE user_account
 (
-    id            BIGINT UNSIGNED            NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    username      VARCHAR(64)                NOT NULL COMMENT '用户名(登录名)',
-    nickname      VARCHAR(64)                NOT NULL COMMENT '昵称/显示名',
-    email         VARCHAR(255)               NULL COMMENT '邮箱(可空)',
-    phone         VARCHAR(32)                NULL COMMENT '手机号(可空, 含区号需要统一格式)',
-    status        ENUM ('ACTIVE','DISABLED') NOT NULL DEFAULT 'DISABLED' COMMENT '账户状态',
-    last_login_at DATETIME(3)                NULL COMMENT '最近登录时间',
-    is_deleted    TINYINT(1)                 NOT NULL DEFAULT 0 COMMENT '软删除标记(0否1是)',
-    created_at    DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at    DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    id                    BIGINT UNSIGNED            NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    username              VARCHAR(64)                NOT NULL COMMENT '用户名(登录名)',
+    nickname              VARCHAR(64)                NOT NULL COMMENT '昵称/显示名',
+    email                 VARCHAR(255)               NULL COMMENT '邮箱(可空)',
+    phone_country_code    VARCHAR(3)                 NULL COMMENT '手机号国家码(E.164, 不含+)',
+    phone_national_number VARCHAR(14)                NULL COMMENT '手机号(E.164, 国家码之后的national number, 仅数字)',
+    phone_e164            VARCHAR(16) GENERATED ALWAYS AS (
+        IF(phone_country_code IS NULL, NULL, CONCAT('+', phone_country_code, phone_national_number))
+        ) STORED COMMENT '手机号(E.164, 由phone_country_code+phone_national_number生成)',
+    status                ENUM ('ACTIVE','DISABLED') NOT NULL DEFAULT 'DISABLED' COMMENT '账户状态',
+    last_login_at         DATETIME(3)                NULL COMMENT '最近登录时间',
+    is_deleted            TINYINT(1)                 NOT NULL DEFAULT 0 COMMENT '软删除标记(0否1是)',
+    created_at            DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at            DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_username (username),
     UNIQUE KEY uk_user_email (email),
-    UNIQUE KEY uk_user_phone (phone),
+    UNIQUE KEY uk_user_phone_cc_nn (phone_country_code, phone_national_number),
+    UNIQUE KEY uk_user_phone_e164 (phone_e164),
     KEY idx_user_status (status),
-    KEY idx_user_last_login (last_login_at)
+    KEY idx_user_last_login (last_login_at),
+    CONSTRAINT chk_user_phone_pair CHECK (
+        (phone_country_code IS NULL AND phone_national_number IS NULL)
+            OR (phone_country_code IS NOT NULL AND phone_national_number IS NOT NULL)
+        ),
+    CONSTRAINT chk_user_phone_country_code CHECK (
+        phone_country_code IS NULL OR phone_country_code REGEXP '^[1-9][0-9]{0,2}$'
+        ),
+    CONSTRAINT chk_user_phone_national_number CHECK (
+        phone_national_number IS NULL OR phone_national_number REGEXP '^[0-9]{1,14}$'
+        ),
+    CONSTRAINT chk_user_phone_e164_len CHECK (
+        phone_country_code IS NULL OR (CHAR_LENGTH(phone_country_code) + CHAR_LENGTH(phone_national_number)) <= 15
+        )
 ) ENGINE = InnoDB COMMENT ='用户账户(本系统登录/JWT)';
 
 -- 1.2 第三方/本地认证映射：兼容 OAuth2 登录
@@ -91,23 +109,32 @@ idx_addr_user_default (user_id, is_default)：快速命中默认地址
  */
 CREATE TABLE user_address
 (
-    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    user_id       BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
-    receiver_name VARCHAR(64)     NOT NULL COMMENT '收货人',
-    phone         VARCHAR(32)     NOT NULL COMMENT '联系电话',
-    country       VARCHAR(64)     NULL COMMENT '国家',
-    province      VARCHAR(64)     NULL COMMENT '省/州',
-    city          VARCHAR(64)     NULL COMMENT '城市',
-    district      VARCHAR(64)     NULL COMMENT '区/县',
-    address_line1 VARCHAR(255)    NOT NULL COMMENT '地址行1',
-    address_line2 VARCHAR(255)    NULL COMMENT '地址行2',
-    zipcode       VARCHAR(20)     NULL COMMENT '邮编',
-    is_default    TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '是否默认地址',
-    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    user_id               BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
+    receiver_name         VARCHAR(64)     NOT NULL COMMENT '收货人',
+    phone_country_code    VARCHAR(3)      NOT NULL COMMENT '联系电话国家码(E.164, 不含+)',
+    phone_national_number VARCHAR(14)     NOT NULL COMMENT '联系电话(E.164, 国家码之后的national number, 仅数字)',
+    phone_e164            VARCHAR(16) GENERATED ALWAYS AS (
+        CONCAT('+', phone_country_code, phone_national_number)
+        ) STORED COMMENT '联系电话(E.164, 由phone_country_code+phone_national_number生成)',
+    country               VARCHAR(64)     NULL COMMENT '国家',
+    province              VARCHAR(64)     NULL COMMENT '省/州',
+    city                  VARCHAR(64)     NULL COMMENT '城市',
+    district              VARCHAR(64)     NULL COMMENT '区/县',
+    address_line1         VARCHAR(255)    NOT NULL COMMENT '地址行1',
+    address_line2         VARCHAR(255)    NULL COMMENT '地址行2',
+    zipcode               VARCHAR(20)     NULL COMMENT '邮编',
+    is_default            TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '是否默认地址',
+    created_at            DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at            DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     KEY idx_addr_user (user_id),
-    KEY idx_addr_user_default (user_id, is_default)
+    KEY idx_addr_user_default (user_id, is_default),
+    KEY idx_addr_phone_e164 (phone_e164),
+    CONSTRAINT chk_addr_phone_country_code CHECK (phone_country_code REGEXP '^[1-9][0-9]{0,2}$'),
+    CONSTRAINT chk_addr_phone_national_number CHECK (phone_national_number REGEXP '^[0-9]{1,14}$'),
+    CONSTRAINT chk_addr_phone_e164_len CHECK ((CHAR_LENGTH(phone_country_code) + CHAR_LENGTH(phone_national_number)) <=
+                                              15)
 ) ENGINE = InnoDB COMMENT ='用户收货地址';
 
 -- =========================================================
@@ -763,6 +790,7 @@ CREATE TABLE payment_order
     id               BIGINT UNSIGNED                                                      NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     order_id         BIGINT UNSIGNED                                                      NOT NULL COMMENT '订单ID, 指向 orders.id',
     external_id      VARCHAR(128)                                                         NULL COMMENT '支付网关 externalId(唯一)',
+    capture_id       VARCHAR(128)                                                         NULL COMMENT 'capture ID (用于退款, 目前仅 PayPal 需要)',
     channel          ENUM ('NONE','ALIPAY','WECHAT','STRIPE','PAYPAL','OTHER')            NOT NULL COMMENT '支付通道',
     amount           BIGINT UNSIGNED                                                      NOT NULL COMMENT '支付金额',
     currency         CHAR(3)                                                              NOT NULL DEFAULT 'USD' COMMENT '币种',

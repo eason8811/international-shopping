@@ -59,6 +59,7 @@ public class PaymentController {
         IPaymentService.PayPalCheckoutView view = paymentService.createPayPalCheckout(
                 userId,
                 req.getOrderNo(),
+                req.getLocal(),
                 req.getReturnUrl(),
                 req.getCancelUrl(),
                 normalizedIdempotencyKey

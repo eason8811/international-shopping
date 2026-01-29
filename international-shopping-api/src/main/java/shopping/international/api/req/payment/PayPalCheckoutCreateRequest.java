@@ -22,19 +22,20 @@ public class PayPalCheckoutCreateRequest implements Verifiable {
      * 业务订单号 (对应 orders.order_no) 
      */
     private String orderNo;
-
     /**
      * 支付通道
      *
      * <p>当前接口仅支持 PayPal 通道, 通常应为 {@link PaymentChannel#PAYPAL}</p>
      */
     private PaymentChannel channel;
-
+    /**
+     * 地区
+     */
+    private String local;
     /**
      * 支付成功回跳地址 (前端 URL) 
      */
     private String returnUrl;
-
     /**
      * 用户取消回跳地址 (前端 URL) 
      */
@@ -50,6 +51,7 @@ public class PayPalCheckoutCreateRequest implements Verifiable {
 
         requireNotNull(channel, "channel 不能为空");
         require(channel == PaymentChannel.PAYPAL, "channel 仅支持 PAYPAL");
+        local = normalizeLocale(local);
 
         returnUrl = normalizeNotNullField(returnUrl, "returnUrl 不能为空",
                 s -> s.length() <= 500, "returnUrl 长度不能超过 500 个字符");

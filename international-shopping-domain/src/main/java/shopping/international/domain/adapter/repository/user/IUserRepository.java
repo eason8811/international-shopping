@@ -24,10 +24,11 @@ public interface IUserRepository {
     /**
      * 按登录账号查询用户 (账号为用户名 / 邮箱 / 手机号), 返回完整聚合快照 (含绑定)
      *
-     * @param account 用户名 / 邮箱 / 手机号
+     * @param countryCode 电话国家代码
+     * @param account     用户名 / 邮箱 / 手机号
      * @return 用户聚合, 可为空
      */
-    Optional<User> findByLoginAccount(@NotNull String account);
+    Optional<User> findByLoginAccount(@Nullable String countryCode, @NotNull String account);
 
     /**
      * 按邮箱精确查询用户 (用于激活等流程), 返回完整聚合快照
@@ -138,7 +139,7 @@ public interface IUserRepository {
     /**
      * 更新本地密码哈希
      *
-     * @param userId         用户ID
+     * @param userId          用户ID
      * @param newPasswordHash 新的密码哈希
      */
     void updateLocalPassword(@NotNull Long userId, @NotNull String newPasswordHash);
@@ -223,10 +224,10 @@ public interface IUserRepository {
      * 保存用户的地址信息, 包括新增 地址 更新 地址 以及 删除 不再需要的地址
      * 此方法会根据传入的用户 ID 和地址列表来更新数据库中的记录, 确保数据库中的地址信息与传入的地址列表一致
      *
-     * @param userId    用户的唯一标识符 必须非空
+     * @param userId      用户的唯一标识符 必须非空
      * @param addressList 用户地址列表 每个元素都是 {@link UserAddress} 类型的对象 必须非空
-     *                  列表中的每个 <code>UserAddress</code> 对象可以包含或不包含 id 字段 如果包含 id 字段 则尝试更新该 id 对应的已有记录
-     *                  如果 id 字段为空或不存在于数据库中 则创建新记录
+     *                    列表中的每个 <code>UserAddress</code> 对象可以包含或不包含 id 字段 如果包含 id 字段 则尝试更新该 id 对应的已有记录
+     *                    如果 id 字段为空或不存在于数据库中 则创建新记录
      * @throws IllegalArgumentException 如果 userId 或 addressList 为 null
      */
     void saveAddresses(@NotNull Long userId, @NotNull List<UserAddress> addressList);

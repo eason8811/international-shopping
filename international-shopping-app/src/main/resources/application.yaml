@@ -169,3 +169,6 @@ payments:
   sync:
     fixed-delay: 30m
     batch-size: 50
+
+brand-config:
+  brand: test-brand

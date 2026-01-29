@@ -81,7 +81,7 @@ public class AuthController {
                 Password.of(req.getPassword()),
                 Nickname.of(req.getNickname()),
                 EmailAddress.of(req.getEmail()),
-                PhoneNumber.nullableOf(req.getPhone()));
+                PhoneNumber.nullableOfParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber()));
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(Result.accepted("激活邮件已发送"));
@@ -162,7 +162,7 @@ public class AuthController {
                                                             HttpServletRequest request,
                                                             HttpServletResponse response) {
         req.validate();
-        User user = authService.login(req.getAccount(), Password.of(req.getPassword()));
+        User user = authService.login(req.getCountryCode(), req.getAccount(), Password.of(req.getPassword()));
 
         loadAccessAndRefreshToken(request, response, user);
 
@@ -178,7 +178,7 @@ public class AuthController {
     @PostMapping("/password/forgot")
     public ResponseEntity<Result<Void>> forgotPassword(@RequestBody ForgotPasswordRequest req) {
         req.validate();
-        authService.forgotPassword(req.getAccount());
+        authService.forgotPassword(req.getCountryCode(), req.getAccount());
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Result.accepted("若账号存在，重置验证码已发送"));
     }
@@ -196,7 +196,7 @@ public class AuthController {
                                                                     HttpServletRequest request,
                                                                     HttpServletResponse response) {
         req.validate();
-        User user = authService.resetPassword(req.getAccount(), req.getCode(), Password.of(req.getNewPassword()));
+        User user = authService.resetPassword(req.getCountryCode(), req.getAccount(), req.getCode(), Password.of(req.getNewPassword()));
 
         loadAccessAndRefreshToken(request, response, user);
 

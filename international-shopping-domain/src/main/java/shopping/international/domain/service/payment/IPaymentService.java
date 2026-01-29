@@ -26,6 +26,7 @@ public interface IPaymentService {
      *
      * @param userId         当前用户 ID
      * @param orderNo        订单号
+     * @param local          地区代码
      * @param returnUrl      支付成功回跳地址
      * @param cancelUrl      用户取消回跳地址
      * @param idempotencyKey 幂等键 (用于调用 PayPal 创建 Order 的幂等)
@@ -34,6 +35,7 @@ public interface IPaymentService {
     @NotNull
     PayPalCheckoutView createPayPalCheckout(@NotNull Long userId,
                                             @NotNull String orderNo,
+                                            @Nullable String local,
                                             @NotNull String returnUrl,
                                             @NotNull String cancelUrl,
                                             @NotNull String idempotencyKey);

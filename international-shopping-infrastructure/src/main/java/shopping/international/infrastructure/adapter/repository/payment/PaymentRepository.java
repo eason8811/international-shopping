@@ -2,6 +2,7 @@ package shopping.international.infrastructure.adapter.repository.payment;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -13,6 +14,7 @@ import shopping.international.domain.adapter.repository.payment.IPaymentReposito
 import shopping.international.domain.model.enums.payment.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.orders.AddressSnapshot;
 import shopping.international.domain.model.vo.payment.*;
 import shopping.international.infrastructure.dao.orders.OrdersMapper;
 import shopping.international.infrastructure.dao.orders.po.OrdersPO;
@@ -20,9 +22,12 @@ import shopping.international.infrastructure.dao.payment.PaymentOrderMapper;
 import shopping.international.infrastructure.dao.payment.PaymentRefundMapper;
 import shopping.international.infrastructure.dao.payment.po.PaymentOrderPO;
 import shopping.international.infrastructure.dao.payment.po.PaymentRefundPO;
+import shopping.international.infrastructure.dao.user.UserAccountMapper;
+import shopping.international.infrastructure.dao.user.po.UserAccountPO;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.exceptions.NotFoundException;
+import shopping.international.types.exceptions.PayPalException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -46,21 +51,22 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      * orders Mapper (用于锁单与冗余字段同步)
      */
     private final OrdersMapper ordersMapper;
-
     /**
      * payment_order Mapper
      */
     private final PaymentOrderMapper paymentOrderMapper;
-
     /**
      * payment_refund Mapper
      */
     private final PaymentRefundMapper paymentRefundMapper;
-
     /**
      * JSON 序列化/反序列化器 (用于持久化 notifyPayload 等)
      */
     private final ObjectMapper objectMapper;
+    /**
+     * user_account Mapper
+     */
+    private final UserAccountMapper userAccountMapper;
 
     /**
      * 在同库事务内准备 PayPal Checkout (锁定订单行, 关闭旧待支付支付单, 创建/复用 PAYPAL 支付单, 同步 orders 冗余字段)
@@ -72,6 +78,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull PayPalCheckoutResult preparePayPalCheckout(@NotNull Long userId, @NotNull String orderNo) {
+        UserAccountPO userAccountPO = userAccountMapper.selectById(userId);
         OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
                 .eq(OrdersPO::getOrderNo, orderNo)
                 .eq(OrdersPO::getUserId, userId)
@@ -166,18 +173,40 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
                 .set(PaymentOrderPO::getStatus, targetPayStatus.name()));
 
+        AddressSnapshot addressSnapshot;
+        try {
+            addressSnapshot = objectMapper.readValue(order.getAddressSnapshot(), AddressSnapshot.class);
+        } catch (JsonProcessingException e) {
+            throw new PayPalException("地址快照反序列化异常", e);
+        }
         LocalDateTime orderCreatedAt = order.getCreatedAt() == null ? LocalDateTime.now() : order.getCreatedAt();
-        return new PayPalCheckoutResult(
-                paymentOrderPO.getId(),
-                orderId,
-                order.getOrderNo(),
-                orderCreatedAt,
-                order.getCurrency(),
-                order.getPayAmount() == null ? 0L : order.getPayAmount(),
-                PaymentChannel.PAYPAL,
-                targetPayStatus,
-                paymentOrderPO.getExternalId()
-        );
+        return PayPalCheckoutResult.builder()
+                .orderId(orderId)
+                .orderNo(order.getOrderNo())
+                .currency(order.getCurrency())
+                .totalAmount(order.getPayAmount())
+                .itemTotal(order.getTotalAmount())
+                .shipping(order.getShippingAmount())
+                .handling(0L)
+                .taxTotal(order.getTaxAmount())
+                .shippingDiscount(0L)
+                .discount(order.getDiscountAmount())
+                .fullName(addressSnapshot.getReceiverName())
+                .emailAddress(userAccountPO.getEmail())
+                .phoneCountryCode(userAccountPO.getPhoneCountryCode())
+                .phoneNationalNumber(userAccountPO.getPhoneNationalNumber())
+                .addressLine1(addressSnapshot.getDistrict() + " " + addressSnapshot.getAddressLine1())
+                .addressLine2(addressSnapshot.getAddressLine2())
+                .adminArea2(addressSnapshot.getCity())
+                .adminArea1(addressSnapshot.getProvince())
+                .postalCode(addressSnapshot.getZipcode())
+                .countryCode(addressSnapshot.getCountry())
+                .channel(PaymentChannel.PAYPAL)
+                .paymentStatus(targetPayStatus)
+                .orderCreatedAt(orderCreatedAt)
+                .paymentId(paymentOrderPO.getId())
+                .paypalOrderId(paymentOrderPO.getExternalId())
+                .build();
     }
 
     /**

@@ -31,9 +31,13 @@ public class RegisterRequest {
      */
     private String email;
     /**
-     * 手机 (可选, 格式校验由应用/领域层处理)
+     * 手机号国家码 (可选, E.164, 不含 '+')
      */
-    private String phone;
+    private String phoneCountryCode;
+    /**
+     * 手机号 national number (可选, E.164, 国家码之后的 National Significant Number, 仅数字)
+     */
+    private String phoneNationalNumber;
 
     /**
      * 验证请求 DTO 字段是否合法
@@ -45,5 +49,16 @@ public class RegisterRequest {
         requireNotBlank(password, "密码不能为空");
         requireNotBlank(nickname, "昵称不能为空");
         requireNotBlank(email, "邮箱不能为空");
+
+        boolean ccBlank = (phoneCountryCode == null || phoneCountryCode.isBlank());
+        boolean nnBlank = (phoneNationalNumber == null || phoneNationalNumber.isBlank());
+        if (!ccBlank || !nnBlank) {
+            require(!ccBlank && !nnBlank, "手机号字段不完整");
+            phoneCountryCode = phoneCountryCode.strip();
+            phoneNationalNumber = phoneNationalNumber.strip();
+            require(phoneCountryCode.matches("^[1-9][0-9]{0,2}$"), "country_code 格式不正确");
+            require(phoneNationalNumber.matches("^[0-9]{1,14}$"), "national_number 格式不正确");
+            require((phoneCountryCode.length() + phoneNationalNumber.length()) <= 15, "手机号格式不正确");
+        }
     }
 }

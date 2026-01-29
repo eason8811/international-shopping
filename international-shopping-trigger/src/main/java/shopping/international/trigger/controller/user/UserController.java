@@ -65,7 +65,7 @@ public class UserController {
         Long uid = requireCurrentUserId();
 
         Nickname nickname = req.getNickname() != null ? Nickname.of(req.getNickname()) : null;
-        PhoneNumber phone = req.getPhone() != null ? PhoneNumber.nullableOf(req.getPhone()) : null;
+        PhoneNumber phone = PhoneNumber.nullableOfParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber());
 
         User updated = userService.updateAccount(uid, nickname, phone);
         return ResponseEntity.ok(Result.ok(UserAccountRespond.from(updated), "个人信息更新成功"));

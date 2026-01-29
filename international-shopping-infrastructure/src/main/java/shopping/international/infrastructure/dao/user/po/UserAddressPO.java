@@ -32,10 +32,20 @@ public class UserAddressPO {
     @TableField("receiver_name")
     private String receiverName;
     /**
-     * 联系电话 (字符串持久化) 
+     * 联系电话国家码 (E.164, 不含 '+')
      */
-    @TableField("phone")
-    private String phone;
+    @TableField("phone_country_code")
+    private String phoneCountryCode;
+    /**
+     * 联系电话 national number (E.164, 国家码之后的 National Significant Number, 仅数字)
+     */
+    @TableField("phone_national_number")
+    private String phoneNationalNumber;
+    /**
+     * 联系电话 E.164 字符串 (由 phone_country_code + phone_national_number 生成, 只读)
+     */
+    @TableField(value = "phone_e164", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    private String phoneE164;
     /**
      * 国家
      */

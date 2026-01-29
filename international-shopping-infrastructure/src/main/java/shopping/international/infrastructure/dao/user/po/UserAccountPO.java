@@ -39,10 +39,20 @@ public class UserAccountPO {
     @TableField("email")
     private String email;
     /**
-     * 手机号
+     * 手机号国家码 (E.164, 不含 '+')
      */
-    @TableField("phone")
-    private String phone;
+    @TableField("phone_country_code")
+    private String phoneCountryCode;
+    /**
+     * 手机号 national number (E.164, 国家码之后的 National Significant Number, 仅数字)
+     */
+    @TableField("phone_national_number")
+    private String phoneNationalNumber;
+    /**
+     * 手机号 E.164 字符串 (由 phone_country_code + phone_national_number 生成, 只读)
+     */
+    @TableField(value = "phone_e164", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    private String phoneE164;
     /**
      * 账户状态 (ACTIVE/DISABLED)
      */

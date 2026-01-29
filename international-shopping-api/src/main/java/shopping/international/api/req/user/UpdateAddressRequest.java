@@ -3,7 +3,7 @@ package shopping.international.api.req.user;
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 修改收货地址请求
@@ -16,10 +16,15 @@ public class UpdateAddressRequest {
     @Nullable
     private String receiverName;
     /**
-     * 手机号 (可空则不改)
+     * 联系电话国家码 (可空则不改, E.164, 不含 '+')
      */
     @Nullable
-    private String phone;
+    private String phoneCountryCode;
+    /**
+     * 联系电话 national number (可空则不改, E.164, 国家码之后的 National Significant Number, 仅数字)
+     */
+    @Nullable
+    private String phoneNationalNumber;
     /**
      * 国家/省/市/区县 (可空)
      */
@@ -54,9 +59,15 @@ public class UpdateAddressRequest {
             requireNotBlank(receiverName, "收货人不能为空");
             receiverName = receiverName.strip();
         }
-        if (phone != null) {
-            requireNotBlank(phone, "手机号不能为空");
-            phone = phone.strip();
+        boolean ccBlank = (phoneCountryCode == null || phoneCountryCode.isBlank());
+        boolean nnBlank = (phoneNationalNumber == null || phoneNationalNumber.isBlank());
+        if (!ccBlank || !nnBlank) {
+            require(!ccBlank && !nnBlank, "联系电话字段不完整");
+            phoneCountryCode = phoneCountryCode.strip();
+            phoneNationalNumber = phoneNationalNumber.strip();
+            require(phoneCountryCode.matches("^[1-9][0-9]{0,2}$"), "country_code 格式不正确");
+            require(phoneNationalNumber.matches("^[0-9]{1,14}$"), "national_number 格式不正确");
+            require((phoneCountryCode.length() + phoneNationalNumber.length()) <= 15, "手机号格式不正确");
         }
         if (country != null) {
             requireNotBlank(country, "国家不能为空");

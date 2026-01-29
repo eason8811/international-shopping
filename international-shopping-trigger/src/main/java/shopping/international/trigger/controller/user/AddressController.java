@@ -85,7 +85,7 @@ public class AddressController {
         req.validate();
         Long uid = requireCurrentUserId();
 
-        PhoneNumber phoneNumber = PhoneNumber.of(req.getPhone());
+        PhoneNumber phoneNumber = PhoneNumber.ofParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber());
         UserAddress newAddress = UserAddress.of(req.getReceiverName(), phoneNumber, req.getCountry(),
                 req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
                 req.getZipcode(), Boolean.TRUE.equals(req.getIsDefault()));
@@ -125,11 +125,11 @@ public class AddressController {
      * @return 包含更新后的地址信息的结果集, 如果成功更新, 返回状态码为 200 OK
      */
     @PatchMapping("/{id}")
-    public ResponseEntity<Result<AddressRespond>> update(@PathVariable("id") Long id, @RequestBody UpdateAddressRequest req) {
+    public ResponseEntity<Result<AddressRespond>> update(@PathVariable Long id, @RequestBody UpdateAddressRequest req) {
         req.validate();
         Long uid = requireCurrentUserId();
 
-        PhoneNumber phone = req.getPhone() == null ? null : PhoneNumber.nullableOf(req.getPhone());
+        PhoneNumber phone = PhoneNumber.nullableOfParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber());
         UserAddress updated = addressService.update(uid, id, req.getReceiverName(), phone, req.getCountry(),
                 req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
                 req.getZipcode(), req.getIsDefault());
@@ -145,7 +145,7 @@ public class AddressController {
      * @return 包含删除结果的消息, 如果删除成功, 将返回状态码为 200 OK 的响应, 并携带确认消息 "地址已删除"
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Result<Void>> delete(@PathVariable("id") Long id) {
+    public ResponseEntity<Result<Void>> delete(@PathVariable Long id) {
         Long uid = requireCurrentUserId();
         addressService.delete(uid, id);
         return ResponseEntity.ok(Result.ok("地址已删除"));
@@ -161,7 +161,7 @@ public class AddressController {
      * @return 包含设置结果的消息, 如果成功设置, 将返回状态码为 200 OK 的响应, 并携带确认消息 "默认地址已设置"
      */
     @PostMapping("/{id}/set-default")
-    public ResponseEntity<Result<Void>> setDefault(@PathVariable("id") Long id) {
+    public ResponseEntity<Result<Void>> setDefault(@PathVariable Long id) {
         Long uid = requireCurrentUserId();
         addressService.setDefault(uid, id);
         return ResponseEntity.ok(Result.ok("默认地址已设置"));

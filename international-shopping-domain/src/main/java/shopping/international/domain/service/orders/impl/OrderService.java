@@ -22,6 +22,7 @@ import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.common.FxRateLatest;
 import shopping.international.domain.model.vo.orders.*;
+import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.common.IFxRateService;
 import shopping.international.domain.service.orders.IOrderService;
@@ -128,14 +129,14 @@ public class OrderService implements IOrderService {
     /**
      * 创建订单并预占库存
      *
-     * @param userId       当前用户 ID
-     * @param source       下单来源
-     * @param items        直接下单条目
-     * @param addressId    收货地址 ID
-     * @param currency     币种
-     * @param discountCode 折扣码
-     * @param buyerRemark  买家备注
-     * @param locale       展示语言
+     * @param userId         当前用户 ID
+     * @param source         下单来源
+     * @param items          直接下单条目
+     * @param addressId      收货地址 ID
+     * @param currency       币种
+     * @param discountCode   折扣码
+     * @param buyerRemark    买家备注
+     * @param locale         展示语言
      * @param idempotencyKey 幂等键 (可为空)
      * @return 已创建的订单聚合 (含明细)
      */
@@ -988,11 +989,15 @@ public class OrderService implements IOrderService {
     private AddressSnapshot buildAddressSnapshot(@NotNull Long userId, @NotNull Long addressId) {
         return userRepository.findAddressById(userId, addressId)
                 .map(addr -> {
-                    if (addr.getPhone() == null || addr.getPhone().getValue() == null || addr.getPhone().getValue().isBlank())
+                    PhoneNumber phone = addr.getPhone();
+                    if (phone == null
+                            || phone.getCountryCode() == null || phone.getCountryCode().isBlank()
+                            || phone.getNationalNumber() == null || phone.getNationalNumber().isBlank())
                         throw new IllegalParamException("收货地址联系电话不能为空");
                     return AddressSnapshot.of(
                             addr.getReceiverName(),
-                            addr.getPhone().getValue(),
+                            phone.getCountryCode(),
+                            phone.getNationalNumber(),
                             addr.getCountry(),
                             addr.getProvince(),
                             addr.getCity(),

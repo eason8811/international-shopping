@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import shopping.international.domain.adapter.port.payment.IPayPalPort;
 import shopping.international.domain.adapter.repository.payment.IPaymentRepository;
@@ -11,7 +12,9 @@ import shopping.international.domain.model.enums.payment.PaymentChannel;
 import shopping.international.domain.model.enums.payment.PaymentStatus;
 import shopping.international.domain.model.enums.payment.RefundStatus;
 import shopping.international.domain.model.vo.payment.*;
+import shopping.international.domain.service.common.impl.CurrencyConfigService;
 import shopping.international.domain.service.payment.IPaymentService;
+import shopping.international.types.config.BrandProperties;
 import shopping.international.types.config.OrderTimeoutSettings;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
@@ -33,28 +36,37 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@EnableConfigurationProperties(BrandProperties.class)
 public class PaymentService implements IPaymentService {
 
     /**
      * 支付领域仓储
      */
     private final IPaymentRepository paymentRepository;
-
     /**
      * PayPal 支付网关端口
      */
     private final IPayPalPort payPalPort;
-
     /**
      * 订单超时设置 (用于晚到支付 TTL 判定)
      */
     private final OrderTimeoutSettings orderTimeoutSettings;
+    /**
+     * @see BrandProperties
+     */
+    private final BrandProperties brandProperties;
+    /**
+     * @see CurrencyConfigService
+     */
+    private final CurrencyConfigService configService;
+
 
     /**
      * 创建 PayPal Checkout
      *
      * @param userId         当前用户 ID
      * @param orderNo        订单号
+     * @param local          地区代码
      * @param returnUrl      支付成功回跳地址
      * @param cancelUrl      用户取消回跳地址
      * @param idempotencyKey 幂等键 (用于调用 PayPal 创建 Order 的幂等)
@@ -63,6 +75,7 @@ public class PaymentService implements IPaymentService {
     @Override
     public @NotNull PayPalCheckoutView createPayPalCheckout(@NotNull Long userId,
                                                             @NotNull String orderNo,
+                                                            @Nullable String local,
                                                             @NotNull String returnUrl,
                                                             @NotNull String cancelUrl,
                                                             @NotNull String idempotencyKey) {
@@ -75,7 +88,7 @@ public class PaymentService implements IPaymentService {
                     checkout.paymentId(),
                     checkout.orderNo(),
                     PaymentChannel.PAYPAL,
-                    checkout.amountMinor(),
+                    checkout.totalAmount(),
                     checkout.currency(),
                     PaymentStatus.PENDING,
                     paypalOrderId,
@@ -87,13 +100,34 @@ public class PaymentService implements IPaymentService {
         String effectiveIdempotencyKey = "ppco-" + checkout.paymentId();
 
         IPayPalPort.CreateOrderResult created = payPalPort.createOrder(
-                new IPayPalPort.CreateOrderCommand(
-                        effectiveIdempotencyKey,
-                        returnUrl,
-                        cancelUrl,
-                        checkout.amountMinor(),
-                        checkout.currency()
-                )
+                IPayPalPort.CreateOrderCommand.builder()
+                        .idempotencyKey(effectiveIdempotencyKey)
+                        .returnUrl(returnUrl)
+                        .cancelUrl(cancelUrl)
+                        .brandName(brandProperties.getBrand())
+                        .local(local == null ? "en-US" : local)
+                        .shippingPreference("SET_PROVIDED_ADDRESS")
+                        .userAction("PAY_NOW")
+                        .currency(checkout.currency())
+                        .config(configService.get(checkout.currency()))
+                        .totalAmount(checkout.totalAmount())
+                        .itemTotal(checkout.itemTotal())
+                        .shipping(checkout.shipping())
+                        .handling(checkout.handling())
+                        .taxTotal(checkout.taxTotal())
+                        .shippingDiscount(checkout.shippingDiscount())
+                        .discount(checkout.discount())
+                        .fullName(checkout.fullName())
+                        .emailAddress(checkout.emailAddress())
+                        .phoneCountryCode(checkout.phoneCountryCode())
+                        .phoneNationalNumber(checkout.phoneNationalNumber())
+                        .addressLine1(checkout.addressLine1())
+                        .addressLine2(checkout.addressLine2())
+                        .adminArea2(checkout.adminArea2())
+                        .adminArea1(checkout.adminArea1())
+                        .postalCode(checkout.postalCode())
+                        .countryCode(checkout.countryCode())
+                        .build()
         );
         String externalId = created.paypalOrderId();
         try {
@@ -108,7 +142,7 @@ public class PaymentService implements IPaymentService {
                     reread.paymentId(),
                     reread.orderNo(),
                     PaymentChannel.PAYPAL,
-                    reread.amountMinor(),
+                    reread.totalAmount(),
                     reread.currency(),
                     PaymentStatus.PENDING,
                     reread.paypalOrderId(),
@@ -120,7 +154,7 @@ public class PaymentService implements IPaymentService {
                 checkout.paymentId(),
                 checkout.orderNo(),
                 PaymentChannel.PAYPAL,
-                checkout.amountMinor(),
+                checkout.totalAmount(),
                 checkout.currency(),
                 PaymentStatus.PENDING,
                 externalId,
@@ -209,16 +243,18 @@ public class PaymentService implements IPaymentService {
         Map<String, String> h = normalizeHeaderKeys(headers);
         Duration replayTtl = Duration.ofDays(1);
 
-        payPalPort.verifyWebhookAndReplayProtection(new IPayPalPort.VerifyWebhookCommand(
-                requireHeader(h, "PAYPAL-AUTH-ALGO"),
-                requireHeader(h, "PAYPAL-CERT-URL"),
-                requireHeader(h, "PAYPAL-TRANSMISSION-ID"),
-                requireHeader(h, "PAYPAL-TRANSMISSION-SIG"),
-                requireHeader(h, "PAYPAL-TRANSMISSION-TIME"),
-                webhookEvent,
-                eventId,
-                replayTtl
-        ));
+        payPalPort.verifyWebhookAndReplayProtection(
+                new IPayPalPort.VerifyWebhookCommand(
+                        requireHeader(h, "PAYPAL-AUTH-ALGO"),
+                        requireHeader(h, "PAYPAL-CERT-URL"),
+                        requireHeader(h, "PAYPAL-TRANSMISSION-ID"),
+                        requireHeader(h, "PAYPAL-TRANSMISSION-SIG"),
+                        requireHeader(h, "PAYPAL-TRANSMISSION-TIME"),
+                        webhookEvent,
+                        eventId,
+                        replayTtl
+                )
+        );
 
         Optional<String> paypalOrderIdOpt = payPalPort.tryExtractPayPalOrderId(webhookEvent);
         if (paypalOrderIdOpt.isEmpty())

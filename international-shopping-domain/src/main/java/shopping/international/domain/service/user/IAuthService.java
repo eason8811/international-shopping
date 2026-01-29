@@ -28,13 +28,13 @@ public interface IAuthService {
     /**
      * 注册新用户并发送激活邮件 (账户初始状态为 DISABLED)
      *
-     * @param username   用户名 (唯一登录名)
+     * @param username    用户名 (唯一登录名)
      * @param rawPassword 明文密码 (领域服务内负责安全哈希)
-     * @param nickname   昵称
-     * @param email      邮箱 (可空, 为空则不发送激活邮件)
-     * @param phone      手机 (可空)
+     * @param nickname    昵称
+     * @param email       邮箱 (可空, 为空则不发送激活邮件)
+     * @param phone       手机 (可空)
      * @throws IllegalParamException 当用户名/邮箱/手机存在唯一性冲突, 或参数非法时抛出
-     * @throws EmailSendException       如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
+     * @throws EmailSendException    如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
     void register(@NotNull Username username, @NotNull Password rawPassword, @NotNull Nickname nickname,
                   @NotNull EmailAddress email, @Nullable PhoneNumber phone);
@@ -42,8 +42,8 @@ public interface IAuthService {
     /**
      * 校验邮箱验证码并激活账户 (状态从 DISABLED → ACTIVE), 返回激活后的用户聚合快照
      *
-     * @param email  收到验证码的邮箱
-     * @param code   验证码
+     * @param email 收到验证码的邮箱
+     * @param code  验证码
      * @return 激活后的 {@link User} 快照
      * @throws VerificationCodeInvalidException 当验证码错误/过期, 或账户不存在/已激活时抛出
      */
@@ -54,37 +54,40 @@ public interface IAuthService {
      *
      * @param email 用户的注册邮箱地址
      * @throws IllegalArgumentException 如果提供的邮箱地址格式不正确
-     * @throws EmailSendException 如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
+     * @throws EmailSendException       如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
     void resendActivationEmail(EmailAddress email);
 
     /**
      * 发起忘记密码流程: 生成并发送重置验证码 (若账号不存在则幂等忽略)
      *
-     * @param account 账号 (用户名/邮箱/手机号)
+     * @param countryCode 电话国家代码
+     * @param account     账号 (用户名/邮箱/手机号)
      */
-    void forgotPassword(@NotNull String account);
+    void forgotPassword(@Nullable String countryCode, @NotNull String account);
 
     /**
      * 校验验证码并重置密码, 返回更新后的用户聚合
      *
+     * @param countryCode 电话国家代码
      * @param account     账号 (用户名/邮箱/手机号)
      * @param code        验证码
      * @param newPassword 新密码 (明文)
      * @return 更新后的用户聚合
      */
     @NotNull
-    User resetPassword(@NotNull String account, @NotNull String code, @NotNull Password newPassword);
+    User resetPassword(@Nullable String countryCode, @NotNull String account, @NotNull String code, @NotNull Password newPassword);
 
     /**
      * 本地登录: 支持 {@code 用户名 / 邮箱 / 手机号其一} + 明文密码, 校验成功返回用户聚合快照
      *
-     * @param account    用户名 / 邮箱 / 手机号
+     * @param countryCode 电话国家代码
+     * @param account     用户名 / 邮箱 / 手机号
      * @param rawPassword 明文密码
      * @return 登录成功的用户聚合快照
      * @throws AccountException 当凭证无效, 账户未激活或被禁用时抛出
      */
-    User login(String account, Password rawPassword);
+    User login(@Nullable String countryCode, String account, Password rawPassword);
 
     /**
      * 为指定用户签发新的访问令牌 (Access Token)

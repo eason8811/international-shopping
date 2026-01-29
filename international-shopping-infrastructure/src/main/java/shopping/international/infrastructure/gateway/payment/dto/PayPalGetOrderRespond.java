@@ -2,7 +2,6 @@ package shopping.international.infrastructure.gateway.payment.dto;
 
 import lombok.Data;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -25,23 +24,6 @@ public class PayPalGetOrderRespond {
     /**
      * purchase_units
      */
-    private List<PurchaseUnit> purchaseUnits;
-
-    @Data
-    public static class PurchaseUnit {
-        private Payments payments;
-    }
-
-    @Data
-    public static class Payments {
-        private List<Capture> captures;
-    }
-
-    @Data
-    public static class Capture {
-        private String id;
-        private String status;
-        private OffsetDateTime createTime;
-    }
+    private List<PurchaseUnitItem> purchaseUnits;
 }
 

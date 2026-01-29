@@ -3,7 +3,7 @@ package shopping.international.api.req.user;
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 新增收货地址请求
@@ -15,9 +15,13 @@ public class CreateAddressRequest {
      */
     private String receiverName;
     /**
-     * 手机号 (E.164 简化)
+     * 联系电话国家码 (E.164, 不含 '+')
      */
-    private String phone;
+    private String phoneCountryCode;
+    /**
+     * 联系电话 national number (E.164, 国家码之后的 National Significant Number, 仅数字)
+     */
+    private String phoneNationalNumber;
     /**
      * 国家/省/市/区县
      */
@@ -49,8 +53,15 @@ public class CreateAddressRequest {
     public void validate() {
         requireNotBlank(receiverName, "收货人不能为空");
         receiverName = receiverName.strip();
-        requireNotBlank(phone, "联系电话不能为空");
-        phone = phone.strip();
+        requireNotBlank(phoneCountryCode, "联系电话国家码不能为空");
+        requireNotBlank(phoneNationalNumber, "联系电话不能为空");
+        phoneCountryCode = phoneCountryCode.strip();
+        phoneNationalNumber = phoneNationalNumber.strip();
+        requireNotBlank(phoneCountryCode, "联系电话国家码不能为空");
+        requireNotBlank(phoneNationalNumber, "联系电话不能为空");
+        require(phoneCountryCode.matches("^[1-9][0-9]{0,2}$"), "country_code 格式不正确");
+        require(phoneNationalNumber.matches("^[0-9]{1,14}$"), "national_number 格式不正确");
+        require((phoneCountryCode.length() + phoneNationalNumber.length()) <= 15, "手机号格式不正确");
         requireNotBlank(addressLine1, "地址行1不能为空");
         addressLine1 = addressLine1.strip();
         requireNotBlank(country, "国家不能为空");

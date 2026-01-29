@@ -101,12 +101,37 @@ public class PayPalPort implements IPayPalPort {
     public @NotNull CreateOrderResult createOrder(@NotNull CreateOrderCommand cmd) {
         requireNotNull(cmd, "cmd 不能为空");
         String bearer = "Bearer " + requireAccessToken();
-
-        String amountMajor = currencyConfigService.get(cmd.currency()).toMajor(cmd.amountMinor()).toPlainString();
-        PayPalCreateOrderRequest request = new PayPalCreateOrderRequest(
-                "CAPTURE",
-                List.of(new PayPalCreateOrderRequest.PurchaseUnit(new PayPalAmount(cmd.currency(), amountMajor))),
-                new PayPalCreateOrderRequest.ApplicationContext(cmd.returnUrl(), cmd.cancelUrl(), "PAY_NOW")
+        PayPalCreateOrderRequest request = PayPalCreateOrderRequest.builder().intent("CAPTURE").build();
+        request.fillAmount(
+                cmd.currency(),
+                cmd.config(),
+                cmd.totalAmount(),
+                cmd.itemTotal(),
+                cmd.shipping(),
+                cmd.handling(),
+                cmd.taxTotal(),
+                cmd.shippingDiscount(),
+                cmd.discount()
+        );
+        request.fillShipping(
+                cmd.fullName(),
+                cmd.emailAddress(),
+                cmd.phoneCountryCode(),
+                cmd.phoneNationalNumber(),
+                cmd.addressLine1(),
+                cmd.addressLine2(),
+                cmd.adminArea2(),
+                cmd.adminArea1(),
+                cmd.postalCode(),
+                cmd.countryCode()
+        );
+        request.fillExperienceContext(
+                cmd.returnUrl(),
+                cmd.cancelUrl(),
+                cmd.brandName(),
+                cmd.local(),
+                cmd.shippingPreference(),
+                cmd.userAction()
         );
 
         String url = properties.getBaseUrl() + CREATE_ORDER_TEMPLATE;
@@ -146,14 +171,15 @@ public class PayPalPort implements IPayPalPort {
         PayPalGetOrderRespond resp = executeOrThrow(api.getOrder(url, bearer), "查询 PayPal Order 失败");
 
         String approveUrl = findApproveUrl(resp.getLinks()).orElse(null);
-        CaptureInfo capture = firstCapture(resp.getPurchaseUnits());
+        PurchaseUnitItem.Capture capture = firstCapture(resp.getPurchaseUnits());
 
         return new GetOrderResult(
                 requireNotBlankValue(resp.getId(), "PayPal Order ID 为空"),
                 resp.getStatus() == null ? "" : resp.getStatus(),
                 approveUrl,
-                capture == null ? null : capture.captureId,
-                capture == null ? null : capture.captureTime,
+                capture == null ? null : capture.getId(),
+                capture == null ? null : capture.getCreateTime(),
+                capture == null ? null : capture.getStatus(),
                 toJson(resp)
         );
     }
@@ -190,12 +216,13 @@ public class PayPalPort implements IPayPalPort {
                 "Capture PayPal Order 失败"
         );
 
-        CaptureInfo capture = firstCapture(resp.getPurchaseUnits());
+        PurchaseUnitItem.Capture capture = firstCapture(resp.getPurchaseUnits());
+
         return new CaptureOrderResult(
                 requireNotBlankValue(resp.getId(), "PayPal Order ID 为空"),
-                capture == null ? null : capture.captureId,
-                capture == null ? null : capture.captureTime,
-                resp.getStatus() == null ? "" : resp.getStatus(),
+                capture == null ? null : capture.getId(),
+                capture == null ? null : capture.getCreateTime(),
+                capture.getStatus(),
                 toJson(request),
                 toJson(resp)
         );
@@ -215,7 +242,7 @@ public class PayPalPort implements IPayPalPort {
 
         String amountMajor = currencyConfigService.get(cmd.currency()).toMajor(cmd.amountMinor()).toPlainString();
         PayPalRefundCaptureRequest request = new PayPalRefundCaptureRequest(
-                new PayPalAmount(cmd.currency(), amountMajor),
+                new PayPalAmount(cmd.currency(), amountMajor, null),
                 cmd.note()
         );
 
@@ -430,43 +457,28 @@ public class PayPalPort implements IPayPalPort {
     }
 
     /**
-     * @param captureId   捕获 ID
-     * @param captureTime 捕获时间
-     */
-    private record CaptureInfo(String captureId, OffsetDateTime captureTime) {
-    }
-
-    /**
      * 从给定的购买单元列表中尝试获取第一个捕获信息
      *
-     * <p>该方法遍历传入的购买单元列表, 并尝试通过反射调用每个对象的 <code>getPayments</code> 和 <code>getCaptures</code>
-     * 方法来获取捕获信息, 如果找到有效的捕获信息, 则返回包含捕获 ID 和创建时间的 {@link CaptureInfo} 对象</p>
-     *
-     * @param purchaseUnits 购买单元列表, 可以为空或包含任何实现了 <code>getPayments</code> 方法的对象
-     * @return 如果找到有效的捕获信息, 则返回一个 {@link CaptureInfo} 对象; 否则返回 null
+     * @param purchaseUnits 购买单元列表
+     * @return 如果找到有效的捕获信息, 则返回一个 {@link PurchaseUnitItem.Capture} 对象; 否则返回 null
      */
-    private @Nullable CaptureInfo firstCapture(@Nullable List<?> purchaseUnits) {
+    private @Nullable PurchaseUnitItem.Capture firstCapture(@Nullable List<PurchaseUnitItem> purchaseUnits) {
         if (purchaseUnits == null || purchaseUnits.isEmpty())
             return null;
-
-        // 支持 PayPalGetOrderRespond 与 PayPalCaptureOrderRespond 的相同结构
-        for (Object pu : purchaseUnits) {
+        for (PurchaseUnitItem pu : purchaseUnits) {
             if (pu == null)
                 continue;
             try {
-                Object payments = pu.getClass().getMethod("getPayments").invoke(pu);
+                PurchaseUnitItem.Payments payments = pu.getPayments();
                 if (payments == null)
                     continue;
-                Object captures = payments.getClass().getMethod("getCaptures").invoke(payments);
-                if (!(captures instanceof List<?> list) || list.isEmpty())
+                List<PurchaseUnitItem.Capture> captures = payments.getCaptures();
+                if (captures.isEmpty())
                     continue;
-                Object cap = list.get(0);
+                PurchaseUnitItem.Capture cap = captures.get(0);
                 if (cap == null)
                     continue;
-                String id = (String) cap.getClass().getMethod("getId").invoke(cap);
-                OffsetDateTime createTime = (OffsetDateTime) cap.getClass().getMethod("getCreateTime").invoke(cap);
-                if (id != null && !id.isBlank())
-                    return new CaptureInfo(id, createTime);
+                return cap;
             } catch (Exception ignore) {
                 return null;
             }

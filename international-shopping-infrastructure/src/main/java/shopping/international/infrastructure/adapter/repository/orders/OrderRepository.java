@@ -466,6 +466,7 @@ public class OrderRepository implements IOrderRepository {
         PaymentOrderPO placeholderPayment = PaymentOrderPO.builder()
                 .orderId(orderId)
                 .externalId(null)
+                .capture_id(null)
                 .channel(PayChannel.NONE.name())
                 .amount(ordersPO.getPayAmount())
                 .currency(ordersPO.getCurrency())
@@ -1149,7 +1150,8 @@ public class OrderRepository implements IOrderRepository {
             });
             return AddressSnapshot.of(
                     asString(map.get("receiverName")),
-                    asString(map.get("phone")),
+                    asString(map.get("phoneCountryCode")),
+                    asString(map.get("phoneNationalNumber")),
                     asNullableString(map.get("country")),
                     asNullableString(map.get("province")),
                     asNullableString(map.get("city")),

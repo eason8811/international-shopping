@@ -72,15 +72,32 @@ public class UserRepository implements IUserRepository {
     /**
      * 按登录账号查询用户 (账号为用户名 / 邮箱 / 手机号), 返回完整聚合快照 (含绑定)
      *
-     * @param account 用户名 / 邮箱 / 手机号
+     * @param countryCode 电话国家代码
+     * @param account     用户名 / 邮箱 / 手机号
      * @return 用户聚合, 可为空
      */
     @Override
-    public Optional<User> findByLoginAccount(@NotNull String account) {
+    public Optional<User> findByLoginAccount(@Nullable String countryCode, @NotNull String account) {
+        PhoneNumber phone = null;
+        try {
+            if (countryCode != null)
+                phone = PhoneNumber.ofParts(countryCode, account);
+        } catch (Exception ignore) {
+            // account 可能是 username/email 等, 无需强制解析为手机号
+        }
+
+        PhoneNumber finalPhone = phone;
         UserAccountPO po = accountMapper.selectOne(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getUsername, account)
-                .or(wrapper -> wrapper.eq(UserAccountPO::getEmail, account))
-                .or(wrapper -> wrapper.eq(UserAccountPO::getPhone, account))
+                .and(wrapper -> {
+                    wrapper.eq(UserAccountPO::getUsername, account)
+                            .or(w -> w.eq(UserAccountPO::getEmail, account));
+                    if (finalPhone != null) {
+                        wrapper.or(w -> w
+                                .eq(UserAccountPO::getPhoneCountryCode, finalPhone.getCountryCode())
+                                .eq(UserAccountPO::getPhoneNationalNumber, finalPhone.getNationalNumber())
+                        );
+                    }
+                })
                 .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
                 .last("limit 1"));
         return assembleOptional(po);
@@ -152,7 +169,8 @@ public class UserRepository implements IUserRepository {
     @Override
     public boolean existsByPhone(@NotNull PhoneNumber phone) {
         Long n = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getPhone, phone.getValue())
+                .eq(UserAccountPO::getPhoneCountryCode, phone.getCountryCode())
+                .eq(UserAccountPO::getPhoneNationalNumber, phone.getNationalNumber())
                 .eq(UserAccountPO::getIsDeleted, Boolean.FALSE));
         return n != null && n > 0;
     }
@@ -198,7 +216,8 @@ public class UserRepository implements IUserRepository {
                 .username(user.getUsername().getValue())
                 .nickname(user.getNickname().getValue())
                 .email(user.getEmail().getValue())
-                .phone(user.getPhone() == null ? null : user.getPhone().getValue())
+                .phoneCountryCode(user.getPhone() == null ? null : user.getPhone().requireCountryCode())
+                .phoneNationalNumber(user.getPhone() == null ? null : user.getPhone().requireNationalNumber())
                 .status(user.getStatus() == null ? AccountStatus.DISABLED.name() : user.getStatus().name())
                 .lastLoginAt(user.getLastLoginAt())
                 .isDeleted(Boolean.FALSE)
@@ -248,7 +267,8 @@ public class UserRepository implements IUserRepository {
                 UserAddressPO addressPO = UserAddressPO.builder()
                         .userId(userId)
                         .receiverName(a.getReceiverName())
-                        .phone(a.getPhone() == null ? null : a.getPhone().getValue())
+                        .phoneCountryCode(a.getPhone() == null ? null : a.getPhone().requireCountryCode())
+                        .phoneNationalNumber(a.getPhone() == null ? null : a.getPhone().requireNationalNumber())
                         .country(a.getCountry())
                         .province(a.getProvince())
                         .city(a.getCity())
@@ -311,7 +331,8 @@ public class UserRepository implements IUserRepository {
     @Override
     public boolean existsByPhoneExceptUser(@NotNull Long userId, @NotNull PhoneNumber phone) {
         Long count = accountMapper.selectCount(new LambdaQueryWrapper<UserAccountPO>()
-                .eq(UserAccountPO::getPhone, phone.getValue())
+                .eq(UserAccountPO::getPhoneCountryCode, phone.getCountryCode())
+                .eq(UserAccountPO::getPhoneNationalNumber, phone.getNationalNumber())
                 .eq(UserAccountPO::getIsDeleted, Boolean.FALSE)
                 .ne(UserAccountPO::getId, userId));
         return count != null && count > 0;
@@ -338,7 +359,8 @@ public class UserRepository implements IUserRepository {
             needUpdate = true;
         }
         if (phone != null) {
-            updateWrapper.set(UserAccountPO::getPhone, phone.getValue());
+            updateWrapper.set(UserAccountPO::getPhoneCountryCode, phone.requireCountryCode());
+            updateWrapper.set(UserAccountPO::getPhoneNationalNumber, phone.requireNationalNumber());
             needUpdate = true;
         }
         if (!needUpdate)
@@ -709,7 +731,7 @@ public class UserRepository implements IUserRepository {
                 Username.of(account.getUsername()),
                 Nickname.of(account.getNickname()),
                 EmailAddress.ofNullable(account.getEmail()),
-                PhoneNumber.nullableOf(account.getPhone()),
+                PhoneNumber.nullableOfParts(account.getPhoneCountryCode(), account.getPhoneNationalNumber()),
                 AccountStatus.valueOf(account.getStatus()),
                 account.getLastLoginAt(),
                 Boolean.TRUE.equals(account.getIsDeleted()),
@@ -756,7 +778,7 @@ public class UserRepository implements IUserRepository {
         return new UserAddress(
                 addressPO.getId(),
                 addressPO.getReceiverName(),
-                addressPO.getPhone() == null ? null : PhoneNumber.nullableOf(addressPO.getPhone()),
+                PhoneNumber.nullableOfParts(addressPO.getPhoneCountryCode(), addressPO.getPhoneNationalNumber()),
                 addressPO.getCountry(),
                 addressPO.getProvince(),
                 addressPO.getCity(),
@@ -781,7 +803,8 @@ public class UserRepository implements IUserRepository {
         return UserAddressPO.builder()
                 .userId(userId)
                 .receiverName(address.getReceiverName())
-                .phone(address.getPhone() == null ? null : address.getPhone().getValue())
+                .phoneCountryCode(address.getPhone() == null ? null : address.getPhone().requireCountryCode())
+                .phoneNationalNumber(address.getPhone() == null ? null : address.getPhone().requireNationalNumber())
                 .country(address.getCountry())
                 .province(address.getProvince())
                 .city(address.getCity())

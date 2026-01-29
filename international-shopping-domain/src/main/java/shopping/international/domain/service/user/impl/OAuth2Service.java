@@ -264,7 +264,7 @@ public class OAuth2Service implements IOAuth2Service {
             Username username = Username.of(uniqueUsername);
             Nickname nickname = Nickname.of(requireNonNullElse(name, uniqueUsername));
             EmailAddress emailAddress = EmailAddress.ofNullable(email);
-            PhoneNumber phone = PhoneNumber.nullableOf(null);
+            PhoneNumber phone = null;
 
             // 访问令牌过期时间
             LocalDateTime expiresAt = (tokenResponse.expiresInSeconds() != null)
