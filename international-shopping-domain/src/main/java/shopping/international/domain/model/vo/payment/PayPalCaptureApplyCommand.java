@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
  * @param orderId         订单 ID
  * @param paypalOrderId   PayPal 订单 ID
  * @param captureSuccess  捕获是否成功的标志
+ * @param captureId       PayPal capture_id (可为空, 退款/查单会用到)
  * @param captureTime     捕获操作发生的时间
  * @param ttl             捕获记录的有效期时长
  * @param responsePayload PayPal 返回的响应负载 (可为空)
@@ -30,10 +31,10 @@ public record PayPalCaptureApplyCommand(@NotNull Long paymentId,
                                         @NotNull Long orderId,
                                         @NotNull String paypalOrderId,
                                         boolean captureSuccess,
+                                        @Nullable String captureId,
                                         @NotNull LocalDateTime captureTime,
                                         @NotNull Duration ttl,
                                         @Nullable String responsePayload,
                                         @Nullable Object notifyPayload,
                                         @Nullable LocalDateTime lastNotifiedAt) {
 }
-

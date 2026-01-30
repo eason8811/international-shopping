@@ -11,6 +11,8 @@ import shopping.international.domain.adapter.repository.payment.IPaymentReposito
 import shopping.international.domain.model.enums.payment.PaymentChannel;
 import shopping.international.domain.model.enums.payment.PaymentStatus;
 import shopping.international.domain.model.enums.payment.RefundStatus;
+import shopping.international.domain.model.enums.payment.paypal.PayPalCaptureStatus;
+import shopping.international.domain.model.enums.payment.paypal.PayPalOrderStatus;
 import shopping.international.domain.model.vo.payment.*;
 import shopping.international.domain.service.common.impl.CurrencyConfigService;
 import shopping.international.domain.service.payment.IPaymentService;
@@ -193,27 +195,48 @@ public class PaymentService implements IPaymentService {
                 )
         );
 
-        boolean success = isPayPalCaptureSuccess(captured.status());
-        LocalDateTime captureTime = toLocalDateTimeOrNow(captured.captureTime());
-        PaymentResultView applied = paymentRepository.applyPayPalCaptureResult(
-                new PayPalCaptureApplyCommand(
-                        target.paymentId(),
-                        target.orderId(),
-                        target.paypalOrderId(),
-                        success,
-                        captureTime,
-                        orderTimeoutSettings.ttl(),
-                        captured.responseJson(),
-                        null,
-                        null
-                )
-        );
+        PayPalCaptureStatus captureStatus = captured.captureStatus();
+        if (captureStatus != null) {
+            if (captureStatus == PayPalCaptureStatus.PENDING) {
+                paymentRepository.markPolled(target.paymentId(), LocalDateTime.now(), captured.responseJson(), captured.captureId());
+                return new PaymentResultView(target.paymentId(), target.orderNo(), PaymentStatus.PENDING, target.paypalOrderId(), "PayPal capture 状态 PENDING");
+            }
+            // REFUNDED / PARTIALLY_REFUNDED: 交给退款流程处理 (此处仅记录响应用于排障)
+            if (captureStatus == PayPalCaptureStatus.REFUNDED || captureStatus == PayPalCaptureStatus.PARTIALLY_REFUNDED) {
+                paymentRepository.markPolled(target.paymentId(), LocalDateTime.now(), captured.responseJson(), captured.captureId());
+                return new PaymentResultView(target.paymentId(), target.orderNo(), PaymentStatus.PENDING, target.paypalOrderId(), "PayPal capture 已进入退款相关状态: " + captureStatus);
+            }
 
-        // 晚到支付/已关单支付: 自动退款 (尽量不在同库事务内做外部调用)
-        if (success && applied.status() == PaymentStatus.EXCEPTION)
-            tryAutoRefundLatePayment(target, captured, note);
+            LocalDateTime captureTime = toLocalDateTimeOrNow(captured.captureTime());
+            boolean captureSuccess = captureStatus == PayPalCaptureStatus.COMPLETED;
+            PaymentResultView applied = paymentRepository.applyPayPalCaptureResult(
+                    new PayPalCaptureApplyCommand(
+                            target.paymentId(),
+                            target.orderId(),
+                            target.paypalOrderId(),
+                            captureSuccess,
+                            captured.captureId(),
+                            captureTime,
+                            orderTimeoutSettings.ttl(),
+                            captured.responseJson(),
+                            null,
+                            null
+                    )
+            );
 
-        return applied;
+            // 晚到支付/已关单支付: 自动退款 (尽量不在同库事务内做外部调用)
+            if (captureSuccess && applied.status() == PaymentStatus.EXCEPTION)
+                tryAutoRefundLatePayment(target, captured, note);
+
+            return applied;
+        }
+
+        PayPalOrderStatus orderStatus = captured.orderStatus();
+        if (orderStatus == PayPalOrderStatus.VOIDED)
+            return cancelPayPalPayment(userId, paymentId);
+
+        paymentRepository.markPolled(target.paymentId(), LocalDateTime.now(), captured.responseJson(), captured.captureId());
+        return new PaymentResultView(target.paymentId(), target.orderNo(), PaymentStatus.PENDING, target.paypalOrderId(), "PayPal capture.status 不可判定, order.status=" + orderStatus);
     }
 
     /**
@@ -267,7 +290,7 @@ public class PaymentService implements IPaymentService {
 
         Long paymentId = paymentIdOpt.get();
         IPayPalPort.GetOrderResult order = payPalPort.getOrder(paypalOrderId);
-        paymentRepository.markPolled(paymentId, LocalDateTime.now(), order.responseJson());
+        paymentRepository.markPolled(paymentId, LocalDateTime.now(), order.responseJson(), order.captureId());
 
         // 仅在检测到 capture 完成时推进 (避免覆盖其它状态)
         if (order.captureTime() == null)
@@ -281,6 +304,7 @@ public class PaymentService implements IPaymentService {
                         target.orderId(),
                         paypalOrderId,
                         true,
+                        order.captureId(),
                         captureTime,
                         orderTimeoutSettings.ttl(),
                         order.responseJson(),
@@ -289,13 +313,14 @@ public class PaymentService implements IPaymentService {
                 )
         );
 
-        // webhook 场景下: 若落库结果为 EXCEPTION（含晚到/关单/非当前有效 attempt）则尝试自动退款
+        // webhook 场景下: 若落库结果为 EXCEPTION (含晚到/关单/非当前有效 attempt) 则尝试自动退款
         if (applied.status() == PaymentStatus.EXCEPTION && order.captureId() != null && !order.captureId().isBlank())
             tryAutoRefundLatePayment(target, new IPayPalPort.CaptureOrderResult(
                     paypalOrderId,
                     order.captureId(),
                     order.captureTime(),
-                    "COMPLETED",
+                    PayPalOrderStatus.COMPLETED,
+                    PayPalCaptureStatus.COMPLETED,
                     "{}",
                     order.responseJson()
             ), "exception auto refund");
@@ -313,40 +338,95 @@ public class PaymentService implements IPaymentService {
             return;
 
         IPayPalPort.GetOrderResult order = payPalPort.getOrder(target.paypalOrderId());
-        paymentRepository.markPolled(paymentId, LocalDateTime.now(), order.responseJson());
+        paymentRepository.markPolled(paymentId, LocalDateTime.now(), order.responseJson(), order.captureId());
 
-        if (order.captureTime() == null)
+        PayPalCaptureStatus captureStatus = order.captureStatus();
+        if (captureStatus != null) {
+            if (captureStatus == PayPalCaptureStatus.PENDING
+                    || captureStatus == PayPalCaptureStatus.REFUNDED || captureStatus == PayPalCaptureStatus.PARTIALLY_REFUNDED) {
+                paymentRepository.markPolled(target.paymentId(), LocalDateTime.now(), order.responseJson(), order.captureId());
+                return;
+            }
+
+            LocalDateTime captureTime = toLocalDateTimeOrNow(order.captureTime());
+            boolean captureSuccess = captureStatus == PayPalCaptureStatus.COMPLETED;
+            PaymentResultView applied = paymentRepository.applyPayPalCaptureResult(
+                    new PayPalCaptureApplyCommand(
+                            target.paymentId(),
+                            target.orderId(),
+                            target.paypalOrderId(),
+                            captureSuccess,
+                            order.captureId(),
+                            captureTime,
+                            orderTimeoutSettings.ttl(),
+                            order.responseJson(),
+                            null,
+                            null
+                    )
+            );
+
+            // opsSync 场景下: 若落库结果为 EXCEPTION (含非当前有效 attempt) 则尝试自动退款
+            if (captureSuccess && applied.status() == PaymentStatus.EXCEPTION)
+                tryAutoRefundLatePayment(
+                        target,
+                        new IPayPalPort.CaptureOrderResult(
+                                target.paypalOrderId(),
+                                order.captureId(),
+                                order.captureTime(),
+                                order.orderStatus(),
+                                order.captureStatus(),
+                                "{}",
+                                order.responseJson()
+                        ),
+                        "exception auto refund"
+                );
+            return;
+        }
+
+        PayPalOrderStatus orderStatus = order.orderStatus();
+        if (orderStatus == PayPalOrderStatus.VOIDED) {
+            paymentRepository.closePayPalPaymentForOps(paymentId);
+            return;
+        }
+
+        if (orderStatus != PayPalOrderStatus.APPROVED)
             return;
 
-        LocalDateTime captureTime = toLocalDateTimeOrNow(order.captureTime());
+        // ORDER.APPROVED 且未出现 capture: 补打一遍 capture (幂等键 ppcap-{paymentId}) 后按 capture.status 分支处理
+        IPayPalPort.CaptureOrderResult captured = payPalPort.captureOrder(
+                new IPayPalPort.CaptureOrderCommand(
+                        "ppcap-" + paymentId,
+                        target.paypalOrderId(),
+                        null,
+                        "opsSync capture"
+                )
+        );
+        paymentRepository.markPolled(paymentId, LocalDateTime.now(), captured.responseJson(), captured.captureId());
+
+        PayPalCaptureStatus capturedStatus = captured.captureStatus();
+        if (capturedStatus == null || capturedStatus == PayPalCaptureStatus.PENDING
+                || capturedStatus == PayPalCaptureStatus.REFUNDED || capturedStatus == PayPalCaptureStatus.PARTIALLY_REFUNDED)
+            return;
+
+        LocalDateTime captureTime = toLocalDateTimeOrNow(captured.captureTime());
+        boolean captureSuccess = capturedStatus == PayPalCaptureStatus.COMPLETED;
         PaymentResultView applied = paymentRepository.applyPayPalCaptureResult(
                 new PayPalCaptureApplyCommand(
                         target.paymentId(),
                         target.orderId(),
                         target.paypalOrderId(),
-                        true,
+                        captureSuccess,
+                        captured.captureId(),
                         captureTime,
                         orderTimeoutSettings.ttl(),
-                        order.responseJson(),
+                        captured.responseJson(),
                         null,
                         null
                 )
         );
 
-        // opsSync 场景下: 若落库结果为 EXCEPTION（含非当前有效 attempt）则尝试自动退款
-        if (applied.status() == PaymentStatus.EXCEPTION && order.captureId() != null && !order.captureId().isBlank())
-            tryAutoRefundLatePayment(
-                    target,
-                    new IPayPalPort.CaptureOrderResult(
-                            target.paypalOrderId(),
-                            order.captureId(),
-                            order.captureTime(),
-                            "COMPLETED",
-                            "{}",
-                            order.responseJson()
-                    ),
-                    "exception auto refund"
-            );
+        if (captureSuccess && applied.status() == PaymentStatus.EXCEPTION)
+            tryAutoRefundLatePayment(target, captured, "exception auto refund");
     }
 
     /**
@@ -370,17 +450,6 @@ public class PaymentService implements IPaymentService {
             }
         }
         return processed;
-    }
-
-    /**
-     * 检查 PayPal 交易状态是否表示成功捕获
-     *
-     * @param status 交易的状态字符串, 需要为非空
-     * @return 如果状态是 {@code "COMPLETED"} 或 {@code "SUCCESS"}, 则返回 <code>true</code>; 否则返回 <code>false</code>
-     */
-    private static boolean isPayPalCaptureSuccess(@NotNull String status) {
-        String s = status.strip().toUpperCase(Locale.ROOT);
-        return "COMPLETED".equals(s) || "SUCCESS".equals(s);
     }
 
     /**

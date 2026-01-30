@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import retrofit2.Call;
 import retrofit2.Response;
 import shopping.international.domain.adapter.port.payment.IPayPalPort;
+import shopping.international.domain.model.enums.payment.paypal.PayPalCaptureStatus;
+import shopping.international.domain.model.enums.payment.paypal.PayPalOrderStatus;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.infrastructure.gateway.payment.IPayPalApi;
 import shopping.international.infrastructure.gateway.payment.dto.*;
@@ -175,11 +177,11 @@ public class PayPalPort implements IPayPalPort {
 
         return new GetOrderResult(
                 requireNotBlankValue(resp.getId(), "PayPal Order ID 为空"),
-                resp.getStatus() == null ? "" : resp.getStatus(),
+                PayPalOrderStatus.tryParse(resp.getStatus()),
                 approveUrl,
                 capture == null ? null : capture.getId(),
                 capture == null ? null : capture.getCreateTime(),
-                capture == null ? null : capture.getStatus(),
+                capture == null ? null : PayPalCaptureStatus.tryParse(capture.getStatus()),
                 toJson(resp)
         );
     }
@@ -222,7 +224,8 @@ public class PayPalPort implements IPayPalPort {
                 requireNotBlankValue(resp.getId(), "PayPal Order ID 为空"),
                 capture == null ? null : capture.getId(),
                 capture == null ? null : capture.getCreateTime(),
-                capture.getStatus(),
+                PayPalOrderStatus.tryParse(resp.getStatus()),
+                capture == null ? null : PayPalCaptureStatus.tryParse(capture.getStatus()),
                 toJson(request),
                 toJson(resp)
         );

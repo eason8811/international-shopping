@@ -3,6 +3,8 @@ package shopping.international.domain.adapter.port.payment;
 import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.payment.paypal.PayPalCaptureStatus;
+import shopping.international.domain.model.enums.payment.paypal.PayPalOrderStatus;
 import shopping.international.types.currency.CurrencyConfig;
 
 import java.time.Duration;
@@ -138,19 +140,19 @@ public interface IPayPalPort {
      * 查询 PayPal Order 结果
      *
      * @param paypalOrderId PayPal Order ID
-     * @param status        PayPal 侧状态 (原样字符串)
+     * @param orderStatus   PayPal 侧 order.status (枚举, 可能为空/未知)
      * @param approveUrl    收银台跳转链接 (可能为空)
      * @param captureId     若已 capture, 返回 capture_id (可能为空)
      * @param captureTime   若已 capture, 返回 capture_time (可能为空)
-     * @param captureStatus 若已 capture, 返回 capture_status (可能为空)
+     * @param captureStatus 若已 capture, 返回 captures[].status (枚举, 可能为空/未知)
      * @param responseJson  原始响应 JSON (用于落库快照/排障)
      */
     record GetOrderResult(@NotNull String paypalOrderId,
-                          @NotNull String status,
+                          @Nullable PayPalOrderStatus orderStatus,
                           @Nullable String approveUrl,
                           @Nullable String captureId,
                           @Nullable OffsetDateTime captureTime,
-                          @Nullable String captureStatus,
+                          @Nullable PayPalCaptureStatus captureStatus,
                           @NotNull String responseJson) {
     }
 
@@ -174,14 +176,16 @@ public interface IPayPalPort {
      * @param paypalOrderId PayPal Order ID
      * @param captureId     capture_id (可能为空, 取决于响应)
      * @param captureTime   capture_time (可能为空)
-     * @param status        capture 结果状态 (原样字符串)
+     * @param orderStatus   PayPal 侧 order.status (枚举, 可能为空/未知)
+     * @param captureStatus PayPal 侧 captures[].status (枚举, 可能为空/未知)
      * @param requestJson   原始请求 JSON (用于落库快照)
      * @param responseJson  原始响应 JSON (用于落库快照)
      */
     record CaptureOrderResult(@NotNull String paypalOrderId,
                               @Nullable String captureId,
                               @Nullable OffsetDateTime captureTime,
-                              @NotNull String status,
+                              @Nullable PayPalOrderStatus orderStatus,
+                              @Nullable PayPalCaptureStatus captureStatus,
                               @NotNull String requestJson,
                               @NotNull String responseJson) {
     }

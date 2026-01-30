@@ -36,7 +36,7 @@ public class PaymentOrderPO {
      * capture ID (用于退款, 目前仅 PayPal 需要)
      */
     @TableField("capture_id")
-    private String capture_id;
+    private String captureId;
     /**
      * 支付通道 (枚举字符串)
      */

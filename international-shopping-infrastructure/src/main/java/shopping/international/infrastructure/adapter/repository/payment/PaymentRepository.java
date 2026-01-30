@@ -416,12 +416,12 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      * @return 返回一个包含捕获目标信息的 {@link CaptureTarget} 对象
      * @throws NotFoundException 如果订单不存在
      * @throws ConflictException 如果出现以下情况之一:
-     *         <ul>
-     *           <li>支付渠道不是 PAYPAL</li>
-     *           <li>支付单尚未生成外部单号</li>
-     *           <li>支付单已关闭</li>
-     *           <li>当前支付单不是订单的有效支付尝试</li>
-     *         </ul>
+     *                           <ul>
+     *                             <li>支付渠道不是 PAYPAL</li>
+     *                             <li>支付单尚未生成外部单号</li>
+     *                             <li>支付单已关闭</li>
+     *                             <li>当前支付单不是订单的有效支付尝试</li>
+     *                           </ul>
      */
     @NotNull
     private CaptureTarget actualGetCaptureTarget(@NotNull Long paymentId, PaymentOrderPO payment, OrdersPO order) {
@@ -538,6 +538,8 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .set(PaymentOrderPO::getResponsePayload, cmd.responsePayload())
                 .set(PaymentOrderPO::getNotifyPayload, notifyJson)
                 .set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt());
+        if (cmd.captureId() != null && !cmd.captureId().isBlank())
+            paymentW.set(PaymentOrderPO::getCaptureId, cmd.captureId().strip());
         if (existingExternalId == null || existingExternalId.isBlank())
             paymentW.and(w -> w
                             .isNull(PaymentOrderPO::getExternalId).or()
@@ -618,13 +620,95 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      * @param paymentId       支付单 ID
      * @param polledAt        轮询时间
      * @param responsePayload 轮询响应报文 (JSON, 可为空)
+     * @param captureId       PayPal capture_id (可为空)
      */
     @Override
-    public void markPolled(@NotNull Long paymentId, @NotNull LocalDateTime polledAt, @Nullable String responsePayload) {
+    public void markPolled(@NotNull Long paymentId,
+                           @NotNull LocalDateTime polledAt,
+                           @Nullable String responsePayload,
+                           @Nullable String captureId) {
         paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                 .eq(PaymentOrderPO::getId, paymentId)
                 .set(PaymentOrderPO::getLastPolledAt, polledAt)
                 .set(PaymentOrderPO::getResponsePayload, responsePayload));
+
+        if (captureId != null && !captureId.isBlank())
+            paymentOrderMapper.update(new LambdaUpdateWrapper<PaymentOrderPO>()
+                    .eq(PaymentOrderPO::getId, paymentId)
+                    .and(w -> w
+                            .isNull(PaymentOrderPO::getCaptureId).or()
+                            .eq(PaymentOrderPO::getCaptureId, "")
+                    )
+                    .set(PaymentOrderPO::getCaptureId, captureId.strip())
+            );
+    }
+
+    /**
+     * 运维/兜底: 关闭 PayPal 支付尝试 (不做用户校验)
+     *
+     * <p>用于 PayPal 侧 order.status=VOIDED 等场景: 将当前支付单推进为 CLOSED (CAS), 并在其为当前有效尝试时同步 orders.pay_status -> CLOSED</p>
+     *
+     * @param paymentId 支付单 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void closePayPalPaymentForOps(@NotNull Long paymentId) {
+        PaymentOrderPO po = paymentOrderMapper.selectById(paymentId);
+        if (po == null)
+            throw new NotFoundException("支付单不存在");
+
+        OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, po.getOrderId())
+                .last("limit 1 for update"));
+        if (order == null)
+            throw new NotFoundException("订单不存在");
+
+        PaymentOrderPO payment = paymentOrderMapper.selectById(paymentId);
+        if (payment == null)
+            throw new NotFoundException("支付单不存在");
+
+        if (!PaymentChannel.PAYPAL.name().equals(payment.getChannel()))
+            throw new ConflictException("仅支持关闭 PAYPAL 支付单");
+
+        PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
+        if (PaymentStatus.CLOSED == currentStatus || PaymentStatus.SUCCESS == currentStatus)
+            return;
+        if (PaymentStatus.INIT != currentStatus && PaymentStatus.PENDING != currentStatus)
+            return;
+
+        int updated = paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getId, paymentId)
+                .in(PaymentOrderPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
+                .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
+        if (updated <= 0) {
+            PaymentOrderPO reRead = paymentOrderMapper.selectById(paymentId);
+            if (reRead == null)
+                throw new ConflictException("支付单已不存在");
+            PaymentStatus reReadStatus = PaymentStatus.valueOf(reRead.getStatus());
+            if (PaymentStatus.CLOSED == reReadStatus || PaymentStatus.SUCCESS == reReadStatus)
+                return;
+            throw new ConflictException("支付单状态已变更, 关闭支付单失败");
+        }
+
+        // 兼容旧数据: 若 active_payment_id 为空但 orders.payment_external_id 已指向该 paypalOrderId, 则认定为当前有效尝试并补齐 active_payment_id
+        if (order.getActivePaymentId() == null && payment.getExternalId() != null
+                && !payment.getExternalId().isBlank() && payment.getExternalId().equals(order.getPaymentExternalId())) {
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, order.getId())
+                    .isNull(OrdersPO::getActivePaymentId)
+                    .set(OrdersPO::getActivePaymentId, paymentId));
+            order.setActivePaymentId(paymentId);
+        }
+
+        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentId);
+
+        // 仅当关闭的是 "当前有效支付尝试" 时才同步 orders.pay_status, 避免影响已切换的其它尝试
+        if (isActiveAttempt)
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, payment.getOrderId())
+                    .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
+                    .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
+                    .set(OrdersPO::getPayStatus, PaymentStatus.CLOSED.name()));
     }
 
     /**

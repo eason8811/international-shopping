@@ -98,8 +98,21 @@ public interface IPaymentRepository {
      * @param paymentId       支付单 ID
      * @param polledAt        轮询时间
      * @param responsePayload 轮询响应报文 (JSON, 可为空)
+     * @param captureId       PayPal capture_id (可为空, 便于后续查单/退款)
      */
-    void markPolled(@NotNull Long paymentId, @NotNull LocalDateTime polledAt, @Nullable String responsePayload);
+    void markPolled(@NotNull Long paymentId,
+                    @NotNull LocalDateTime polledAt,
+                    @Nullable String responsePayload,
+                    @Nullable String captureId);
+
+    /**
+     * 运维/兜底: 关闭 PayPal 支付尝试 (不做用户校验)
+     *
+     * <p>用于 PayPal 侧 order.status=VOIDED 等场景: 将当前支付单推进为 CLOSED (CAS), 并在其为当前有效尝试时同步 orders.pay_status -> CLOSED</p>
+     *
+     * @param paymentId 支付单 ID
+     */
+    void closePayPalPaymentForOps(@NotNull Long paymentId);
 
     /**
      * 写入自动退款记录 (用于晚到支付等自动退款补偿)
