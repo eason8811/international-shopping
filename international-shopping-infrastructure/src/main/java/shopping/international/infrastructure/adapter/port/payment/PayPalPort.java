@@ -21,6 +21,7 @@ import shopping.international.infrastructure.gateway.payment.IPayPalApi;
 import shopping.international.infrastructure.gateway.payment.dto.*;
 import shopping.international.types.config.PayPalProperties;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.exceptions.PayPalWebhookReplayException;
 import shopping.international.types.utils.URI;
 
 import java.nio.charset.StandardCharsets;
@@ -29,8 +30,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * PayPal 端口实现 (Retrofit + Redis 防重放)
@@ -285,11 +285,12 @@ public class PayPalPort implements IPayPalPort {
         requireNotNull(cmd, "cmd 不能为空");
         requireNotBlank(cmd.eventIdForDedupe(), "eventId 不能为空");
 
-        // 1) 防重放：transmission_id + event_id 组合去重
+        // 1) 防重放: transmission_id + event_id 组合去重
         String dedupeKey = WEBHOOK_DEDUPE_PREFIX + cmd.transmissionId() + ":" + cmd.eventIdForDedupe();
         boolean first = markOnce(dedupeKey, cmd.replayTtl());
         if (!first)
-            return;
+            throw new PayPalWebhookReplayException("PayPal Webhook 重复事件已忽略: transmissionId: "
+                    + cmd.transmissionId() + ", eventId: " + cmd.eventIdForDedupe());
 
         // 2) 时钟偏差校验 (避免过旧/过未来的请求)
         validateTransmissionTime(cmd.transmissionTime());
@@ -327,24 +328,29 @@ public class PayPalPort implements IPayPalPort {
 
         Object eventTypeObj = webhookEvent.get("event_type");
         String eventType = eventTypeObj == null ? "" : String.valueOf(eventTypeObj);
+        String upperEventType = eventType.strip().toUpperCase(Locale.ROOT);
 
         Map<String, Object> resource = asMap(webhookEvent.get("resource"));
         if (resource == null)
             return Optional.empty();
 
-        // 1) CHECKOUT.ORDER.*：resource.id 通常为 order_id
-        if (eventType.toUpperCase(Locale.ROOT).contains("CHECKOUT.ORDER")) {
+        // 1) CHECKOUT.ORDER.*: resource.id 通常为 order_id
+        if (upperEventType.contains("CHECKOUT.ORDER")) {
             String id = asString(resource.get("id"));
             if (id != null && !id.isBlank())
                 return Optional.of(id.strip());
         }
 
-        // 2) PAYMENT.CAPTURE.*：order_id 通常位于 resource.supplementary_data.related_ids.order_id
-        String nested = nestedString(resource, "supplementary_data", "related_ids", "order_id");
-        if (nested != null && !nested.isBlank())
-            return Optional.of(nested.strip());
+        // 2) PAYMENT.CAPTURE.*: order_id 通常位于 resource.supplementary_data.related_ids.order_id
+        if (upperEventType.contains("PAYMENT.CAPTURE")) {
+            String nested = nestedString(resource, "supplementary_data", "related_ids", "order_id");
+            if (nested != null && !nested.isBlank())
+                return Optional.of(nested.strip());
+            // PAYMENT.CAPTURE.* 的 resource.id 通常是 capture_id, 不作为兜底返回
+            return Optional.empty();
+        }
 
-        // 3) 兜底：若 resource.id 存在也返回 (可能是 order_id)
+        // 3) 兜底: 若 resource.id 存在也返回 (可能是 order_id)
         String id = asString(resource.get("id"));
         if (id != null && !id.isBlank())
             return Optional.of(id.strip());
@@ -554,42 +560,6 @@ public class PayPalPort implements IPayPalPort {
             return out;
         }
         return null;
-    }
-
-    /**
-     * 将给定的对象转换为字符串形式
-     *
-     * <p>如果对象为 {@code null}, 则返回 {@code null}否则, 使用 {@link String#valueOf(Object)} 方法将对象转换为字符串</p>
-     *
-     * @param o 待转换的对象
-     * @return 转换后的字符串, 如果输入对象为 {@code null}, 则返回 {@code null}
-     */
-    private static @Nullable String asString(Object o) {
-        if (o == null)
-            return null;
-        return String.valueOf(o);
-    }
-
-    /**
-     * 从给定的映射中, 根据提供的路径逐层查找并返回最终值作为字符串
-     *
-     * <p>此方法接收一个映射和一个可变参数路径, 沿着路径在映射中查找值, 如果在任何点上找不到对应键或者找到的值不是映射,
-     * 则返回 {@code null}, 如果成功遍历完整个路径, 则尝试将最后一个值转换为字符串后返回</p>
-     *
-     * @param map  映射, 从中开始查找路径
-     * @param path 可变参数列表, 表示要遍历的键路径
-     * @return 如果能够沿着指定路径找到非空值, 并且该值可以被成功转换为字符串, 则返回这个字符串; 否则返回 {@code null}
-     */
-    private static @Nullable String nestedString(@NotNull Map<String, Object> map, String... path) {
-        Object cur = map;
-        for (String p : path) {
-            if (!(cur instanceof Map<?, ?> m))
-                return null;
-            cur = m.get(p);
-            if (cur == null)
-                return null;
-        }
-        return asString(cur);
     }
 
     /**

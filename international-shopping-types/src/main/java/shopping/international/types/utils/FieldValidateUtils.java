@@ -352,4 +352,40 @@ public final class FieldValidateUtils {
     public static <T> String getI18nOrDefault(T i18n, Function<T, String> i18nGetFunc, String defaultI18n) {
         return i18n == null ? defaultI18n : i18nGetFunc.apply(i18n);
     }
+
+    /**
+     * 从给定的映射中, 根据提供的路径逐层查找并返回最终值作为字符串
+     *
+     * <p>此方法接收一个映射和一个可变参数路径, 沿着路径在映射中查找值, 如果在任何点上找不到对应键或者找到的值不是映射,
+     * 则返回 {@code null}, 如果成功遍历完整个路径, 则尝试将最后一个值转换为字符串后返回</p>
+     *
+     * @param map  映射, 从中开始查找路径
+     * @param path 可变参数列表, 表示要遍历的键路径
+     * @return 如果能够沿着指定路径找到非空值, 并且该值可以被成功转换为字符串, 则返回这个字符串; 否则返回 {@code null}
+     */
+    public static @Nullable String nestedString(@NotNull Map<String, Object> map, String... path) {
+        Object cur = map;
+        for (String p : path) {
+            if (!(cur instanceof Map<?, ?> m))
+                return null;
+            cur = m.get(p);
+            if (cur == null)
+                return null;
+        }
+        return asString(cur);
+    }
+
+    /**
+     * 将给定的对象转换为字符串形式
+     *
+     * <p>如果对象为 {@code null}, 则返回 {@code null}否则, 使用 {@link String#valueOf(Object)} 方法将对象转换为字符串</p>
+     *
+     * @param o 待转换的对象
+     * @return 转换后的字符串, 如果输入对象为 {@code null}, 则返回 {@code null}
+     */
+    public static @Nullable String asString(Object o) {
+        if (o == null)
+            return null;
+        return String.valueOf(o);
+    }
 }

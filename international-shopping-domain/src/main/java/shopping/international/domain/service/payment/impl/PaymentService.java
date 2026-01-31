@@ -20,7 +20,9 @@ import shopping.international.types.config.BrandProperties;
 import shopping.international.types.config.OrderTimeoutSettings;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.exceptions.PayPalWebhookReplayException;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -30,7 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 支付领域服务实现 (PayPal)
@@ -226,7 +228,7 @@ public class PaymentService implements IPaymentService {
 
             // 晚到支付/已关单支付: 自动退款 (尽量不在同库事务内做外部调用)
             if (captureSuccess && applied.status() == PaymentStatus.EXCEPTION)
-                tryAutoRefundLatePayment(target, captured, note);
+                tryAutoRefundLatePayment(target, captured, "exception auto refund");
 
             return applied;
         }
@@ -266,18 +268,23 @@ public class PaymentService implements IPaymentService {
         Map<String, String> h = normalizeHeaderKeys(headers);
         Duration replayTtl = Duration.ofDays(1);
 
-        payPalPort.verifyWebhookAndReplayProtection(
-                new IPayPalPort.VerifyWebhookCommand(
-                        requireHeader(h, "PAYPAL-AUTH-ALGO"),
-                        requireHeader(h, "PAYPAL-CERT-URL"),
-                        requireHeader(h, "PAYPAL-TRANSMISSION-ID"),
-                        requireHeader(h, "PAYPAL-TRANSMISSION-SIG"),
-                        requireHeader(h, "PAYPAL-TRANSMISSION-TIME"),
-                        webhookEvent,
-                        eventId,
-                        replayTtl
-                )
-        );
+        try {
+            payPalPort.verifyWebhookAndReplayProtection(
+                    new IPayPalPort.VerifyWebhookCommand(
+                            requireHeader(h, "PAYPAL-AUTH-ALGO"),
+                            requireHeader(h, "PAYPAL-CERT-URL"),
+                            requireHeader(h, "PAYPAL-TRANSMISSION-ID"),
+                            requireHeader(h, "PAYPAL-TRANSMISSION-SIG"),
+                            requireHeader(h, "PAYPAL-TRANSMISSION-TIME"),
+                            webhookEvent,
+                            eventId,
+                            replayTtl
+                    )
+            );
+        } catch (PayPalWebhookReplayException e) {
+            log.info("PayPal Webhook 重复事件忽略, eventId:{}, msg: {}", eventId, e.getMessage());
+            return;
+        }
 
         Optional<String> paypalOrderIdOpt = payPalPort.tryExtractPayPalOrderId(webhookEvent);
         if (paypalOrderIdOpt.isEmpty())
@@ -288,42 +295,176 @@ public class PaymentService implements IPaymentService {
         if (paymentIdOpt.isEmpty())
             return;
 
-        Long paymentId = paymentIdOpt.get();
-        IPayPalPort.GetOrderResult order = payPalPort.getOrder(paypalOrderId);
-        paymentRepository.markPolled(paymentId, LocalDateTime.now(), order.responseJson(), order.captureId());
+        String eventType = String.valueOf(webhookEvent.getOrDefault("event_type", "")).strip();
+        if (eventType.isBlank())
+            return;
+        String upperEventType = eventType.toUpperCase(Locale.ROOT);
 
-        // 仅在检测到 capture 完成时推进 (避免覆盖其它状态)
-        if (order.captureTime() == null)
+        Long paymentId = paymentIdOpt.get();
+        CaptureTarget target;
+        try {
+            target = paymentRepository.getCaptureTargetForOps(paymentId);
+        } catch (Exception e) {
+            log.warn("PayPal Webhook 命中支付单但不允许处理, eventType={}, eventId={}, paymentId={}, err={}",
+                    eventType, eventId, paymentId, e.getMessage());
+            return;
+        }
+
+        // 订阅事件:
+        // 1) CHECKOUT.ORDER.APPROVED: 触发一次 capture (幂等键 ppcap-{paymentId})
+        switch (upperEventType) {
+            case "CHECKOUT.ORDER.APPROVED" -> handlePayPalCheckoutOrderApproved(target, webhookEvent);
+
+
+            // 2) PAYMENT.CAPTURE.COMPLETED: capture 入账完成, 推进支付单/订单支付状态为 SUCCESS
+            case "PAYMENT.CAPTURE.COMPLETED" ->
+                    handlePayPalCaptureWebhook(target, webhookEvent, PayPalCaptureStatus.COMPLETED);
+
+
+            // 3) PAYMENT.CAPTURE.DECLINED/DENIED: 支付失败, 推进为 FAIL
+            case "PAYMENT.CAPTURE.DECLINED", "PAYMENT.CAPTURE.DENIED" ->
+                    handlePayPalCaptureWebhook(target, webhookEvent, PayPalCaptureStatus.DECLINED);
+
+
+            // 4) PAYMENT.CAPTURE.REFUNDED/REVERSED: 资金退款/撤销/冲正, 进入退款对账逻辑
+            case "PAYMENT.CAPTURE.REFUNDED", "PAYMENT.CAPTURE.REVERSED" ->
+                    handlePayPalCaptureRefundWebhook(target, webhookEvent);
+        }
+    }
+
+    /**
+     * 处理 PayPal 订单批准后的检查流程
+     *
+     * <p>该方法主要用于在接收到 PayPal 的 {@code CHECKOUT.ORDER.APPROVED} 事件后, 对订单进行捕获并更新数据库中相应的支付状态信息
+     * 根据捕获结果的不同, 可能会执行关闭支付操作或尝试自动退款等额外处理
+     *
+     * @param target       指定的捕获目标, 包含支付 ID 和 PayPal 订单 ID 等必要信息 {@link CaptureTarget}
+     * @param webhookEvent 来自 PayPal 的 Webhook 事件数据, 以键值对形式存储
+     * @throws NullPointerException 如果传入的参数为 null
+     */
+    private void handlePayPalCheckoutOrderApproved(@NotNull CaptureTarget target, @NotNull Map<String, Object> webhookEvent) {
+        IPayPalPort.CaptureOrderResult captured = payPalPort.captureOrder(
+                new IPayPalPort.CaptureOrderCommand(
+                        "ppcap-" + target.paymentId(),
+                        target.paypalOrderId(),
+                        null,
+                        "webhook CHECKOUT.ORDER.APPROVED capture"
+                )
+        );
+        paymentRepository.markPolled(target.paymentId(), LocalDateTime.now(), captured.responseJson(), captured.captureId());
+
+        PayPalOrderStatus orderStatus = captured.orderStatus();
+        if (orderStatus == PayPalOrderStatus.VOIDED) {
+            paymentRepository.closePayPalPaymentForOps(target.paymentId());
+            return;
+        }
+
+        PayPalCaptureStatus capturedStatus = captured.captureStatus();
+        if (capturedStatus == null || capturedStatus == PayPalCaptureStatus.PENDING
+                || capturedStatus == PayPalCaptureStatus.REFUNDED || capturedStatus == PayPalCaptureStatus.PARTIALLY_REFUNDED)
             return;
 
-        CaptureTarget target = paymentRepository.getCaptureTargetForOps(paymentId);
-        LocalDateTime captureTime = toLocalDateTimeOrNow(order.captureTime());
+        LocalDateTime captureTime = toLocalDateTimeOrNow(captured.captureTime());
+        boolean captureSuccess = capturedStatus == PayPalCaptureStatus.COMPLETED;
         PaymentResultView applied = paymentRepository.applyPayPalCaptureResult(
                 new PayPalCaptureApplyCommand(
                         target.paymentId(),
                         target.orderId(),
-                        paypalOrderId,
-                        true,
-                        order.captureId(),
+                        target.paypalOrderId(),
+                        captureSuccess,
+                        captured.captureId(),
                         captureTime,
                         orderTimeoutSettings.ttl(),
-                        order.responseJson(),
+                        captured.responseJson(),
                         webhookEvent,
                         LocalDateTime.now()
                 )
         );
 
-        // webhook 场景下: 若落库结果为 EXCEPTION (含晚到/关单/非当前有效 attempt) 则尝试自动退款
-        if (applied.status() == PaymentStatus.EXCEPTION && order.captureId() != null && !order.captureId().isBlank())
+        if (captureSuccess && applied.status() == PaymentStatus.EXCEPTION)
+            tryAutoRefundLatePayment(target, captured, "exception auto refund");
+    }
+
+    /**
+     * 处理 PayPal 捕获 {@code PAYMENT.CAPTURE.COMPLETED/DECLINED/DENIED} 事件的 webhook 通知
+     *
+     * @param target         交易目标 包含支付 ID, 订单 ID 和 PayPal 订单 ID {@link CaptureTarget}
+     * @param webhookEvent   Webhook 事件数据, 一个键值对映射, 其中包含了捕获操作的相关信息
+     * @param expectedStatus 预期的捕获状态, 用于验证捕获是否按预期完成
+     */
+    private void handlePayPalCaptureWebhook(@NotNull CaptureTarget target,
+                                            @NotNull Map<String, Object> webhookEvent,
+                                            @NotNull PayPalCaptureStatus expectedStatus) {
+        String captureId = nestedString(webhookEvent, "resource", "id");
+        String updateTimeString = nestedString(webhookEvent, "resource", "update_time");
+        String createTimeString = nestedString(webhookEvent, "resource", "create_time");
+        OffsetDateTime offsetDateTime = null;
+        if (updateTimeString != null || createTimeString != null)
+            offsetDateTime = OffsetDateTime.parse(updateTimeString != null ? updateTimeString : createTimeString);
+        LocalDateTime captureTime = toLocalDateTimeOrNow(offsetDateTime);
+        if (captureId == null || captureTime == null)
+            return;
+
+        boolean captureSuccess = expectedStatus == PayPalCaptureStatus.COMPLETED;
+        PaymentResultView applied = paymentRepository.applyPayPalCaptureResult(
+                new PayPalCaptureApplyCommand(
+                        target.paymentId(),
+                        target.orderId(),
+                        target.paypalOrderId(),
+                        captureSuccess,
+                        captureId,
+                        captureTime,
+                        orderTimeoutSettings.ttl(),
+                        null,
+                        webhookEvent,
+                        LocalDateTime.now()
+                )
+        );
+
+        if (captureSuccess && applied.status() == PaymentStatus.EXCEPTION && !captureId.isBlank()) {
             tryAutoRefundLatePayment(target, new IPayPalPort.CaptureOrderResult(
-                    paypalOrderId,
-                    order.captureId(),
-                    order.captureTime(),
+                    target.paypalOrderId(),
+                    captureId,
+                    offsetDateTime,
                     PayPalOrderStatus.COMPLETED,
                     PayPalCaptureStatus.COMPLETED,
                     "{}",
-                    order.responseJson()
+                    "{}"
             ), "exception auto refund");
+        }
+    }
+
+    /**
+     * 处理来自 PayPal 的捕获退款 webhook 事件
+     *
+     * @param target       捕获目标, 包含订单 ID 和支付 ID 等信息
+     * @param webhookEvent Webhook 事件数据, 是一个键值对的映射, 其中包含退款相关的详细信息
+     */
+    private void handlePayPalCaptureRefundWebhook(@NotNull CaptureTarget target, @NotNull Map<String, Object> webhookEvent) {
+        // 当前仅落库退款事实表用于后续对账/人工处理; 订单状态/库存编排交由订单域退款流程兜底
+        String currency = nestedString(webhookEvent, "resource", "amount", "currency_code");
+        String value = nestedString(webhookEvent, "resource", "amount", "value");
+
+        Long amountMinor = null;
+        if (currency != null && !currency.isBlank() && value != null && !value.isBlank())
+            try {
+                amountMinor = configService.get(currency).toMinorRounded(new BigDecimal(value));
+            } catch (Exception ignore) {
+            }
+        if (amountMinor == null)
+            amountMinor = target.amountMinor();
+
+        paymentRepository.insertRefund(
+                target.orderId(),
+                target.paymentId(),
+                RefundNo.generate().getValue(),
+                null,
+                amountMinor,
+                currency == null || currency.isBlank() ? target.currency() : currency,
+                RefundStatus.SUCCESS,
+                null,
+                null
+        );
     }
 
     /**
