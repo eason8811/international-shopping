@@ -3,14 +3,11 @@ package shopping.international.domain.adapter.repository.orders;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.orders.Order;
-import shopping.international.domain.model.enums.orders.OrderStatus;
-import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
 import shopping.international.domain.model.entity.orders.InventoryLog;
 import shopping.international.domain.model.entity.orders.OrderStatusLog;
-import shopping.international.domain.model.vo.orders.AddressSnapshot;
-import shopping.international.domain.model.vo.orders.AdminOrderSearchCriteria;
-import shopping.international.domain.model.vo.orders.InventoryLogSearchCriteria;
-import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.domain.model.enums.orders.OrderStatus;
+import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
+import shopping.international.domain.model.vo.orders.*;
 import shopping.international.domain.service.orders.IAdminOrderService;
 import shopping.international.domain.service.orders.IOrderService;
 
@@ -223,15 +220,28 @@ public interface IOrderRepository {
     /**
      * 确认退款并回补库存 (RESTOCK)
      *
-     * @param order       订单聚合 (已在聚合内完成状态变更)
+     * <p>说明: 本方法会先 "发起网关退款 + 落库退款事实表", 仅当退款明确成功时才推进订单为 REFUNDED 并回补库存
+     * 若网关返回 PENDING, 则订单仍保持 REFUNDING, 后续由 Webhook/兜底轮询推进终态</p>
+     *
+     * @param order       订单聚合 (订单应处于 REFUNDING)
      * @param fromStatus  变更前状态
      * @param eventSource 状态日志来源
      * @param note        状态日志备注 (可为空)
+     * @param cmd         退款明细/金额拆分 (可为空, 为空代表整单退款)
      * @return 更新后的订单聚合
      */
     @NotNull
     Order confirmRefundAndRestock(@NotNull Order order, @NotNull OrderStatus fromStatus,
-                                  @NotNull OrderStatusEventSource eventSource, @Nullable String note);
+                                  @NotNull OrderStatusEventSource eventSource, @Nullable String note,
+                                  @Nullable ConfirmRefundCommand cmd);
+
+    /**
+     * 兜底任务: 扫描并同步非终态退款单
+     *
+     * @param limit 单批最大数量
+     * @return 本次处理的退款单数量
+     */
+    int syncNonFinalRefunds(int limit);
 
     /**
      * 关闭订单 (CLOSED)

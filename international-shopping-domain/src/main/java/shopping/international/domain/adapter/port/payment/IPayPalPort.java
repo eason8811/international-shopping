@@ -55,6 +55,14 @@ public interface IPayPalPort {
     @NotNull RefundCaptureResult refundCapture(@NotNull RefundCaptureCommand cmd);
 
     /**
+     * 查询 PayPal Refund (按 refund_id 查询退款状态)
+     *
+     * @param refundId PayPal Refund ID
+     * @return 查询结果
+     */
+    @NotNull GetRefundResult getRefund(@NotNull String refundId);
+
+    /**
      * 校验 PayPal Webhook 请求来源 (验签 + 防重放)
      *
      * <p>建议在通过该方法校验后, 才进入领域逻辑更新本地支付单与订单冗余字段</p>
@@ -220,6 +228,18 @@ public interface IPayPalPort {
                                @NotNull String status,
                                @NotNull String requestJson,
                                @NotNull String responseJson) {
+    }
+
+    /**
+     * 查询 Refund 结果
+     *
+     * @param refundId    PayPal Refund ID
+     * @param status      退款状态 (原样字符串)
+     * @param responseJson 原始响应 JSON (用于落库快照/排障)
+     */
+    record GetRefundResult(@NotNull String refundId,
+                           @NotNull String status,
+                           @NotNull String responseJson) {
     }
 
     /**

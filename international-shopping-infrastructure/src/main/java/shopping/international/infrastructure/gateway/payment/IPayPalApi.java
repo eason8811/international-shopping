@@ -63,6 +63,13 @@ public interface IPayPalApi {
                                                    @Body PayPalRefundCaptureRequest body);
 
     /**
+     * 查询 PayPal Refund
+     */
+    @GET
+    Call<PayPalGetRefundRespond> getRefund(@Url String url,
+                                           @Header("Authorization") String authorization);
+
+    /**
      * 验证 Webhook 签名
      */
     @POST
@@ -70,4 +77,3 @@ public interface IPayPalApi {
                                                                      @Header("Authorization") String authorization,
                                                                      @Body PayPalVerifyWebhookSignatureRequest body);
 }
-

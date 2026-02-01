@@ -12,10 +12,7 @@ import shopping.international.domain.model.enums.orders.OrderStatus;
 import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
-import shopping.international.domain.model.vo.orders.AdminOrderSearchCriteria;
-import shopping.international.domain.model.vo.orders.CancelReason;
-import shopping.international.domain.model.vo.orders.InventoryLogSearchCriteria;
-import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.domain.model.vo.orders.*;
 import shopping.international.domain.service.orders.IAdminOrderService;
 import shopping.international.types.exceptions.IllegalParamException;
 
@@ -113,16 +110,33 @@ public class AdminOrderService implements IAdminOrderService {
      * 确认退款 (管理侧)
      *
      * @param orderNo 订单号
-     * @param note    备注
-     * @return 更新后的订单
+     * @param note    备注 (可为空)
+     * @param cmd     退款明细/金额拆分 (可为空, 为空代表整单退款)
+     * @return 更新后的订单聚合
      */
     @Override
-    public @NotNull Order confirmRefund(@NotNull OrderNo orderNo, @Nullable String note) {
+    public @NotNull Order confirmRefund(@NotNull OrderNo orderNo, @Nullable String note, @Nullable ConfirmRefundCommand cmd) {
         Order order = orderRepository.findOrderDetail(orderNo)
                 .orElseThrow(() -> new IllegalParamException("订单不存在"));
         OrderStatus from = order.getStatus();
-        order.confirmRefund(note);
-        return orderRepository.confirmRefundAndRestock(order, from, OrderStatusEventSource.ADMIN, note);
+        return orderRepository.confirmRefundAndRestock(order, from, OrderStatusEventSource.ADMIN, note, cmd);
+    }
+
+    /**
+     * 兜底任务: 扫描并同步非终态退款单
+     *
+     * <p>用于兜底处理以下场景:</p>
+     * <ul>
+     *     <li>网关退款返回 PENDING, 回调未到或未成功处理</li>
+     *     <li>运维补偿/重试时需要刷新退款状态并推进订单/库存</li>
+     * </ul>
+     *
+     * @param limit 单批最大数量
+     * @return 本次处理的退款单数量
+     */
+    @Override
+    public int syncNonFinalRefunds(int limit) {
+        return orderRepository.syncNonFinalRefunds(limit);
     }
 
     /**

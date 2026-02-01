@@ -449,11 +449,13 @@ public class PaymentService implements IPaymentService {
      * @param webhookEvent Webhook 事件数据, 是一个键值对的映射, 其中包含退款相关的详细信息
      */
     private void handlePayPalCaptureRefundWebhook(@NotNull CaptureTarget target, @NotNull Map<String, Object> webhookEvent) {
-        // 当前仅落库退款事实表用于后续对账/人工处理; 订单状态/库存编排交由订单域退款流程兜底
+        // Webhook: 尽量命中本地退款单更新状态/notifyPayload, 若未命中则补插一条退款事实表用于对账
         String currency = Objects.requireNonNullElse(nestedString(webhookEvent, "resource", "amount", "currency_code"), target.currency());
         String value = nestedString(webhookEvent, "resource", "amount", "value");
         String eventId = Objects.requireNonNullElse(nestedString(webhookEvent, "id"), "");
-        String clientRefundNo = eventId.isBlank() ? null : ("ppwh-ref-" + eventId);
+        String refundId = nestedString(webhookEvent, "resource", "id");
+        String paypalStatus = nestedString(webhookEvent, "resource", "status");
+        String clientRefundNo = eventId.isBlank() ? null : webhookRefundDedupeKey(eventId);
 
         Long amountMinor = null;
         if (!currency.isBlank() && value != null && !value.isBlank())
@@ -464,17 +466,19 @@ public class PaymentService implements IPaymentService {
         if (amountMinor == null)
             amountMinor = target.amountMinor();
 
-        paymentRepository.insertRefund(
-                target.orderId(),
-                target.paymentId(),
-                RefundNo.generate().getValue(),
-                null,
-                clientRefundNo,
-                amountMinor,
-                currency.isBlank() ? target.currency() : currency,
-                RefundStatus.SUCCESS,
-                null,
-                null
+        paymentRepository.upsertRefundFromPayPalWebhook(
+                new PayPalRefundWebhookUpsertCommand(
+                        target.orderId(),
+                        target.paymentId(),
+                        RefundNo.generate().getValue(),
+                        refundId,
+                        clientRefundNo,
+                        amountMinor,
+                        currency.isBlank() ? target.currency() : currency,
+                        mapPayPalRefundStatus(paypalStatus),
+                        webhookEvent,
+                        LocalDateTime.now()
+                )
         );
     }
 
@@ -713,6 +717,39 @@ public class PaymentService implements IPaymentService {
         } catch (Exception e) {
             throw new IllegalStateException("sha256 计算失败", e);
         }
+    }
+
+    /**
+     * 将 PayPal 的退款状态映射到系统内部的 <code>RefundStatus</code>
+     *
+     * @param paypalStatus 从 PayPal 接收到的退款状态字符串, 可能为 null 或空白
+     * @return 对应于 PayPal 状态的 <code>RefundStatus</code> 枚举值 如果输入为空或未识别, 默认返回 <code>PENDING</code>
+     */
+    private static RefundStatus mapPayPalRefundStatus(@Nullable String paypalStatus) {
+        if (paypalStatus == null || paypalStatus.isBlank())
+            return RefundStatus.PENDING;
+        String s = paypalStatus.strip().toUpperCase(Locale.ROOT);
+        if ("COMPLETED".equals(s) || "SUCCESS".equals(s))
+            return RefundStatus.SUCCESS;
+        if ("PENDING".equals(s))
+            return RefundStatus.PENDING;
+        return RefundStatus.FAIL;
+    }
+
+    /**
+     * 生成用于退款 webhook 的去重键
+     *
+     * @param eventId 事件 ID, 不能为空
+     * @return 基于给定的事件 ID 生成的去重键, 如果原始组合字符串长度不超过 64 字符, 则直接返回该字符串; 否则, 返回该字符串 SHA-256 哈希值的前 64 个字符
+     */
+    private static @NotNull String webhookRefundDedupeKey(@NotNull String eventId) {
+        String prefix = "ppwh-ref-";
+        String normalized = eventId.strip();
+        int maxLen = 64;
+        String candidate = prefix + normalized;
+        if (candidate.length() <= maxLen)
+            return candidate;
+        return sha256Hex(candidate).substring(0, maxLen);
     }
 
     /**

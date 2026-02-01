@@ -792,6 +792,71 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     }
 
     /**
+     * Webhook/对账: 按 PayPal refund_id 更新(或补插)退款事实表
+     *
+     * <p>用于处理 PayPal 的退款类 Webhook 事件: 命中既有记录则更新状态与 notifyPayload; 否则创建一条对账记录</p>
+     *
+     * @param cmd 包含订单 ID, 支付单 ID, 退款单号等信息的 {@link PayPalRefundWebhookUpsertCommand} 对象,
+     *            该命令对象还包括了外部退款单号, 客户端退款单号, 金额(最小货币单位), 币种, 退款状态,
+     *            Webhook 事件详情以及回调时间等必要信息, 用于准确地执行更新或插入操作
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void upsertRefundFromPayPalWebhook(@NotNull PayPalRefundWebhookUpsertCommand cmd) {
+        // TODO: 没有CAS操作, 成功也不关闭原有支付尝试, 也不同步订单冗余状态, 这是有问题的
+        cmd.validate();
+        String externalRefundId = cmd.externalRefundId() == null ? null : cmd.externalRefundId().strip();
+        String notifyPayload = toJsonOrNull(cmd.webhookEvent());
+
+        if (externalRefundId != null && !externalRefundId.isBlank()) {
+            LambdaUpdateWrapper<PaymentRefundPO> wrapper = new LambdaUpdateWrapper<PaymentRefundPO>()
+                    .eq(PaymentRefundPO::getExternalRefundId, externalRefundId)
+                    .set(PaymentRefundPO::getStatus, cmd.status().name())
+                    .set(PaymentRefundPO::getLastNotifiedAt, cmd.notifiedAt());
+            if (notifyPayload != null)
+                wrapper.set(PaymentRefundPO::getNotifyPayload, notifyPayload);
+            int updated = paymentRefundMapper.update(null, wrapper);
+            if (updated > 0)
+                return;
+        }
+
+        PaymentRefundPO po = PaymentRefundPO.builder()
+                .refundNo(cmd.refundNo())
+                .orderId(cmd.orderId())
+                .paymentOrderId(cmd.paymentOrderId())
+                .externalRefundId(externalRefundId)
+                .clientRefundNo(cmd.clientRefundNo())
+                .amount(cmd.amountMinor())
+                .currency(cmd.currency())
+                .itemsAmount(null)
+                .shippingAmount(null)
+                .status(cmd.status().name())
+                .reasonCode(RefundReasonCode.OTHER.name())
+                .reasonText(null)
+                .initiator(RefundInitiator.SYSTEM.name())
+                .ticketId(null)
+                .requestPayload(null)
+                .responsePayload(null)
+                .notifyPayload(notifyPayload)
+                .lastPolledAt(null)
+                .lastNotifiedAt(cmd.notifiedAt())
+                .build();
+        try {
+            paymentRefundMapper.insert(po);
+        } catch (DuplicateKeyException e) {
+            if (externalRefundId == null || externalRefundId.isBlank())
+                throw e;
+            LambdaUpdateWrapper<PaymentRefundPO> wrapper = new LambdaUpdateWrapper<PaymentRefundPO>()
+                    .eq(PaymentRefundPO::getExternalRefundId, externalRefundId)
+                    .set(PaymentRefundPO::getStatus, cmd.status().name())
+                    .set(PaymentRefundPO::getLastNotifiedAt, cmd.notifiedAt());
+            if (notifyPayload != null)
+                wrapper.set(PaymentRefundPO::getNotifyPayload, notifyPayload);
+            paymentRefundMapper.update(null, wrapper);
+        }
+    }
+
+    /**
      * 根据支付订单 ID 和客户退款编号查找退款记录的 ID
      *
      * @param paymentOrderId 支付订单 ID, 不能为空

@@ -1,6 +1,7 @@
 package shopping.international.trigger.controller.orders;
 
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,10 +17,8 @@ import shopping.international.domain.model.entity.orders.OrderStatusLog;
 import shopping.international.domain.model.enums.orders.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
-import shopping.international.domain.model.vo.orders.AddressSnapshot;
-import shopping.international.domain.model.vo.orders.AdminOrderSearchCriteria;
-import shopping.international.domain.model.vo.orders.InventoryLogSearchCriteria;
-import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.domain.model.vo.orders.*;
+import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IAdminOrderService;
 import shopping.international.types.constant.SecurityConstants;
@@ -31,7 +30,10 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 管理侧订单接口 {@code /admin/orders}
@@ -256,7 +258,9 @@ public class AdminOrderController {
     public ResponseEntity<Result<AdminOrderDetailRespond>> confirmRefund(@PathVariable("order_no") String orderNo,
                                                                          @RequestBody AdminConfirmRefundRequest req) {
         req.validate();
-        Order refunded = adminOrderService.confirmRefund(OrderNo.of(orderNo), req.getNote());
+        OrderNo on = OrderNo.of(orderNo);
+        ConfirmRefundCommand cmd = buildConfirmRefundCommandOrNull(on, req);
+        Order refunded = adminOrderService.confirmRefund(on, req.getNote(), cmd);
         return ResponseEntity.ok(Result.ok(toRespond(refunded, currencyConfigService.get(refunded.getCurrency()))));
     }
 
@@ -331,7 +335,7 @@ public class AdminOrderController {
             return null;
         return AddressSnapshotRespond.builder()
                 .receiverName(snapshot.getReceiverName())
-                .phone(snapshot.getPhone())
+                .phone(PhoneNumber.ofParts(snapshot.getPhoneCountryCode(), snapshot.getPhoneNationalNumber()).getValue())
                 .country(snapshot.getCountry())
                 .province(snapshot.getProvince())
                 .city(snapshot.getCity())
@@ -408,6 +412,77 @@ public class AdminOrderController {
             return Enum.valueOf(enumType, value.strip());
         } catch (Exception e) {
             throw new IllegalParamException("枚举值不合法: " + value);
+        }
+    }
+
+    /**
+     * 构建确认退款命令, 如果请求中没有指定金额或项目, 则返回 null
+     *
+     * @param orderNo 订单编号, 用于获取订单详情和货币配置信息
+     * @param req     管理员确认退款请求, 包含退款金额和项目等信息
+     * @return 返回构建的 {@code ConfirmRefundCommand} 对象, 若请求中既没有指定金额也没有指定项目, 或者构建的命令为空, 则返回 null
+     */
+    private @Nullable ConfirmRefundCommand buildConfirmRefundCommandOrNull(@NotNull OrderNo orderNo,
+                                                                           @NotNull AdminConfirmRefundRequest req) {
+        boolean noAmounts = req.getItemsAmount() == null && req.getShippingAmount() == null;
+        boolean noItems = req.getItems() == null || req.getItems().isEmpty();
+        if (noAmounts && noItems)
+            return null;
+
+        // 解析金额需要币种, 这里复用一次 getDetail 获取 currency
+        Order order = adminOrderService.getDetail(orderNo)
+                .orElseThrow(() -> new IllegalParamException("订单不存在"));
+        CurrencyConfig currencyConfig = currencyConfigService.get(order.getCurrency());
+
+        Long itemsAmountMinor = toMinorOrNull(currencyConfig, req.getItemsAmount(), "itemsAmount");
+        Long shippingAmountMinor = toMinorOrNull(currencyConfig, req.getShippingAmount(), "shippingAmount");
+
+        List<ConfirmRefundCommand.RefundItem> items = List.of();
+        if (!noItems)
+            items = req.getItems().stream()
+                    .filter(Objects::nonNull)
+                    .map(i -> {
+                        Long amountMinor = toMinorOrNull(currencyConfig, i.getAmount(), "items.amount");
+                        Long orderItemId = i.getOrderItemId();
+                        Integer qty = i.getQuantity();
+                        requireNotNull(orderItemId, "items.orderItemId 不能为空");
+                        requireNotNull(qty, "items.quantity 不能为空");
+                        return new ConfirmRefundCommand.RefundItem(
+                                orderItemId,
+                                qty,
+                                amountMinor,
+                                i.getReason()
+                        );
+                    })
+                    .toList();
+
+        ConfirmRefundCommand cmd = new ConfirmRefundCommand(itemsAmountMinor, shippingAmountMinor, items);
+        cmd.validate();
+        if (ConfirmRefundCommand.isEmpty(cmd))
+            return null;
+        return cmd;
+    }
+
+    /**
+     * 将给定的原始字符串转换为货币配置下的最小单位数值, 如果转换失败或输入为空, 则返回 null
+     *
+     * @param currencyConfig 货币配置对象, 用于定义如何将金额转换为其最小单位, 不能为空
+     * @param raw            原始金额字符串, 可以为空或空白
+     * @param fieldName      字段名称, 用于在抛出异常时提供更具体的错误信息, 不能为空
+     * @return 如果转换成功, 返回转换后的最小单位数值; 如果 raw 为空或空白, 或者转换失败, 则返回 null
+     * @throws IllegalParamException 当 raw 的值无法被正确解析为数字, 或不符合货币配置的要求时抛出
+     */
+    private static @Nullable Long toMinorOrNull(@NotNull CurrencyConfig currencyConfig,
+                                                @Nullable String raw,
+                                                @NotNull String fieldName) {
+        if (raw == null || raw.isBlank())
+            return null;
+        try {
+            return currencyConfig.toMinorRounded(new java.math.BigDecimal(raw.strip()));
+        } catch (IllegalParamException e) {
+            throw new IllegalParamException(fieldName + " 字段" + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new IllegalParamException(fieldName + " 数值不合法");
         }
     }
 }

@@ -71,7 +71,7 @@ public interface IPaymentRepository {
      * 在同库事务内应用 PayPal capture 结果 (更新 payment_order 与同步 orders 冗余字段)
      *
      * <p>该方法应承载幂等与并发安全的 "权威落库逻辑"：
-     * 在基础设施层持锁读取 orders 当前状态后统一判定 SUCCESS/EXCEPTION/FAIL 与是否推进订单为 PAID。</p>
+     * 在基础设施层持锁读取 orders 当前状态后统一判定 SUCCESS/EXCEPTION/FAIL 与是否推进订单为 PAID, </p>
      */
     @NotNull PaymentResultView applyPayPalCaptureResult(@NotNull PayPalCaptureApplyCommand cmd);
 
@@ -150,5 +150,16 @@ public interface IPaymentRepository {
      * @return 如果存在具有相同 <code>clientRefundNo</code> 的退款记录, 则返回 <code>true</code>; 否则返回 <code>false</code>
      */
     boolean existsRefundDedupeKey(@NotNull Long paymentOrderId, @NotNull String clientRefundNo);
+
+    /**
+     * Webhook/对账: 按 PayPal refund_id 更新(或补插)退款事实表
+     *
+     * <p>用于处理 PayPal 的退款类 Webhook 事件: 命中既有记录则更新状态与 notifyPayload; 否则创建一条对账记录</p>
+     *
+     * @param cmd 包含订单 ID, 支付单 ID, 退款单号等信息的 {@link PayPalRefundWebhookUpsertCommand} 对象,
+     *            该命令对象还包括了外部退款单号, 客户端退款单号, 金额(最小货币单位), 币种, 退款状态,
+     *            Webhook 事件详情以及回调时间等必要信息, 用于准确地执行更新或插入操作
+     */
+    void upsertRefundFromPayPalWebhook(@NotNull PayPalRefundWebhookUpsertCommand cmd);
 
 }

@@ -61,6 +61,10 @@ public class PayPalPort implements IPayPalPort {
      */
     public static final URI REFUND_CAPTURED_PAYMENT_TEMPLATE = URI.of("/v2/payments/captures/{capture_id}/refund");
     /**
+     * Show refund details Path
+     */
+    public static final URI SHOW_REFUND_DETAILS_TEMPLATE = URI.of("/v2/payments/refunds/{refund_id}");
+    /**
      * Verify webhook signature Path
      */
     public static final URI VERIFY_WEBHOOK_SIGNATURE_TEMPLATE = URI.of("/v1/notifications/verify-webhook-signature");
@@ -269,6 +273,30 @@ public class PayPalPort implements IPayPalPort {
                 resp.getId(),
                 resp.getStatus() == null ? "" : resp.getStatus(),
                 toJson(request),
+                toJson(resp)
+        );
+    }
+
+    /**
+     * 查询 PayPal Refund (按 refund_id 查询退款状态)
+     *
+     * @param refundId PayPal Refund ID
+     * @return 查询结果
+     */
+    @Override
+    public @NotNull GetRefundResult getRefund(@NotNull String refundId) {
+        requireNotBlank(refundId, "refundId 不能为空");
+        String bearer = "Bearer " + requireAccessToken();
+
+        String url = properties.getBaseUrl() + SHOW_REFUND_DETAILS_TEMPLATE.fill("refund_id", refundId.strip());
+        PayPalGetRefundRespond resp = executeOrThrow(
+                api.getRefund(url, bearer),
+                "查询 PayPal Refund 失败"
+        );
+
+        return new GetRefundResult(
+                requireNotBlankValue(resp.getId(), "PayPal Refund ID 为空"),
+                resp.getStatus() == null ? "" : resp.getStatus(),
                 toJson(resp)
         );
     }

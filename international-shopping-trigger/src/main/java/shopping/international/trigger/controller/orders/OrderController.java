@@ -19,6 +19,7 @@ import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.AddressSnapshot;
 import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.orders.IOrderService;
 import shopping.international.types.constant.SecurityConstants;
@@ -34,7 +35,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 
 /**
  * 用户侧订单接口 {@code /users/me/orders}
@@ -328,7 +328,7 @@ public class OrderController {
             return null;
         return AddressSnapshotRespond.builder()
                 .receiverName(snapshot.getReceiverName())
-                .phone(snapshot.getPhone())
+                .phone(PhoneNumber.ofParts(snapshot.getPhoneCountryCode(), snapshot.getPhoneNationalNumber()).getValue())
                 .country(snapshot.getCountry())
                 .province(snapshot.getProvince())
                 .city(snapshot.getCity())
