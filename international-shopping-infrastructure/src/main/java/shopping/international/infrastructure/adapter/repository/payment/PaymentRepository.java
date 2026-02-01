@@ -391,11 +391,12 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (PaymentStatus.CLOSED.name().equals(payment.getStatus()))
             throw new ConflictException("支付单已关闭, 无法 capture");
 
+        CaptureTarget captureTarget = buildCaptureTarget(payment, order);
         boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentId);
         boolean legacyActiveAttempt = order.getActivePaymentId() == null && payment.getExternalId().equals(order.getPaymentExternalId());
         if (!isActiveAttempt && !legacyActiveAttempt)
             throw new ConflictException("当前支付单不是订单的有效支付尝试, 无法 capture");
-        return actualGetCaptureTarget(payment, order);
+        return captureTarget;
     }
 
     /**
@@ -412,7 +413,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
                 .eq(OrdersPO::getId, payment.getOrderId())
                 .last("limit 1"));
-        return actualGetCaptureTarget(payment, order);
+        return buildCaptureTarget(payment, order);
     }
 
     /**
@@ -431,7 +432,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      *                           </ul>
      */
     @NotNull
-    private CaptureTarget actualGetCaptureTarget(PaymentOrderPO payment, OrdersPO order) {
+    private CaptureTarget buildCaptureTarget(PaymentOrderPO payment, OrdersPO order) {
         if (order == null)
             throw new NotFoundException("订单不存在");
         if (!PaymentChannel.PAYPAL.name().equals(payment.getChannel()))
@@ -634,7 +635,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .set(PaymentOrderPO::getResponsePayload, responsePayload));
 
         if (captureId != null && !captureId.isBlank())
-            paymentOrderMapper.update(new LambdaUpdateWrapper<PaymentOrderPO>()
+            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                     .eq(PaymentOrderPO::getId, paymentId)
                     .and(w -> w
                             .isNull(PaymentOrderPO::getCaptureId).or()

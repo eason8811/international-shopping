@@ -301,17 +301,17 @@ public class PayPalPort implements IPayPalPort {
                 cmd.webhookEvent()
         );
 
-        // 3) 防重放: transmission_id + event_id 组合去重
-        String dedupeKey = WEBHOOK_DEDUPE_PREFIX + cmd.transmissionId() + ":" + cmd.eventIdForDedupe();
-        boolean first = markOnce(dedupeKey, cmd.replayTtl());
-        if (!first)
-            throw new PayPalWebhookReplayException("PayPal Webhook 重复事件已忽略: transmissionId: "
-                    + cmd.transmissionId() + ", eventId: " + cmd.eventIdForDedupe());
-
         String url = properties.getBaseUrl() + VERIFY_WEBHOOK_SIGNATURE_TEMPLATE;
         PayPalVerifyWebhookSignatureRespond resp = executeOrThrow(api.verifyWebhookSignature(url, bearer, body), "PayPal Webhook 验签失败");
         if (resp.getVerificationStatus() == null || !"SUCCESS".equalsIgnoreCase(resp.getVerificationStatus()))
             throw new IllegalParamException("PayPal Webhook 验签失败: " + resp.getVerificationStatus());
+
+        // 3) 防重放: transmission_id + event_id 组合去重
+        String dedupeKey = WEBHOOK_DEDUPE_PREFIX + ":" + cmd.eventIdForDedupe();
+        boolean first = markOnce(dedupeKey, cmd.replayTtl());
+        if (!first)
+            throw new PayPalWebhookReplayException("PayPal Webhook 重复事件已忽略: transmissionId: "
+                    + cmd.transmissionId() + ", eventId: " + cmd.eventIdForDedupe());
     }
 
     /**

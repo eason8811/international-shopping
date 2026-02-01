@@ -270,7 +270,7 @@ public class PaymentService implements IPaymentService {
         requireNotBlank(eventId, "webhookEvent.id 不能为空");
 
         Map<String, String> h = normalizeHeaderKeys(headers);
-        Duration replayTtl = Duration.ofDays(1);
+        Duration replayTtl = Duration.ofDays(4);
 
         try {
             payPalPort.verifyWebhookAndReplayProtection(
