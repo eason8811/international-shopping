@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.payment.IAdminPaymentRepository;
@@ -387,7 +388,14 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .eq(OrdersPO::getId, payment.getOrderId())
                 .eq(OrdersPO::getUserId, userId)
                 .last("limit 1"));
-        return actualGetCaptureTarget(paymentId, payment, order);
+        if (PaymentStatus.CLOSED.name().equals(payment.getStatus()))
+            throw new ConflictException("支付单已关闭, 无法 capture");
+
+        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentId);
+        boolean legacyActiveAttempt = order.getActivePaymentId() == null && payment.getExternalId().equals(order.getPaymentExternalId());
+        if (!isActiveAttempt && !legacyActiveAttempt)
+            throw new ConflictException("当前支付单不是订单的有效支付尝试, 无法 capture");
+        return actualGetCaptureTarget(payment, order);
     }
 
     /**
@@ -404,13 +412,12 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
                 .eq(OrdersPO::getId, payment.getOrderId())
                 .last("limit 1"));
-        return actualGetCaptureTarget(paymentId, payment, order);
+        return actualGetCaptureTarget(payment, order);
     }
 
     /**
      * 获取用于 capture 的目标信息, 包括支付单和订单的相关数据
      *
-     * @param paymentId 支付单 ID
      * @param payment   支付单实体
      * @param order     订单实体
      * @return 返回一个包含捕获目标信息的 {@link CaptureTarget} 对象
@@ -424,20 +431,13 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      *                           </ul>
      */
     @NotNull
-    private CaptureTarget actualGetCaptureTarget(@NotNull Long paymentId, PaymentOrderPO payment, OrdersPO order) {
+    private CaptureTarget actualGetCaptureTarget(PaymentOrderPO payment, OrdersPO order) {
         if (order == null)
             throw new NotFoundException("订单不存在");
         if (!PaymentChannel.PAYPAL.name().equals(payment.getChannel()))
             throw new ConflictException("仅支持 PAYPAL 支付单 capture");
         if (payment.getExternalId() == null || payment.getExternalId().isBlank())
             throw new ConflictException("支付单尚未生成外部单号, 无法 capture");
-        if (PaymentStatus.CLOSED.name().equals(payment.getStatus()))
-            throw new ConflictException("支付单已关闭, 无法 capture");
-
-        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentId);
-        boolean legacyActiveAttempt = order.getActivePaymentId() == null && payment.getExternalId().equals(order.getPaymentExternalId());
-        if (!isActiveAttempt && !legacyActiveAttempt)
-            throw new ConflictException("当前支付单不是订单的有效支付尝试, 无法 capture");
 
         return new CaptureTarget(
                 payment.getId(),
@@ -535,7 +535,6 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         paymentW.eq(PaymentOrderPO::getId, cmd.paymentId())
                 .ne(PaymentOrderPO::getStatus, PaymentStatus.SUCCESS.name())
                 .set(PaymentOrderPO::getStatus, effectivePaymentStatus.name())
-                .set(PaymentOrderPO::getResponsePayload, cmd.responsePayload())
                 .set(PaymentOrderPO::getNotifyPayload, notifyJson)
                 .set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt());
         if (cmd.captureId() != null && !cmd.captureId().isBlank())
@@ -546,6 +545,8 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                             .eq(PaymentOrderPO::getExternalId, "")
                     )
                     .set(PaymentOrderPO::getExternalId, cmd.paypalOrderId());
+        if (cmd.responsePayload() != null && !cmd.responsePayload().isBlank())
+            paymentW.set(PaymentOrderPO::getResponsePayload, cmd.responsePayload());
 
         int updatedPayment = paymentOrderMapper.update(null, paymentW);
         if (updatedPayment <= 0)
@@ -733,6 +734,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                                       @NotNull Long paymentOrderId,
                                       @NotNull String refundNo,
                                       @Nullable String externalRefundId,
+                                      @Nullable String clientRefundNo,
                                       long amountMinor,
                                       @NotNull String currency,
                                       @NotNull RefundStatus status,
@@ -743,7 +745,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .orderId(orderId)
                 .paymentOrderId(paymentOrderId)
                 .externalRefundId(externalRefundId)
-                .clientRefundNo(null)
+                .clientRefundNo(clientRefundNo)
                 .amount(amountMinor)
                 .currency(currency)
                 .itemsAmount(null)
@@ -759,8 +761,49 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .lastPolledAt(null)
                 .lastNotifiedAt(null)
                 .build();
-        paymentRefundMapper.insert(po);
-        return po.getId();
+        try {
+            paymentRefundMapper.insert(po);
+            return po.getId();
+        } catch (DuplicateKeyException e) {
+            if (clientRefundNo == null || clientRefundNo.isBlank())
+                throw e;
+            return findRefundIdByDedupeKey(paymentOrderId, clientRefundNo)
+                    .orElseThrow(() -> e);
+        }
+    }
+
+    /**
+     * 检查是否存在指定的退款去重键
+     *
+     * @param paymentOrderId 支付单 ID, 用于关联特定支付记录
+     * @param clientRefundNo 商户侧或客户端提供的幂等键, 用于防止重复退款
+     * @return 如果存在具有相同 <code>clientRefundNo</code> 的退款记录, 则返回 <code>true</code>; 否则返回 <code>false</code>
+     */
+    @Override
+    public boolean existsRefundDedupeKey(@NotNull Long paymentOrderId, @NotNull String clientRefundNo) {
+        if (clientRefundNo.isBlank())
+            return false;
+        Long cnt = paymentRefundMapper.selectCount(new LambdaQueryWrapper<PaymentRefundPO>()
+                .eq(PaymentRefundPO::getPaymentOrderId, paymentOrderId)
+                .eq(PaymentRefundPO::getClientRefundNo, clientRefundNo)
+                .last("limit 1"));
+        return cnt != null && cnt > 0;
+    }
+
+    /**
+     * 根据支付订单 ID 和客户退款编号查找退款记录的 ID
+     *
+     * @param paymentOrderId 支付订单 ID, 不能为空
+     * @param clientRefundNo 客户退款编号, 不能为空
+     * @return 如果找到对应的退款记录, 则返回包含该退款记录 ID 的 Optional 对象; 否则返回一个空的 Optional
+     */
+    private Optional<Long> findRefundIdByDedupeKey(@NotNull Long paymentOrderId, @NotNull String clientRefundNo) {
+        PaymentRefundPO row = paymentRefundMapper.selectOne(new LambdaQueryWrapper<PaymentRefundPO>()
+                .select(PaymentRefundPO::getId)
+                .eq(PaymentRefundPO::getPaymentOrderId, paymentOrderId)
+                .eq(PaymentRefundPO::getClientRefundNo, clientRefundNo)
+                .last("limit 1"));
+        return row == null ? Optional.empty() : Optional.ofNullable(row.getId());
     }
 
     // ========================= 管理侧读模型实现 =========================

@@ -23,16 +23,20 @@ import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.exceptions.PayPalWebhookReplayException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static shopping.international.types.utils.FieldValidateUtils.*;
+import static shopping.international.types.utils.FieldValidateUtils.nestedString;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
  * 支付领域服务实现 (PayPal)
@@ -399,8 +403,12 @@ public class PaymentService implements IPaymentService {
         String updateTimeString = nestedString(webhookEvent, "resource", "update_time");
         String createTimeString = nestedString(webhookEvent, "resource", "create_time");
         OffsetDateTime offsetDateTime = null;
-        if (updateTimeString != null || createTimeString != null)
-            offsetDateTime = OffsetDateTime.parse(updateTimeString != null ? updateTimeString : createTimeString);
+        try {
+            if (updateTimeString != null || createTimeString != null)
+                offsetDateTime = OffsetDateTime.parse(updateTimeString != null ? updateTimeString : createTimeString);
+        } catch (Exception e) {
+            log.warn("Capture 回调时间转换失败, create_time: {}, update_time: {}", createTimeString, updateTimeString);
+        }
         LocalDateTime captureTime = toLocalDateTimeOrNow(offsetDateTime);
         if (captureId == null || captureTime == null)
             return;
@@ -442,11 +450,13 @@ public class PaymentService implements IPaymentService {
      */
     private void handlePayPalCaptureRefundWebhook(@NotNull CaptureTarget target, @NotNull Map<String, Object> webhookEvent) {
         // 当前仅落库退款事实表用于后续对账/人工处理; 订单状态/库存编排交由订单域退款流程兜底
-        String currency = nestedString(webhookEvent, "resource", "amount", "currency_code");
+        String currency = Objects.requireNonNullElse(nestedString(webhookEvent, "resource", "amount", "currency_code"), target.currency());
         String value = nestedString(webhookEvent, "resource", "amount", "value");
+        String eventId = Objects.requireNonNullElse(nestedString(webhookEvent, "id"), "");
+        String clientRefundNo = eventId.isBlank() ? null : ("ppwh-ref-" + eventId);
 
         Long amountMinor = null;
-        if (currency != null && !currency.isBlank() && value != null && !value.isBlank())
+        if (!currency.isBlank() && value != null && !value.isBlank())
             try {
                 amountMinor = configService.get(currency).toMinorRounded(new BigDecimal(value));
             } catch (Exception ignore) {
@@ -459,8 +469,9 @@ public class PaymentService implements IPaymentService {
                 target.paymentId(),
                 RefundNo.generate().getValue(),
                 null,
+                clientRefundNo,
                 amountMinor,
-                currency == null || currency.isBlank() ? target.currency() : currency,
+                currency.isBlank() ? target.currency() : currency,
                 RefundStatus.SUCCESS,
                 null,
                 null
@@ -631,10 +642,17 @@ public class PaymentService implements IPaymentService {
             return;
         }
 
+        String clientRefundNo = autoRefundDedupeKey(target.paymentId(), captured.captureId());
+        if (paymentRepository.existsRefundDedupeKey(target.paymentId(), clientRefundNo)) {
+            log.info("自动退款去重命中, 已存在退款记录跳过, paymentId: {}, orderNo: {}, clientRefundNo: {}",
+                    target.paymentId(), target.orderNo(), clientRefundNo);
+            return;
+        }
+
         String refundNo = RefundNo.generate().getValue();
         IPayPalPort.RefundCaptureResult refunded = payPalPort.refundCapture(
                 new IPayPalPort.RefundCaptureCommand(
-                        null,
+                        clientRefundNo,
                         captured.captureId(),
                         target.amountMinor(),
                         target.currency(),
@@ -648,12 +666,53 @@ public class PaymentService implements IPaymentService {
                 target.paymentId(),
                 refundNo,
                 refunded.refundId(),
+                clientRefundNo,
                 target.amountMinor(),
                 target.currency(),
                 refundStatus,
                 refunded.requestJson(),
                 refunded.responseJson()
         );
+    }
+
+    /**
+     * 生成自动退款去重键 (payment_id + capture_id + 哈希截断)
+     *
+     * @param paymentId 支付ID (必须非空)
+     * @param captureId 捕获ID (必须非空)
+     * @return 生成的去重键, 长度不超过64字符
+     */
+    private static String autoRefundDedupeKey(@NotNull Long paymentId, @NotNull String captureId) {
+        String prefix = "ppref-late-" + paymentId + "-";
+        String normalizedCaptureId = captureId.strip();
+        int maxLen = 64;
+        String candidate = prefix + normalizedCaptureId;
+        if (candidate.length() <= maxLen)
+            return candidate;
+
+        String hash = sha256Hex(candidate);
+        int remain = maxLen - prefix.length();
+        return prefix + hash.substring(0, remain);
+    }
+
+    /**
+     * 将给定的字符串使用 SHA-256 算法进行哈希, 并将结果以十六进制字符串形式返回
+     *
+     * @param input 待哈希的原始字符串, 必须非空
+     * @return 经过 SHA-256 哈希后的字符串, 以小写十六进制格式表示
+     * @throws IllegalStateException 如果在计算 SHA-256 哈希过程中发生异常
+     */
+    private static String sha256Hex(@NotNull String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest)
+                sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("sha256 计算失败", e);
+        }
     }
 
     /**

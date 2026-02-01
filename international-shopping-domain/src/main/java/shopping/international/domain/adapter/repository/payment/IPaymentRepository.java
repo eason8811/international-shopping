@@ -123,6 +123,7 @@ public interface IPaymentRepository {
      * @param paymentOrderId   支付单 ID
      * @param refundNo         退款单号 (业务侧生成)
      * @param externalRefundId 网关退款单号 (可空)
+     * @param clientRefundNo   商户侧/客户端幂等键 (可空, 用于去重)
      * @param amountMinor      退款金额 (最小货币单位)
      * @param currency         币种
      * @param status           退款状态
@@ -134,10 +135,20 @@ public interface IPaymentRepository {
                                @NotNull Long paymentOrderId,
                                @NotNull String refundNo,
                                @Nullable String externalRefundId,
+                               @Nullable String clientRefundNo,
                                long amountMinor,
                                @NotNull String currency,
                                @NotNull RefundStatus status,
                                @Nullable String requestPayload,
                                @Nullable String responsePayload);
+
+    /**
+     * 检查是否存在指定的退款去重键
+     *
+     * @param paymentOrderId 支付单 ID, 用于关联特定支付记录
+     * @param clientRefundNo 商户侧或客户端提供的幂等键, 用于防止重复退款
+     * @return 如果存在具有相同 <code>clientRefundNo</code> 的退款记录, 则返回 <code>true</code>; 否则返回 <code>false</code>
+     */
+    boolean existsRefundDedupeKey(@NotNull Long paymentOrderId, @NotNull String clientRefundNo);
 
 }

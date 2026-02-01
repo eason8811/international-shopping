@@ -285,17 +285,10 @@ public class PayPalPort implements IPayPalPort {
         requireNotNull(cmd, "cmd 不能为空");
         requireNotBlank(cmd.eventIdForDedupe(), "eventId 不能为空");
 
-        // 1) 防重放: transmission_id + event_id 组合去重
-        String dedupeKey = WEBHOOK_DEDUPE_PREFIX + cmd.transmissionId() + ":" + cmd.eventIdForDedupe();
-        boolean first = markOnce(dedupeKey, cmd.replayTtl());
-        if (!first)
-            throw new PayPalWebhookReplayException("PayPal Webhook 重复事件已忽略: transmissionId: "
-                    + cmd.transmissionId() + ", eventId: " + cmd.eventIdForDedupe());
-
-        // 2) 时钟偏差校验 (避免过旧/过未来的请求)
+        // 1) 时钟偏差校验 (避免过旧/过未来的请求)
         validateTransmissionTime(cmd.transmissionTime());
 
-        // 3) 调用 PayPal verify-webhook-signature
+        // 2) 调用 PayPal verify-webhook-signature
         requireNotBlank(properties.getWebhookId(), "paypal.webhook-id 未配置");
         String bearer = "Bearer " + requireAccessToken();
         PayPalVerifyWebhookSignatureRequest body = new PayPalVerifyWebhookSignatureRequest(
@@ -307,6 +300,13 @@ public class PayPalPort implements IPayPalPort {
                 properties.getWebhookId(),
                 cmd.webhookEvent()
         );
+
+        // 3) 防重放: transmission_id + event_id 组合去重
+        String dedupeKey = WEBHOOK_DEDUPE_PREFIX + cmd.transmissionId() + ":" + cmd.eventIdForDedupe();
+        boolean first = markOnce(dedupeKey, cmd.replayTtl());
+        if (!first)
+            throw new PayPalWebhookReplayException("PayPal Webhook 重复事件已忽略: transmissionId: "
+                    + cmd.transmissionId() + ", eventId: " + cmd.eventIdForDedupe());
 
         String url = properties.getBaseUrl() + VERIFY_WEBHOOK_SIGNATURE_TEMPLATE;
         PayPalVerifyWebhookSignatureRespond resp = executeOrThrow(api.verifyWebhookSignature(url, bearer, body), "PayPal Webhook 验签失败");

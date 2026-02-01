@@ -835,7 +835,7 @@ CREATE TABLE payment_refund
     shipping_amount    BIGINT UNSIGNED                                   NULL COMMENT '运费部分的退款金额',
 
     status             ENUM ('INIT','PENDING','SUCCESS','FAIL','CLOSED') NOT NULL DEFAULT 'INIT' COMMENT '退款状态',
-    reason_code        ENUM ('CUSTOMER_REQUEST','RETURNED','LOST','DAMAGED','PRICE_ADJUST','DUPLICATE','OTHER')
+    reason_code        ENUM ('CUSTOMER_REQUEST','RETURNED','LOST','DAMAGED','PRICE_ADJUST','DUPLICATE','EXCEPTION','OTHER')
                                                                          NOT NULL DEFAULT 'OTHER' COMMENT '原因分类',
     reason_text        VARCHAR(255)                                      NULL COMMENT '原因备注(自由文本)',
     initiator          ENUM ('USER','ADMIN','SYSTEM','SCHEDULER')        NOT NULL DEFAULT 'ADMIN' COMMENT '发起方',
@@ -1230,7 +1230,5 @@ CREATE TABLE locale
     KEY idx_locale_enabled (enabled),
     CHECK (code REGEXP '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$')
 ) ENGINE = InnoDB COMMENT ='站点语言字典';
-
-
 
 
