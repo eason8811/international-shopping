@@ -1030,8 +1030,8 @@ public class OrderRepository implements IOrderRepository {
         // 关闭占位/NONE 或待支付支付单 (避免用户取消订单后仍可继续支付)
         paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
                 .eq(PaymentOrderPO::getOrderId, orderId)
-                .in(PaymentOrderPO::getStatus, PayStatus.NONE.name(), PayStatus.INIT.name(), PayStatus.PENDING.name())
-                .set(PaymentOrderPO::getStatus, PayStatus.CLOSED.name()));
+                .in(PaymentOrderPO::getStatus, PaymentStatus.NONE.name(), PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
+                .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
     }
 
     /**
@@ -1049,7 +1049,7 @@ public class OrderRepository implements IOrderRepository {
 
         PaymentOrderPO paid = paymentOrderMapper.selectOne(new LambdaQueryWrapper<PaymentOrderPO>()
                 .eq(PaymentOrderPO::getOrderId, orderId)
-                .eq(PaymentOrderPO::getStatus, PayStatus.SUCCESS.name())
+                .eq(PaymentOrderPO::getStatus, PaymentStatus.SUCCESS.name())
                 .orderByDesc(PaymentOrderPO::getUpdatedAt)
                 .last("limit 1"));
         if (paid == null)

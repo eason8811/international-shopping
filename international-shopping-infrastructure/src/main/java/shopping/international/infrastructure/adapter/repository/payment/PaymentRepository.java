@@ -654,6 +654,57 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
             }
         }
 
+        // 若订单已退款, 忽略 capture 结果对状态的推进, 仅补充审计字段 (避免 CLOSED -> EXCEPTION 污染与触发无意义的自动退款)
+        // 注意: 该分支仍需校验 externalId 一致性, 防止错单写入
+        boolean captureIdNotBlank = cmd.captureId() != null && !cmd.captureId().isBlank();
+        if (OrderStatus.REFUNDED.name().equals(order.getStatus())) {
+            String existingExternalId = payment.getExternalId();
+            if (existingExternalId != null && !existingExternalId.isBlank() && !existingExternalId.equals(cmd.paypalOrderId()))
+                throw new ConflictException("支付单现有 externalId 与当前 capture 的 externalId 不一致, 回填失败");
+
+            // capture_id / external_id 的补齐需要独立幂等条件, 避免互相叠加 WHERE 导致漏更新
+            if (captureIdNotBlank) {
+                paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                        .eq(PaymentOrderPO::getId, cmd.paymentId())
+                        .and(w -> w
+                                .isNull(PaymentOrderPO::getCaptureId).or()
+                                .eq(PaymentOrderPO::getCaptureId, "")
+                        )
+                        .set(PaymentOrderPO::getCaptureId, cmd.captureId().strip()));
+            }
+            if (existingExternalId == null || existingExternalId.isBlank()) {
+                paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                        .eq(PaymentOrderPO::getId, cmd.paymentId())
+                        .and(w -> w
+                                .isNull(PaymentOrderPO::getExternalId).or()
+                                .eq(PaymentOrderPO::getExternalId, "")
+                        )
+                        .set(PaymentOrderPO::getExternalId, cmd.paypalOrderId()));
+            }
+
+            String notifyJson = toJsonOrNull(cmd.notifyPayload());
+            boolean shouldUpdateAudit = false;
+            LambdaUpdateWrapper<PaymentOrderPO> auditW = new LambdaUpdateWrapper<PaymentOrderPO>()
+                    .eq(PaymentOrderPO::getId, cmd.paymentId());
+            if (notifyJson != null && !notifyJson.isBlank() && !"{}".equals(notifyJson)) {
+                auditW.set(PaymentOrderPO::getNotifyPayload, notifyJson);
+                shouldUpdateAudit = true;
+            }
+            if (cmd.responsePayload() != null && !cmd.responsePayload().isBlank() && !"{}".equals(cmd.responsePayload())) {
+                auditW.set(PaymentOrderPO::getResponsePayload, cmd.responsePayload());
+                shouldUpdateAudit = true;
+            }
+            if (cmd.lastNotifiedAt() != null) {
+                auditW.set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt());
+                shouldUpdateAudit = true;
+            }
+            if (shouldUpdateAudit)
+                paymentOrderMapper.update(null, auditW);
+
+            String paypalOrderId = (existingExternalId != null && !existingExternalId.isBlank()) ? existingExternalId : cmd.paypalOrderId();
+            return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), PaymentStatus.valueOf(payment.getStatus()), paypalOrderId, "订单已退款 (忽略 capture 状态推进)");
+        }
+
         // 幂等: SUCCESS 不允许被覆盖
         PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
         if (PaymentStatus.SUCCESS == currentStatus)
@@ -671,7 +722,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 .set(PaymentOrderPO::getStatus, effectivePaymentStatus.name())
                 .set(PaymentOrderPO::getNotifyPayload, notifyJson)
                 .set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt());
-        if (cmd.captureId() != null && !cmd.captureId().isBlank())
+        if (captureIdNotBlank)
             paymentW.set(PaymentOrderPO::getCaptureId, cmd.captureId().strip());
         if (existingExternalId == null || existingExternalId.isBlank())
             paymentW.and(w -> w
