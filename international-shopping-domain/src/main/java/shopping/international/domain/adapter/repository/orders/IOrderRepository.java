@@ -2,17 +2,21 @@ package shopping.international.domain.adapter.repository.orders;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.adapter.port.payment.IPayPalPort;
 import shopping.international.domain.model.aggregate.orders.Order;
 import shopping.international.domain.model.entity.orders.InventoryLog;
 import shopping.international.domain.model.entity.orders.OrderStatusLog;
 import shopping.international.domain.model.enums.orders.OrderStatus;
 import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
+import shopping.international.domain.model.enums.payment.RefundStatus;
 import shopping.international.domain.model.vo.orders.*;
+import shopping.international.domain.model.vo.payment.RefundTarget;
 import shopping.international.domain.service.orders.IAdminOrderService;
 import shopping.international.domain.service.orders.IOrderService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -165,12 +169,12 @@ public interface IOrderRepository {
      *     <li>可选: 写入 {@code order_discount_applied}</li>
      * </ul>
      *
-     * @param order                 订单聚合 (id 为空)
-     * @param eventSource           状态日志来源
-     * @param note                  状态日志备注 (可为空)
-     * @param cartItemIdsToDelete   需要删除的购物车条目 ID 列表 (可为空)
+     * @param order                  订单聚合 (id 为空)
+     * @param eventSource            状态日志来源
+     * @param note                   状态日志备注 (可为空)
+     * @param cartItemIdsToDelete    需要删除的购物车条目 ID 列表 (可为空)
      * @param discountAppliedCreates 折扣流水写入参数 (可为空)
-     * @param idempotencyKey        幂等键 (可为空)
+     * @param idempotencyKey         幂等键 (可为空)
      * @return 保存后的订单聚合 (携带持久化 ID 与明细 ID)
      */
     @NotNull
@@ -184,7 +188,7 @@ public interface IOrderRepository {
     /**
      * 更新订单收货地址快照
      *
-     * @param order         订单聚合
+     * @param order           订单聚合
      * @param addressSnapshot 新的地址快照
      * @return 更新后的订单聚合快照
      */
@@ -218,30 +222,41 @@ public interface IOrderRepository {
                         @NotNull OrderStatusEventSource eventSource, @Nullable String note);
 
     /**
-     * 确认退款并回补库存 (RESTOCK)
+     * 确认退款第一步, 锁单校验 + 计算拆分 + 创建退款事实 (INIT)
      *
-     * <p>说明: 本方法会先 "发起网关退款 + 落库退款事实表", 仅当退款明确成功时才推进订单为 REFUNDED 并回补库存
-     * 若网关返回 PENDING, 则订单仍保持 REFUNDING, 后续由 Webhook/兜底轮询推进终态</p>
-     *
-     * @param order       订单聚合 (订单应处于 REFUNDING)
-     * @param fromStatus  变更前状态
-     * @param eventSource 状态日志来源
-     * @param note        状态日志备注 (可为空)
-     * @param cmd         退款明细/金额拆分 (可为空, 为空代表整单退款)
-     * @return 更新后的订单聚合
+     * @param orderNo     订单号, 用于定位需要处理的订单
+     * @param eventSource 事件来源, 指示触发此操作的具体原因或上下文
+     * @param note        备注信息, 可为空, 提供额外的操作说明或记录
+     * @param refundPlan  退款计划
+     * @return 返回一个 {@link ConfirmRefundPrepared} 对象, 包含了准备退款所需的全部信息
      */
-    @NotNull
-    Order confirmRefundAndRestock(@NotNull Order order, @NotNull OrderStatus fromStatus,
-                                  @NotNull OrderStatusEventSource eventSource, @Nullable String note,
-                                  @Nullable ConfirmRefundCommand cmd);
+    @NotNull ConfirmRefundPrepared prepareConfirmRefund(@NotNull OrderNo orderNo,
+                                                        @NotNull OrderStatusEventSource eventSource,
+                                                        @Nullable String note,
+                                                        @NotNull ConfirmRefundPlan refundPlan);
 
     /**
-     * 兜底任务: 扫描并同步非终态退款单
+     * 确认退款第二步, 锁单回填网关退款结果 + 必要时推进订单/回补库存
      *
-     * @param limit 单批最大数量
-     * @return 本次处理的退款单数量
+     * @param cmd 确认退款绑定命令, 包含了需要绑定的退款信息
+     * @return 更新后的订单, 包含了最新的退款状态和相关信息
      */
-    int syncNonFinalRefunds(int limit);
+    @NotNull Order bindConfirmRefundResult(@NotNull ConfirmRefundBindCommand cmd);
+
+    /**
+     * 根据条件尝试将订单状态从退款中{@link OrderStatus#REFUNDING}更新为已退款{@link OrderStatus#REFUNDED}
+     * 仅当订单当前处于 REFUNDING 状态时, 才会进行状态变更; 否则方法直接返回不做任何处理
+     *
+     * @param target             退款目标信息 {@link RefundTarget}
+     * @param refundResult       查询 Refund 结果
+     * @param notifyPayload      回调请求体
+     * @param refundResultStatus 查询 Refund 结果的状态
+     * @param eventSource        订单状态变更事件来源 {@link OrderStatusEventSource}
+     * @param note               备注信息, 记录退款成功的额外说明
+     */
+    void applyRefundResult(@NotNull RefundTarget target, @NotNull IPayPalPort.GetRefundResult refundResult,
+                           @NotNull Map<String, Object> notifyPayload, @NotNull RefundStatus refundResultStatus,
+                           @NotNull OrderStatusEventSource eventSource, @NotNull String note);
 
     /**
      * 关闭订单 (CLOSED)
@@ -255,4 +270,16 @@ public interface IOrderRepository {
     @NotNull
     Order close(@NotNull Order order, @NotNull OrderStatus fromStatus,
                 @NotNull OrderStatusEventSource eventSource, @Nullable String note);
+
+    /**
+     * 写入状态流转日志
+     *
+     * @param orderId    订单 ID
+     * @param source     事件来源
+     * @param fromStatus 源状态 (可为空)
+     * @param toStatus   目标状态
+     * @param note       备注 (可为空)
+     */
+    void insertStatusLog(Long orderId, OrderStatusEventSource source, @Nullable OrderStatus fromStatus,
+                         OrderStatus toStatus, @Nullable String note);
 }

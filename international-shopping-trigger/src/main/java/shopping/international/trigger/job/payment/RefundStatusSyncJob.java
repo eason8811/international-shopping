@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import shopping.international.domain.service.orders.IAdminOrderService;
+import shopping.international.domain.service.payment.IPaymentService;
 
 /**
  * 退款状态兜底同步任务 (低频)
@@ -22,9 +22,9 @@ import shopping.international.domain.service.orders.IAdminOrderService;
 public class RefundStatusSyncJob {
 
     /**
-     * 管理侧订单服务
+     * 支付服务
      */
-    private final IAdminOrderService orderService;
+    private final IPaymentService paymentService;
 
     /**
      * 单批扫描的最大退款单数量 (默认 50)
@@ -40,7 +40,7 @@ public class RefundStatusSyncJob {
     @Scheduled(fixedDelayString = "${refunds.sync.fixed-delay}")
     public void sync() {
         try {
-            int processed = orderService.syncNonFinalRefunds(batchSize);
+            int processed = paymentService.syncNonFinalRefunds(batchSize);
             if (processed > 0)
                 log.info("退款状态兜底同步完成, processed: {}", processed);
         } catch (Exception e) {

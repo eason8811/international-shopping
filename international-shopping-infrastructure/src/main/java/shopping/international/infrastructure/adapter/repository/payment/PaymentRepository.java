@@ -10,8 +10,12 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import shopping.international.domain.adapter.port.payment.IPayPalPort;
+import shopping.international.domain.adapter.repository.orders.IOrderRepository;
 import shopping.international.domain.adapter.repository.payment.IAdminPaymentRepository;
 import shopping.international.domain.adapter.repository.payment.IPaymentRepository;
+import shopping.international.domain.model.enums.orders.OrderStatus;
+import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
 import shopping.international.domain.model.enums.payment.*;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
@@ -32,6 +36,7 @@ import shopping.international.types.exceptions.PayPalException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
@@ -68,6 +73,10 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      * user_account Mapper
      */
     private final UserAccountMapper userAccountMapper;
+    /**
+     * @see IOrderRepository
+     */
+    private final IOrderRepository orderRepository;
 
     /**
      * 在同库事务内准备 PayPal Checkout (锁定订单行, 关闭旧待支付支付单, 创建/复用 PAYPAL 支付单, 同步 orders 冗余字段)
@@ -162,11 +171,18 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
 
         ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
                 .eq(OrdersPO::getId, orderId)
-                .set(OrdersPO::getStatus, "PENDING_PAYMENT")
+                .set(OrdersPO::getStatus, OrderStatus.PENDING_PAYMENT.name())
                 .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
                 .set(OrdersPO::getPayStatus, targetPayStatus)
                 .set(OrdersPO::getPaymentExternalId, paymentOrderPO.getExternalId())
                 .set(OrdersPO::getActivePaymentId, paymentOrderPO.getId()));
+        orderRepository.insertStatusLog(
+                orderId,
+                OrderStatusEventSource.USER,
+                OrderStatus.valueOf(order.getStatus()),
+                OrderStatus.PENDING_PAYMENT,
+                "创建支付单"
+        );
 
         // 6) 确保支付单状态与 externalId 一致 (不覆盖 SUCCESS)
         paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
@@ -231,7 +247,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (order == null)
             throw new NotFoundException("订单不存在");
 
-        // 在 orders 行锁内重新读取 payment_order，避免并发下拿到旧 external_id 导致错误覆盖 orders.payment_external_id
+        // 在 orders 行锁内重新读取 payment_order, 避免并发下拿到旧 external_id 导致错误覆盖 orders.payment_external_id
         PaymentOrderPO payment = paymentOrderMapper.selectById(paymentId);
         if (payment == null)
             throw new NotFoundException("支付单不存在");
@@ -299,11 +315,18 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
                 .eq(OrdersPO::getId, order.getId())
                 .ne(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name())
-                .set(OrdersPO::getStatus, "PENDING_PAYMENT")
+                .set(OrdersPO::getStatus, OrderStatus.PENDING_PAYMENT.name())
                 .set(OrdersPO::getPayChannel, PaymentChannel.PAYPAL.name())
                 .set(OrdersPO::getPayStatus, PaymentStatus.PENDING.name())
                 .set(OrdersPO::getPaymentExternalId, externalId)
                 .set(OrdersPO::getActivePaymentId, paymentId));
+        orderRepository.insertStatusLog(
+                order.getId(),
+                OrderStatusEventSource.USER,
+                OrderStatus.valueOf(order.getStatus()),
+                OrderStatus.PENDING_PAYMENT,
+                "回填支付单网关信息"
+        );
     }
 
     /**
@@ -417,10 +440,117 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     }
 
     /**
+     * 获取退款目标信息
+     *
+     * @param refundId 退款单 ID
+     * @return 目标
+     */
+    @Override
+    public RefundTarget getRefundTargetForOps(@NotNull Long refundId) {
+        PaymentRefundPO refundPO = paymentRefundMapper.selectById(refundId);
+        if (refundPO == null)
+            throw new NotFoundException("退款单不存在");
+        if (refundPO.getExternalRefundId() == null || refundPO.getExternalRefundId().isBlank())
+            throw new ConflictException("退款单尚未生成外部退款单号, 无法退款");
+        return new RefundTarget(
+                refundId,
+                refundPO.getOrderId(),
+                refundPO.getExternalRefundId(),
+                refundPO.getPaymentOrderId(),
+                RefundStatus.valueOf(refundPO.getStatus())
+        );
+    }
+
+    /**
+     * 获取退款目标信息 (用于 WebHook)
+     * <p>
+     * 先使用 {@code external_refund_id} 查, 如果不命中则查 {@code payment_order_id} 对应的支付单下还在
+     * 进行中 (状态为 {@code INIT/PENDING}, 且 {@code external_refund_id} 为空) 的退款单, 如果还不命中就根据 cmd 中的信息新建一个退款单
+     * <p>
+     * <b/>幂等键使用退款流程统一的 {@code ppref-{payment_order.id}}
+     *
+     * @param cmd 外部退款单 ID
+     * @return 目标
+     */
+    @Override
+    public RefundTarget getRefundTargetForWebhook(@NotNull PayPalRefundWebhookCommand cmd) {
+        PaymentRefundPO refundPO = paymentRefundMapper.selectOne(new LambdaQueryWrapper<PaymentRefundPO>()
+                .eq(PaymentRefundPO::getExternalRefundId, cmd.externalRefundId())
+                .last("limit 1")
+        );
+        if (refundPO == null) {
+            refundPO = paymentRefundMapper.selectOne(new LambdaQueryWrapper<PaymentRefundPO>()
+                    .select(PaymentRefundPO::getId)
+                    .eq(PaymentRefundPO::getPaymentOrderId, cmd.paymentOrderId())
+                    .in(PaymentRefundPO::getStatus, RefundStatus.INIT.name(), RefundStatus.PENDING.name())
+                    .and(q -> q
+                            .isNull(PaymentRefundPO::getExternalRefundId).or()
+                            .eq(PaymentRefundPO::getExternalRefundId, "")
+                    )
+                    .orderByDesc(PaymentRefundPO::getCreatedAt)
+                    .last("limit 1"));
+        }
+        if (refundPO == null) {
+            PaymentRefundPO po = PaymentRefundPO.builder()
+                    .refundNo(cmd.refundNo())
+                    .orderId(cmd.orderId())
+                    .paymentOrderId(cmd.paymentOrderId())
+                    .externalRefundId(cmd.externalRefundId())
+                    .clientRefundNo("ppref-" + cmd.paymentOrderId())
+                    .amount(cmd.amountMinor())
+                    .currency(cmd.currency())
+                    .itemsAmount(null)
+                    .shippingAmount(null)
+                    .status(cmd.status().name())
+                    .reasonCode(RefundReasonCode.OTHER.name())
+                    .reasonText(null)
+                    .initiator(RefundInitiator.SYSTEM.name())
+                    .ticketId(null)
+                    .requestPayload(null)
+                    .responsePayload(null)
+                    .notifyPayload(toJsonOrNull(cmd.webhookEvent()))
+                    .lastPolledAt(null)
+                    .lastNotifiedAt(cmd.notifiedAt())
+                    .build();
+            try {
+                paymentRefundMapper.insert(po);
+                return new RefundTarget(
+                        po.getId(),
+                        po.getOrderId(),
+                        po.getExternalRefundId(),
+                        po.getPaymentOrderId(),
+                        RefundStatus.valueOf(po.getStatus())
+                );
+            } catch (DuplicateKeyException e) {
+                // 兜底: 同一 external_refund_id 并发插入
+                PaymentRefundPO reread = paymentRefundMapper.selectOne(new LambdaQueryWrapper<PaymentRefundPO>()
+                        .eq(PaymentRefundPO::getExternalRefundId, cmd.externalRefundId())
+                        .last("limit 1")
+                );
+                return new RefundTarget(
+                        reread.getId(),
+                        reread.getOrderId(),
+                        reread.getExternalRefundId(),
+                        reread.getPaymentOrderId(),
+                        RefundStatus.valueOf(reread.getStatus())
+                );
+            }
+        }
+
+        return new RefundTarget(
+                refundPO.getId(),
+                refundPO.getOrderId(),
+                cmd.externalRefundId(),
+                refundPO.getPaymentOrderId(),
+                RefundStatus.valueOf(refundPO.getStatus())
+        );
+    }
+
+    /**
      * 获取用于 capture 的目标信息, 包括支付单和订单的相关数据
      *
-     * @param payment   支付单实体
-     * @param order     订单实体
+     * @param payment 支付单实体
+     * @param order   订单实体
      * @return 返回一个包含捕获目标信息的 {@link CaptureTarget} 对象
      * @throws NotFoundException 如果订单不存在
      * @throws ConflictException 如果出现以下情况之一:
@@ -553,7 +683,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         if (updatedPayment <= 0)
             throw new ConflictException("支付单 capture 信息回填失败, 已经支付成功或已被并发回填");
 
-        // 3) 仅对 "当前有效尝试" 同步 orders 冗余字段与订单状态，避免旧尝试回调污染订单
+        // 3) 仅对 "当前有效尝试" 同步 orders 冗余字段与订单状态, 避免旧尝试回调污染订单
         if (isActiveAttempt) {
             LambdaUpdateWrapper<OrdersPO> payW = new LambdaUpdateWrapper<>();
             payW.eq(OrdersPO::getId, cmd.orderId())
@@ -566,11 +696,19 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                 payW.set(OrdersPO::getPayTime, payTime);
             ordersMapper.update(null, payW);
 
-            if (canAdvanceOrderStatusToPaid)
+            if (canAdvanceOrderStatusToPaid) {
                 ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
                         .eq(OrdersPO::getId, cmd.orderId())
-                        .in(OrdersPO::getStatus, "CREATED", "PENDING_PAYMENT")
-                        .set(OrdersPO::getStatus, "PAID"));
+                        .in(OrdersPO::getStatus, OrderStatus.CREATED.name(), OrderStatus.PENDING_PAYMENT.name())
+                        .set(OrdersPO::getStatus, OrderStatus.PAID));
+                orderRepository.insertStatusLog(
+                        cmd.orderId(),
+                        cmd.eventSource(),
+                        OrderStatus.valueOf(order.getStatus()),
+                        OrderStatus.PAID,
+                        cmd.statusLogNote()
+                );
+            }
         }
 
         return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), effectivePaymentStatus, cmd.paypalOrderId(), "OK");
@@ -617,6 +755,31 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     }
 
     /**
+     * 扫描需要同步的退款单 (用于低频兜底任务)
+     *
+     * @param limit 最大数量
+     * @return 候选列表
+     */
+    @Override
+    public @NotNull List<RefundSyncCandidate> listRefundSyncCandidates(int limit) {
+        int safeLimit = Math.min(Math.max(limit, 1), 200);
+        List<PaymentRefundPO> rows = paymentRefundMapper.selectList(new LambdaQueryWrapper<PaymentRefundPO>()
+                .in(PaymentRefundPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
+                .isNotNull(PaymentRefundPO::getExternalRefundId)
+                .orderByAsc(PaymentRefundPO::getUpdatedAt)
+                .last("limit " + safeLimit));
+        if (rows == null || rows.isEmpty())
+            return List.of();
+        return rows.stream()
+                .map(r -> new RefundSyncCandidate(
+                        r.getId(),
+                        r.getExternalRefundId(),
+                        PaymentStatus.valueOf(r.getStatus())
+                ))
+                .toList();
+    }
+
+    /**
      * 记录轮询时间与轮询报文 (可为空)
      *
      * @param paymentId       支付单 ID
@@ -629,20 +792,36 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                            @NotNull LocalDateTime polledAt,
                            @Nullable String responsePayload,
                            @Nullable String captureId) {
-        paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                .eq(PaymentOrderPO::getId, paymentId)
-                .set(PaymentOrderPO::getLastPolledAt, polledAt)
-                .set(PaymentOrderPO::getResponsePayload, responsePayload));
-
+        LambdaUpdateWrapper<PaymentOrderPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(PaymentOrderPO::getId, paymentId)
+                .set(PaymentOrderPO::getLastPolledAt, polledAt);
         if (captureId != null && !captureId.isBlank())
-            paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
-                    .eq(PaymentOrderPO::getId, paymentId)
+            wrapper.eq(PaymentOrderPO::getId, paymentId)
                     .and(w -> w
                             .isNull(PaymentOrderPO::getCaptureId).or()
                             .eq(PaymentOrderPO::getCaptureId, "")
                     )
-                    .set(PaymentOrderPO::getCaptureId, captureId.strip())
-            );
+                    .set(PaymentOrderPO::getCaptureId, captureId.strip());
+        if (responsePayload != null && !responsePayload.isBlank() && !"{}".equals(responsePayload))
+            wrapper.set(PaymentOrderPO::getResponsePayload, responsePayload);
+        paymentOrderMapper.update(null, wrapper);
+    }
+
+    /**
+     * 记录轮询时间与轮询报文 (可为空)
+     *
+     * @param refundId        退款单 ID
+     * @param polledAt        轮询时间
+     * @param responsePayload 轮询响应报文 (JSON, 可为空)
+     */
+    @Override
+    public void markRefundPolled(@NotNull Long refundId, LocalDateTime polledAt, @NotNull String responsePayload) {
+        LambdaUpdateWrapper<PaymentRefundPO> wrapper = new LambdaUpdateWrapper<PaymentRefundPO>()
+                .eq(PaymentRefundPO::getId, refundId)
+                .set(PaymentRefundPO::getLastNotifiedAt, polledAt);
+        if (!responsePayload.isBlank() && !"{}".equals(responsePayload))
+            wrapper.set(PaymentRefundPO::getResponsePayload, responsePayload);
+        paymentRefundMapper.update(null, wrapper);
     }
 
     /**
@@ -773,6 +952,48 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         }
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void closePaymentAttemptAfterRefundSuccess(@NotNull Long orderId, @NotNull Long paymentOrderId) {
+        OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, orderId)
+                .last("limit 1 for update"));
+        if (order == null)
+            throw new NotFoundException("订单不存在");
+
+        PaymentOrderPO payment = paymentOrderMapper.selectById(paymentOrderId);
+        if (payment == null)
+            throw new NotFoundException("支付单不存在");
+        if (!orderId.equals(payment.getOrderId()))
+            throw new ConflictException("支付单与订单不匹配");
+
+        // 兼容旧数据: 若 active_payment_id 为空但 orders.payment_external_id 已指向该 paypalOrderId, 则补齐 active_payment_id
+        if (order.getActivePaymentId() == null
+                && payment.getExternalId() != null
+                && !payment.getExternalId().isBlank()
+                && payment.getExternalId().equals(order.getPaymentExternalId())) {
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, orderId)
+                    .isNull(OrdersPO::getActivePaymentId)
+                    .set(OrdersPO::getActivePaymentId, paymentOrderId));
+            order.setActivePaymentId(paymentOrderId);
+        }
+
+        boolean isActiveAttempt = order.getActivePaymentId() != null && order.getActivePaymentId().equals(paymentOrderId);
+
+        paymentOrderMapper.update(null, new LambdaUpdateWrapper<PaymentOrderPO>()
+                .eq(PaymentOrderPO::getId, paymentOrderId)
+                .in(PaymentOrderPO::getStatus, PaymentStatus.SUCCESS.name(), PaymentStatus.EXCEPTION.name())
+                .set(PaymentOrderPO::getStatus, PaymentStatus.CLOSED.name()));
+
+        if (isActiveAttempt) {
+            ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                    .eq(OrdersPO::getId, orderId)
+                    .in(OrdersPO::getPayStatus, PaymentStatus.SUCCESS.name(), PaymentStatus.EXCEPTION.name())
+                    .set(OrdersPO::getPayStatus, PaymentStatus.CLOSED.name()));
+        }
+    }
+
     /**
      * 检查是否存在指定的退款去重键
      *
@@ -792,68 +1013,29 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     }
 
     /**
-     * Webhook/对账: 按 PayPal refund_id 更新(或补插)退款事实表
+     * 根据条件尝试将订单状态从退款中{@link OrderStatus#REFUNDING}更新为已退款{@link OrderStatus#REFUNDED}
+     * 仅当订单当前处于 REFUNDING 状态时, 才会进行状态变更; 否则方法直接返回不做任何处理
      *
-     * <p>用于处理 PayPal 的退款类 Webhook 事件: 命中既有记录则更新状态与 notifyPayload; 否则创建一条对账记录</p>
-     *
-     * @param cmd 包含订单 ID, 支付单 ID, 退款单号等信息的 {@link PayPalRefundWebhookUpsertCommand} 对象,
-     *            该命令对象还包括了外部退款单号, 客户端退款单号, 金额(最小货币单位), 币种, 退款状态,
-     *            Webhook 事件详情以及回调时间等必要信息, 用于准确地执行更新或插入操作
+     * @param target             退款目标信息 {@link RefundTarget}
+     * @param refundResult       查询 Refund 结果
+     * @param notifyPayload      回调请求体
+     * @param refundResultStatus 查询 Refund 结果的状态
+     * @param eventSource        订单状态变更事件来源 {@link OrderStatusEventSource}
+     * @param note               备注信息, 记录退款成功的额外说明
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void upsertRefundFromPayPalWebhook(@NotNull PayPalRefundWebhookUpsertCommand cmd) {
-        // TODO: 没有CAS操作, 成功也不关闭原有支付尝试, 也不同步订单冗余状态, 这是有问题的
-        cmd.validate();
-        String externalRefundId = cmd.externalRefundId() == null ? null : cmd.externalRefundId().strip();
-        String notifyPayload = toJsonOrNull(cmd.webhookEvent());
-
-        if (externalRefundId != null && !externalRefundId.isBlank()) {
-            LambdaUpdateWrapper<PaymentRefundPO> wrapper = new LambdaUpdateWrapper<PaymentRefundPO>()
-                    .eq(PaymentRefundPO::getExternalRefundId, externalRefundId)
-                    .set(PaymentRefundPO::getStatus, cmd.status().name())
-                    .set(PaymentRefundPO::getLastNotifiedAt, cmd.notifiedAt());
-            if (notifyPayload != null)
-                wrapper.set(PaymentRefundPO::getNotifyPayload, notifyPayload);
-            int updated = paymentRefundMapper.update(null, wrapper);
-            if (updated > 0)
-                return;
-        }
-
-        PaymentRefundPO po = PaymentRefundPO.builder()
-                .refundNo(cmd.refundNo())
-                .orderId(cmd.orderId())
-                .paymentOrderId(cmd.paymentOrderId())
-                .externalRefundId(externalRefundId)
-                .clientRefundNo(cmd.clientRefundNo())
-                .amount(cmd.amountMinor())
-                .currency(cmd.currency())
-                .itemsAmount(null)
-                .shippingAmount(null)
-                .status(cmd.status().name())
-                .reasonCode(RefundReasonCode.OTHER.name())
-                .reasonText(null)
-                .initiator(RefundInitiator.SYSTEM.name())
-                .ticketId(null)
-                .requestPayload(null)
-                .responsePayload(null)
-                .notifyPayload(notifyPayload)
-                .lastPolledAt(null)
-                .lastNotifiedAt(cmd.notifiedAt())
-                .build();
-        try {
-            paymentRefundMapper.insert(po);
-        } catch (DuplicateKeyException e) {
-            if (externalRefundId == null || externalRefundId.isBlank())
-                throw e;
-            LambdaUpdateWrapper<PaymentRefundPO> wrapper = new LambdaUpdateWrapper<PaymentRefundPO>()
-                    .eq(PaymentRefundPO::getExternalRefundId, externalRefundId)
-                    .set(PaymentRefundPO::getStatus, cmd.status().name())
-                    .set(PaymentRefundPO::getLastNotifiedAt, cmd.notifiedAt());
-            if (notifyPayload != null)
-                wrapper.set(PaymentRefundPO::getNotifyPayload, notifyPayload);
-            paymentRefundMapper.update(null, wrapper);
-        }
+    public void applyRefundResult(@NotNull RefundTarget target, @NotNull IPayPalPort.GetRefundResult refundResult,
+                                  @NotNull Map<String, Object> notifyPayload, @NotNull RefundStatus refundResultStatus,
+                                  @NotNull OrderStatusEventSource eventSource, @NotNull String note) {
+        orderRepository.applyRefundResult(
+                target,
+                refundResult,
+                notifyPayload,
+                refundResultStatus,
+                eventSource,
+                note
+        );
     }
 
     /**

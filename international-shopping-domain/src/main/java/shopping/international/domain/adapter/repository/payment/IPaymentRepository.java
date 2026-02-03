@@ -2,11 +2,15 @@ package shopping.international.domain.adapter.repository.payment;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.adapter.port.payment.IPayPalPort;
+import shopping.international.domain.model.enums.orders.OrderStatus;
+import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
 import shopping.international.domain.model.enums.payment.RefundStatus;
 import shopping.international.domain.model.vo.payment.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -68,6 +72,27 @@ public interface IPaymentRepository {
     @NotNull CaptureTarget getCaptureTargetForOps(@NotNull Long paymentId);
 
     /**
+     * 获取退款目标信息 (用于运维)
+     *
+     * @param refundId 退款单 ID
+     * @return 目标
+     */
+    RefundTarget getRefundTargetForOps(@NotNull Long refundId);
+
+    /**
+     * 获取退款目标信息 (用于 WebHook)
+     * <p>
+     * 先使用 {@code external_refund_id} 查, 如果不命中则查 {@code payment_order_id} 对应的支付单下还在
+     * 进行中 (状态为 {@code INIT/PENDING}, 且 {@code external_refund_id} 为空) 的退款单, 如果还不命中就根据 cmd 中的信息新建一个退款单
+     * <p>
+     * <b/>幂等键使用退款流程统一的 {@code ppref-{payment_order.id}}
+     *
+     * @param cmd 外部退款单 ID
+     * @return 目标
+     */
+    RefundTarget getRefundTargetForWebhook(@NotNull PayPalRefundWebhookCommand cmd);
+
+    /**
      * 在同库事务内应用 PayPal capture 结果 (更新 payment_order 与同步 orders 冗余字段)
      *
      * <p>该方法应承载幂等与并发安全的 "权威落库逻辑"：
@@ -93,6 +118,14 @@ public interface IPaymentRepository {
     @NotNull List<SyncCandidate> listSyncCandidates(int limit);
 
     /**
+     * 扫描需要同步的退款单 (用于低频兜底任务)
+     *
+     * @param limit 最大数量
+     * @return 候选列表
+     */
+    @NotNull List<RefundSyncCandidate> listRefundSyncCandidates(int limit);
+
+    /**
      * 记录轮询时间与轮询报文 (可为空)
      *
      * @param paymentId       支付单 ID
@@ -104,6 +137,15 @@ public interface IPaymentRepository {
                     @NotNull LocalDateTime polledAt,
                     @Nullable String responsePayload,
                     @Nullable String captureId);
+
+    /**
+     * 记录轮询时间与轮询报文 (可为空)
+     *
+     * @param refundId        退款单 ID
+     * @param polledAt        轮询时间
+     * @param responsePayload 轮询响应报文 (JSON, 可为空)
+     */
+    void markRefundPolled(@NotNull Long refundId, LocalDateTime polledAt, @NotNull String responsePayload);
 
     /**
      * 运维/兜底: 关闭 PayPal 支付尝试 (不做用户校验)
@@ -143,6 +185,13 @@ public interface IPaymentRepository {
                                @Nullable String responsePayload);
 
     /**
+     * 退款成功后关闭原支付尝试，并在命中当前有效尝试时同步 orders.pay_status -> CLOSED
+     *
+     * <p>用于自动退款等“非订单域确认退款”的场景，避免支付尝试与订单冗余状态长期停留在 SUCCESS/EXCEPTION。</p>
+     */
+    void closePaymentAttemptAfterRefundSuccess(@NotNull Long orderId, @NotNull Long paymentOrderId);
+
+    /**
      * 检查是否存在指定的退款去重键
      *
      * @param paymentOrderId 支付单 ID, 用于关联特定支付记录
@@ -152,14 +201,17 @@ public interface IPaymentRepository {
     boolean existsRefundDedupeKey(@NotNull Long paymentOrderId, @NotNull String clientRefundNo);
 
     /**
-     * Webhook/对账: 按 PayPal refund_id 更新(或补插)退款事实表
+     * 根据条件尝试将订单状态从退款中{@link OrderStatus#REFUNDING}更新为已退款{@link OrderStatus#REFUNDED}
+     * 仅当订单当前处于 REFUNDING 状态时, 才会进行状态变更; 否则方法直接返回不做任何处理
      *
-     * <p>用于处理 PayPal 的退款类 Webhook 事件: 命中既有记录则更新状态与 notifyPayload; 否则创建一条对账记录</p>
-     *
-     * @param cmd 包含订单 ID, 支付单 ID, 退款单号等信息的 {@link PayPalRefundWebhookUpsertCommand} 对象,
-     *            该命令对象还包括了外部退款单号, 客户端退款单号, 金额(最小货币单位), 币种, 退款状态,
-     *            Webhook 事件详情以及回调时间等必要信息, 用于准确地执行更新或插入操作
+     * @param target             退款目标信息 {@link RefundTarget}
+     * @param refundResult       查询 Refund 结果
+     * @param notifyPayload      回调请求体
+     * @param refundResultStatus 查询 Refund 结果的状态
+     * @param eventSource        订单状态变更事件来源 {@link OrderStatusEventSource}
+     * @param note               备注信息, 记录退款成功的额外说明
      */
-    void upsertRefundFromPayPalWebhook(@NotNull PayPalRefundWebhookUpsertCommand cmd);
-
+    void applyRefundResult(@NotNull RefundTarget target, @NotNull IPayPalPort.GetRefundResult refundResult,
+                           @NotNull Map<String, Object> notifyPayload, @NotNull RefundStatus refundResultStatus,
+                           @NotNull OrderStatusEventSource eventSource, @NotNull String note);
 }

@@ -91,6 +91,20 @@ public interface IPaymentService {
     int syncNonFinalPayments(int limit);
 
     /**
+     * 兜底任务: 扫描并同步非终态退款单
+     *
+     * <p>用于兜底处理以下场景:</p>
+     * <ul>
+     *     <li>网关退款返回 PENDING, 回调未到或未成功处理</li>
+     *     <li>运维补偿/重试时需要刷新退款状态并推进订单/库存</li>
+     * </ul>
+     *
+     * @param limit 单批最大数量
+     * @return 本次处理的退款单数量
+     */
+    int syncNonFinalRefunds(int limit);
+
+    /**
      * PayPal Checkout 结果视图
      *
      * @param paymentId     支付单 ID

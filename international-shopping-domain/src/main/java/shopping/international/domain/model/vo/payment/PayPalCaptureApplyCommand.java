@@ -2,6 +2,7 @@ package shopping.international.domain.model.vo.payment;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -26,6 +27,8 @@ import java.time.LocalDateTime;
  * @param responsePayload PayPal 返回的响应负载 (可为空)
  * @param notifyPayload   最近一次来自 PayPal 的通知负载 (可为空)
  * @param lastNotifiedAt  最后一次收到通知的时间 (可为空)
+ * @param eventSource     订单状态变更事件来源
+ * @param statusLogNote   订单状态变更备注
  */
 public record PayPalCaptureApplyCommand(@NotNull Long paymentId,
                                         @NotNull Long orderId,
@@ -36,5 +39,7 @@ public record PayPalCaptureApplyCommand(@NotNull Long paymentId,
                                         @NotNull Duration ttl,
                                         @Nullable String responsePayload,
                                         @Nullable Object notifyPayload,
-                                        @Nullable LocalDateTime lastNotifiedAt) {
+                                        @Nullable LocalDateTime lastNotifiedAt,
+                                        @NotNull OrderStatusEventSource eventSource,
+                                        @NotNull String statusLogNote) {
 }
