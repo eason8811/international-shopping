@@ -821,7 +821,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     public void markRefundPolled(@NotNull Long refundId, LocalDateTime polledAt, @NotNull String responsePayload) {
         LambdaUpdateWrapper<PaymentRefundPO> wrapper = new LambdaUpdateWrapper<PaymentRefundPO>()
                 .eq(PaymentRefundPO::getId, refundId)
-                .set(PaymentRefundPO::getLastNotifiedAt, polledAt);
+                .set(PaymentRefundPO::getLastPolledAt, polledAt);
         if (!responsePayload.isBlank() && !"{}".equals(responsePayload))
             wrapper.set(PaymentRefundPO::getResponsePayload, responsePayload);
         paymentRefundMapper.update(null, wrapper);
