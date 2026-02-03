@@ -12,15 +12,18 @@ import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
 import shopping.international.domain.model.enums.payment.PaymentChannel;
 import shopping.international.domain.model.enums.payment.PaymentStatus;
 import shopping.international.domain.model.enums.payment.RefundStatus;
-import shopping.international.domain.model.enums.payment.paypal.PayPalRefundStatus;
 import shopping.international.domain.model.enums.payment.paypal.PayPalCaptureStatus;
 import shopping.international.domain.model.enums.payment.paypal.PayPalOrderStatus;
+import shopping.international.domain.model.enums.payment.paypal.PayPalRefundStatus;
 import shopping.international.domain.model.vo.payment.*;
 import shopping.international.domain.service.common.impl.CurrencyConfigService;
 import shopping.international.domain.service.payment.IPaymentService;
 import shopping.international.types.config.BrandProperties;
 import shopping.international.types.config.OrderTimeoutSettings;
-import shopping.international.types.exceptions.*;
+import shopping.international.types.exceptions.ConflictException;
+import shopping.international.types.exceptions.IllegalParamException;
+import shopping.international.types.exceptions.PayPalException;
+import shopping.international.types.exceptions.PayPalWebhookReplayException;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -457,9 +460,9 @@ public class PaymentService implements IPaymentService {
         // Webhook: 尽量命中本地退款单更新状态/notifyPayload, 若未命中则补插一条退款事实表用于对账
         String currency = Objects.requireNonNullElse(nestedString(webhookEvent, "resource", "amount", "currency_code"), target.currency());
         String value = nestedString(webhookEvent, "resource", "amount", "value");
-        String refundId = nestedString(webhookEvent, "resource", "id");
+        String externalRefundId = nestedString(webhookEvent, "resource", "id");
         String paypalStatus = nestedString(webhookEvent, "resource", "status");
-        if (refundId == null)
+        if (externalRefundId == null)
             throw new PayPalException("收到的退款 WebHook 回调请求体中没有包含必须的 external_refund_id ($.resource.id)");
 
         Long amountMinor = null;
@@ -476,7 +479,7 @@ public class PaymentService implements IPaymentService {
                         target.orderId(),
                         target.paymentId(),
                         RefundNo.generate().getValue(),
-                        refundId,
+                        externalRefundId,
                         amountMinor,
                         currency.isBlank() ? target.currency() : currency,
                         mapPayPalRefundStatus(paypalStatus),
@@ -486,7 +489,7 @@ public class PaymentService implements IPaymentService {
         );
         paymentRepository.applyRefundResult(
                 refundTarget,
-                new IPayPalPort.GetRefundResult(refundId, paypalStatus == null ? "" : paypalStatus, "{}"),
+                new IPayPalPort.GetRefundResult(externalRefundId, paypalStatus == null ? "" : paypalStatus, "{}"),
                 webhookEvent,
                 mapPayPalRefundStatus(paypalStatus),
                 OrderStatusEventSource.PAYMENT_CALLBACK,
@@ -735,11 +738,12 @@ public class PaymentService implements IPaymentService {
         );
 
         RefundStatus refundStatus = mapPayPalRefundStatus(refunded.status());
-        paymentRepository.insertRefund(
+        String externalRefundId = refunded.refundId();
+        Long newRefundOrderId = paymentRepository.insertRefund(
                 target.orderId(),
                 target.paymentId(),
                 refundNo,
-                refunded.refundId(),
+                externalRefundId,
                 clientRefundNo,
                 target.amountMinor(),
                 target.currency(),
@@ -748,9 +752,17 @@ public class PaymentService implements IPaymentService {
                 refunded.responseJson()
         );
 
-        if (refundStatus == RefundStatus.SUCCESS) {
-            paymentRepository.closePaymentAttemptAfterRefundSuccess(target.orderId(), target.paymentId());
-        }
+        if (externalRefundId == null || externalRefundId.isBlank())
+            throw new PayPalException("自动退款失败, orderId: " + target.orderId() + ", paymentOrderId: " + target.paypalOrderId());
+
+        paymentRepository.applyRefundResult(
+                new RefundTarget(newRefundOrderId, target.orderId(), externalRefundId, target.paymentId(), refundStatus),
+                new IPayPalPort.GetRefundResult(externalRefundId, refunded.status(), refunded.responseJson()),
+                Collections.emptyMap(),
+                refundStatus,
+                OrderStatusEventSource.SYSTEM,
+                "支付单状态异常, 自动退款, 详细信息: ‘" + note + "'"
+        );
     }
 
     /**
