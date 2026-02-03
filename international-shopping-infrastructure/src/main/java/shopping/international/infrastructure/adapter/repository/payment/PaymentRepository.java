@@ -480,7 +480,6 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         );
         if (refundPO == null) {
             refundPO = paymentRefundMapper.selectOne(new LambdaQueryWrapper<PaymentRefundPO>()
-                    .select(PaymentRefundPO::getId)
                     .eq(PaymentRefundPO::getPaymentOrderId, cmd.paymentOrderId())
                     .in(PaymentRefundPO::getStatus, RefundStatus.INIT.name(), RefundStatus.PENDING.name())
                     .and(q -> q
@@ -527,6 +526,10 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
                         .eq(PaymentRefundPO::getExternalRefundId, cmd.externalRefundId())
                         .last("limit 1")
                 );
+                if (reread == null)
+                    throw new ConflictException("同一幂等键的退款单已被插入, 但是回读失败, orderId: "
+                            + cmd.orderId() + ", paymentOrderId: " + cmd.paymentOrderId()
+                            + ", externalRefundId: " + cmd.externalRefundId(), e);
                 return new RefundTarget(
                         reread.getId(),
                         reread.getOrderId(),
