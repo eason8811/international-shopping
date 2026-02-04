@@ -939,36 +939,36 @@ public class OrderRepository implements IOrderRepository {
                 .in(PaymentRefundPO::getStatus, RefundStatus.INIT.name(), RefundStatus.PENDING.name())
                 .set(PaymentRefundPO::getStatus, refundResultStatus.name()));
 
-        if (refundResultStatus == RefundStatus.SUCCESS) {
-            // 4) 仅当订单处于 REFUNDING 时才推进为 REFUNDED 并回补库存, 其它状态仅关闭支付尝试, 避免误伤订单/库存
-            if (OrderStatus.REFUNDING.name().equals(orderPo.getStatus())) {
-                PaymentRefundPO refundPO = paymentRefundMapper.selectById(target.refundId());
-                if (refundPO == null)
-                    return;
-                if (RefundStatus.SUCCESS != RefundStatus.valueOf(refundPO.getStatus()))
-                    return;
-                boolean fullRefund = refundPO.getItemsAmount() == null && refundPO.getShippingAmount() == null;
-                Order order = assembleOrder(orderPo);
-                applyRefundSuccessAndRestock(
-                        order,
-                        eventSource,
-                        note,
-                        target.paymentOrderId(),
-                        target.refundId(),
-                        fullRefund
-                );
-                return;
-            }
-
-            // 自动退款/对账退款等非 REFUNDING 场景: 只关闭支付尝试与必要的 orders 冗余支付状态
+        if (refundResultStatus != RefundStatus.SUCCESS)
+            return;
+        // 4) 仅当订单处于 REFUNDING 时才推进为 REFUNDED 并回补库存, 其它状态仅关闭支付尝试, 避免误伤订单/库存
+        if (OrderStatus.REFUNDING.name().equals(orderPo.getStatus())) {
             PaymentRefundPO refundPO = paymentRefundMapper.selectById(target.refundId());
-            if (refundPO == null
-                    || !target.orderId().equals(refundPO.getOrderId())
-                    || !target.paymentOrderId().equals(refundPO.getPaymentOrderId())
-                    || RefundStatus.SUCCESS != RefundStatus.valueOf(refundPO.getStatus()))
+            if (refundPO == null)
                 return;
-            closePaymentAttemptAfterRefundSuccess(orderPo, target.paymentOrderId());
+            if (RefundStatus.SUCCESS != RefundStatus.valueOf(refundPO.getStatus()))
+                return;
+            boolean fullRefund = refundPO.getItemsAmount() == null && refundPO.getShippingAmount() == null;
+            Order order = assembleOrder(orderPo);
+            applyRefundSuccessAndRestock(
+                    order,
+                    eventSource,
+                    note,
+                    target.paymentOrderId(),
+                    target.refundId(),
+                    fullRefund
+            );
+            return;
         }
+
+        // 自动退款/对账退款等非 REFUNDING 场景: 只关闭支付尝试与必要的 orders 冗余支付状态
+        PaymentRefundPO refundPO = paymentRefundMapper.selectById(target.refundId());
+        if (refundPO == null
+                || !target.orderId().equals(refundPO.getOrderId())
+                || !target.paymentOrderId().equals(refundPO.getPaymentOrderId())
+                || RefundStatus.SUCCESS != RefundStatus.valueOf(refundPO.getStatus()))
+            return;
+        closePaymentAttemptAfterRefundSuccess(orderPo, target.paymentOrderId());
     }
 
     /**
