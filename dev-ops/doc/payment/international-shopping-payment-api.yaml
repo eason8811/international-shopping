@@ -2397,12 +2397,15 @@ components:
         - return_url
         - cancel_url
         - channel
+        - local
       properties:
         order_no:
           type: string
           description: 业务订单号（orders.order_no）
         channel:
           $ref: '#/components/schemas/PaymentChannel'
+        local:
+          type: string
         return_url:
           type: string
           description: 支付成功回跳地址（前端）
@@ -2412,6 +2415,7 @@ components:
       x-apifox-orders:
         - order_no
         - channel
+        - local
         - return_url
         - cancel_url
       x-apifox-ignore-properties: []

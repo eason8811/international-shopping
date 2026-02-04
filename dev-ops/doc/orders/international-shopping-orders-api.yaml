@@ -738,21 +738,29 @@ paths:
           in: cookie
           description: ''
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
           required: true
-          example: ''
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: X-CSRF-Token
           in: header
           description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: 幂等键（同一用户相同键请求只创建一次订单）
+          required: false
+          example: 4a6b0b1f-1d20-4fd4-8c37-9d36c9b36a77
           schema:
             type: string
       requestBody:
@@ -762,12 +770,14 @@ paths:
               $ref: '#/components/schemas/OrderCreateRequest'
             example:
               source: DIRECT
-              items: null
-              address_id: 26939800
-              currency: dol
-              discount_code: 15-15_15-15
-              buyer_remark: con
-              locale: aliqua elit quis sit consectetur
+              address_id: 1
+              currency: USD
+              items:
+                - sku_id: 1
+                  quantity: 3
+              discount_code: LBCY6Q
+              buyer_remark: TC-C1-item-percent-line-300
+              locale: en-US
         required: true
       responses:
         '201':
@@ -2040,7 +2050,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 06DVFNBKYAZY2SG1H4KNPBMF9G
+          example: 06DWEVAPD4DRK2GYN8TV1MQ734
           schema:
             type: string
             minLength: 10
@@ -2058,7 +2068,7 @@ paths:
             schema:
               $ref: '#/components/schemas/OrderCancelRequest'
             example:
-              reason: sit magna ut voluptate et
+              reason: 管理侧取消
         required: true
       responses:
         '200':
@@ -4820,6 +4830,36 @@ components:
         - data
         - meta
       x-apifox-folder: orders
+    AdminConfirmRefundItem:
+      type: object
+      required:
+        - orderItemId
+        - quantity
+      properties:
+        orderItemId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+        amount:
+          type:
+            - string
+            - 'null'
+          description: 该明细对应的退款金额(major字符串, 可选; 若不传由后端推导)
+        reason:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+      x-apifox-orders:
+        - orderItemId
+        - quantity
+        - amount
+        - reason
+      x-apifox-ignore-properties: []
+      x-apifox-folder: orders
     OrderStatus:
       type: string
       enum:
@@ -5293,8 +5333,28 @@ components:
             - string
             - 'null'
           maxLength: 255
+        itemsAmount:
+          type:
+            - string
+            - 'null'
+          description: 货品部分退款金额(major字符串, 可选)
+        shippingAmount:
+          type:
+            - string
+            - 'null'
+          description: 运费部分退款金额(major字符串, 可选)
+        items:
+          type:
+            - array
+            - 'null'
+          description: 退款明细(可选)
+          items:
+            $ref: '#/components/schemas/AdminConfirmRefundItem'
       x-apifox-orders:
         - note
+        - itemsAmount
+        - shippingAmount
+        - items
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
     OrderStatusLog:

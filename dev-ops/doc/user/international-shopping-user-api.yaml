@@ -7,6 +7,13 @@ info:
     必须相等）<br/> - 匿名接口：显式 `security: []`<br/>
   version: 1.3.0
 tags:
+  - name: user
+  - name: user/Auth
+  - name: user/OAuth2
+  - name: user/Users
+  - name: user/Profile
+  - name: user/Bindings
+  - name: user/Addresses
   - name: Auth
   - name: OAuth2
   - name: Users
@@ -20,6 +27,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Auth
         - Auth
       parameters: []
       requestBody:
@@ -32,7 +40,8 @@ paths:
               password: Passw0rd!
               nickname: Leila
               email: leila9468555@gmail.com
-              phone: +86-13800135767
+              phone_country_code: '86'
+              phone_national_number: '13800135767'
         required: true
       responses:
         '202':
@@ -88,6 +97,7 @@ paths:
         传入邮箱地址，后端从 Redis 查找 {email → messageId} 映射，
         再调用 Resend 查询该邮件的当前状态并返回。
       tags:
+        - user/Auth
         - Auth
       parameters:
         - name: email
@@ -130,6 +140,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Auth
         - Auth
       parameters: []
       requestBody:
@@ -139,7 +150,7 @@ paths:
               $ref: '#/components/schemas/VerifyEmailRequest'
             example:
               email: leila9468555@gmail.com
-              code: '255068'
+              code: '024797'
         required: true
       responses:
         '201':
@@ -166,7 +177,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -318,6 +329,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Auth
         - Auth
       parameters: []
       requestBody:
@@ -335,6 +347,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: ACCEPTED
+                message: 激活邮件已重新发送
+                timestamp: '2025-11-06 15:13:58'
           headers: {}
           x-apifox-name: 已接受
           x-apifox-ordering: 0
@@ -356,6 +373,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Auth
         - Auth
       parameters: []
       requestBody:
@@ -392,7 +410,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -561,6 +579,7 @@ paths:
       description: |
         输入用户名/邮箱/手机号触发一次密码重置验证码邮件。即使账号不存在也返回 202，避免暴露用户存在性。
       tags:
+        - user/Auth
         - Auth
       parameters: []
       requestBody:
@@ -604,6 +623,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Auth
         - Auth
       parameters: []
       requestBody:
@@ -643,7 +663,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -794,6 +814,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Auth
         - Auth
       parameters:
         - name: csrf_token
@@ -821,6 +842,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: OK
+                message: Logged out
+                timestamp: '2025-10-26T06:31:20.000Z'
+                data: null
           headers:
             Set-Cookie:
               required: false
@@ -843,6 +870,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Auth
         - Auth
       parameters:
         - name: csrf_token
@@ -870,6 +898,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: OK
+                message: Token 刷新成功
+                timestamp: '2025-11-06 22:15:39'
           headers:
             Set-Cookie:
               required: false
@@ -898,6 +931,7 @@ paths:
         已登录后调用。服务端生成随机 `csrf_token`，与会话绑定并下发： - Set-Cookie: csrf_token=...（非
         HttpOnly） - Body 回显 { csrfToken }
       tags:
+        - user/Auth
         - Auth
       parameters: []
       responses:
@@ -932,6 +966,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/OAuth2
         - OAuth2
       parameters:
         - name: provider
@@ -995,6 +1030,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/OAuth2
         - OAuth2
       parameters:
         - name: provider
@@ -1053,6 +1089,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: FOUND
+                message: Redirect to app
+                timestamp: '2025-10-26T06:33:20.000Z'
+                data:
+                  url: /dashboard
           headers:
             Set-Cookie:
               required: false
@@ -1071,6 +1114,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Users
         - Users
       parameters:
         - name: csrf_token
@@ -1120,7 +1164,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1276,6 +1320,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Users
         - Users
       parameters:
         - name: csrf_token
@@ -1338,7 +1383,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1484,6 +1529,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Users
         - Users
       parameters:
         - name: csrf_token
@@ -1527,6 +1573,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Result'
+              example:
+                success: true
+                code: ACCEPTED
+                message: 验证码邮件已发送
+                timestamp: '2025-11-15 14:01:57'
           headers: {}
           x-apifox-name: 已接受
           x-apifox-ordering: 0
@@ -1560,6 +1611,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Users
         - Users
       parameters:
         - name: csrf_token
@@ -1622,7 +1674,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1783,6 +1835,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Profile
         - Profile
       parameters:
         - name: csrf_token
@@ -1832,7 +1885,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -1973,6 +2026,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Profile
         - Profile
       parameters:
         - name: csrf_token
@@ -2044,7 +2098,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2194,6 +2248,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Bindings
         - Bindings
       parameters:
         - name: access_token
@@ -2231,7 +2286,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2371,6 +2426,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Bindings
         - Bindings
       parameters:
         - name: csrf_token
@@ -2464,6 +2520,7 @@ paths:
         第三方完成绑定后回跳，成功时轮换 CSRF Cookie 并 302 重定向到前端 redirectUrl；失败也会附带 redirectUrl
         与错误信息。
       tags:
+        - user/Bindings
         - Bindings
       parameters:
         - name: provider
@@ -2551,6 +2608,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Bindings
         - Bindings
       parameters:
         - name: csrf_token
@@ -2641,13 +2699,14 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Addresses
         - Addresses
       parameters:
         - name: csrf_token
           in: cookie
           description: ''
           required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
@@ -2655,7 +2714,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: page
@@ -2676,7 +2735,7 @@ paths:
           in: header
           description: ''
           required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -2708,7 +2767,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -2840,13 +2899,14 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Addresses
         - Addresses
       parameters:
         - name: csrf_token
           in: cookie
-          description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
+          description: ''
           required: false
-          example: 580eb99d-6460-4698-b737-534b6471c54c
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
             examples:
@@ -2856,7 +2916,7 @@ paths:
           description: ''
           required: false
           example: >-
-            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzIxMzg2OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ3MzA2OCwiaWF0IjoxNzYzMjEzODY4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.8kIcQY6oVd-dAfX5XemeQPFNaS-7PxgaXUpuXqPM5lk
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: Idempotency-Key
@@ -2870,9 +2930,9 @@ paths:
               - 8c1f7f5a-9c91-4a40-8d9d-7e1c1b4b0b7d
         - name: X-CSRF-Token
           in: header
-          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: true
-          example: 580eb99d-6460-4698-b737-534b6471c54c
+          description: ''
+          required: false
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
             examples:
@@ -2921,7 +2981,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3066,6 +3126,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Addresses
         - Addresses
       parameters:
         - name: access_token
@@ -3112,7 +3173,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3242,6 +3303,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Addresses
         - Addresses
       parameters:
         - name: csrf_token
@@ -3323,7 +3385,7 @@ paths:
                       - true
                   code:
                     type: string
-                    description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+                    description: 业务码
                     examples:
                       - OK
                     enum:
@@ -3477,6 +3539,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Addresses
         - Addresses
       parameters:
         - name: csrf_token
@@ -3554,6 +3617,7 @@ paths:
       deprecated: false
       description: ''
       tags:
+        - user/Addresses
         - Addresses
       parameters:
         - name: csrf_token
@@ -3644,7 +3708,7 @@ components:
             - true
         code:
           type: string
-          description: 业务码（OK/VALIDATION_ERROR/UNAUTHORIZED/...）
+          description: 业务码
           examples:
             - OK
           enum:
@@ -3850,10 +3914,16 @@ components:
           type: string
           examples:
             - 张三
-        phone:
-          type: string
+        phone_country_code:
+          type:
+            - string
+            - 'null'
           examples:
             - +81-90-1234-5678
+        phone_national_number:
+          type:
+            - string
+            - 'null'
         country:
           type:
             - string
@@ -3900,7 +3970,8 @@ components:
             - true
       x-apifox-orders:
         - receiver_name
-        - phone
+        - phone_country_code
+        - phone_national_number
         - country
         - province
         - city
@@ -3915,17 +3986,20 @@ components:
       type: object
       required:
         - receiver_name
-        - phone
+        - phone_country_code
         - address_line1
+        - phone_national_number
       properties:
         receiver_name:
           type: string
           examples:
             - 张三
-        phone:
+        phone_country_code:
           type: string
           examples:
             - +81-90-1234-5678
+        phone_national_number:
+          type: string
         country:
           type:
             - string
@@ -3973,7 +4047,8 @@ components:
             - true
       x-apifox-orders:
         - receiver_name
-        - phone
+        - phone_country_code
+        - phone_national_number
         - country
         - province
         - city
@@ -4080,15 +4155,20 @@ components:
           type: string
           examples:
             - Eason Chen
-        phone:
+        phone_country_code:
           type:
             - string
             - 'null'
           examples:
             - +81-80-0000-0000
+        phone_national_number:
+          type:
+            - string
+            - 'null'
       x-apifox-orders:
         - nickname
-        - phone
+        - phone_country_code
+        - phone_national_number
       x-apifox-ignore-properties: []
       x-apifox-folder: user
     RegisterRequest:
@@ -4098,6 +4178,7 @@ components:
         - password
         - email
         - nickname
+        - phone_national_number
       properties:
         username:
           type: string
@@ -4118,18 +4199,23 @@ components:
           format: email
           examples:
             - eason@example.com
-        phone:
+        phone_country_code:
           type:
             - string
             - 'null'
           examples:
-            - +86-13800138000
+            - '86'
+        phone_national_number:
+          type: string
+          examples:
+            - '13800135767'
       x-apifox-orders:
         - username
         - password
         - nickname
         - email
-        - phone
+        - phone_country_code
+        - phone_national_number
       x-apifox-ignore-properties: []
       x-apifox-folder: user
     ForgotPasswordRequest:
@@ -4137,12 +4223,18 @@ components:
       required:
         - account
       properties:
+        country_code:
+          type:
+            - string
+            - 'null'
+          description: 手机号国家码
         account:
           type: string
           description: 用户名 / 邮箱 / 手机号其一，用于发送重置验证码
           examples:
             - eason@example.com
       x-apifox-orders:
+        - country_code
         - account
       x-apifox-folder: user
       x-apifox-ignore-properties: []
@@ -4152,7 +4244,11 @@ components:
         - account
         - code
         - new_password
+        - country_code
       properties:
+        country_code:
+          type: string
+          description: 手机号国家码
         account:
           type: string
           description: 用户名 / 邮箱 / 手机号其一
@@ -4169,6 +4265,7 @@ components:
           examples:
             - NewPassw0rd!
       x-apifox-orders:
+        - country_code
         - account
         - code
         - new_password
@@ -4186,10 +4283,12 @@ components:
           type: string
           examples:
             - 张三
-        phone:
+        phone_country_code:
           type: string
           examples:
             - +81-90-1234-5678
+        phone_national_number:
+          type: string
         country:
           type:
             - string
@@ -4247,15 +4346,17 @@ components:
       required:
         - id
         - receiver_name
-        - phone
+        - phone_country_code
         - address_line1
         - is_default
         - created_at
         - updated_at
+        - phone_national_number
       x-apifox-orders:
         - id
         - receiver_name
-        - phone
+        - phone_country_code
+        - phone_national_number
         - country
         - province
         - city
@@ -4422,12 +4523,14 @@ components:
           format: email
           examples:
             - eason@example.com
-        phone:
+        phone_country_code:
           type:
             - string
             - 'null'
           examples:
             - +86-13800138000
+        phone_national_number:
+          type: string
         status:
           $ref: '#/components/schemas/AccountStatus'
         lastLogin_at:
@@ -4454,12 +4557,14 @@ components:
         - status
         - created_at
         - updated_at
+        - phone_national_number
       x-apifox-orders:
         - id
         - username
         - nickname
         - email
-        - phone
+        - phone_country_code
+        - phone_national_number
         - status
         - lastLogin_at
         - created_at
