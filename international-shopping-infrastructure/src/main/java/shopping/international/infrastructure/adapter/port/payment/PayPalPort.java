@@ -476,7 +476,7 @@ public class PayPalPort implements IPayPalPort {
     /**
      * 从给定的 PayPal 链接列表中查找并返回 approve URL
      *
-     * <p>该方法遍历传入的链接列表, 查找关系为 {@code "approve"} 的链接, 并返回其 href 值, 如果没有找到符合条件的链接, 则返回空 {@code Optional}</p>
+     * <p>该方法遍历传入的链接列表, 查找关系为 {@code "payer-action"} 的链接, 并返回其 href 值, 如果没有找到符合条件的链接, 则返回空 {@code Optional}</p>
      *
      * @param links 一个可能为空或包含 {@link PayPalLink} 对象的列表, 每个对象代表 PayPal API 返回的一个链接
      * @return 包含批准链接的 {@code Optional<String>} (如果找到), 或者空 {@code Optional} (如果没有找到)
@@ -487,7 +487,7 @@ public class PayPalPort implements IPayPalPort {
         for (PayPalLink link : links) {
             if (link == null)
                 continue;
-            if (link.getRel() != null && "approve".equalsIgnoreCase(link.getRel()) && link.getHref() != null && !link.getHref().isBlank())
+            if (link.getRel() != null && "payer-action".equalsIgnoreCase(link.getRel()) && link.getHref() != null && !link.getHref().isBlank())
                 return Optional.of(link.getHref());
         }
         return Optional.empty();

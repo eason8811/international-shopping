@@ -80,12 +80,12 @@ public class PayPalCreateOrderRequest {
         String discountMajor = discount == 0L ? null : config.toMajor(discount).toPlainString();
 
         PayPalAmount.Breakdown breakdown = PayPalAmount.Breakdown.builder()
-                .itemTotal(new PayPalAmount.BreakdownItem(currency, itemTotalMajor))
-                .shipping(new PayPalAmount.BreakdownItem(currency, shippingMajor))
-                .handling(new PayPalAmount.BreakdownItem(currency, handlingMajor))
-                .taxTotal(new PayPalAmount.BreakdownItem(currency, taxTotalMajor))
-                .shippingDiscount(new PayPalAmount.BreakdownItem(currency, shippingDiscountMajor))
-                .discount(new PayPalAmount.BreakdownItem(currency, discountMajor))
+                .itemTotal(itemTotalMajor != null ? new PayPalAmount.BreakdownItem(currency, itemTotalMajor) : null)
+                .shipping(shippingMajor != null ? new PayPalAmount.BreakdownItem(currency, shippingMajor) : null)
+                .handling(handlingMajor != null ? new PayPalAmount.BreakdownItem(currency, handlingMajor) : null)
+                .taxTotal(taxTotalMajor != null ? new PayPalAmount.BreakdownItem(currency, taxTotalMajor) : null)
+                .shippingDiscount(taxTotalMajor != null ? new PayPalAmount.BreakdownItem(currency, shippingDiscountMajor) : null)
+                .discount(shippingDiscountMajor != null ? new PayPalAmount.BreakdownItem(currency, discountMajor) : null)
                 .build();
 
         if (purchaseUnits == null)
@@ -174,6 +174,10 @@ public class PayPalCreateOrderRequest {
         else
             shippingPreference = "SET_PROVIDED_ADDRESS";
         requireNotBlank(userAction, "userAction 不能为空");
+        if (paymentSource == null)
+            paymentSource = new PaymentSource();
+        if (paymentSource.paypal == null)
+            paymentSource.paypal = new Paypal();
         paymentSource.paypal.experienceContext = ExperienceContext.builder()
                 .returnUrl(returnUrl)
                 .cancelUrl(cancelUrl)

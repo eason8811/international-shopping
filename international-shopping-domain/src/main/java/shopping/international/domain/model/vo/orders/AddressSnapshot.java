@@ -1,5 +1,7 @@
 package shopping.international.domain.model.vo.orders;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -43,16 +45,16 @@ public final class AddressSnapshot {
     /**
      * 创建一个地址快照对象, 用于存储订单中的收货信息
      *
-     * @param receiverName   收货人姓名 必填
+     * @param receiverName        收货人姓名 必填
      * @param phoneCountryCode    联系电话国家代码
      * @param phoneNationalNumber 联系电话本地号码
-     * @param country        国家 可选
-     * @param province       省份 可选
-     * @param city           城市 可选
-     * @param district       区县 可选
-     * @param addressLine1   地址行1 必填
-     * @param addressLine2   地址行2 可选
-     * @param zipcode        邮政编码 可选
+     * @param country             国家 可选
+     * @param province            省份 可选
+     * @param city                城市 可选
+     * @param district            区县 可选
+     * @param addressLine1        地址行1 必填
+     * @param addressLine2        地址行2 可选
+     * @param zipcode             邮政编码 可选
      */
     private AddressSnapshot(String receiverName, String phoneCountryCode, String phoneNationalNumber,
                             String country, String province, String city, String district,
@@ -72,22 +74,30 @@ public final class AddressSnapshot {
     /**
      * 创建一个地址快照对象, 用于存储订单中的收货信息。该方法会自动去除输入字符串两端的空白字符。
      *
-     * @param receiverName 收货人姓名, 必填
+     * @param receiverName        收货人姓名, 必填
      * @param phoneCountryCode    联系电话国家代码
      * @param phoneNationalNumber 联系电话本地号码
-     * @param country      国家, 可选
-     * @param province     省份, 可选
-     * @param city         城市, 可选
-     * @param district     区县, 可选
-     * @param addressLine1 地址行1, 必填
-     * @param addressLine2 地址行2, 可选
-     * @param zipcode      邮政编码, 可选
+     * @param country             国家, 可选
+     * @param province            省份, 可选
+     * @param city                城市, 可选
+     * @param district            区县, 可选
+     * @param addressLine1        地址行1, 必填
+     * @param addressLine2        地址行2, 可选
+     * @param zipcode             邮政编码, 可选
      * @return 返回一个新的 {@link AddressSnapshot} 对象
      * @throws IllegalParamException 如果 <code>receiverName</code>, <code>phone</code>, 或 <code>addressLine1</code> 为 <code>null</code> 或仅包含空白字符
      */
-    public static AddressSnapshot of(String receiverName, String phoneCountryCode, String phoneNationalNumber,
-                                     String country, String province, String city, String district,
-                                     String addressLine1, String addressLine2, String zipcode) {
+    @JsonCreator
+    public static AddressSnapshot of(@JsonProperty("receiverName") String receiverName,
+                                     @JsonProperty("phoneCountryCode") String phoneCountryCode,
+                                     @JsonProperty("phoneNationalNumber") String phoneNationalNumber,
+                                     @JsonProperty("country") String country,
+                                     @JsonProperty("province") String province,
+                                     @JsonProperty("city") String city,
+                                     @JsonProperty("district") String district,
+                                     @JsonProperty("addressLine1") String addressLine1,
+                                     @JsonProperty("addressLine2") String addressLine2,
+                                     @JsonProperty("zipcode") String zipcode) {
         requireNotBlank(receiverName, "收货人不能为空");
         requireNotBlank(phoneCountryCode, "联系电话国家代码不能为空");
         requireNotBlank(phoneNationalNumber, "联系电话本地号码不能为空");

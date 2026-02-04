@@ -128,4 +128,9 @@ public final class URI {
             }
         }
     }
+
+    @Override
+    public String toString() {
+        return pattern;
+    }
 }

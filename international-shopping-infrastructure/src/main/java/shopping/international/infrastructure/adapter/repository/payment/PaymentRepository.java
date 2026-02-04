@@ -34,8 +34,11 @@ import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.exceptions.NotFoundException;
 import shopping.international.types.exceptions.PayPalException;
+
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
@@ -842,7 +845,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     public @NotNull List<RefundSyncCandidate> listRefundSyncCandidates(int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 200);
         List<PaymentRefundPO> rows = paymentRefundMapper.selectList(new LambdaQueryWrapper<PaymentRefundPO>()
-                .in(PaymentRefundPO::getStatus, PaymentStatus.INIT.name(), PaymentStatus.PENDING.name())
+                .in(PaymentRefundPO::getStatus, RefundStatus.INIT.name(), RefundStatus.PENDING.name())
                 .isNotNull(PaymentRefundPO::getExternalRefundId)
                 .orderByAsc(PaymentRefundPO::getUpdatedAt)
                 .last("limit " + safeLimit));

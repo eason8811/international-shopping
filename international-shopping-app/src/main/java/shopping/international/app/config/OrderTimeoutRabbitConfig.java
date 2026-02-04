@@ -9,6 +9,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.boot.autoconfigure.amqp.RabbitTemplateCustomizer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -61,29 +62,29 @@ public class OrderTimeoutRabbitConfig {
     /**
      * 注入 {@link RabbitTemplate} Bean, 用于发送和接收消息
      *
-     * @param template {@link RabbitTemplate} Bean
      * @param connectionFactory     提供连接到 RabbitMQ 服务器的工厂
      * @param orderMessageConverter 配置的 JSON 消息转换器
      * @return {@link RabbitTemplate} Bean, 已配置可靠投递和可靠消费
      */
     @Bean
-    public RabbitTemplate rabbitTemplate(RabbitTemplate template,
-                                         ConnectionFactory connectionFactory,
-                                         MessageConverter orderMessageConverter) {
-        template.setConnectionFactory(connectionFactory);
-        template.setMessageConverter(orderMessageConverter);
-        template.setConfirmCallback((correlationData, ack, cause) -> {
-            if (!ack)
-                log.warn("订单超时消息发布失败, correlationId={}, cause={}",
-                        correlationData == null ? null : correlationData.getId(), cause);
-        });
-        template.setReturnsCallback(returned ->
-                log.warn("订单超时消息路由失败, exchange={}, routingKey={}, replyCode={}, replyText={}, messageId={}",
-                        returned.getExchange(), returned.getRoutingKey(),
-                        returned.getReplyCode(), returned.getReplyText(),
-                        returned.getMessage().getMessageProperties().getMessageId())
-        );
-        return template;
+    public RabbitTemplateCustomizer orderRabbitTemplateCustomizer(ConnectionFactory connectionFactory,
+                                                                  MessageConverter orderMessageConverter) {
+        return template -> {
+            template.setConnectionFactory(connectionFactory);
+            template.setMessageConverter(orderMessageConverter);
+            template.setConfirmCallback((correlationData, ack, cause) -> {
+                if (!ack) {
+                    log.warn("订单超时消息发布失败, correlationId={}, cause={}",
+                            correlationData == null ? null : correlationData.getId(), cause);
+                }
+            });
+            template.setReturnsCallback(returned ->
+                    log.warn("订单超时消息路由失败, exchange={}, routingKey={}, replyCode={}, replyText={}, messageId={}",
+                            returned.getExchange(), returned.getRoutingKey(),
+                            returned.getReplyCode(), returned.getReplyText(),
+                            returned.getMessage().getMessageProperties().getMessageId())
+            );
+        };
     }
 
     /**
