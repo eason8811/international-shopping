@@ -85,7 +85,7 @@ public interface IPaymentRepository {
      * 先使用 {@code external_refund_id} 查, 如果不命中则查 {@code payment_order_id} 对应的支付单下还在
      * 进行中 (状态为 {@code INIT/PENDING}, 且 {@code external_refund_id} 为空) 的退款单, 如果还不命中就根据 cmd 中的信息新建一个退款单
      * <p>
-     * <b/>幂等键使用退款流程统一的 {@code ppref-{payment_order.id}}
+     * <b/>幂等键使用统一 scheme: {@code ppref-{paymentOrderId}-{scope}-{key}}
      *
      * @param cmd 外部退款单 ID
      * @return 目标
@@ -183,13 +183,6 @@ public interface IPaymentRepository {
                                @NotNull RefundStatus status,
                                @Nullable String requestPayload,
                                @Nullable String responsePayload);
-
-    /**
-     * 退款成功后关闭原支付尝试，并在命中当前有效尝试时同步 orders.pay_status -> CLOSED
-     *
-     * <p>用于自动退款等“非订单域确认退款”的场景，避免支付尝试与订单冗余状态长期停留在 SUCCESS/EXCEPTION。</p>
-     */
-    void closePaymentAttemptAfterRefundSuccess(@NotNull Long orderId, @NotNull Long paymentOrderId);
 
     /**
      * 检查是否存在指定的退款去重键

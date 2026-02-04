@@ -28,6 +28,7 @@ import shopping.international.domain.model.vo.payment.RefundNo;
 import shopping.international.domain.model.vo.payment.RefundTarget;
 import shopping.international.domain.service.orders.IAdminOrderService;
 import shopping.international.domain.service.orders.IOrderService;
+import shopping.international.domain.service.payment.impl.PaymentService;
 import shopping.international.infrastructure.dao.orders.*;
 import shopping.international.infrastructure.dao.orders.po.*;
 import shopping.international.infrastructure.dao.payment.PaymentOrderMapper;
@@ -634,7 +635,7 @@ public class OrderRepository implements IOrderRepository {
         refundPlan.validate();
 
         String refundNo = RefundNo.generate().getValue();
-        String clientRefundNo = "ppref-" + paidPayment.getId();
+        String clientRefundNo = PaymentService.RefundClientRefundNoUtils.admin(paidPayment.getId(), refundNo);
         Long itemsAmount = refundPlan.fullRefund() ? null : refundPlan.itemsAmountMinor();
         Long shippingAmount = refundPlan.fullRefund() ? null : refundPlan.shippingAmountMinor();
 
@@ -1134,7 +1135,7 @@ public class OrderRepository implements IOrderRepository {
     @NotNull
     private ConfirmRefundPrepared buildConfirmRefundPrepared(OrdersPO orderPO, PaymentRefundPO refundPO, PaymentOrderPO paymentPO, String externalPaymentId) {
         String clientRefundNo = refundPO.getClientRefundNo() == null || refundPO.getClientRefundNo().isBlank()
-                ? ("ppref-" + refundPO.getPaymentOrderId())
+                ? PaymentService.RefundClientRefundNoUtils.admin(refundPO.getPaymentOrderId(), refundPO.getRefundNo())
                 : refundPO.getClientRefundNo();
         return new ConfirmRefundPrepared(
                 orderPO.getId(),
