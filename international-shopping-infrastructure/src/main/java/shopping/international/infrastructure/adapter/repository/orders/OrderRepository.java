@@ -632,6 +632,15 @@ public class OrderRepository implements IOrderRepository {
         if (existing != null)
             return buildConfirmRefundPrepared(locked, existing, paidPayment, paypalOrderId);
 
+        // 全局保护: 若支付单下已存在成功退款, 则不再发起新的网关退款 (避免跨来源重复退款)
+        PaymentRefundPO success = paymentRefundMapper.selectOne(new LambdaQueryWrapper<PaymentRefundPO>()
+                .eq(PaymentRefundPO::getPaymentOrderId, paidPayment.getId())
+                .eq(PaymentRefundPO::getStatus, RefundStatus.SUCCESS.name())
+                .orderByDesc(PaymentRefundPO::getCreatedAt)
+                .last("limit 1"));
+        if (success != null)
+            return buildConfirmRefundPrepared(locked, success, paidPayment, paypalOrderId);
+
         refundPlan.validate();
 
         String refundNo = RefundNo.generate().getValue();

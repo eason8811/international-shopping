@@ -722,6 +722,12 @@ public class PaymentService implements IPaymentService {
             return;
         }
 
+        if (paymentRepository.existsRefundInProgressOrSuccess(target.paymentId())) {
+            log.info("自动退款全局保护命中, 已存在进行中/成功退款跳过, paymentId: {}, orderNo: {}",
+                    target.paymentId(), target.orderNo());
+            return;
+        }
+
         String clientRefundNo = RefundClientRefundNoUtils.auto(target.paymentId(), captured.captureId());
         if (paymentRepository.existsRefundDedupeKey(target.paymentId(), clientRefundNo)) {
             log.info("自动退款去重命中, 已存在退款记录跳过, paymentId: {}, orderNo: {}, clientRefundNo: {}",

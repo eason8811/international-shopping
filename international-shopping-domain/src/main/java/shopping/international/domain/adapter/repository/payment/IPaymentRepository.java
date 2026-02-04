@@ -93,6 +93,16 @@ public interface IPaymentRepository {
     RefundTarget getRefundTargetForWebhook(@NotNull PayPalRefundWebhookCommand cmd);
 
     /**
+     * 全局检查: 判断某个支付单下是否存在 "进行中/已成功" 的退款单
+     *
+     * <p>用于在调用网关发起退款前做硬保护: 只要存在 {@code INIT/PENDING/SUCCESS} 之一就不再发起新的退款调用</p>
+     *
+     * @param paymentOrderId 支付单 ID
+     * @return true 表示已存在进行中/成功退款
+     */
+    boolean existsRefundInProgressOrSuccess(@NotNull Long paymentOrderId);
+
+    /**
      * 在同库事务内应用 PayPal capture 结果 (更新 payment_order 与同步 orders 冗余字段)
      *
      * <p>该方法应承载幂等与并发安全的 "权威落库逻辑"：

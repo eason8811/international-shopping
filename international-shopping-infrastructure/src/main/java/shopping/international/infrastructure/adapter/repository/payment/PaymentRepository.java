@@ -557,6 +557,23 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
     }
 
     /**
+     * 全局检查: 判断某个支付单下是否存在 "进行中/已成功" 的退款单
+     *
+     * <p>用于在调用网关发起退款前做硬保护: 只要存在 {@code INIT/PENDING/SUCCESS} 之一就不再发起新的退款调用</p>
+     *
+     * @param paymentOrderId 支付单 ID
+     * @return true 表示已存在进行中/成功退款
+     */
+    @Override
+    public boolean existsRefundInProgressOrSuccess(@NotNull Long paymentOrderId) {
+        Long cnt = paymentRefundMapper.selectCount(new LambdaQueryWrapper<PaymentRefundPO>()
+                .eq(PaymentRefundPO::getPaymentOrderId, paymentOrderId)
+                .in(PaymentRefundPO::getStatus, RefundStatus.INIT.name(), RefundStatus.PENDING.name(), RefundStatus.SUCCESS.name())
+                .last("limit 1"));
+        return cnt != null && cnt > 0;
+    }
+
+    /**
      * 获取用于 capture 的目标信息, 包括支付单和订单的相关数据
      *
      * @param payment 支付单实体
