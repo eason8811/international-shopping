@@ -26,6 +26,9 @@ import shopping.international.types.exceptions.PayPalException;
 import shopping.international.types.exceptions.PayPalWebhookReplayException;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -719,7 +722,13 @@ public class PaymentService implements IPaymentService {
             return;
         }
 
-        String clientRefundNo = "ppref-" + target.paymentId();
+        if (paymentRepository.existsRefundInProgressOrSuccess(target.paymentId())) {
+            log.info("自动退款全局保护命中, 已存在进行中/成功退款跳过, paymentId: {}, orderNo: {}",
+                    target.paymentId(), target.orderNo());
+            return;
+        }
+
+        String clientRefundNo = RefundClientRefundNoUtils.auto(target.paymentId(), captured.captureId());
         if (paymentRepository.existsRefundDedupeKey(target.paymentId(), clientRefundNo)) {
             log.info("自动退款去重命中, 已存在退款记录跳过, paymentId: {}, orderNo: {}, clientRefundNo: {}",
                     target.paymentId(), target.orderNo(), clientRefundNo);
@@ -809,5 +818,104 @@ public class PaymentService implements IPaymentService {
         if (v == null || v.isBlank())
             throw new IllegalParamException("缺少必要 Header: " + name);
         return v.strip();
+    }
+
+    /**
+     * 退款幂等键(client_refund_no)统一生成工具
+     *
+     * <p>格式: {@code ppref-{paymentOrderId}-{scope}-{key}}</p>
+     *
+     * <p>约束: 需满足数据库字段长度 {@code <= 64}</p>
+     */
+    public static final class RefundClientRefundNoUtils {
+        private static final int MAX_LEN = 64;
+        private static final int HASH_HEX_LEN = 12; // 48 bits
+
+        /**
+         * 管理侧/业务侧确认退款 (以 refundNo 稳定幂等)
+         *
+         * @param paymentOrderId 支付订单ID, 必须非空
+         * @param refundNo       退款编号, 必须非空且不为空白
+         * @return {@code ppref-{paymentOrderId}-ADMIN-{refundNo}} 形式的幂等键
+         * @throws IllegalArgumentException 如果 {@code paymentOrderId} 或 {@code refundNo} 为空或 {@code refundNo} 为空白
+         */
+        public static String admin(Long paymentOrderId, String refundNo) {
+            return build(paymentOrderId, "ADMIN", requireNonBlank(refundNo, "refundNo"));
+        }
+
+        /**
+         * 自动退款 (以 captureId 稳定幂等)
+         *
+         * @param paymentOrderId 支付订单ID, 必须非空
+         * @param captureId      捕获ID, 必须非空且不为空白
+         * @return {@code ppref-{paymentOrderId}-AUTO-cap-{shortHash(captureId)}} 形式的幂等键
+         * @throws IllegalArgumentException 如果 {@code paymentOrderId} 或 {@code captureId} 为空或 {@code captureId} 为空白
+         */
+        public static String auto(Long paymentOrderId, String captureId) {
+            String cap = requireNonBlank(captureId, "captureId");
+            return build(paymentOrderId, "AUTO", "cap-" + shortHash(cap));
+        }
+
+        /**
+         * WebHook 退款补单/对账 (以 externalRefundId 稳定幂等)
+         *
+         * @param paymentOrderId   支付订单 ID, 必须非空
+         * @param externalRefundId 外部退款 ID, 必须非空且不为空白
+         * @return 形如 {@code ppref-{paymentOrderId}-WH-erid-{shortHash(externalRefundId)}} 的幂等键
+         * @throws IllegalArgumentException 如果 {@code paymentOrderId} 或 {@code externalRefundId} 为空或 {@code externalRefundId} 为空白
+         */
+        public static String webhook(Long paymentOrderId, String externalRefundId) {
+            String normalizeExternalRefundId = requireNonBlank(externalRefundId, "externalRefundId");
+            return build(paymentOrderId, "WH", "erid-" + shortHash(normalizeExternalRefundId));
+        }
+
+        /**
+         * 构建一个幂等键, 用于确保退款操作的幂等性. 如果构建的字符串长度超过最大限制, 则通过哈希压缩 key 来保证不超过字段长度.
+         *
+         * @param paymentOrderId 支付订单ID, 必须非空
+         * @param scope          作用域, 例如 "ADMIN", "AUTO" 或 "WH"
+         * @param key            键值, 根据不同的场景可能需要进行哈希处理
+         * @return 形如 {@code ppref-{paymentOrderId}-{scope}-{key}} 的幂等键, 若原始字符串长度超过限制则返回 {@code ppref-{paymentOrderId}-{scope}-h-{shortHash(scope + ":" + key)}}
+         */
+        private static String build(Long paymentOrderId, String scope, String key) {
+            Long pid = Objects.requireNonNull(paymentOrderId, "paymentOrderId");
+            String s = "ppref-" + pid + "-" + scope + "-" + key;
+            if (s.length() <= MAX_LEN)
+                return s;
+            // 兜底: 极端情况下(例如 paymentOrderId 特别长)压缩 key, 保证不超过字段长度且仍稳定
+            return "ppref-" + pid + "-" + scope + "-h-" + shortHash(scope + ":" + key);
+        }
+
+        /**
+         * 确保给定的字符串既不为 <code>null</code> 也不为空白, 并去除首尾空白后返回
+         *
+         * @param v    待检查和处理的字符串
+         * @param name 字符串参数的名称, 用于在抛出异常时提供更详细的错误信息
+         * @return 去除首尾空白后的字符串
+         * @throws IllegalParamException 如果 <code>v</code> 为 <code>null</code> 或仅包含空白字符
+         */
+        private static String requireNonBlank(String v, String name) {
+            requireNotBlank(v, name + "不能为空");
+            return v.strip();
+        }
+
+        /**
+         * 生成输入字符串的 SHA-256 哈希值, 并返回其前 {@code HASH_HEX_LEN} 长度的十六进制表示
+         *
+         * @param input 输入字符串, 将被用于生成哈希值
+         * @return 输入字符串的 SHA-256 哈希值的前 {@code HASH_HEX_LEN} 位的十六进制表示
+         * @throws IllegalStateException 如果 SHA-256 算法不可用
+         */
+        private static String shortHash(String input) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("SHA-256");
+                byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
+                String hex = HexFormat.of().formatHex(digest);
+                return hex.substring(0, HASH_HEX_LEN);
+            } catch (NoSuchAlgorithmException e) {
+                // SHA-256 for JDK is guaranteed; still keep a safe fallback
+                throw new IllegalStateException("SHA-256 not available", e);
+            }
+        }
     }
 }
