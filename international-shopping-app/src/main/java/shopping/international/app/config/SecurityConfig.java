@@ -85,7 +85,6 @@ public class SecurityConfig {
         // ========== 无状态会话 (JWT)  ==========
         http.sessionManagement(sessionManager -> sessionManager
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
         );
 
         // ========== 认证入口/拒绝处理 ==========
@@ -158,6 +157,7 @@ public class SecurityConfig {
     private void configureCsrf(CsrfConfigurer<HttpSecurity> csrf, CsrfTokenRepository repo, String... ignoringPatterns) {
         csrf.csrfTokenRepository(repo)
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
                 .ignoringRequestMatchers(ignoringPatterns);
         // 默认仅对写操作启用检查, GET/HEAD/TRACE/OPTIONS 不校验
     }
