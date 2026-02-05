@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.CsrfConfig
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import shopping.international.app.security.filter.CookieJwtAuthenticationFilter;
@@ -82,8 +83,10 @@ public class SecurityConfig {
         http.csrf(csrf -> configureCsrf(csrf, csrfRepo, csrfIgnoring));
 
         // ========== 无状态会话 (JWT)  ==========
-        http.sessionManagement(sessionManager ->
-                sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        http.sessionManagement(sessionManager -> sessionManager
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
+        );
 
         // ========== 认证入口/拒绝处理 ==========
         RestAuthErrorHandlers authErrors = new RestAuthErrorHandlers(objectMapper);
