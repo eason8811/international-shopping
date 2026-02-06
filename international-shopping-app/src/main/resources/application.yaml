@@ -8,7 +8,7 @@ spring:
     active: dev
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${spring.datasource.host}:${spring.datasource.port}/shopdb?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${spring.datasource.host}:${spring.datasource.port}/shopdb?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
     username: ${spring.datasource.username}
     password: ${spring.datasource.password}
     hikari:
@@ -152,7 +152,7 @@ orders:
       listener-concurrency: 2
       listener-prefetch: 10
     recovery:
-      fixed-delay: 5m
+      fixed-delay: 15m
       batch-size: 100
 
 # PayPal 网关配置（建议通过环境变量注入敏感信息）

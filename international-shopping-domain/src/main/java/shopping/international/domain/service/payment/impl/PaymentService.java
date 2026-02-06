@@ -735,6 +735,8 @@ public class PaymentService implements IPaymentService {
             return;
         }
 
+        log.info("触发自动退款, paymentId: {}, orderNo: {}, 退款原因: {}", target.paymentId(), target.orderNo(), note);
+
         String refundNo = RefundNo.generate().getValue();
         IPayPalPort.RefundCaptureResult refunded = payPalPort.refundCapture(
                 new IPayPalPort.RefundCaptureCommand(
