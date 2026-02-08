@@ -889,64 +889,124 @@ CREATE TABLE payment_refund_item
 -- 5. 物流领域 (shipping)
 -- =========================================================
 
--- 5.1 物流包裹（一个包裹对应一张国际运单；支持后续末端换单）
+-- 5.1 订单可见包裹（一个 shipment 只归属一个订单；合单通过运段映射实现）
 /*
-uk_carrier_tracking (carrier_code, tracking_no)：对接回调/查询时以“承运商+单号”精准命中；避免重复创建
-uk_ship_external：三方下单幂等
-idx_ship_order：从订单查所有包裹（合单/拆单均可）
+uk_shipment_no：内部包裹号唯一
+idx_ship_order：从订单查所有包裹（拆单场景）
+idx_ship_current_leg：快速定位“当前主运段”
 idx_ship_status_updated：定时轮询仅扫待更新状态+时间近的记录
  */
 CREATE TABLE shipment
 (
+    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    shipment_no    CHAR(26)        NOT NULL COMMENT '内部包裹号(ULID/雪花等)',
+    order_id       BIGINT UNSIGNED NOT NULL COMMENT '订单ID, 指向 orders.id',
+    current_leg_id BIGINT UNSIGNED NULL COMMENT '当前主运段ID, 指向 shipping_leg.id (逻辑关联)',
+    /*
+     CREATED: 系统内包裹已创建, 尚未进入承运商链路
+     LABEL_CREATED: 已生成面单（任一当前运段）
+     PICKED_UP: 已被揽收
+     IN_TRANSIT: 运输中
+     CUSTOMS_HOLD: 海关暂扣
+     CUSTOMS_RELEASED: 清关放行
+     HANDED_OVER: 已交接到下一运段（中间态）
+     OUT_FOR_DELIVERY: 派送中
+     DELIVERED: 签收完成（终态）
+     EXCEPTION: 异常（可为终态或中间态，后续可能重派/改址继续流转）
+     RETURNED: 退回（终态）
+     CANCELLED: 取消（终态）
+     LOST: 丢失（终态）
+     */
+    status         ENUM ('CREATED','LABEL_CREATED','PICKED_UP','IN_TRANSIT','CUSTOMS_HOLD','CUSTOMS_RELEASED',
+        'HANDED_OVER','OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
+                                   NOT NULL DEFAULT 'CREATED' COMMENT '包裹状态（用户口径）',
+    ship_from      JSON            NULL COMMENT '发货地/仓信息快照(JSON)',
+    ship_to        JSON            NULL COMMENT '收件地址快照(JSON); 与订单快照可能不同',
+    weight_kg      DECIMAL(10, 3)  NULL COMMENT '毛重(kg)',
+    length_cm      DECIMAL(10, 1)  NULL COMMENT '长(cm)',
+    width_cm       DECIMAL(10, 1)  NULL COMMENT '宽(cm)',
+    height_cm      DECIMAL(10, 1)  NULL COMMENT '高(cm)',
+    declared_value BIGINT UNSIGNED NULL COMMENT '申报价值(币种见currency)',
+    currency       CHAR(3)         NOT NULL DEFAULT 'USD' COMMENT '币种',
+    customs_info   JSON            NULL COMMENT '关务/清关信息(HS code, 原产地, 税费等)',
+    label_url      VARCHAR(500)    NULL COMMENT '包裹面单URL(可选, 如末端标签)',
+    pickup_time    DATETIME(3)     NULL COMMENT '首次揽收时间（包裹口径）',
+    delivered_time DATETIME(3)     NULL COMMENT '签收时间（包裹口径）',
+    created_at     DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at     DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_shipment_no (shipment_no),
+    KEY idx_ship_order (order_id, created_at),
+    KEY idx_ship_current_leg (current_leg_id),
+    KEY idx_ship_status_updated (status, updated_at),
+    KEY idx_ship_created (created_at)
+) ENGINE = InnoDB COMMENT ='订单可见包裹 (拆单友好, 合单依赖运段映射)';
+
+-- 5.2 承运商运段（物理运输单元：干线/末端/退回等）
+/*
+uk_leg_carrier_tracking (carrier_code, tracking_no)：对接回调/查询时以“承运商+单号”精准命中；避免重复创建
+uk_leg_external：三方下单幂等
+idx_leg_parent：支持“干线转末端”或改派重路由
+idx_leg_status_updated：轮询待更新状态
+ */
+CREATE TABLE shipping_leg
+(
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    shipment_no     CHAR(26)        NOT NULL COMMENT '内部包裹号(ULID/雪花等)',
-    order_id        BIGINT UNSIGNED NULL COMMENT '发起来源主订单ID, 指向 orders.id (支持合单场景可为空)',
+    leg_no          CHAR(26)        NOT NULL COMMENT '内部运段号(ULID/雪花等)',
+    leg_type        ENUM ('LINE_HAUL','LAST_MILE','RETURN','RESHIP','OTHER')
+                                    NOT NULL DEFAULT 'LINE_HAUL' COMMENT '运段类型: 干线/末端/退回/补发/其他',
+    parent_leg_id   BIGINT UNSIGNED NULL COMMENT '父运段ID, 指向 shipping_leg.id (逻辑关联)',
     carrier_code    VARCHAR(64)     NOT NULL COMMENT '承运商编码(标准化如 dhl, ups, 4px, yanwen)',
     carrier_name    VARCHAR(128)    NULL COMMENT '承运商名称',
     service_code    VARCHAR(64)     NULL COMMENT '服务/产品代码(如 DHL_ECOM)',
     tracking_no     VARCHAR(128)    NULL COMMENT '承运商运单号/追踪号(可能下单后才生成)',
     ext_external_id VARCHAR(128)    NULL COMMENT '对接物流API的externalId/订单号',
     /*
-     CREATED: 系统内运单已创建, 未向承运商下单（未拿到面单号）
-     LABEL_CREATED: 已经拿到面单号
-     PICKED_UP: 已被揽收
-     IN_TRANSIT: 运输中
-     CUSTOMS_HOLD: 海关暂扣
-     CUSTOMS_RELEASED: 清关放行
-     OUT_FOR_DELIVERY: 派送中
-     DELIVERED: 签收完成（终态）
-     EXCEPTION: 异常（可为终态或中间态，后续可能被重派，回退，或客户改地址后继续流转）
-     RETURNED: 退回（终态）
-     CANCELLED: 取消（面单作废，终态）
-     LOST: 丢失（由承运商判定或长时间无轨迹且调度认定丢失，终态）
+     HANDED_OVER: 当前运段已妥投给下一运段（仅运段口径）
+     其余状态语义与 shipment.status 对齐
      */
     status          ENUM ('CREATED','LABEL_CREATED','PICKED_UP','IN_TRANSIT','CUSTOMS_HOLD','CUSTOMS_RELEASED',
-        'OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
-                                    NOT NULL DEFAULT 'CREATED' COMMENT '物流状态',
-    ship_from       JSON            NULL COMMENT '发货地/仓信息快照(JSON)',
-    ship_to         JSON            NULL COMMENT '收件地址快照(JSON); 与订单快照可能不同',
-    weight_kg       DECIMAL(10, 3)  NULL COMMENT '毛重(kg)',
-    length_cm       DECIMAL(10, 1)  NULL COMMENT '长(cm)',
-    width_cm        DECIMAL(10, 1)  NULL COMMENT '宽(cm)',
-    height_cm       DECIMAL(10, 1)  NULL COMMENT '高(cm)',
-    declared_value  BIGINT UNSIGNED NULL COMMENT '申报价值(币种见currency)',
-    currency        CHAR(3)         NOT NULL DEFAULT 'USD' COMMENT '币种',
-    customs_info    JSON            NULL COMMENT '关务/清关信息(HS code, 原产地, 税费等)',
-    label_url       VARCHAR(500)    NULL COMMENT '电子面单URL(可选)',
-    pickup_time     DATETIME(3)     NULL COMMENT '揽收时间',
-    delivered_time  DATETIME(3)     NULL COMMENT '签收时间',
+        'HANDED_OVER','OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
+                                    NOT NULL DEFAULT 'CREATED' COMMENT '运段状态（承运商口径）',
+    ship_from       JSON            NULL COMMENT '该运段发货地/交接地信息快照(JSON)',
+    ship_to         JSON            NULL COMMENT '该运段目的地/交接地信息快照(JSON)',
+    label_url       VARCHAR(500)    NULL COMMENT '该运段电子面单URL(可选)',
+    pickup_time     DATETIME(3)     NULL COMMENT '揽收时间（运段口径）',
+    delivered_time  DATETIME(3)     NULL COMMENT '妥投/交接完成时间（运段口径）',
     created_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_shipment_no (shipment_no),
-    UNIQUE KEY uk_carrier_tracking (carrier_code, tracking_no), -- 同一承运商下运单号唯一
-    UNIQUE KEY uk_ship_external (ext_external_id),              -- 对接方externalId确保幂等
-    KEY idx_ship_order (order_id),                              -- 从订单查包裹
-    KEY idx_ship_status_updated (status, updated_at),           -- 任务轮询/看板扫描
-    KEY idx_ship_created (created_at)                           -- 时间窗口扫描
-) ENGINE = InnoDB COMMENT ='物流包裹/运单(跨境)';
+    UNIQUE KEY uk_leg_no (leg_no),
+    UNIQUE KEY uk_leg_carrier_tracking (carrier_code, tracking_no),
+    UNIQUE KEY uk_leg_external (ext_external_id),
+    KEY idx_leg_parent (parent_leg_id),
+    KEY idx_leg_status_updated (status, updated_at),
+    KEY idx_leg_created (created_at)
+) ENGINE = InnoDB COMMENT ='承运商运段（物理运输单元，可承载多个订单包裹）';
 
--- 5.2 包裹内商品映射（支持合单/拆单：N:N）
+-- 5.3 运段-包裹映射（支持合单/拆段：N:N）
+/*
+uk_sls_ship_active：一个包裹同一时刻仅允许一个“当前有效运段”
+idx_sls_shipment：从包裹查其经过的所有运段（轨迹回放）
+idx_sls_leg_active：从运段查当前承载的包裹（合单场景）
+ */
+CREATE TABLE shipping_leg_shipment
+(
+    leg_id       BIGINT UNSIGNED NOT NULL COMMENT '运段ID, 指向 shipping_leg.id',
+    shipment_id  BIGINT UNSIGNED NOT NULL COMMENT '包裹ID, 指向 shipment.id',
+    is_active    TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否当前有效运段: 1是, 0否',
+    joined_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '进入该运段时间',
+    left_at      DATETIME(3)     NULL COMMENT '离开该运段时间（切换到下一运段时填）',
+    active_only  TINYINT AS (CASE WHEN is_active = 1 THEN 1 ELSE NULL END) STORED,
+    PRIMARY KEY (leg_id, shipment_id),
+    UNIQUE KEY uk_sls_ship_active (shipment_id, active_only),
+    KEY idx_sls_shipment (shipment_id),
+    KEY idx_sls_leg_active (leg_id, is_active),
+    KEY idx_sls_active_time (is_active, joined_at),
+    CHECK (is_active IN (0, 1))
+) ENGINE = InnoDB COMMENT ='运段-包裹映射（合单与末端拆分核心）';
+
+-- 5.4 包裹内商品映射（一个 shipment 内承载哪些订单明细）
 /*
 uk_ship_orderitem：避免同包裹里重复挂载同一 order_item
 idx_shipitem_order：订单详情页快速反查“包含哪些包裹”
@@ -962,30 +1022,64 @@ CREATE TABLE shipment_item
     quantity      INT             NOT NULL COMMENT '该包裹中该明细的数量(支持部分发货)',
     created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_ship_orderitem (shipment_id, order_item_id), -- 一个包裹中，同一明细不重复
-    KEY idx_shipitem_shipment (shipment_id),                   -- 从包裹查其包含的明细
-    KEY idx_shipitem_order (order_id),                         -- 从订单反查包裹(合单/拆单)
-    KEY idx_shipitem_sku (sku_id)                              -- 统计SKU发货情况
-) ENGINE = InnoDB COMMENT ='包裹-订单明细映射(支持合单与拆单)';
+    UNIQUE KEY uk_ship_orderitem (shipment_id, order_item_id),
+    KEY idx_shipitem_shipment (shipment_id),
+    KEY idx_shipitem_order (order_id, shipment_id),
+    KEY idx_shipitem_orderitem (order_item_id),
+    KEY idx_shipitem_sku (sku_id),
+    CHECK (quantity > 0)
+) ENGINE = InnoDB COMMENT ='包裹-订单明细映射 (订单履约与售后依据)';
 
--- 5.3 包裹状态流转日志（源状态→目标状态 + 事件来源）
+-- 5.5 运段状态流转日志（承运商口径）
+/*
+idx_lsl_leg_time：按运段时间线查询与“取最新状态”高频
+idx_lsl_to_status：统计流入某状态的运段量（看板/报表）
+idx_lsl_source：按来源排查, 回放某时间段处理
+ */
+CREATE TABLE shipping_leg_status_log
+(
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    leg_id        BIGINT UNSIGNED NOT NULL COMMENT '运段ID, 指向 shipping_leg.id',
+    from_status   ENUM ('CREATED','LABEL_CREATED','PICKED_UP','IN_TRANSIT','CUSTOMS_HOLD','CUSTOMS_RELEASED',
+        'HANDED_OVER','OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
+                                  NULL COMMENT '变更前状态 (首个状态可为空)',
+    to_status     ENUM ('CREATED','LABEL_CREATED','PICKED_UP','IN_TRANSIT','CUSTOMS_HOLD','CUSTOMS_RELEASED',
+        'HANDED_OVER','OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
+                                  NOT NULL COMMENT '变更后状态',
+    event_time    DATETIME(3)     NULL COMMENT '状态发生时间 (承运商/系统口径，空则参考created_at)',
+    source_type   ENUM ('CARRIER_WEBHOOK','CARRIER_POLL','SYSTEM_JOB','MANUAL','API')
+                                  NOT NULL COMMENT '事件来源类型：承运商回调/轮询/系统任务/人工/开放接口',
+    source_ref    VARCHAR(128)    NULL COMMENT '来源引用ID (如回调notify_id, 任务run_id, 请求id)',
+    tracking_no   VARCHAR(128)    NULL COMMENT '当次事件涉及的追踪号',
+    note          VARCHAR(255)    NULL COMMENT '备注/原因',
+    raw_payload   JSON            NULL COMMENT '原始报文 (承运商回调/接口入参等)',
+    actor_user_id BIGINT UNSIGNED NULL COMMENT '操作者用户ID (MANUAL/API可记录)',
+    created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '写入时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_lsl_dedupe (leg_id, source_type, source_ref),
+    KEY idx_lsl_leg_time (leg_id, (COALESCE(event_time, created_at))),
+    KEY idx_lsl_to_status (to_status),
+    KEY idx_lsl_source (source_type, created_at),
+    CHECK (from_status IS NULL OR from_status <> to_status)
+) ENGINE = InnoDB COMMENT ='运段状态流转日志 (源状态→目标状态，含事件来源与原始报文)';
+
+-- 5.6 包裹状态流转日志（用户口径；可由运段事件派生）
 /*
 idx_ssl_ship_time：按包裹时间线查询与“取最新状态”高频
+idx_ssl_leg_time：按运段回放某包裹在该运段上的状态轨迹
 idx_ssl_to_status：统计流入某状态的包裹量（看板/报表）
-idx_ssl_source：按来源排查, 回放某时间段的处理
  */
 CREATE TABLE shipment_status_log
 (
     id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    shipment_id   BIGINT UNSIGNED NOT NULL COMMENT '包裹ID,指向 shipment.id',
-    -- 状态机：与 shipment.status 同口径
+    shipment_id   BIGINT UNSIGNED NOT NULL COMMENT '包裹ID, 指向 shipment.id',
+    leg_id        BIGINT UNSIGNED NULL COMMENT '来源运段ID, 指向 shipping_leg.id',
     from_status   ENUM ('CREATED','LABEL_CREATED','PICKED_UP','IN_TRANSIT','CUSTOMS_HOLD','CUSTOMS_RELEASED',
-        'OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
+        'HANDED_OVER','OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
                                   NULL COMMENT '变更前状态 (首个状态可为空)',
     to_status     ENUM ('CREATED','LABEL_CREATED','PICKED_UP','IN_TRANSIT','CUSTOMS_HOLD','CUSTOMS_RELEASED',
-        'OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
+        'HANDED_OVER','OUT_FOR_DELIVERY','DELIVERED','EXCEPTION','RETURNED','CANCELLED','LOST')
                                   NOT NULL COMMENT '变更后状态',
-    -- 事件发生时间与来源（谁触发, 如何触发）
     event_time    DATETIME(3)     NULL COMMENT '状态发生时间 (承运商/系统口径，空则参考created_at)',
     source_type   ENUM ('CARRIER_WEBHOOK','CARRIER_POLL','SYSTEM_JOB','MANUAL','API')
                                   NOT NULL COMMENT '事件来源类型：承运商回调/轮询/系统任务/人工/开放接口',
@@ -995,36 +1089,31 @@ CREATE TABLE shipment_status_log
     note          VARCHAR(255)    NULL COMMENT '备注/原因 (例如异常说明, 人工操作说明)',
     raw_payload   JSON            NULL COMMENT '原始报文 (承运商回调/接口入参等)',
     actor_user_id BIGINT UNSIGNED NULL COMMENT '操作者用户ID (MANUAL/API可记录)',
-
     created_at    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '写入时间',
-
     PRIMARY KEY (id),
-
-    -- 幂等去重（避免同一来源, 同一引用ID对同一包裹重复落库）
-    UNIQUE KEY uk_ssl_dedupe (shipment_id, source_type, source_ref),
-
-    -- 常用查询索引
-    KEY idx_ssl_ship_time (shipment_id, (COALESCE(event_time, created_at))), -- 时间序回放, 取最新节点
-    KEY idx_ssl_to_status (to_status),                                       -- 看板统计“流入某状态”的数量
-    KEY idx_ssl_source (source_type, created_at),                            -- 分来源按时间筛查
-
-    -- 约束：from/to 不相等（MySQL CHECK 在 8/9 可用，但无法跨NULL严格校验）
+    UNIQUE KEY uk_ssl_dedupe (shipment_id, leg_id, source_type, source_ref),
+    KEY idx_ssl_ship_time (shipment_id, (COALESCE(event_time, created_at))),
+    KEY idx_ssl_leg_time (leg_id, (COALESCE(event_time, created_at))),
+    KEY idx_ssl_to_status (to_status),
+    KEY idx_ssl_source (source_type, created_at),
     CHECK (from_status IS NULL OR from_status <> to_status)
-) ENGINE = InnoDB COMMENT ='包裹状态流转日志 (源状态→目标状态，含事件来源与原始报文)';
+) ENGINE = InnoDB COMMENT ='包裹状态流转日志（用户可见口径）';
 
--- 承运商理赔单
+-- 5.7 承运商理赔单
 /*
 uk_claim_external：避免同一外部编号重复落库
-idx_claim_shipment / idx_claim_order / idx_claim_reship / idx_claim_ticket：从包裹/订单/补寄/工单反查理赔单
+idx_claim_shipment / idx_claim_leg / idx_claim_order / idx_claim_reship / idx_claim_ticket：多维反查
  */
 CREATE TABLE shipping_claim
 (
     id           BIGINT UNSIGNED                                                     NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     ticket_id    BIGINT UNSIGNED                                                     NULL COMMENT '工单ID, 指向 cs_ticket.id',
     shipment_id  BIGINT UNSIGNED                                                     NOT NULL COMMENT '包裹ID, 指向 shipment.id',
+    leg_id       BIGINT UNSIGNED                                                     NULL COMMENT '对应运段ID, 指向 shipping_leg.id',
     order_id     BIGINT UNSIGNED                                                     NOT NULL COMMENT '订单ID, 指向 orders.id',
     reship_id    BIGINT UNSIGNED                                                     NULL COMMENT '补发单ID, 指向 aftersales_reship.id',
-    carrier_code VARCHAR(64)                                                         NOT NULL COMMENT '承运商编码 (来源于承运商事件时可填)',
+    carrier_code VARCHAR(64)                                                         NOT NULL COMMENT '承运商编码 (来源于运段/事件快照)',
+    tracking_no  VARCHAR(128)                                                        NULL COMMENT '理赔关联追踪号快照',
     external_id  VARCHAR(128)                                                        NULL COMMENT '承运商理赔编号',
     reason_code  ENUM ('LOST','DAMAGED','DELAY','OTHER')                             NOT NULL DEFAULT 'OTHER' COMMENT '理赔原因',
     status       ENUM ('FILED','UNDER_REVIEW','APPROVED','REJECTED','PAID','CLOSED') NOT NULL DEFAULT 'FILED' COMMENT '理赔状态',
@@ -1037,10 +1126,11 @@ CREATE TABLE shipping_claim
     PRIMARY KEY (id),
     UNIQUE KEY uk_claim_external (external_id),
     KEY idx_claim_shipment (shipment_id),
+    KEY idx_claim_leg (leg_id),
     KEY idx_claim_order (order_id),
     KEY idx_claim_reship (reship_id),
     KEY idx_claim_ticket (ticket_id)
-) ENGINE = InnoDB COMMENT ='承运商理赔单（独立于支付体系）';
+) ENGINE = InnoDB COMMENT ='承运商理赔单 (支持按运段/包裹双维度定位)';
 
 -- =========================================================
 -- 6. 售后领域 (customerservice)
@@ -1049,9 +1139,9 @@ CREATE TABLE shipping_claim
 -- 6.1 客服工单（售后/异常/理赔/补寄等统一入口）
 /*
 uk_ticket_no：对外/对内统一的工单编号（雪花/ULID），便于定位与对账
-uk_ticket_open_dedupe：(order_id, shipment_id, issue_type, open_only) 保证同一订单/包裹、同一问题类型在“进行中”仅有一张工单（避免并发重复）
+uk_ticket_open_dedupe：(order_id, shipment_id, leg_id, issue_type, open_only) 保证同一订单/包裹/运段、同一问题类型在“进行中”仅有一张工单（避免并发重复）
 idx_ticket_user：用户侧列表
-idx_ticket_order / idx_ticket_shipment / idx_ticket_orderitem：从订单/包裹/明细反查工单
+idx_ticket_order / idx_ticket_shipment / idx_ticket_leg / idx_ticket_orderitem：从订单/包裹/运段/明细反查工单
 idx_ticket_status_update：(status, updated_at) 轮询/看板扫描
 idx_ticket_priority：(priority, created_at) 运营看板
 idx_ticket_sla：SLA 到期预警
@@ -1067,6 +1157,7 @@ CREATE TABLE cs_ticket
     order_id                BIGINT UNSIGNED                        NULL COMMENT '关联订单, 指向 orders.id',
     order_item_id           BIGINT UNSIGNED                        NULL COMMENT '关联订单明细, 指向 order_item.id',
     shipment_id             BIGINT UNSIGNED                        NULL COMMENT '关联包裹, 指向 shipment.id',
+    leg_id                  BIGINT UNSIGNED                        NULL COMMENT '关联运段, 指向 shipping_leg.id',
 
     issue_type              ENUM ('REFUND','RESHIP','CLAIM','DELIVERY','ADDRESS','PRODUCT','PAYMENT','OTHER')
                                                                    NOT NULL DEFAULT 'OTHER' COMMENT '问题类型: 退款/补寄/理赔/物流/改址/商品/支付/其他',
@@ -1106,17 +1197,18 @@ CREATE TABLE cs_ticket
     PRIMARY KEY (id),
     UNIQUE KEY uk_ticket_no (ticket_no),
 
-    -- 仅对“进行中”状态做去重: 一个订单/包裹×问题类型，仅允许一张开放工单
+    -- 仅对“进行中”状态做去重: 一个订单/包裹/运段×问题类型，仅允许一张开放工单
     open_only               TINYINT AS (CASE
                                             WHEN status IN
                                                  ('OPEN', 'IN_PROGRESS', 'AWAITING_USER', 'AWAITING_CARRIER', 'ON_HOLD')
                                                 THEN 1
                                             ELSE NULL END) STORED,
-    UNIQUE KEY uk_ticket_open_dedupe (order_id, shipment_id, issue_type, open_only),
+    UNIQUE KEY uk_ticket_open_dedupe (order_id, shipment_id, leg_id, issue_type, open_only),
     KEY idx_ticket_user (user_id, created_at),
     KEY idx_ticket_order (order_id),
     KEY idx_ticket_orderitem (order_item_id),
     KEY idx_ticket_shipment (shipment_id),
+    KEY idx_ticket_leg (leg_id),
     KEY idx_ticket_status_update (status, updated_at),
     KEY idx_ticket_priority (priority, created_at),
     KEY idx_ticket_sla (sla_due_at),
