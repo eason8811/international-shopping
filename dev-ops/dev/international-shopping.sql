@@ -942,6 +942,7 @@ CREATE TABLE shipment
     updated_at      DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_shipment_no (shipment_no),
+    UNIQUE KEY (order_id, idempotency_key),
     UNIQUE KEY uk_carrier_tracking (carrier_code, tracking_no), -- 同一承运商下运单号唯一
     UNIQUE KEY uk_ship_external (ext_external_id),              -- 对接方externalId确保幂等
     KEY idx_ship_order (order_id),                              -- 从订单查包裹
