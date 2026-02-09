@@ -591,13 +591,13 @@ idx_osl_order：订单状态流转历史查询
  */
 CREATE TABLE order_status_log
 (
-    id           BIGINT UNSIGNED                                               NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    order_id     BIGINT UNSIGNED                                               NOT NULL COMMENT '订单ID, 指向 orders.id',
-    event_source ENUM ('SYSTEM','USER','PAYMENT_CALLBACK','SCHEDULER','ADMIN') NOT NULL DEFAULT 'SYSTEM' COMMENT '事件来源',
-    from_status  VARCHAR(32)                                                   NULL COMMENT '源状态',
-    to_status    VARCHAR(32)                                                   NOT NULL COMMENT '目标状态',
-    note         VARCHAR(255)                                                  NULL COMMENT '备注',
-    created_at   DATETIME(3)                                                   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    id           BIGINT UNSIGNED                                                                   NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    order_id     BIGINT UNSIGNED                                                                   NOT NULL COMMENT '订单ID, 指向 orders.id',
+    event_source ENUM ('SYSTEM','USER','PAYMENT_CALLBACK','SCHEDULER','ADMIN','SHIPPING_CALLBACK') NOT NULL DEFAULT 'SYSTEM' COMMENT '事件来源',
+    from_status  VARCHAR(32)                                                                       NULL COMMENT '源状态',
+    to_status    VARCHAR(32)                                                                       NOT NULL COMMENT '目标状态',
+    note         VARCHAR(255)                                                                      NULL COMMENT '备注',
+    created_at   DATETIME(3)                                                                       NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     PRIMARY KEY (id),
     KEY idx_osl_order (order_id)
 ) ENGINE = InnoDB COMMENT ='订单状态流转日志';
@@ -901,6 +901,7 @@ CREATE TABLE shipment
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     shipment_no     CHAR(26)        NOT NULL COMMENT '内部包裹号(ULID/雪花等)',
     order_id        BIGINT UNSIGNED NULL COMMENT '发起来源主订单ID, 指向 orders.id (支持合单场景可为空)',
+    idempotency_key VARCHAR(64)     NULL COMMENT '幂等键(防重复下单)',
     carrier_code    VARCHAR(64)     NULL COMMENT '承运商编码(标准化如 dhl, ups, 4px, yanwen)',
     carrier_name    VARCHAR(128)    NULL COMMENT '承运商名称',
     service_code    VARCHAR(64)     NULL COMMENT '服务/产品代码(如 DHL_ECOM)',
@@ -1008,10 +1009,8 @@ CREATE TABLE shipment_status_log
     -- 常用查询索引
     KEY idx_ssl_ship_time (shipment_id, (COALESCE(event_time, created_at))), -- 时间序回放, 取最新节点
     KEY idx_ssl_to_status (to_status),                                       -- 看板统计“流入某状态”的数量
-    KEY idx_ssl_source (source_type, created_at),                            -- 分来源按时间筛查
+    KEY idx_ssl_source (source_type, created_at)                             -- 分来源按时间筛查
 
-    -- 约束：from/to 不相等（MySQL CHECK 在 8/9 可用，但无法跨NULL严格校验）
-    CHECK (from_status IS NULL OR from_status <> to_status)
 ) ENGINE = InnoDB COMMENT ='包裹状态流转日志 (源状态→目标状态，含事件来源与原始报文)';
 
 -- 承运商理赔单
