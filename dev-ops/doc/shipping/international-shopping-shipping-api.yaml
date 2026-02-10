@@ -1,0 +1,3290 @@
+openapi: 3.1.0
+info:
+  title: 默认模块
+  description: >
+    - 统一鉴权：Cookie 会话（HttpOnly `access_token`）<br/> - 统一返回包裹结构（所有 HTTP
+    状态码均使用相同结构）<br/> - CSRF 防护：双提交（Header: `X-CSRF-Token` 与 Cookie: `csrf_token`
+    必须相等）<br/> - 匿名接口：显式 `security: []`<br/>
+  version: 1.3.0
+tags:
+  - name: shipping
+  - name: shipping/UserShipments
+  - name: shipping/AdminShipments
+  - name: shipping/AdminShipmentLogs
+  - name: shipping/Webhook17Track
+  - name: UserShipments
+  - name: AdminShipments
+  - name: AdminShipmentLogs
+  - name: Webhook17Track
+paths:
+  /users/me/orders/{order_no}/shipments:
+    get:
+      summary: 用户侧查询订单关联物流单列表
+      deprecated: false
+      description: |
+        返回订单下全部 shipment（支持一单多包裹），包含：
+        - 物流单号/承运商/追踪号
+        - 包裹内商品明细
+        - 当前物流状态
+        - 状态变更记录（按时间正序）
+
+        地址修改联动规则：仅当订单关联 shipment 全部处于 `CREATED/LABEL_CREATED` 才允许改址。
+      tags:
+        - shipping/UserShipments
+        - UserShipments
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: order_no
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            minLength: 10
+            maxLength: 32
+        - name: include_logs
+          in: query
+          description: 是否返回状态变更记录
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH2V2TZP37R1PZ07Z9H2GS4W:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShipmentDetail'
+                        description: 业务数据（随具体接口定义）
+                    required: []
+                x-apifox-orders:
+                  - 01KH2V2TZP37R1PZ07Z9H2GS4W
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShipmentDetail'
+                    description: 业务数据（随具体接口定义）
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+        '404':
+          description: 订单不存在或不属于当前用户
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未找到
+          x-apifox-ordering: 4
+      security: []
+      x-apifox-folder: shipping/UserShipments
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491538-run
+  /users/me/shipments/{shipment_no}:
+    get:
+      summary: 用户侧查询物流单详情
+      deprecated: false
+      description: |
+        查询单个物流单详情，返回 shipment 基础信息、包裹商品、承运商信息、轨迹日志。
+        适用于“查看物流详情页”场景。
+      tags:
+        - shipping/UserShipments
+        - UserShipments
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: shipment_no
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            minLength: 10
+            maxLength: 32
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH2V3HDD1GJEF9MK7S6GT93C:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/ShipmentDetail'
+                    required: []
+                x-apifox-orders:
+                  - 01KH2V3HDD1GJEF9MK7S6GT93C
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/ShipmentDetail'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+        '404':
+          description: 物流单不存在或不属于当前用户
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未找到
+          x-apifox-ordering: 4
+      security: []
+      x-apifox-folder: shipping/UserShipments
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491539-run
+  /admin/shipments:
+    get:
+      summary: 管理侧分页查询 shipment（支持筛选）
+      deprecated: false
+      description: |
+        默认筛选条件：当 `status_in` 未传时，默认按 `CREATED,LABEL_CREATED` 查询。
+
+        典型用途：
+        - 待回填面单看板
+        - 待发货看板
+        - 运维排障查询（按承运商单号/外部单号/source_ref）
+      tags:
+        - shipping/AdminShipments
+        - AdminShipments
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: shipment_no
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            minLength: 10
+            maxLength: 32
+        - name: order_no
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            minLength: 10
+            maxLength: 32
+        - name: order_id
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: carrier_code
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: tracking_no
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+        - name: ext_external_id
+          in: query
+          description: 三方物流平台 external_id
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+        - name: status_in
+          in: query
+          description: 逗号分隔；不传时默认 `CREATED,LABEL_CREATED`
+          required: false
+          schema:
+            type: array
+            default:
+              - CREATED
+              - LABEL_CREATED
+            items:
+              $ref: '#/components/schemas/ShipmentStatus'
+        - name: updated_from
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: updated_to
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: created_from
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: created_to
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: size
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 200
+        - name: sort
+          in: query
+          description: 排序字段与方向（例如 `updated_at,desc`）
+          required: false
+          schema:
+            type: string
+            default: updated_at,desc
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH2V9M79F2BKJWB1FBPPZKP1:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShipmentSummary'
+                        description: 业务数据（随具体接口定义）
+                    required: []
+                x-apifox-orders:
+                  - 01KH2V9M79F2BKJWB1FBPPZKP1
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShipmentSummary'
+                    description: 业务数据（随具体接口定义）
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+      security: []
+      x-apifox-folder: shipping/AdminShipments
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491540-run
+  /admin/shipments/{shipment_id}:
+    get:
+      summary: 管理侧获取物流单详情
+      deprecated: false
+      description: |
+        在回填物流面单、手工发货、排障前先获取 shipment 详情。
+        返回字段与用户侧详情口径一致，但不做“归属当前用户”限制。
+      tags:
+        - shipping/AdminShipments
+        - AdminShipments
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: shipment_id
+          in: path
+          description: ''
+          required: true
+          example: 0
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH30RX2G0A8Y42KCJST69F9B:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/ShipmentDetail'
+                    required: []
+                x-apifox-orders:
+                  - 01KH30RX2G0A8Y42KCJST69F9B
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/ShipmentDetail'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+        '404':
+          description: shipment 不存在
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未找到
+          x-apifox-ordering: 4
+      security: []
+      x-apifox-folder: shipping/AdminShipments
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491541-run
+  /admin/shipments/{shipment_id}/label:
+    post:
+      summary: 管理侧回填物流面单信息
+      deprecated: false
+      description: |
+        用于给“占位物流单”回填真实面单信息（承运商/追踪号/面单地址/体积重量等）。
+
+        约束：
+        - 写接口必须幂等：同一 `Idempotency-Key` 重复请求返回同一结果。
+        - 只回填信息，不推进状态。
+      tags:
+        - shipping/AdminShipments
+        - AdminShipments
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: shipment_id
+          in: path
+          description: ''
+          required: true
+          example: 0
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: 幂等键（建议 UUID/ULID；同一键重复请求返回同一结果）
+          required: true
+          example: ''
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminFillShipmentLabelRequest'
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH3149EBQ9A0KQY58JDCM7EC:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/ShipmentDetail'
+                    required: []
+                x-apifox-orders:
+                  - 01KH3149EBQ9A0KQY58JDCM7EC
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/ShipmentDetail'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+        '404':
+          description: shipment 不存在
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未找到
+          x-apifox-ordering: 4
+        '409':
+          description: 状态不允许或幂等冲突
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 冲突
+          x-apifox-ordering: 5
+      security: []
+      x-apifox-folder: shipping/AdminShipments
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491542-run
+  /admin/shipments/dispatch:
+    post:
+      summary: 管理侧批量发货
+      deprecated: false
+      description: >
+        传入 shipment.id 列表执行实际批量发货。
+
+
+        约束：
+
+        - 写接口必须幂等，并落 `shipment_status_log`。
+
+        - 每个 shipment 的状态推进统一调用 `applyTrackingEvent`。
+
+        - `applyTrackingEvent` 中会将 shipment 列表中的每一项的状态都尝试推进为
+        `LABEL_CREATED`，在推进前强校验包括必要字段（包括数据库中NOT NULL的字段）不能为空（`id, shipment_no,
+        order_id, idempotency_key, carrier_code, carrier_name, tracking_no,
+        status, ship_from, ship_to, declared_value, currency`）
+      tags:
+        - shipping/AdminShipments
+        - AdminShipments
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: 幂等键（建议 UUID/ULID；同一键重复请求返回同一结果）
+          required: true
+          example: ''
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDispatchShipmentsRequest'
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH31X46QHCYBBBX4EYYGAZBF:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/AdminDispatchShipmentsResponse'
+                    required: []
+                x-apifox-orders:
+                  - 01KH31X46QHCYBBBX4EYYGAZBF
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/AdminDispatchShipmentsResponse'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+        '409':
+          description: 状态不允许或幂等冲突
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 冲突
+          x-apifox-ordering: 4
+      security: []
+      x-apifox-folder: shipping/AdminShipments
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491543-run
+  /admin/shipments/manual-create:
+    post:
+      summary: 管理侧手动创建物流单（掉单兜底）
+      deprecated: false
+      description: |
+        用于兜底“支付成功但未生成物流单”的掉单场景。
+
+        约束：
+        - 写接口必须幂等，并落状态日志（首条日志通常为 `to_status=CREATED`）。
+        - 占位物流单插入是“可补偿”动作：支付链路中若该动作失败，不得回滚订单 `PAID`。
+        - 除人工创建外，仍需依赖补建任务定期扫描 `orders.status=PAID` 且无 shipment 的订单。
+      tags:
+        - shipping/AdminShipments
+        - AdminShipments
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: 幂等键（建议 UUID/ULID；同一键重复请求返回同一结果）
+          required: true
+          example: ''
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminManualCreateShipmentRequest'
+            examples: {}
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH32G2HPM70ZVNZR3SE33MM5:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/ShipmentDetail'
+                    required: []
+                x-apifox-orders:
+                  - 01KH32G2HPM70ZVNZR3SE33MM5
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/ShipmentDetail'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 已创建
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+        '404':
+          description: 订单不存在
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未找到
+          x-apifox-ordering: 4
+        '409':
+          description: 订单已存在关联 shipment 或幂等冲突
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 冲突
+          x-apifox-ordering: 5
+      security: []
+      x-apifox-folder: shipping/AdminShipments
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491544-run
+  /admin/shipment-status-logs:
+    get:
+      summary: 管理侧分页查询 shipment 状态变更日志
+      deprecated: false
+      description: |
+        用于审计与排障，支持按 shipment/source/status/time 区间筛选。
+      tags:
+        - shipping/AdminShipmentLogs
+        - AdminShipmentLogs
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie（双提交）
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: shipment_id
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: order_no
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            minLength: 10
+            maxLength: 32
+        - name: from_status
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            enum:
+              - CREATED
+              - LABEL_CREATED
+              - PICKED_UP
+              - IN_TRANSIT
+              - CUSTOMS_PROCESSING
+              - CUSTOMS_HOLD
+              - CUSTOMS_RELEASED
+              - HANDED_OVER
+              - OUT_FOR_DELIVERY
+              - DELIVERED
+              - EXCEPTION
+              - RETURNED
+              - CANCELLED
+              - LOST
+            x-apifox-enum:
+              - value: CREATED
+                name: ''
+                description: ''
+              - value: LABEL_CREATED
+                name: ''
+                description: ''
+              - value: PICKED_UP
+                name: ''
+                description: ''
+              - value: IN_TRANSIT
+                name: ''
+                description: ''
+              - value: CUSTOMS_PROCESSING
+                name: ''
+                description: ''
+              - value: CUSTOMS_HOLD
+                name: ''
+                description: ''
+              - value: CUSTOMS_RELEASED
+                name: ''
+                description: ''
+              - value: HANDED_OVER
+                name: ''
+                description: ''
+              - value: OUT_FOR_DELIVERY
+                name: ''
+                description: ''
+              - value: DELIVERED
+                name: ''
+                description: ''
+              - value: EXCEPTION
+                name: ''
+                description: ''
+              - value: RETURNED
+                name: ''
+                description: ''
+              - value: CANCELLED
+                name: ''
+                description: ''
+              - value: LOST
+                name: ''
+                description: ''
+        - name: to_status
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            enum:
+              - CREATED
+              - LABEL_CREATED
+              - PICKED_UP
+              - IN_TRANSIT
+              - CUSTOMS_PROCESSING
+              - CUSTOMS_HOLD
+              - CUSTOMS_RELEASED
+              - HANDED_OVER
+              - OUT_FOR_DELIVERY
+              - DELIVERED
+              - EXCEPTION
+              - RETURNED
+              - CANCELLED
+              - LOST
+            x-apifox-enum:
+              - value: CREATED
+                name: ''
+                description: ''
+              - value: LABEL_CREATED
+                name: ''
+                description: ''
+              - value: PICKED_UP
+                name: ''
+                description: ''
+              - value: IN_TRANSIT
+                name: ''
+                description: ''
+              - value: CUSTOMS_PROCESSING
+                name: ''
+                description: ''
+              - value: CUSTOMS_HOLD
+                name: ''
+                description: ''
+              - value: CUSTOMS_RELEASED
+                name: ''
+                description: ''
+              - value: HANDED_OVER
+                name: ''
+                description: ''
+              - value: OUT_FOR_DELIVERY
+                name: ''
+                description: ''
+              - value: DELIVERED
+                name: ''
+                description: ''
+              - value: EXCEPTION
+                name: ''
+                description: ''
+              - value: RETURNED
+                name: ''
+                description: ''
+              - value: CANCELLED
+                name: ''
+                description: ''
+              - value: LOST
+                name: ''
+                description: ''
+        - name: source_type
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            enum:
+              - CARRIER_WEBHOOK
+              - CARRIER_POLL
+              - SYSTEM_JOB
+              - MANUAL
+              - API
+            x-apifox-enum:
+              - value: CARRIER_WEBHOOK
+                name: ''
+                description: ''
+              - value: CARRIER_POLL
+                name: ''
+                description: ''
+              - value: SYSTEM_JOB
+                name: ''
+                description: ''
+              - value: MANUAL
+                name: ''
+                description: ''
+              - value: API
+                name: ''
+                description: ''
+        - name: source_ref
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+        - name: carrier_code
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: tracking_no
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+        - name: event_time_from
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: event_time_to
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: created_from
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: created_to
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: size
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 200
+        - name: sort
+          in: query
+          description: ''
+          required: false
+          schema:
+            type: string
+            default: created_at,desc
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          required: true
+          example: ''
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KH32RA9S4B8E49AE1GP3PH7S:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShipmentStatusLog'
+                        description: 业务数据（随具体接口定义）
+                    required: []
+                x-apifox-orders:
+                  - 01KH32RA9S4B8E49AE1GP3PH7S
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShipmentStatusLog'
+                    description: 业务数据（随具体接口定义）
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+        '401':
+          description: 未登录/会话无效
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 未认证
+          x-apifox-ordering: 2
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 权限不足
+          x-apifox-ordering: 3
+      security: []
+      x-apifox-folder: shipping/AdminShipmentLogs
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491545-run
+  /webhooks/17track:
+    post:
+      summary: 17Track Webhook 回调入口（匿名）
+      deprecated: false
+      description: >
+        作用：接收 17Track 推送并更新 shipment 状态。
+
+
+        与支付 Webhook 一致的处理要求：
+
+        - 必须验签（基于原始报文和签名头）。
+
+        - 必须去重（同一事件重复投递不可重复生效）。
+
+        - 必须保留原始报文到 `shipment_status_log.raw_payload`。
+
+        - 状态写入必须统一走 `applyTrackingEvent`，不得有第二套状态机逻辑。
+
+
+        17Track `sub_status` 与本系统状态映射：
+
+        - `NotFound_InvalidCode` -> `EXCEPTION`（仅当前状态为 `CREATED/LABEL_CREATED`
+        且确认单号错误；否则仅记录日志）
+
+        - `NotFound_Other` -> `KEEP_CURRENT`（仅记录日志）
+
+        - `InfoReceived` -> `LABEL_CREATED`
+
+        - `InTransit_PickedUp` -> `PICKED_UP`
+
+        - `InTransit_Departure` -> `IN_TRANSIT`
+
+        - `InTransit_Arrival` -> `HANDED_OVER`
+
+        - `InTransit_CustomsProcessing` -> `CUSTOMS_PROCESSING`
+
+        - `InTransit_CustomsReleased` -> `CUSTOMS_RELEASED`
+
+        - `InTransit_CustomsRequiringInformation` -> `CUSTOMS_HOLD`
+
+        - `InTransit_Other` -> `IN_TRANSIT`
+
+        - `Expired_Other` -> `KEEP_CURRENT`（仅记录日志）
+
+        - `AvailableForPickup_Other` -> `OUT_FOR_DELIVERY`（建议 note 标注 `Available
+        for pickup`）
+
+        - `OutForDelivery_Other` -> `OUT_FOR_DELIVERY`
+
+        - `Delivered_Other` -> `DELIVERED`
+
+        - `DeliveryFailure_*` -> `EXCEPTION`
+
+        - `Exception_Returning/Exception_Returned` -> `RETURNED`
+
+        - `Exception_Lost` -> `LOST`
+
+        - `Exception_Cancel` -> `CANCELLED`
+
+        - `Exception_Delayed` -> `KEEP_CURRENT`（仅记录日志）
+
+        - `Exception_Destroyed` -> `EXCEPTION`（可视为终态语义，note 标注 destroyed）
+
+        - 其他 `Exception_*` -> `EXCEPTION`
+
+
+        状态优先级（防回退）：
+
+        1. CREATED
+
+        2. LABEL_CREATED
+
+        3. PICKED_UP
+
+        4. IN_TRANSIT
+
+        5. CUSTOMS_PROCESSING
+
+        6. CUSTOMS_HOLD
+
+        7. CUSTOMS_RELEASED
+
+        8. HANDED_OVER
+
+        9. OUT_FOR_DELIVERY
+
+        10. DELIVERED（终态）
+
+
+        终态规则：
+
+        - `DELIVERED/RETURNED/LOST/CANCELLED` 为强终态，默认禁止回退。
+
+        - `EXCEPTION` 是旁路态，不参与线性优先级，可恢复回主链路。
+
+
+        主要可流转边：
+
+        - 主链路：`CREATED -> LABEL_CREATED -> PICKED_UP -> IN_TRANSIT ->
+        HANDED_OVER -> OUT_FOR_DELIVERY -> DELIVERED`
+
+        - 清关链路：`IN_TRANSIT -> CUSTOMS_PROCESSING ->
+        CUSTOMS_HOLD/CUSTOMS_RELEASED -> HANDED_OVER/OUT_FOR_DELIVERY`
+
+        - 异常链路：`* -> EXCEPTION`，并允许 `EXCEPTION ->
+        IN_TRANSIT/OUT_FOR_DELIVERY/DELIVERED`
+
+        - 强终态：`* -> RETURNED/LOST/CANCELLED`
+
+
+        目标状态允许来源（实现校验）：
+
+        - 到 `LABEL_CREATED`：仅 `CREATED`
+
+        - 到 `PICKED_UP`：`LABEL_CREATED`
+
+        - 到 `IN_TRANSIT`：`LABEL_CREATED/PICKED_UP/EXCEPTION`
+
+        - 到 `CUSTOMS_PROCESSING`：`IN_TRANSIT/HANDED_OVER`
+
+        - 到 `CUSTOMS_HOLD`：`CUSTOMS_PROCESSING/IN_TRANSIT`
+
+        - 到 `CUSTOMS_RELEASED`：`CUSTOMS_PROCESSING/CUSTOMS_HOLD/IN_TRANSIT`
+
+        - 到 `HANDED_OVER`：`IN_TRANSIT/CUSTOMS_RELEASED`
+
+        - 到
+        `OUT_FOR_DELIVERY`：`HANDED_OVER/IN_TRANSIT/CUSTOMS_RELEASED/EXCEPTION`
+
+        - 到 `DELIVERED`：任一非终态（且 event_time 更新）
+
+        - 到 `EXCEPTION`：任一非终态
+
+        - 到 `RETURNED/LOST/CANCELLED`：任一非终态（强终态覆盖）
+      tags:
+        - shipping/Webhook17Track
+        - Webhook17Track
+      parameters:
+        - name: sign
+          in: header
+          description: 17Track 回调签名值（验签必填）
+          required: true
+          example: ''
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeventeenTrackWebhookRequest'
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          description: 验签失败或参数错误
+          content:
+            application/json:
+              schema: {}
+          headers: {}
+          x-apifox-name: 请求有误
+          x-apifox-ordering: 1
+      security: []
+      x-apifox-folder: shipping/Webhook17Track
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-417491547-run
+webhooks: {}
+components:
+  schemas:
+    Result:
+      type: object
+      required:
+        - success
+        - code
+        - message
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: 业务是否成功（非 HTTP 含义）
+          examples:
+            - true
+        code:
+          type: string
+          description: 业务码
+          examples:
+            - OK
+          enum:
+            - OK
+            - CREATED
+            - ACCEPTED
+            - FOUND
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - UNPROCESSABLE_ENTITY
+            - TOO_MANY_REQUESTS
+            - INTERNAL_SERVER_ERROR
+          x-apifox-enum:
+            - value: OK
+              name: OK
+              description: 成功
+            - value: CREATED
+              name: Created
+              description: 已创建
+            - value: ACCEPTED
+              name: Accepted
+              description: 已接受
+            - value: FOUND
+              name: Found / Redirect
+              description: 重定向
+            - value: BAD_REQUEST
+              name: Bad Request
+              description: 参数错误
+            - value: UNAUTHORIZED
+              name: Unauthorized
+              description: 未授权
+            - value: FORBIDDEN
+              name: Forbidden
+              description: 没有权限
+            - value: NOT_FOUND
+              name: Not Found
+              description: 未找到
+            - value: CONFLICT
+              name: Conflict
+              description: 冲突
+            - value: UNPROCESSABLE_ENTITY
+              name: Unprocessable Entity
+              description: 不能处理的实体
+            - value: TOO_MANY_REQUESTS
+              name: Too Many Requests
+              description: 请求过多
+            - value: INTERNAL_SERVER_ERROR
+              name: Internal Server Error
+              description: 服务器内部错误
+        message:
+          type: string
+          description: 人类可读的简短信息
+          examples:
+            - OK
+        timestamp:
+          type: string
+          format: date-time
+          description: 服务器时间
+          examples:
+            - '2025-10-26T06:30:00.123Z'
+        traceId:
+          type:
+            - string
+            - 'null'
+          description: 请求追踪ID
+          examples:
+            - af9c5b1f0e2a4c1b
+        data:
+          type: object
+          properties: {}
+          x-apifox-orders: []
+          description: 业务数据（随具体接口定义）
+          x-apifox-ignore-properties: []
+        meta:
+          description: 附加元信息（分页等，可选）
+          type:
+            - object
+            - 'null'
+          properties:
+            page:
+              type: integer
+              examples:
+                - 1
+            size:
+              type: integer
+              examples:
+                - 20
+            total:
+              type: integer
+              examples:
+                - 135
+          x-apifox-orders:
+            - page
+            - size
+            - total
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - success
+        - code
+        - message
+        - timestamp
+        - traceId
+        - data
+        - meta
+      x-apifox-ignore-properties: []
+      x-apifox-folder: user
+    AddressSnapshot:
+      type: object
+      description: 收货信息快照（建议与 user_address 结构保持一致）
+      properties:
+        receiver_name:
+          type: string
+        phone:
+          type: string
+        country:
+          type:
+            - string
+            - 'null'
+        province:
+          type:
+            - string
+            - 'null'
+        city:
+          type:
+            - string
+            - 'null'
+        district:
+          type:
+            - string
+            - 'null'
+        address_line1:
+          type: string
+        address_line2:
+          type:
+            - string
+            - 'null'
+        zipcode:
+          type:
+            - string
+            - 'null'
+      x-apifox-orders:
+        - receiver_name
+        - phone
+        - country
+        - province
+        - city
+        - district
+        - address_line1
+        - address_line2
+        - zipcode
+      x-apifox-ignore-properties: []
+      x-apifox-folder: orders
+    ShipmentStatus:
+      type: string
+      description: >
+        shipment 状态机：
+
+        `CREATED/LABEL_CREATED/PICKED_UP/IN_TRANSIT/CUSTOMS_PROCESSING/CUSTOMS_HOLD/CUSTOMS_RELEASED/HANDED_OVER/OUT_FOR_DELIVERY/DELIVERED/EXCEPTION/RETURNED/CANCELLED/LOST`
+      enum:
+        - CREATED
+        - LABEL_CREATED
+        - PICKED_UP
+        - IN_TRANSIT
+        - CUSTOMS_PROCESSING
+        - CUSTOMS_HOLD
+        - CUSTOMS_RELEASED
+        - HANDED_OVER
+        - OUT_FOR_DELIVERY
+        - DELIVERED
+        - EXCEPTION
+        - RETURNED
+        - CANCELLED
+        - LOST
+      x-apifox-folder: shipping
+    ShipmentStatusEventSource:
+      type: string
+      enum:
+        - CARRIER_WEBHOOK
+        - CARRIER_POLL
+        - SYSTEM_JOB
+        - MANUAL
+        - API
+      x-apifox-folder: shipping
+    CustomsInfoSnapshot:
+      type:
+        - object
+        - 'null'
+      description: 关务/清关信息 JSON（HS code、原产地、税费等）
+      additionalProperties: true
+      x-apifox-orders: []
+      properties: {}
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    ShipmentItem:
+      type: object
+      required:
+        - id
+        - shipment_id
+        - order_id
+        - order_item_id
+        - product_id
+        - sku_id
+        - quantity
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        shipment_id:
+          type: integer
+          format: int64
+        order_id:
+          type: integer
+          format: int64
+        order_item_id:
+          type: integer
+          format: int64
+        product_id:
+          type: integer
+          format: int64
+        sku_id:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+      x-apifox-orders:
+        - id
+        - shipment_id
+        - order_id
+        - order_item_id
+        - product_id
+        - sku_id
+        - quantity
+        - created_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    ShipmentStatusLog:
+      type: object
+      required:
+        - id
+        - shipment_id
+        - to_status
+        - source_type
+        - source_ref
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        shipment_id:
+          type: integer
+          format: int64
+        from_status:
+          anyOf:
+            - $ref: '#/components/schemas/ShipmentStatus'
+            - type: 'null'
+        to_status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        event_time:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        source_type:
+          $ref: '#/components/schemas/ShipmentStatusEventSource'
+        source_ref:
+          type: string
+          maxLength: 128
+        carrier_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        tracking_no:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        note:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+        raw_payload:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          x-apifox-orders: []
+          properties: {}
+          x-apifox-ignore-properties: []
+        actor_user_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+      x-apifox-orders:
+        - id
+        - shipment_id
+        - from_status
+        - to_status
+        - event_time
+        - source_type
+        - source_ref
+        - carrier_code
+        - tracking_no
+        - note
+        - raw_payload
+        - actor_user_id
+        - created_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    ShipmentSummary:
+      type: object
+      required:
+        - id
+        - shipment_no
+        - status
+        - currency
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        shipment_no:
+          type: string
+          maxLength: 26
+        order_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        order_no:
+          type:
+            - string
+            - 'null'
+        idempotency_key:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        carrier_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        carrier_name:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        service_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        tracking_no:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        ext_external_id:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        pickup_time:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        delivered_time:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      x-apifox-orders:
+        - id
+        - shipment_no
+        - order_id
+        - order_no
+        - idempotency_key
+        - carrier_code
+        - carrier_name
+        - service_code
+        - tracking_no
+        - ext_external_id
+        - status
+        - pickup_time
+        - delivered_time
+        - currency
+        - created_at
+        - updated_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    ShipmentDetail:
+      type: object
+      required:
+        - id
+        - shipment_no
+        - status
+        - currency
+        - items
+        - status_logs
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        shipment_no:
+          type: string
+          maxLength: 26
+        order_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+        order_no:
+          type:
+            - string
+            - 'null'
+        idempotency_key:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        carrier_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        carrier_name:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        service_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        tracking_no:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        ext_external_id:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        ship_from:
+          $ref: '#/components/schemas/AddressSnapshot'
+        ship_to:
+          $ref: '#/components/schemas/AddressSnapshot'
+        weight_kg:
+          type:
+            - string
+            - 'null'
+          description: 十进制字符串，最多 3 位小数
+        length_cm:
+          type:
+            - string
+            - 'null'
+          description: 十进制字符串，最多 1 位小数
+        width_cm:
+          type:
+            - string
+            - 'null'
+          description: 十进制字符串，最多 1 位小数
+        height_cm:
+          type:
+            - string
+            - 'null'
+          description: 十进制字符串，最多 1 位小数
+        declared_value:
+          type:
+            - integer
+            - 'null'
+          format: int64
+          minimum: 0
+          description: 最小货币单位
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        customs_info:
+          $ref: '#/components/schemas/CustomsInfoSnapshot'
+        label_url:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+        pickup_time:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        delivered_time:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        address_change_allowed:
+          type:
+            - boolean
+            - 'null'
+          description: 基于订单关联 shipment 状态计算出的改址开关
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShipmentItem'
+        status_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShipmentStatusLog'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      x-apifox-orders:
+        - id
+        - shipment_no
+        - order_id
+        - order_no
+        - idempotency_key
+        - carrier_code
+        - carrier_name
+        - service_code
+        - tracking_no
+        - ext_external_id
+        - status
+        - ship_from
+        - ship_to
+        - weight_kg
+        - length_cm
+        - width_cm
+        - height_cm
+        - declared_value
+        - currency
+        - customs_info
+        - label_url
+        - pickup_time
+        - delivered_time
+        - address_change_allowed
+        - items
+        - status_logs
+        - created_at
+        - updated_at
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    AdminFillShipmentLabelRequest:
+      type: object
+      required:
+        - carrier_code
+        - carrier_name
+        - tracking_no
+      properties:
+        carrier_code:
+          type: string
+          maxLength: 64
+        carrier_name:
+          type: string
+          maxLength: 128
+        service_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        tracking_no:
+          type: string
+          maxLength: 128
+        ext_external_id:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        label_url:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+        weight_kg:
+          type:
+            - string
+            - 'null'
+        length_cm:
+          type:
+            - string
+            - 'null'
+        width_cm:
+          type:
+            - string
+            - 'null'
+        height_cm:
+          type:
+            - string
+            - 'null'
+        declared_value:
+          type:
+            - integer
+            - 'null'
+          format: int64
+          minimum: 0
+        currency:
+          type:
+            - string
+            - 'null'
+          minLength: 3
+          maxLength: 3
+      x-apifox-orders:
+        - carrier_code
+        - carrier_name
+        - service_code
+        - tracking_no
+        - ext_external_id
+        - label_url
+        - weight_kg
+        - length_cm
+        - width_cm
+        - height_cm
+        - declared_value
+        - currency
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    AdminDispatchShipmentsRequest:
+      type: object
+      required:
+        - shipment_ids
+        - note
+      properties:
+        shipment_ids:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+            format: int64
+            minimum: 1
+        note:
+          type: string
+          description: 备注
+      x-apifox-orders:
+        - shipment_ids
+        - note
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    AdminDispatchShipmentsResponse:
+      type: object
+      properties:
+        shipment_ids:
+          type: array
+          items:
+            type: string
+          description: 发货成功的物流单
+      x-apifox-orders:
+        - shipment_ids
+      required:
+        - shipment_ids
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    AdminManualShipmentItemInput:
+      type: object
+      required:
+        - order_item_id
+        - quantity
+      properties:
+        order_item_id:
+          type: integer
+          format: int64
+          minimum: 1
+        product_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+          minimum: 1
+        sku_id:
+          type:
+            - integer
+            - 'null'
+          format: int64
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+      x-apifox-orders:
+        - order_item_id
+        - product_id
+        - sku_id
+        - quantity
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    AdminManualCreateShipmentRequest:
+      type: object
+      required:
+        - order_no
+      properties:
+        order_no:
+          type: string
+          minLength: 10
+          maxLength: 32
+        idempotency_key:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+          description: 可选业务幂等键（会写入 shipment.idempotency_key）
+        carrier_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        carrier_name:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        service_code:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        tracking_no:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        ext_external_id:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+        currency:
+          type:
+            - string
+            - 'null'
+          minLength: 3
+          maxLength: 3
+        ship_from:
+          $ref: '#/components/schemas/AddressSnapshot'
+        ship_to:
+          $ref: '#/components/schemas/AddressSnapshot'
+        items:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/AdminManualShipmentItemInput'
+        note:
+          type:
+            - string
+            - 'null'
+          maxLength: 255
+        source_ref:
+          type:
+            - string
+            - 'null'
+          maxLength: 128
+          description: 不传则默认使用 `Idempotency-Key`
+      x-apifox-orders:
+        - order_no
+        - idempotency_key
+        - carrier_code
+        - carrier_name
+        - service_code
+        - tracking_no
+        - ext_external_id
+        - currency
+        - ship_from
+        - ship_to
+        - items
+        - note
+        - source_ref
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+    SeventeenTrackWebhookRequest:
+      type: object
+      required:
+        - data
+        - event
+      properties:
+        event:
+          type: string
+          description: 通知类型
+          enum:
+            - TRACKING_UPDATED
+            - TRACKING_STOPPED
+          x-apifox-enum:
+            - value: TRACKING_UPDATED
+              name: ''
+              description: ''
+            - value: TRACKING_STOPPED
+              name: ''
+              description: 停止跟踪事件
+        data:
+          type: object
+          properties: {}
+          x-apifox-orders: []
+          x-apifox-ignore-properties: []
+      x-apifox-orders:
+        - event
+        - data
+      x-apifox-ignore-properties: []
+      x-apifox-folder: shipping
+  responses:
+    已创建:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    参数错误:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            空值或格式错误:
+              summary: 空值或格式错误
+              value:
+                success: false
+                code: BAD_REQUEST
+                message: 用户名不能为空
+                timestamp: '2025-11-06 11:38:39'
+    已接受:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    重定向:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    未鉴权:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: UNAUTHORIZED
+                message: Unauthorized
+                timestamp: '2025-11-15 14:23:57'
+    权限不足:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: FORBIDDEN
+                message: Access denied
+                timestamp: '2025-11-06 17:31:36'
+    未找到:
+      description: ''
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: {}
+    冲突:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: CONFLICT
+                message: 邮箱已被使用
+                timestamp: '2025-11-15 14:23:56'
+    无法处理的实体:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: UNPROCESSABLE_ENTITY
+                message: 验证码错误或已过期
+                timestamp: '2025-11-06 15:28:11'
+    服务器内部错误:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+    请求过多:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
+          examples:
+            示例 1:
+              summary: 示例 1
+              value:
+                success: false
+                code: TOO_MANY_REQUESTS
+                message: 尝试次数过多, 请过段时间再试
+                timestamp: '2025-11-15 14:25:35'
+  securitySchemes: {}
+servers: []
+security: []
