@@ -3025,38 +3025,6 @@ components:
         - shipment_ids
       x-apifox-ignore-properties: []
       x-apifox-folder: shipping
-    AdminManualShipmentItemInput:
-      type: object
-      required:
-        - order_item_id
-        - quantity
-      properties:
-        order_item_id:
-          type: integer
-          format: int64
-          minimum: 1
-        product_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-          minimum: 1
-        sku_id:
-          type:
-            - integer
-            - 'null'
-          format: int64
-          minimum: 1
-        quantity:
-          type: integer
-          minimum: 1
-      x-apifox-orders:
-        - order_item_id
-        - product_id
-        - sku_id
-        - quantity
-      x-apifox-ignore-properties: []
-      x-apifox-folder: shipping
     AdminManualCreateShipmentRequest:
       type: object
       required:
@@ -3097,22 +3065,6 @@ components:
             - string
             - 'null'
           maxLength: 128
-        currency:
-          type:
-            - string
-            - 'null'
-          minLength: 3
-          maxLength: 3
-        ship_from:
-          $ref: '#/components/schemas/AddressSnapshot'
-        ship_to:
-          $ref: '#/components/schemas/AddressSnapshot'
-        items:
-          type:
-            - array
-            - 'null'
-          items:
-            $ref: '#/components/schemas/AdminManualShipmentItemInput'
         note:
           type:
             - string
@@ -3132,10 +3084,6 @@ components:
         - service_code
         - tracking_no
         - ext_external_id
-        - currency
-        - ship_from
-        - ship_to
-        - items
         - note
         - source_ref
       x-apifox-ignore-properties: []
