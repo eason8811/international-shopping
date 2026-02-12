@@ -46,6 +46,22 @@ public final class FieldValidateUtils {
     }
 
     /**
+     * 此方法用于检查传入的对象是否为 <code>null</code>, 如果对象是 <code>null</code>, 则抛出一个异常；否则, 返回该对象
+     *
+     * @param object 需要被检查是否为 <code>null</code> 的对象
+     * @param msg    如果对象是 <code>null</code> 时, 抛出异常中携带的消息字符串
+     * @return 返回非 <code>null</code> 的输入对象
+     * @throws IllegalParamException 当传入的对象为 <code>null</code> 时抛出此异常
+     */
+    @NotNull
+    @Contract(value = "null, !null -> fail; !null, !null -> !null", pure = true)
+    public static Object normalizeNotNull(Object object, @Nls String msg) {
+        if (Objects.isNull(object))
+            throw IllegalParamException.of(msg);
+        return object;
+    }
+
+    /**
      * 确保给定的字符串既不为 <code>null</code> 也不为空白, 如果字符串不符合要求则抛出 {@link IllegalParamException} 异常
      *
      * @param string 待检查的字符串
@@ -56,6 +72,22 @@ public final class FieldValidateUtils {
     public static void requireNotBlank(String string, @Nls String msg) {
         if (string == null || string.isBlank())
             throw IllegalParamException.of(msg);
+    }
+
+    /**
+     * 确保提供的字符串既非空也非空白, 并返回该字符串. 如果字符串为空或仅包含空白字符, 则抛出异常.
+     *
+     * @param string 需要验证和可能返回的字符串
+     * @param msg    当提供的字符串为空或空白时, 用于构建异常信息的消息
+     * @return 返回验证后的非空且非空白的原始字符串
+     * @throws IllegalParamException 如果提供的字符串为空或仅由空白字符组成
+     */
+    @NotNull
+    @Contract(value = "null, !null -> fail; !null, !null -> !null", pure = true)
+    public static String normalizeNotBlank(String string, @Nls String msg) {
+        if (string == null || string.isBlank())
+            throw IllegalParamException.of(msg);
+        return string;
     }
 
     /**
