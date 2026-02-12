@@ -4,6 +4,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
+import shopping.international.domain.model.vo.NoGenerator;
 import shopping.international.types.utils.Verifiable;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
@@ -52,7 +53,7 @@ public final class RefundNo implements Verifiable {
      * @return 新生成的 {@link RefundNo}
      */
     public static @NotNull RefundNo generate() {
-        return RefundNo.of(shopping.international.domain.model.vo.orders.OrderNo.generate().getValue());
+        return RefundNo.of(NoGenerator.generate());
     }
 
     /**

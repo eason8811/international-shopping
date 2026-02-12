@@ -4,7 +4,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
-import shopping.international.domain.model.vo.orders.OrderNo;
+import shopping.international.domain.model.vo.NoGenerator;
 import shopping.international.types.utils.Verifiable;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
@@ -53,7 +53,7 @@ public final class ShipmentNo implements Verifiable {
      * @return 新生成的物流单号值对象
      */
     public static @NotNull ShipmentNo generate() {
-        return ShipmentNo.of(OrderNo.generate().getValue());
+        return ShipmentNo.of(NoGenerator.generate());
     }
 
     /**
