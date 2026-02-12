@@ -8,6 +8,8 @@ import shopping.international.domain.adapter.port.user.IAddressIdempotencyPort;
 import shopping.international.domain.adapter.repository.user.IUserRepository;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.entity.user.UserAddress;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.user.IAddressService;
 import shopping.international.types.exceptions.AppException;
@@ -61,21 +63,17 @@ public class AddressService implements IAddressService {
     /**
      * 获取用户的收货地址列表, 支持分页查询
      *
-     * @param userId 用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
-     * @param page   请求的页码, 从1开始计数, 用于分页逻辑中定位具体的页
-     * @param size   每页展示的地址条目数量, 用于控制单次请求返回的数据量
+     * @param userId    用户的唯一标识符, 用于筛选属于该用户的地址记录, 必须提供且非空
+     * @param pageQuery 分页查询参数值对象
      * @return 返回一个 {@link PageResult} 对象, 包含了当前页的地址列表以及符合条件的地址总数
      */
     @Override
-    public @NotNull PageResult list(@NotNull Long userId, int page, int size) {
-        int safePage = page <= 0 ? 1 : page;
-        int safeSize = size <= 0 ? 5 : size;
-        int offset = (safePage - 1) * safeSize;
+    public @NotNull PageResult<UserAddress> list(@NotNull Long userId, PageQuery pageQuery) {
 
-        List<UserAddress> items = userRepository.listAddresses(userId, offset, safeSize);
+        List<UserAddress> items = userRepository.listAddresses(userId, pageQuery.offset(), pageQuery.size());
         long total = userRepository.countAddresses(userId);
 
-        return new PageResult(items, total);
+        return new PageResult<>(items, total);
     }
 
     /**

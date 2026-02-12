@@ -12,6 +12,8 @@ import shopping.international.api.req.user.UpdateAddressRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.user.AddressRespond;
 import shopping.international.domain.model.entity.user.UserAddress;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.user.IAddressService;
 import shopping.international.types.constant.SecurityConstants;
@@ -54,10 +56,9 @@ public class AddressController {
     @GetMapping
     public ResponseEntity<Result<List<AddressRespond>>> list(@RequestParam(defaultValue = "1") int page,
                                                              @RequestParam(defaultValue = "5") int size) {
-        if (size > 50)
-            size = 50;
         Long uid = requireCurrentUserId();
-        IAddressService.PageResult pageData = addressService.list(uid, page, size);
+        PageQuery pageQuery = PageQuery.of(page, size, 50);
+        PageResult<UserAddress> pageData = addressService.list(uid, pageQuery);
         List<AddressRespond> data = pageData.items().stream().map(AddressRespond::from).toList();
         return ResponseEntity.ok(Result.ok(
                 data,
