@@ -3,17 +3,14 @@ package shopping.international.api.req.shipping;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.utils.Verifiable;
 
 import java.math.BigDecimal;
-import java.util.Locale;
 
-import static shopping.international.types.utils.FieldValidateUtils.CURRENCY_PATTERN;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
-import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 管理侧回填物流面单请求对象 (AdminFillShipmentLabelRequest)
@@ -22,6 +19,11 @@ import static shopping.international.types.utils.FieldValidateUtils.require;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminFillShipmentLabelRequest implements Verifiable {
+    /**
+     * 物流单寄出地址 ID (user_address.id)
+     */
+    @NotNull
+    private Integer shipFromAddressId;
     /**
      * 承运商编码
      */
@@ -73,14 +75,14 @@ public class AdminFillShipmentLabelRequest implements Verifiable {
     @Nullable
     private String heightCm;
     /**
-     * 申报价值 (最小货币单位)
+     * 申报价值
      */
-    @Nullable
-    private Long declaredValue;
+    @NotNull
+    private String declaredValue;
     /**
      * 币种代码
      */
-    @Nullable
+    @NotNull
     private String currency;
 
     /**
@@ -88,6 +90,7 @@ public class AdminFillShipmentLabelRequest implements Verifiable {
      */
     @Override
     public void validate() {
+        shipFromAddressId = normalizeNotNull(shipFromAddressId, "shipFromAddressId 不能为空");
         carrierCode = normalizeNotNullField(carrierCode, "carrierCode 不能为空", s -> s.length() <= 64, "carrierCode 长度不能超过 64 个字符");
         carrierName = normalizeNotNullField(carrierName, "carrierName 不能为空", s -> s.length() <= 128, "carrierName 长度不能超过 128 个字符");
         trackingNo = normalizeNotNullField(trackingNo, "trackingNo 不能为空", s -> s.length() <= 128, "trackingNo 长度不能超过 128 个字符");
@@ -101,13 +104,15 @@ public class AdminFillShipmentLabelRequest implements Verifiable {
         widthCm = normalizeDecimalString(widthCm, 1, "widthCm");
         heightCm = normalizeDecimalString(heightCm, 1, "heightCm");
 
-        if (declaredValue != null)
-            require(declaredValue >= 0L, "declaredValue 不能为负数");
-
-        if (currency != null) {
-            currency = currency.strip().toUpperCase(Locale.ROOT);
-            require(CURRENCY_PATTERN.matcher(currency).matches(), "currency 需为 3 位字母代码");
+        declaredValue = normalizeNotNullField(declaredValue, "declaredValue 不能为空", s -> true, "");
+        currency = normalizeCurrency(currency);
+        BigDecimal declaredValueDecimal;
+        try {
+            declaredValueDecimal = new BigDecimal(declaredValue);
+        } catch (Exception e) {
+            throw new IllegalParamException("申报价值不合法, 无法读取", e);
         }
+        require(declaredValueDecimal.compareTo(BigDecimal.ZERO) >= 0, "declaredValue 不能为负数");
     }
 
     /**

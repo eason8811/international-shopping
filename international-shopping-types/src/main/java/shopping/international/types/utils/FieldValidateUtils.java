@@ -55,7 +55,7 @@ public final class FieldValidateUtils {
      */
     @NotNull
     @Contract(value = "null, !null -> fail; !null, !null -> !null", pure = true)
-    public static Object normalizeNotNull(Object object, @Nls String msg) {
+    public static <T> T normalizeNotNull(T object, @Nls String msg) {
         if (Objects.isNull(object))
             throw IllegalParamException.of(msg);
         return object;
@@ -418,6 +418,9 @@ public final class FieldValidateUtils {
     public static @Nullable String asString(Object o) {
         if (o == null)
             return null;
-        return String.valueOf(o);
+        String s = String.valueOf(o);
+        if (s.isBlank())
+            return null;
+        return s;
     }
 }

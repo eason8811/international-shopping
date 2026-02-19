@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.shipping.ShipmentItemMapper">
+
+    <select id="selectByShipmentIds" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentItemPO">
+        SELECT
+        id,
+        shipment_id,
+        order_id,
+        order_item_id,
+        product_id,
+        sku_id,
+        quantity,
+        created_at
+        FROM shipment_item
+        WHERE shipment_id IN
+        <foreach collection="shipmentIds" item="shipmentId" open="(" close=")" separator=",">
+            #{shipmentId}
+        </foreach>
+        ORDER BY shipment_id, id
+    </select>
+
+    <insert id="batchInsert">
+        INSERT IGNORE INTO shipment_item (
+        shipment_id,
+        order_id,
+        order_item_id,
+        product_id,
+        sku_id,
+        quantity
+        ) VALUES
+        <foreach collection="items" item="item" separator=",">
+            (
+            #{item.shipmentId},
+            #{item.orderId},
+            #{item.orderItemId},
+            #{item.productId},
+            #{item.skuId},
+            #{item.quantity}
+            )
+        </foreach>
+    </insert>
+
+</mapper>

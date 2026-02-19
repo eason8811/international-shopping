@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.shipping.ShipmentMapper">
+
+    <sql id="BaseShipmentSelect">
+        s.id,
+        s.shipment_no,
+        s.order_id,
+        s.idempotency_key,
+        s.carrier_code,
+        s.carrier_name,
+        s.service_code,
+        s.tracking_no,
+        s.ext_external_id,
+        s.status,
+        s.ship_from,
+        s.ship_to,
+        s.weight_kg,
+        s.length_cm,
+        s.width_cm,
+        s.height_cm,
+        s.declared_value,
+        s.currency,
+        s.customs_info,
+        s.label_url,
+        s.pickup_time,
+        s.delivered_time,
+        s.created_at,
+        s.updated_at,
+        o.order_no AS orderNo
+    </sql>
+
+    <resultMap id="ShipmentDetailWithItemsMap" type="shopping.international.infrastructure.dao.shipping.po.ShipmentPO">
+        <id column="id" property="id"/>
+        <result column="shipment_no" property="shipmentNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="idempotency_key" property="idempotencyKey"/>
+        <result column="carrier_code" property="carrierCode"/>
+        <result column="carrier_name" property="carrierName"/>
+        <result column="service_code" property="serviceCode"/>
+        <result column="tracking_no" property="trackingNo"/>
+        <result column="ext_external_id" property="extExternalId"/>
+        <result column="status" property="status"/>
+        <result column="ship_from" property="shipFrom"/>
+        <result column="ship_to" property="shipTo"/>
+        <result column="weight_kg" property="weightKg"/>
+        <result column="length_cm" property="lengthCm"/>
+        <result column="width_cm" property="widthCm"/>
+        <result column="height_cm" property="heightCm"/>
+        <result column="declared_value" property="declaredValue"/>
+        <result column="currency" property="currency"/>
+        <result column="customs_info" property="customsInfo"/>
+        <result column="label_url" property="labelUrl"/>
+        <result column="pickup_time" property="pickupTime"/>
+        <result column="delivered_time" property="deliveredTime"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="orderNo" property="orderNo"/>
+
+        <collection property="items" ofType="shopping.international.infrastructure.dao.shipping.po.ShipmentItemPO">
+            <id column="item_id" property="id"/>
+            <result column="item_shipment_id" property="shipmentId"/>
+            <result column="item_order_id" property="orderId"/>
+            <result column="item_order_item_id" property="orderItemId"/>
+            <result column="item_product_id" property="productId"/>
+            <result column="item_sku_id" property="skuId"/>
+            <result column="item_quantity" property="quantity"/>
+            <result column="item_created_at" property="createdAt"/>
+        </collection>
+    </resultMap>
+
+    <resultMap id="ShipmentDetailWithItemsAndLogsMap" type="shopping.international.infrastructure.dao.shipping.po.ShipmentPO">
+        <id column="id" property="id"/>
+        <result column="shipment_no" property="shipmentNo"/>
+        <result column="order_id" property="orderId"/>
+        <result column="idempotency_key" property="idempotencyKey"/>
+        <result column="carrier_code" property="carrierCode"/>
+        <result column="carrier_name" property="carrierName"/>
+        <result column="service_code" property="serviceCode"/>
+        <result column="tracking_no" property="trackingNo"/>
+        <result column="ext_external_id" property="extExternalId"/>
+        <result column="status" property="status"/>
+        <result column="ship_from" property="shipFrom"/>
+        <result column="ship_to" property="shipTo"/>
+        <result column="weight_kg" property="weightKg"/>
+        <result column="length_cm" property="lengthCm"/>
+        <result column="width_cm" property="widthCm"/>
+        <result column="height_cm" property="heightCm"/>
+        <result column="declared_value" property="declaredValue"/>
+        <result column="currency" property="currency"/>
+        <result column="customs_info" property="customsInfo"/>
+        <result column="label_url" property="labelUrl"/>
+        <result column="pickup_time" property="pickupTime"/>
+        <result column="delivered_time" property="deliveredTime"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="orderNo" property="orderNo"/>
+
+        <collection property="items" ofType="shopping.international.infrastructure.dao.shipping.po.ShipmentItemPO">
+            <id column="item_id" property="id"/>
+            <result column="item_shipment_id" property="shipmentId"/>
+            <result column="item_order_id" property="orderId"/>
+            <result column="item_order_item_id" property="orderItemId"/>
+            <result column="item_product_id" property="productId"/>
+            <result column="item_sku_id" property="skuId"/>
+            <result column="item_quantity" property="quantity"/>
+            <result column="item_created_at" property="createdAt"/>
+        </collection>
+
+        <collection property="statusLogs" ofType="shopping.international.infrastructure.dao.shipping.po.ShipmentStatusLogPO">
+            <id column="log_id" property="id"/>
+            <result column="log_shipment_id" property="shipmentId"/>
+            <result column="log_from_status" property="fromStatus"/>
+            <result column="log_to_status" property="toStatus"/>
+            <result column="log_event_time" property="eventTime"/>
+            <result column="log_source_type" property="sourceType"/>
+            <result column="log_source_ref" property="sourceRef"/>
+            <result column="log_carrier_code" property="carrierCode"/>
+            <result column="log_tracking_no" property="trackingNo"/>
+            <result column="log_note" property="note"/>
+            <result column="log_raw_payload" property="rawPayload"/>
+            <result column="log_actor_user_id" property="actorUserId"/>
+            <result column="log_created_at" property="createdAt"/>
+        </collection>
+    </resultMap>
+
+    <select id="pageAdminShipments" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentPO">
+        SELECT
+        <include refid="BaseShipmentSelect"/>
+        FROM shipment s
+        LEFT JOIN orders o ON o.id = s.order_id
+        <where>
+            <if test="shipmentNo != null and shipmentNo != ''">
+                AND s.shipment_no = #{shipmentNo}
+            </if>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="orderId != null">
+                AND s.order_id = #{orderId}
+            </if>
+            <if test="carrierCode != null and carrierCode != ''">
+                AND s.carrier_code = #{carrierCode}
+            </if>
+            <if test="trackingNo != null and trackingNo != ''">
+                AND s.tracking_no = #{trackingNo}
+            </if>
+            <if test="extExternalId != null and extExternalId != ''">
+                AND s.ext_external_id = #{extExternalId}
+            </if>
+            <if test="statusIn != null and statusIn.size() > 0">
+                AND s.status IN
+                <foreach collection="statusIn" item="status" open="(" close=")" separator=",">
+                    #{status}
+                </foreach>
+            </if>
+            <if test="updatedFrom != null">
+                AND s.updated_at <![CDATA[ >= ]]> #{updatedFrom}
+            </if>
+            <if test="updatedTo != null">
+                AND s.updated_at <![CDATA[ <= ]]> #{updatedTo}
+            </if>
+            <if test="createdFrom != null">
+                AND s.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND s.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="sortField == 'created_at'">s.created_at</when>
+            <when test="sortField == 'id'">s.id</when>
+            <otherwise>s.updated_at</otherwise>
+        </choose>
+        <choose>
+            <when test="sortDirection == 'asc'">ASC</when>
+            <otherwise>DESC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminShipments" resultType="long">
+        SELECT COUNT(1)
+        FROM shipment s
+        LEFT JOIN orders o ON o.id = s.order_id
+        <where>
+            <if test="shipmentNo != null and shipmentNo != ''">
+                AND s.shipment_no = #{shipmentNo}
+            </if>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="orderId != null">
+                AND s.order_id = #{orderId}
+            </if>
+            <if test="carrierCode != null and carrierCode != ''">
+                AND s.carrier_code = #{carrierCode}
+            </if>
+            <if test="trackingNo != null and trackingNo != ''">
+                AND s.tracking_no = #{trackingNo}
+            </if>
+            <if test="extExternalId != null and extExternalId != ''">
+                AND s.ext_external_id = #{extExternalId}
+            </if>
+            <if test="statusIn != null and statusIn.size() > 0">
+                AND s.status IN
+                <foreach collection="statusIn" item="status" open="(" close=")" separator=",">
+                    #{status}
+                </foreach>
+            </if>
+            <if test="updatedFrom != null">
+                AND s.updated_at <![CDATA[ >= ]]> #{updatedFrom}
+            </if>
+            <if test="updatedTo != null">
+                AND s.updated_at <![CDATA[ <= ]]> #{updatedTo}
+            </if>
+            <if test="createdFrom != null">
+                AND s.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND s.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectUserShipmentDetailsWithItemsByOrderNo" resultMap="ShipmentDetailWithItemsMap">
+        SELECT
+               <include refid="BaseShipmentSelect"/>,
+               i.id            AS item_id,
+               i.shipment_id   AS item_shipment_id,
+               i.order_id      AS item_order_id,
+               i.order_item_id AS item_order_item_id,
+               i.product_id    AS item_product_id,
+               i.sku_id        AS item_sku_id,
+               i.quantity      AS item_quantity,
+               i.created_at    AS item_created_at
+        FROM shipment s
+                 JOIN orders o ON o.id = s.order_id
+                 LEFT JOIN shipment_item i ON i.shipment_id = s.id
+        WHERE o.user_id = #{userId}
+          AND o.order_no = #{orderNo}
+        ORDER BY s.created_at, s.id, i.id
+    </select>
+
+    <select id="selectUserShipmentDetailsWithItemsAndLogsByOrderNo" resultMap="ShipmentDetailWithItemsAndLogsMap">
+        SELECT
+               <include refid="BaseShipmentSelect"/>,
+               i.id            AS item_id,
+               i.shipment_id   AS item_shipment_id,
+               i.order_id      AS item_order_id,
+               i.order_item_id AS item_order_item_id,
+               i.product_id    AS item_product_id,
+               i.sku_id        AS item_sku_id,
+               i.quantity      AS item_quantity,
+               i.created_at    AS item_created_at,
+               l.id            AS log_id,
+               l.shipment_id   AS log_shipment_id,
+               l.from_status   AS log_from_status,
+               l.to_status     AS log_to_status,
+               l.event_time    AS log_event_time,
+               l.source_type   AS log_source_type,
+               l.source_ref    AS log_source_ref,
+               l.carrier_code  AS log_carrier_code,
+               l.tracking_no   AS log_tracking_no,
+               l.note          AS log_note,
+               l.raw_payload   AS log_raw_payload,
+               l.actor_user_id AS log_actor_user_id,
+               l.created_at    AS log_created_at
+        FROM shipment s
+                 JOIN orders o ON o.id = s.order_id
+                 LEFT JOIN shipment_item i ON i.shipment_id = s.id
+                 LEFT JOIN shipment_status_log l ON l.shipment_id = s.id
+        WHERE o.user_id = #{userId}
+          AND o.order_no = #{orderNo}
+        ORDER BY s.created_at, s.id, i.id, COALESCE(l.event_time, l.created_at), l.id
+    </select>
+
+    <select id="selectUserShipmentDetailWithItemsAndLogsByNo" resultMap="ShipmentDetailWithItemsAndLogsMap">
+        SELECT
+               <include refid="BaseShipmentSelect"/>,
+               i.id            AS item_id,
+               i.shipment_id   AS item_shipment_id,
+               i.order_id      AS item_order_id,
+               i.order_item_id AS item_order_item_id,
+               i.product_id    AS item_product_id,
+               i.sku_id        AS item_sku_id,
+               i.quantity      AS item_quantity,
+               i.created_at    AS item_created_at,
+               l.id            AS log_id,
+               l.shipment_id   AS log_shipment_id,
+               l.from_status   AS log_from_status,
+               l.to_status     AS log_to_status,
+               l.event_time    AS log_event_time,
+               l.source_type   AS log_source_type,
+               l.source_ref    AS log_source_ref,
+               l.carrier_code  AS log_carrier_code,
+               l.tracking_no   AS log_tracking_no,
+               l.note          AS log_note,
+               l.raw_payload   AS log_raw_payload,
+               l.actor_user_id AS log_actor_user_id,
+               l.created_at    AS log_created_at
+        FROM shipment s
+                 JOIN orders o ON o.id = s.order_id
+                 LEFT JOIN shipment_item i ON i.shipment_id = s.id
+                 LEFT JOIN shipment_status_log l ON l.shipment_id = s.id
+        WHERE o.user_id = #{userId}
+          AND s.shipment_no = #{shipmentNo}
+        ORDER BY i.id, COALESCE(l.event_time, l.created_at), l.id
+    </select>
+
+    <select id="selectDetailById" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentPO">
+        SELECT
+        <include refid="BaseShipmentSelect"/>
+        FROM shipment s
+                 LEFT JOIN orders o ON o.id = s.order_id
+        WHERE s.id = #{shipmentId}
+        LIMIT 1
+    </select>
+
+    <select id="selectDetailByTrackingNo" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentPO">
+        SELECT
+        <include refid="BaseShipmentSelect"/>
+        FROM shipment s
+                 LEFT JOIN orders o ON o.id = s.order_id
+        WHERE s.tracking_no = #{trackingNo}
+        ORDER BY s.updated_at DESC, s.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectDetailWithItemsByShipmentIds" resultMap="ShipmentDetailWithItemsMap">
+        SELECT
+               <include refid="BaseShipmentSelect"/>,
+               i.id            AS item_id,
+               i.shipment_id   AS item_shipment_id,
+               i.order_id      AS item_order_id,
+               i.order_item_id AS item_order_item_id,
+               i.product_id    AS item_product_id,
+               i.sku_id        AS item_sku_id,
+               i.quantity      AS item_quantity,
+               i.created_at    AS item_created_at
+        FROM shipment s
+                 LEFT JOIN orders o ON o.id = s.order_id
+                 LEFT JOIN shipment_item i ON i.shipment_id = s.id
+        WHERE s.id IN
+            <foreach collection="shipmentIds" item="shipmentId" open="(" close=")" separator=",">
+                #{shipmentId}
+            </foreach>
+        ORDER BY s.id, i.id
+    </select>
+
+    <select id="selectDetailWithItemsAndLogsByShipmentIds" resultMap="ShipmentDetailWithItemsAndLogsMap">
+        SELECT
+               <include refid="BaseShipmentSelect"/>,
+               i.id            AS item_id,
+               i.shipment_id   AS item_shipment_id,
+               i.order_id      AS item_order_id,
+               i.order_item_id AS item_order_item_id,
+               i.product_id    AS item_product_id,
+               i.sku_id        AS item_sku_id,
+               i.quantity      AS item_quantity,
+               i.created_at    AS item_created_at,
+               l.id            AS log_id,
+               l.shipment_id   AS log_shipment_id,
+               l.from_status   AS log_from_status,
+               l.to_status     AS log_to_status,
+               l.event_time    AS log_event_time,
+               l.source_type   AS log_source_type,
+               l.source_ref    AS log_source_ref,
+               l.carrier_code  AS log_carrier_code,
+               l.tracking_no   AS log_tracking_no,
+               l.note          AS log_note,
+               l.raw_payload   AS log_raw_payload,
+               l.actor_user_id AS log_actor_user_id,
+               l.created_at    AS log_created_at
+        FROM shipment s
+                 LEFT JOIN orders o ON o.id = s.order_id
+                 LEFT JOIN shipment_item i ON i.shipment_id = s.id
+                 LEFT JOIN shipment_status_log l ON l.shipment_id = s.id
+        WHERE s.id IN
+            <foreach collection="shipmentIds" item="shipmentId" open="(" close=")" separator=",">
+                #{shipmentId}
+            </foreach>
+        ORDER BY s.id, i.id, COALESCE(l.event_time, l.created_at), l.id
+    </select>
+
+    <select id="listPaidOrdersWithoutShipment" resultType="shopping.international.infrastructure.dao.shipping.po.PaidOrderCandidatePO">
+        SELECT
+            o.id AS orderId,
+            o.order_no AS orderNo
+        FROM orders o
+                 LEFT JOIN shipment s ON s.order_id = o.id
+        WHERE o.status = 'PAID'
+          AND s.id IS NULL
+        ORDER BY o.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="countByOrderId" resultType="long">
+        SELECT COUNT(1)
+        FROM shipment s
+        WHERE s.order_id = #{orderId}
+    </select>
+
+    <select id="countNonDeliveredByOrderId" resultType="long">
+        SELECT COUNT(1)
+        FROM shipment s
+        WHERE s.order_id = #{orderId}
+          AND s.status <![CDATA[ <> ]]> 'DELIVERED'
+    </select>
+
+    <insert id="batchInsertIgnore">
+        INSERT IGNORE INTO shipment (
+            shipment_no,
+            order_id,
+            idempotency_key,
+            status,
+            ship_from,
+            ship_to,
+            declared_value,
+            currency,
+            customs_info
+        ) VALUES
+        <foreach collection="items" item="item" separator=",">
+            (
+            #{item.shipmentNo},
+            #{item.orderId},
+            #{item.idempotencyKey},
+            #{item.status},
+            #{item.shipFrom},
+            #{item.shipTo},
+            #{item.declaredValue},
+            #{item.currency},
+            #{item.customsInfo}
+            )
+        </foreach>
+    </insert>
+
+    <update id="tryAdvanceOrderToFulfilled">
+        UPDATE orders o
+        SET o.status = 'FULFILLED'
+        WHERE o.id = #{orderId}
+          AND o.status = 'PAID'
+          AND EXISTS (
+            SELECT 1
+            FROM shipment s
+            WHERE s.order_id = o.id
+        )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM shipment s2
+            WHERE s2.order_id = o.id
+              AND s2.status <![CDATA[ <> ]]> 'DELIVERED'
+        )
+    </update>
+
+</mapper>

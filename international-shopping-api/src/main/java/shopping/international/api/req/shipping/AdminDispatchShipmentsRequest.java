@@ -3,7 +3,7 @@ package shopping.international.api.req.shipping;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.NotNull;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.ArrayList;
@@ -11,9 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 管理侧批量发货请求对象 (AdminDispatchShipmentsRequest)
@@ -25,12 +23,12 @@ public class AdminDispatchShipmentsRequest implements Verifiable {
     /**
      * 待发货物流单 ID 列表
      */
-    @Nullable
+    @NotNull
     private List<Long> shipmentIds;
     /**
      * 备注信息
      */
-    @Nullable
+    @NotNull
     private String note;
 
     /**

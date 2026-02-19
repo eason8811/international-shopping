@@ -77,7 +77,9 @@ public class SecurityConfig {
                 // 刷新端点 (可按策略决定是否忽略)
                 API_PREFIX + "/auth/refresh-token",
                 // PayPal WebHook
-                API_PREFIX + "/webhooks/paypal"
+                API_PREFIX + "/webhooks/paypal",
+                // 17Track WebHook
+                API_PREFIX + "/webhooks/17track"
         };
 
         http.csrf(csrf -> configureCsrf(csrf, csrfRepo, csrfIgnoring));
@@ -112,7 +114,8 @@ public class SecurityConfig {
                             API_PREFIX + "/products/categories/tree",
                             API_PREFIX + "/products",
                             API_PREFIX + "/products/*",
-                            API_PREFIX + "/webhooks/paypal"
+                            API_PREFIX + "/webhooks/paypal",
+                            API_PREFIX + "/webhooks/17track"
                     ).permitAll();
 
                     registry.requestMatchers(API_PREFIX + "/users/me/**").authenticated();

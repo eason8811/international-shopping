@@ -1,17 +1,13 @@
 package shopping.international.api.req.shipping;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 import static shopping.international.types.utils.FieldValidateUtils.require;
@@ -21,7 +17,6 @@ import static shopping.international.types.utils.FieldValidateUtils.require;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class AdminShipmentPageRequest implements Verifiable {
     /**
      * 物流单号
@@ -81,18 +76,67 @@ public class AdminShipmentPageRequest implements Verifiable {
     /**
      * 页码, 默认 1
      */
-    @Nullable
+    @NotNull
     private Integer page = 1;
     /**
      * 每页条数, 默认 20, 最大 200
      */
-    @Nullable
+    @NotNull
     private Integer size = 20;
     /**
      * 排序字段与方向, 格式为 {@code field,asc|desc}
      */
-    @Nullable
+    @NotNull
     private String sort = "updated_at,desc";
+
+    /**
+     * 管理侧物流分页查询请求对象, 用于构建分页查询物流单据的参数.
+     * 支持通过多种条件进行筛选, 包括物流单号, 订单号, 物流状态等, 并允许指定排序方式和分页信息.
+     *
+     * @param shipmentNo    物流单号
+     * @param orderNo       订单号
+     * @param orderId       订单 ID
+     * @param carrierCode   承运商代码
+     * @param trackingNo    追踪编号
+     * @param extExternalId 外部系统标识
+     * @param statusIn      物流状态集合, 允许筛选多个状态
+     * @param updatedFrom   更新时间起始点
+     * @param updatedTo     更新时间结束点
+     * @param createdFrom   创建时间起始点
+     * @param createdTo     创建时间结束点
+     * @param page          当前页码, 默认值为 1
+     * @param size          每页条目数, 默认值为 20
+     * @param sort          排序规则, 格式为 {@code field,asc|desc}, 默认按更新时间降序排列
+     */
+    public AdminShipmentPageRequest(@Nullable String shipmentNo,
+                                    @Nullable String orderNo,
+                                    @Nullable Long orderId,
+                                    @Nullable String carrierCode,
+                                    @Nullable String trackingNo,
+                                    @Nullable String extExternalId,
+                                    @Nullable List<String> statusIn,
+                                    @Nullable LocalDateTime updatedFrom,
+                                    @Nullable LocalDateTime updatedTo,
+                                    @Nullable LocalDateTime createdFrom,
+                                    @Nullable LocalDateTime createdTo,
+                                    @Nullable Integer page,
+                                    @Nullable Integer size,
+                                    @Nullable String sort) {
+        this.shipmentNo = shipmentNo;
+        this.orderNo = orderNo;
+        this.orderId = orderId;
+        this.carrierCode = carrierCode;
+        this.trackingNo = trackingNo;
+        this.extExternalId = extExternalId;
+        this.statusIn = statusIn;
+        this.updatedFrom = updatedFrom;
+        this.updatedTo = updatedTo;
+        this.createdFrom = createdFrom;
+        this.createdTo = createdTo;
+        this.page = page == null ? 1 : page;
+        this.size = size == null ? 20 : size;
+        this.sort = sort == null || sort.isBlank() ? "updated_at,desc" : sort;
+    }
 
     /**
      * 对管理侧物流分页查询参数进行校验与规范化
@@ -120,14 +164,14 @@ public class AdminShipmentPageRequest implements Verifiable {
         if (createdFrom != null && createdTo != null)
             require(!createdFrom.isAfter(createdTo), "createdFrom 不能晚于 createdTo");
 
-        if (page == null || page < 1)
+        if (page < 1)
             page = 1;
-        if (size == null || size < 1)
+        if (size < 1)
             size = 20;
         if (size > 200)
             size = 200;
 
-        sort = normalizeSort(sort, "updated_at,desc");
+        sort = normalizeSort(sort);
     }
 
     /**
@@ -162,8 +206,9 @@ public class AdminShipmentPageRequest implements Verifiable {
     private static boolean isShipmentStatus(String status) {
         String normalized = status.strip().toUpperCase(Locale.ROOT);
         return switch (normalized) {
-            case "CREATED", "LABEL_CREATED", "PICKED_UP", "IN_TRANSIT", "CUSTOMS_PROCESSING", "CUSTOMS_HOLD", "CUSTOMS_RELEASED",
-                    "HANDED_OVER", "OUT_FOR_DELIVERY", "DELIVERED", "EXCEPTION", "RETURNED", "CANCELLED", "LOST" -> true;
+            case "CREATED", "LABEL_CREATED", "PICKED_UP", "IN_TRANSIT", "CUSTOMS_PROCESSING", "CUSTOMS_HOLD",
+                 "CUSTOMS_RELEASED",
+                 "HANDED_OVER", "OUT_FOR_DELIVERY", "DELIVERED", "EXCEPTION", "RETURNED", "CANCELLED", "LOST" -> true;
             default -> false;
         };
     }
@@ -171,14 +216,10 @@ public class AdminShipmentPageRequest implements Verifiable {
     /**
      * 规范化排序参数
      *
-     * @param rawSort      原始排序字符串
-     * @param defaultValue 默认排序
+     * @param rawSort 原始排序字符串
      * @return 规范化后的排序字符串
      */
-    private static String normalizeSort(@Nullable String rawSort, String defaultValue) {
-        if (rawSort == null || rawSort.isBlank())
-            return defaultValue;
-
+    private static String normalizeSort(@NotNull String rawSort) {
         String value = rawSort.strip();
         String[] parts = value.split(",");
         require(parts.length == 2, "sort 格式需为 field,asc|desc");

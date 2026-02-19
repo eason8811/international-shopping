@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.shipping.ShipmentStatusLogMapper">
+
+    <select id="selectByShipmentIds" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentStatusLogPO">
+        SELECT
+            id,
+            shipment_id,
+            from_status,
+            to_status,
+            event_time,
+            source_type,
+            source_ref,
+            carrier_code,
+            tracking_no,
+            note,
+            raw_payload,
+            actor_user_id,
+            created_at
+        FROM shipment_status_log
+        WHERE shipment_id IN
+        <foreach collection="shipmentIds" item="shipmentId" open="(" close=")" separator=",">
+            #{shipmentId}
+        </foreach>
+        ORDER BY shipment_id, COALESCE(event_time, created_at), id
+    </select>
+
+    <insert id="batchInsert">
+        INSERT IGNORE INTO shipment_status_log (
+            shipment_id,
+            from_status,
+            to_status,
+            event_time,
+            source_type,
+            source_ref,
+            carrier_code,
+            tracking_no,
+            note,
+            raw_payload,
+            actor_user_id
+        ) VALUES
+        <foreach collection="logs" item="log" separator=",">
+            (
+            #{log.shipmentId},
+            #{log.fromStatus},
+            #{log.toStatus},
+            #{log.eventTime},
+            #{log.sourceType},
+            #{log.sourceRef},
+            #{log.carrierCode},
+            #{log.trackingNo},
+            #{log.note},
+            #{log.rawPayload},
+            #{log.actorUserId}
+            )
+        </foreach>
+    </insert>
+
+    <select id="pageLogs" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentStatusLogPO">
+        SELECT
+            l.id,
+            l.shipment_id,
+            l.from_status,
+            l.to_status,
+            l.event_time,
+            l.source_type,
+            l.source_ref,
+            l.carrier_code,
+            l.tracking_no,
+            l.note,
+            l.raw_payload,
+            l.actor_user_id,
+            l.created_at
+        FROM shipment_status_log l
+                 LEFT JOIN shipment s ON s.id = l.shipment_id
+                 LEFT JOIN orders o ON o.id = s.order_id
+        <where>
+            <if test="shipmentId != null">
+                AND l.shipment_id = #{shipmentId}
+            </if>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="fromStatus != null and fromStatus != ''">
+                AND l.from_status = #{fromStatus}
+            </if>
+            <if test="toStatus != null and toStatus != ''">
+                AND l.to_status = #{toStatus}
+            </if>
+            <if test="sourceType != null and sourceType != ''">
+                AND l.source_type = #{sourceType}
+            </if>
+            <if test="sourceRef != null and sourceRef != ''">
+                AND l.source_ref = #{sourceRef}
+            </if>
+            <if test="carrierCode != null and carrierCode != ''">
+                AND l.carrier_code = #{carrierCode}
+            </if>
+            <if test="trackingNo != null and trackingNo != ''">
+                AND l.tracking_no = #{trackingNo}
+            </if>
+            <if test="eventTimeFrom != null">
+                AND COALESCE(l.event_time, l.created_at) <![CDATA[ >= ]]> #{eventTimeFrom}
+            </if>
+            <if test="eventTimeTo != null">
+                AND COALESCE(l.event_time, l.created_at) <![CDATA[ <= ]]> #{eventTimeTo}
+            </if>
+            <if test="createdFrom != null">
+                AND l.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND l.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="sortField == 'event_time'">COALESCE(l.event_time, l.created_at)</when>
+            <when test="sortField == 'id'">l.id</when>
+            <otherwise>l.created_at</otherwise>
+        </choose>
+        <choose>
+            <when test="sortDirection == 'asc'">ASC</when>
+            <otherwise>DESC</otherwise>
+        </choose>,
+        l.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countLogs" resultType="long">
+        SELECT COUNT(1)
+        FROM shipment_status_log l
+                 LEFT JOIN shipment s ON s.id = l.shipment_id
+                 LEFT JOIN orders o ON o.id = s.order_id
+        <where>
+            <if test="shipmentId != null">
+                AND l.shipment_id = #{shipmentId}
+            </if>
+            <if test="orderNo != null and orderNo != ''">
+                AND o.order_no = #{orderNo}
+            </if>
+            <if test="fromStatus != null and fromStatus != ''">
+                AND l.from_status = #{fromStatus}
+            </if>
+            <if test="toStatus != null and toStatus != ''">
+                AND l.to_status = #{toStatus}
+            </if>
+            <if test="sourceType != null and sourceType != ''">
+                AND l.source_type = #{sourceType}
+            </if>
+            <if test="sourceRef != null and sourceRef != ''">
+                AND l.source_ref = #{sourceRef}
+            </if>
+            <if test="carrierCode != null and carrierCode != ''">
+                AND l.carrier_code = #{carrierCode}
+            </if>
+            <if test="trackingNo != null and trackingNo != ''">
+                AND l.tracking_no = #{trackingNo}
+            </if>
+            <if test="eventTimeFrom != null">
+                AND COALESCE(l.event_time, l.created_at) <![CDATA[ >= ]]> #{eventTimeFrom}
+            </if>
+            <if test="eventTimeTo != null">
+                AND COALESCE(l.event_time, l.created_at) <![CDATA[ <= ]]> #{eventTimeTo}
+            </if>
+            <if test="createdFrom != null">
+                AND l.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND l.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+    </select>
+
+</mapper>

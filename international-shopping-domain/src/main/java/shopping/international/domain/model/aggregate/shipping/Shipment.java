@@ -10,12 +10,7 @@ import shopping.international.domain.model.entity.shipping.ShipmentItem;
 import shopping.international.domain.model.entity.shipping.ShipmentStatusLog;
 import shopping.international.domain.model.enums.shipping.ShipmentStatus;
 import shopping.international.domain.model.enums.shipping.ShipmentStatusEventSource;
-import shopping.international.domain.model.vo.shipping.CustomsInfoSnapshot;
-import shopping.international.domain.model.vo.shipping.ShipmentDimension;
-import shopping.international.domain.model.vo.shipping.ShipmentLabel;
-import shopping.international.domain.model.vo.shipping.ShipmentNo;
-import shopping.international.domain.model.vo.shipping.ShipmentTrackingEvent;
-import shopping.international.domain.model.vo.shipping.ShippingAddressSnapshot;
+import shopping.international.domain.model.vo.shipping.*;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.utils.Verifiable;
 
@@ -24,11 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeCurrency;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeDistinctList;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 物流单聚合根
@@ -66,6 +57,11 @@ public class Shipment implements Verifiable {
      */
     @Nullable
     private final Long orderId;
+    /**
+     * 订单号
+     */
+    @Nullable
+    private final String orderNo;
     /**
      * 幂等键
      */
@@ -167,6 +163,7 @@ public class Shipment implements Verifiable {
      * @param id             主键 ID
      * @param shipmentNo     物流单号
      * @param orderId        订单 ID
+     * @param orderNo        订单号
      * @param idempotencyKey 幂等键
      * @param carrierCode    承运商编码
      * @param carrierName    承运商名称
@@ -191,6 +188,7 @@ public class Shipment implements Verifiable {
     private Shipment(@Nullable Long id,
                      ShipmentNo shipmentNo,
                      @Nullable Long orderId,
+                     @Nullable String orderNo,
                      @Nullable String idempotencyKey,
                      @Nullable String carrierCode,
                      @Nullable String carrierName,
@@ -214,6 +212,7 @@ public class Shipment implements Verifiable {
         this.id = id;
         this.shipmentNo = shipmentNo;
         this.orderId = orderId;
+        this.orderNo = orderNo;
         this.idempotencyKey = idempotencyKey;
         this.carrierCode = carrierCode;
         this.carrierName = carrierName;
@@ -241,6 +240,7 @@ public class Shipment implements Verifiable {
      *
      * @param shipmentNo     物流单号
      * @param orderId        订单 ID
+     * @param orderNo        订单号
      * @param idempotencyKey 幂等键
      * @param shipFrom       发货地址快照
      * @param shipTo         收货地址快照
@@ -252,6 +252,7 @@ public class Shipment implements Verifiable {
      */
     public static Shipment createPlaceholder(ShipmentNo shipmentNo,
                                              @Nullable Long orderId,
+                                             @Nullable String orderNo,
                                              @Nullable String idempotencyKey,
                                              @Nullable ShippingAddressSnapshot shipFrom,
                                              @Nullable ShippingAddressSnapshot shipTo,
@@ -260,7 +261,7 @@ public class Shipment implements Verifiable {
                                              @Nullable List<ShipmentItem> itemList,
                                              @Nullable CustomsInfoSnapshot customsInfo) {
         Shipment shipment = new Shipment(
-                null, shipmentNo, orderId, idempotencyKey,
+                null, shipmentNo, orderId, orderNo, idempotencyKey,
                 null, null, null, null, null,
                 ShipmentStatus.CREATED,
                 shipFrom, shipTo, null,
@@ -280,6 +281,7 @@ public class Shipment implements Verifiable {
      * @param id             主键 ID
      * @param shipmentNo     物流单号
      * @param orderId        订单 ID
+     * @param orderNo        订单号
      * @param idempotencyKey 幂等键
      * @param carrierCode    承运商编码
      * @param carrierName    承运商名称
@@ -305,6 +307,7 @@ public class Shipment implements Verifiable {
     public static Shipment reconstitute(Long id,
                                         ShipmentNo shipmentNo,
                                         @Nullable Long orderId,
+                                        @Nullable String orderNo,
                                         @Nullable String idempotencyKey,
                                         @Nullable String carrierCode,
                                         @Nullable String carrierName,
@@ -325,7 +328,7 @@ public class Shipment implements Verifiable {
                                         @Nullable List<ShipmentStatusLog> statusLogList,
                                         LocalDateTime createdAt,
                                         LocalDateTime updatedAt) {
-        Shipment shipment = new Shipment(id, shipmentNo, orderId, idempotencyKey,
+        Shipment shipment = new Shipment(id, shipmentNo, orderId, orderNo, idempotencyKey,
                 carrierCode, carrierName, serviceCode, trackingNo, extExternalId,
                 status, shipFrom, shipTo, dimension, declaredValue, currency,
                 customsInfo, labelUrl, pickupTime, deliveredTime,
@@ -393,8 +396,8 @@ public class Shipment implements Verifiable {
      * @param shipFrom 发货地址
      * @param shipTo   收货地址
      */
-    public void bindAddressSnapshots(@NotNull ShippingAddressSnapshot shipFrom,
-                                     @NotNull ShippingAddressSnapshot shipTo) {
+    public void bindAddressSnapshots(@Nullable ShippingAddressSnapshot shipFrom,
+                                     @Nullable ShippingAddressSnapshot shipTo) {
         requireNotNull(shipFrom, "shipFrom 不能为空");
         requireNotNull(shipTo, "shipTo 不能为空");
         shipFrom.validate();

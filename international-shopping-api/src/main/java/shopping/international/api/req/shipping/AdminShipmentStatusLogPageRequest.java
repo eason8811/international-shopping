@@ -1,8 +1,8 @@
 package shopping.international.api.req.shipping;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.types.utils.Verifiable;
 
@@ -17,7 +17,6 @@ import static shopping.international.types.utils.FieldValidateUtils.require;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class AdminShipmentStatusLogPageRequest implements Verifiable {
     /**
      * 物流单主键 ID
@@ -82,18 +81,69 @@ public class AdminShipmentStatusLogPageRequest implements Verifiable {
     /**
      * 页码, 默认 1
      */
-    @Nullable
+    @NotNull
     private Integer page = 1;
     /**
      * 每页大小, 默认 20, 最大 200
      */
-    @Nullable
+    @NotNull
     private Integer size = 20;
     /**
      * 排序字段与方向
      */
-    @Nullable
+    @NotNull
     private String sort = "created_at,desc";
+
+    /**
+     * 构造一个 <code>AdminShipmentStatusLogPageRequest</code> 对象，用于封装查询发货状态日志所需的参数
+     *
+     * @param shipmentId    发货单 ID
+     * @param orderNo       订单号
+     * @param fromStatus    变更前的物流状态
+     * @param toStatus      变更后的物流状态
+     * @param sourceType    事件来源类型
+     * @param sourceRef     事件来源参考编号
+     * @param carrierCode   承运商代码
+     * @param trackingNo    追踪号码
+     * @param eventTimeFrom 事件发生时间起始点
+     * @param eventTimeTo   事件发生时间结束点
+     * @param createdFrom   创建时间起始点
+     * @param createdTo     创建时间结束点
+     * @param page          分页请求中的页码
+     * @param size          每页记录数
+     * @param sort          排序规则字符串
+     */
+    public AdminShipmentStatusLogPageRequest(@Nullable Long shipmentId,
+                                             @Nullable String orderNo,
+                                             @Nullable String fromStatus,
+                                             @Nullable String toStatus,
+                                             @Nullable String sourceType,
+                                             @Nullable String sourceRef,
+                                             @Nullable String carrierCode,
+                                             @Nullable String trackingNo,
+                                             @Nullable LocalDateTime eventTimeFrom,
+                                             @Nullable LocalDateTime eventTimeTo,
+                                             @Nullable LocalDateTime createdFrom,
+                                             @Nullable LocalDateTime createdTo,
+                                             @Nullable Integer page,
+                                             @Nullable Integer size,
+                                             @Nullable String sort) {
+        this.shipmentId = shipmentId;
+        this.orderNo = orderNo;
+        this.fromStatus = fromStatus;
+        this.toStatus = toStatus;
+        this.sourceType = sourceType;
+        this.sourceRef = sourceRef;
+        this.carrierCode = carrierCode;
+        this.trackingNo = trackingNo;
+        this.eventTimeFrom = eventTimeFrom;
+        this.eventTimeTo = eventTimeTo;
+        this.createdFrom = createdFrom;
+        this.createdTo = createdTo;
+        this.page = page == null ? 1 : page;
+        this.size = size == null ? 20 : size;
+        this.sort = sort == null || sort.isBlank() ? "updated_at,desc" : sort;
+    }
 
     /**
      * 对状态日志查询参数进行校验与规范化
@@ -120,14 +170,14 @@ public class AdminShipmentStatusLogPageRequest implements Verifiable {
         if (createdFrom != null && createdTo != null)
             require(!createdFrom.isAfter(createdTo), "createdFrom 不能晚于 createdTo");
 
-        if (page == null || page < 1)
+        if (page < 1)
             page = 1;
-        if (size == null || size < 1)
+        if (size < 1)
             size = 20;
         if (size > 200)
             size = 200;
 
-        sort = normalizeSort(sort, "created_at,desc");
+        sort = normalizeSort(sort);
     }
 
     /**
@@ -155,8 +205,9 @@ public class AdminShipmentStatusLogPageRequest implements Verifiable {
     private static boolean isShipmentStatus(String raw) {
         String value = raw.strip().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case "CREATED", "LABEL_CREATED", "PICKED_UP", "IN_TRANSIT", "CUSTOMS_PROCESSING", "CUSTOMS_HOLD", "CUSTOMS_RELEASED",
-                    "HANDED_OVER", "OUT_FOR_DELIVERY", "DELIVERED", "EXCEPTION", "RETURNED", "CANCELLED", "LOST" -> true;
+            case "CREATED", "LABEL_CREATED", "PICKED_UP", "IN_TRANSIT", "CUSTOMS_PROCESSING", "CUSTOMS_HOLD",
+                 "CUSTOMS_RELEASED",
+                 "HANDED_OVER", "OUT_FOR_DELIVERY", "DELIVERED", "EXCEPTION", "RETURNED", "CANCELLED", "LOST" -> true;
             default -> false;
         };
     }
@@ -178,13 +229,12 @@ public class AdminShipmentStatusLogPageRequest implements Verifiable {
     /**
      * 规范化排序参数
      *
-     * @param rawSort      原始排序字符串
-     * @param defaultValue 默认值
+     * @param rawSort 原始排序字符串
      * @return 规范化后的排序字符串
      */
-    private static String normalizeSort(@Nullable String rawSort, String defaultValue) {
+    private static String normalizeSort(@Nullable String rawSort) {
         if (rawSort == null || rawSort.isBlank())
-            return defaultValue;
+            return "created_at,desc";
 
         String value = rawSort.strip();
         String[] parts = value.split(",");

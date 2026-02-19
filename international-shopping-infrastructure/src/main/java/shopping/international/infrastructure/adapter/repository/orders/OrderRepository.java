@@ -23,6 +23,7 @@ import shopping.international.domain.model.enums.payment.PaymentStatus;
 import shopping.international.domain.model.enums.payment.RefundInitiator;
 import shopping.international.domain.model.enums.payment.RefundReasonCode;
 import shopping.international.domain.model.enums.payment.RefundStatus;
+import shopping.international.domain.model.enums.shipping.ShipmentStatus;
 import shopping.international.domain.model.vo.orders.*;
 import shopping.international.domain.model.vo.payment.RefundNo;
 import shopping.international.domain.model.vo.payment.RefundTarget;
@@ -39,6 +40,8 @@ import shopping.international.infrastructure.dao.payment.po.PaymentRefundItemPO;
 import shopping.international.infrastructure.dao.payment.po.PaymentRefundPO;
 import shopping.international.infrastructure.dao.products.ProductSkuMapper;
 import shopping.international.infrastructure.dao.products.po.ProductSkuPO;
+import shopping.international.infrastructure.dao.shipping.ShipmentMapper;
+import shopping.international.infrastructure.dao.shipping.po.ShipmentPO;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.types.exceptions.PaymentOrderMissingException;
@@ -111,6 +114,10 @@ public class OrderRepository implements IOrderRepository {
      * payment_refund_item Mapper
      */
     private final PaymentRefundItemMapper paymentRefundItemMapper;
+    /**
+     * shipment Mapper, 用于订单改址时校验物流状态
+     */
+    private final ShipmentMapper shipmentMapper;
 
     // ========================= 用户侧查询 =========================
 
@@ -507,6 +514,13 @@ public class OrderRepository implements IOrderRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public @NotNull Order updateAddressSnapshot(@NotNull Order order, @NotNull AddressSnapshot addressSnapshot) {
+        Long forbiddenCount = shipmentMapper.selectCount(new LambdaQueryWrapper<ShipmentPO>()
+                .eq(ShipmentPO::getOrderId, order.getId())
+                .notIn(ShipmentPO::getStatus, ShipmentStatus.CREATED.name(), ShipmentStatus.LABEL_CREATED.name())
+                .last("limit 1"));
+        if (forbiddenCount != null && forbiddenCount > 0)
+            throw new ConflictException("订单关联物流单状态不允许修改地址");
+
         String json = toJsonOrNull(addressSnapshot);
         LambdaUpdateWrapper<OrdersPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(OrdersPO::getId, order.getId())
@@ -1026,7 +1040,7 @@ public class OrderRepository implements IOrderRepository {
     /**
      * 订单取消后同步 payment_order 状态 (跨域一致性)
      *
-     * <p>规则: 关闭该订单下所有非 SUCCESS 的支付单, 将其推进为 CLOSED。</p>
+     * <p>规则: 关闭该订单下所有非 SUCCESS 的支付单, 将其推进为 CLOSED</p>
      *
      * @param orderId 订单 ID
      * @param orderNo 订单号 (用于错误信息)

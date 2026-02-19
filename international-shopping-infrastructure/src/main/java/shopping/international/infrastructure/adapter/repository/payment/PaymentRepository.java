@@ -5,18 +5,23 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import shopping.international.domain.adapter.port.payment.IPayPalPort;
 import shopping.international.domain.adapter.repository.orders.IOrderRepository;
 import shopping.international.domain.adapter.repository.payment.IAdminPaymentRepository;
 import shopping.international.domain.adapter.repository.payment.IPaymentRepository;
+import shopping.international.domain.adapter.repository.shipping.IShipmentRepository;
 import shopping.international.domain.model.enums.orders.OrderStatus;
 import shopping.international.domain.model.enums.orders.OrderStatusEventSource;
 import shopping.international.domain.model.enums.payment.*;
+import shopping.international.domain.model.enums.shipping.ShipmentStatusEventSource;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.orders.AddressSnapshot;
@@ -51,6 +56,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
  * </ul>
  */
 @Repository
+@Slf4j
 @RequiredArgsConstructor
 public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepository {
 
@@ -78,6 +84,10 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
      * @see IOrderRepository
      */
     private final IOrderRepository orderRepository;
+    /**
+     * 物流仓储, 用于在订单状态推进为 PAID 后补建占位物流单
+     */
+    private final IShipmentRepository shipmentRepository;
 
     /**
      * 在同库事务内准备 PayPal Checkout (锁定订单行, 关闭旧待支付支付单, 创建/复用 PAYPAL 支付单, 同步 orders 冗余字段)
@@ -778,21 +788,72 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
             ordersMapper.update(null, payW);
 
             if (canAdvanceOrderStatusToPaid) {
-                ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
+                int advanced = ordersMapper.update(null, new LambdaUpdateWrapper<OrdersPO>()
                         .eq(OrdersPO::getId, cmd.orderId())
                         .in(OrdersPO::getStatus, OrderStatus.CREATED.name(), OrderStatus.PENDING_PAYMENT.name())
-                        .set(OrdersPO::getStatus, OrderStatus.PAID));
-                orderRepository.insertStatusLog(
-                        cmd.orderId(),
-                        cmd.eventSource(),
-                        OrderStatus.valueOf(order.getStatus()),
-                        OrderStatus.PAID,
-                        cmd.statusLogNote()
-                );
+                        .set(OrdersPO::getStatus, OrderStatus.PAID.name()));
+                if (advanced > 0) {
+                    orderRepository.insertStatusLog(
+                            cmd.orderId(),
+                            cmd.eventSource(),
+                            OrderStatus.valueOf(order.getStatus()),
+                            OrderStatus.PAID,
+                            cmd.statusLogNote()
+                    );
+                    tryCreatePaidOrderPlaceholderShipmentAfterCommit(cmd.orderId(), order.getOrderNo());
+                }
             }
         }
 
         return new PaymentResultView(cmd.paymentId(), order.getOrderNo(), effectivePaymentStatus, cmd.paypalOrderId(), "OK");
+    }
+
+    /**
+     * 在事务提交后补建占位物流单
+     *
+     * @param orderId 订单主键
+     * @param orderNo 订单号
+     */
+    private void tryCreatePaidOrderPlaceholderShipmentAfterCommit(@NotNull Long orderId,
+                                                                  @NotNull String orderNo) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()
+                && TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                /**
+                 * 事务提交后执行补建
+                 */
+                @Override
+                public void afterCommit() {
+                    tryCreatePaidOrderPlaceholderShipment(orderId, orderNo);
+                }
+            });
+            return;
+        }
+        tryCreatePaidOrderPlaceholderShipment(orderId, orderNo);
+    }
+
+    /**
+     * 执行占位物流单补建, 失败仅记录日志不抛出异常
+     *
+     * @param orderId 订单主键
+     * @param orderNo 订单号
+     */
+    private void tryCreatePaidOrderPlaceholderShipment(@NotNull Long orderId,
+                                                       @NotNull String orderNo) {
+        try {
+            shipmentRepository.ensurePlaceholderForPaidOrder(
+                    orderId,
+                    orderNo,
+                    "payment-paid-" + orderId,
+                    "payment-paid-" + orderId,
+                    ShipmentStatusEventSource.API,
+                    "订单支付成功后创建占位物流单",
+                    null
+            );
+        } catch (Exception exception) {
+            log.warn("订单支付成功后补建占位物流单失败, orderId: {}, orderNo: {}, err: {}",
+                    orderId, orderNo, exception.getMessage(), exception);
+        }
     }
 
     /**
