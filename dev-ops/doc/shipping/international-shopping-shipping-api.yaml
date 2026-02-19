@@ -2922,7 +2922,10 @@ components:
         - carrier_code
         - carrier_name
         - tracking_no
+        - ship_from_address_id
       properties:
+        ship_from_address_id:
+          type: integer
         carrier_code:
           type: string
           maxLength: 64
@@ -2976,6 +2979,7 @@ components:
           minLength: 3
           maxLength: 3
       x-apifox-orders:
+        - ship_from_address_id
         - carrier_code
         - carrier_name
         - service_code
@@ -3029,17 +3033,14 @@ components:
       type: object
       required:
         - order_no
+        - ship_from_address_id
       properties:
+        ship_from_address_id:
+          type: string
         order_no:
           type: string
           minLength: 10
           maxLength: 32
-        idempotency_key:
-          type:
-            - string
-            - 'null'
-          maxLength: 64
-          description: 可选业务幂等键（会写入 shipment.idempotency_key）
         carrier_code:
           type:
             - string
@@ -3065,27 +3066,54 @@ components:
             - string
             - 'null'
           maxLength: 128
-        note:
+        label_url:
           type:
             - string
             - 'null'
-          maxLength: 255
-        source_ref:
+          maxLength: 500
+        weight_kg:
           type:
             - string
             - 'null'
-          maxLength: 128
-          description: 不传则默认使用 `Idempotency-Key`
+        length_cm:
+          type:
+            - string
+            - 'null'
+        width_cm:
+          type:
+            - string
+            - 'null'
+        height_cm:
+          type:
+            - string
+            - 'null'
+        declared_value:
+          type:
+            - integer
+            - 'null'
+          format: int64
+          minimum: 0
+        currency:
+          type:
+            - string
+            - 'null'
+          minLength: 3
+          maxLength: 3
       x-apifox-orders:
+        - ship_from_address_id
         - order_no
-        - idempotency_key
         - carrier_code
         - carrier_name
         - service_code
         - tracking_no
         - ext_external_id
-        - note
-        - source_ref
+        - label_url
+        - weight_kg
+        - length_cm
+        - width_cm
+        - height_cm
+        - declared_value
+        - currency
       x-apifox-ignore-properties: []
       x-apifox-folder: shipping
     SeventeenTrackWebhookRequest:
