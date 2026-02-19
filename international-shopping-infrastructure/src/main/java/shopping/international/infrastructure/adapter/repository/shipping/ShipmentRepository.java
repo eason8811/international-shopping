@@ -33,10 +33,7 @@ import shopping.international.infrastructure.dao.orders.po.OrdersPO;
 import shopping.international.infrastructure.dao.shipping.ShipmentItemMapper;
 import shopping.international.infrastructure.dao.shipping.ShipmentMapper;
 import shopping.international.infrastructure.dao.shipping.ShipmentStatusLogMapper;
-import shopping.international.infrastructure.dao.shipping.po.PaidOrderCandidatePO;
-import shopping.international.infrastructure.dao.shipping.po.ShipmentItemPO;
-import shopping.international.infrastructure.dao.shipping.po.ShipmentPO;
-import shopping.international.infrastructure.dao.shipping.po.ShipmentStatusLogPO;
+import shopping.international.infrastructure.dao.shipping.po.*;
 import shopping.international.infrastructure.dao.user.UserAddressMapper;
 import shopping.international.infrastructure.dao.user.po.UserAddressPO;
 import shopping.international.types.exceptions.ConflictException;
@@ -102,8 +99,8 @@ public class ShipmentRepository implements IShipmentRepository {
      */
     @Override
     public @NotNull List<Shipment> listUserOrderShipments(@NotNull Long userId,
-                                                                    @NotNull OrderNo orderNo,
-                                                                    boolean includeLogs) {
+                                                          @NotNull OrderNo orderNo,
+                                                          boolean includeLogs) {
         List<ShipmentPO> rows = includeLogs
                 ? shipmentMapper.selectUserShipmentDetailsWithItemsAndLogsByOrderNo(userId, orderNo.getValue())
                 : shipmentMapper.selectUserShipmentDetailsWithItemsByOrderNo(userId, orderNo.getValue());
@@ -128,7 +125,7 @@ public class ShipmentRepository implements IShipmentRepository {
      */
     @Override
     public @NotNull Optional<Shipment> findUserShipmentDetail(@NotNull Long userId,
-                                                                        @NotNull ShipmentNo shipmentNo) {
+                                                              @NotNull ShipmentNo shipmentNo) {
         ShipmentPO row = shipmentMapper.selectUserShipmentDetailWithItemsAndLogsByNo(userId, shipmentNo.getValue());
         if (row == null)
             return Optional.empty();
@@ -202,7 +199,7 @@ public class ShipmentRepository implements IShipmentRepository {
      */
     @Override
     public @NotNull Optional<Shipment> findShipmentDetailById(@NotNull Long shipmentId,
-                                                                        boolean includeLogs) {
+                                                              boolean includeLogs) {
         ShipmentPO row = shipmentMapper.selectDetailById(shipmentId);
         if (row == null)
             return Optional.empty();
@@ -218,7 +215,7 @@ public class ShipmentRepository implements IShipmentRepository {
      */
     @Override
     public @NotNull Optional<Shipment> findShipmentDetailByTrackingNo(@NotNull String trackingNo,
-                                                                                boolean includeLogs) {
+                                                                      boolean includeLogs) {
         ShipmentPO row = shipmentMapper.selectDetailByTrackingNo(trackingNo);
         if (row == null)
             return Optional.empty();
@@ -291,13 +288,13 @@ public class ShipmentRepository implements IShipmentRepository {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public @NotNull Shipment fillLabel(@NotNull Long shipmentId,
-                                       @NotNull ShipmentLabel label,
-                                       @NotNull Integer shipFromAddressId,
-                                       @NotNull String idempotencyKey,
-                                       @NotNull String sourceRef,
-                                       @Nullable Long actorUserId,
-                                       @Nullable String note) {
+    public @NotNull FillLabelResult fillLabel(@NotNull Long shipmentId,
+                                              @NotNull ShipmentLabel label,
+                                              @NotNull Integer shipFromAddressId,
+                                              @NotNull String idempotencyKey,
+                                              @NotNull String sourceRef,
+                                              @Nullable Long actorUserId,
+                                              @Nullable String note) {
         requireNotBlank(idempotencyKey, "idempotencyKey 不能为空");
         requireNotBlank(sourceRef, "sourceRef 不能为空");
 
@@ -309,9 +306,10 @@ public class ShipmentRepository implements IShipmentRepository {
                 .findFirst()
                 .orElse(null);
         if (existingLog != null)
-            return shipment;
+            return new FillLabelResult(shipment, true);
 
         ShipmentStatus oldStatus = shipment.getStatus();
+        LocalDateTime oldUpdatedAt = shipment.getUpdatedAt();
 
         shipment.fillLabel(label);
 
@@ -333,7 +331,7 @@ public class ShipmentRepository implements IShipmentRepository {
         shipment.bindAddressSnapshots(shipFrom, shipment.getShipTo());
 
         ShipmentStatusLog appendedLog = shipment.applyTrackingEvent(event);
-        int updated = updateShipmentWithStatusCas(shipment, oldStatus);
+        int updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
         if (updated <= 0) {
             Shipment reloaded = findShipmentDetailById(shipmentId, true)
                     .orElseThrow(() -> new ConflictException("物流单并发更新失败"));
@@ -342,12 +340,13 @@ public class ShipmentRepository implements IShipmentRepository {
                             && Objects.equals(log.getSourceRef(), sourceRef));
             if (!hasLog)
                 throw new ConflictException("物流单并发更新失败");
-            return reloaded;
+            return new FillLabelResult(reloaded, true);
         }
 
         insertStatusLogIgnoreDuplicate(appendedLog);
-        return findShipmentDetailById(shipmentId, true)
+        Shipment reloaded = findShipmentDetailById(shipmentId, true)
                 .orElseThrow(() -> new ConflictException("物流单回读失败"));
+        return new FillLabelResult(reloaded, false);
     }
 
     /**
@@ -373,47 +372,102 @@ public class ShipmentRepository implements IShipmentRepository {
         if (detailMap.size() != dedupIds.size())
             throw new NotFoundException("物流单不存在");
 
+        List<ShipmentDispatchStatusCasPO> casRows = new ArrayList<>();
         List<ShipmentStatusLogPO> logPos = new ArrayList<>();
-        List<Shipment> result = new ArrayList<>(dedupIds.size());
-
         for (Long shipmentId : dedupIds) {
             ShipmentPO detailRow = detailMap.get(shipmentId);
             if (detailRow == null)
                 throw new NotFoundException("物流单不存在");
+
             Shipment shipment = toShipment(
                     detailRow,
                     detailItems(detailRow),
                     detailLogs(detailRow)
             );
+
+            String rowSourceRef = sourceRef + ":" + shipmentId;
+            boolean replayed = shipment.getStatusLogList().stream()
+                    .anyMatch(log -> log.getSourceType() == ShipmentStatusEventSource.MANUAL
+                            && Objects.equals(log.getSourceRef(), rowSourceRef));
+            if (replayed)
+                continue;
+
             ShipmentStatus oldStatus = shipment.getStatus();
             ShipmentStatusLog appendedLog = shipment.dispatch(
                     ShipmentStatusEventSource.MANUAL,
-                    sourceRef + ":" + shipmentId,
+                    rowSourceRef,
                     note,
                     LocalDateTime.now(),
                     Map.of("idempotency_key", idempotencyKey),
                     actorUserId
             );
-            int updated = updateShipmentWithStatusCas(shipment, oldStatus);
-            if (updated <= 0) {
-                Shipment reloaded = findShipmentDetailById(shipmentId, true)
-                        .orElseThrow(() -> new ConflictException("物流单并发更新失败"));
-                boolean hasLog = reloaded.getStatusLogList().stream()
-                        .anyMatch(log -> log.getSourceType() == ShipmentStatusEventSource.MANUAL
-                                && Objects.equals(log.getSourceRef(), sourceRef + ":" + shipmentId));
-                if (!hasLog)
-                    throw new ConflictException("物流单并发更新失败");
-                result.add(reloaded);
-                continue;
-            }
+            casRows.add(
+                    ShipmentDispatchStatusCasPO.builder()
+                            .shipmentId(shipmentId)
+                            .oldStatus(oldStatus.name())
+                            .newStatus(shipment.getStatus().name())
+                            .build()
+            );
             logPos.add(toStatusLogPO(appendedLog));
-            result.add(shipment);
+        }
+
+        if (!casRows.isEmpty()) {
+            int updated = shipmentMapper.batchUpdateStatusWithCas(casRows);
+            if (updated != casRows.size()) {
+                Map<Long, ShipmentPO> reloadedMap = loadShipmentDetailsByIds(dedupIds, true);
+                if (reloadedMap.size() != dedupIds.size())
+                    throw new ConflictException("物流单并发更新失败");
+
+                boolean allReplayed = true;
+                for (Long shipmentId : dedupIds) {
+                    ShipmentPO reloadedRow = reloadedMap.get(shipmentId);
+                    if (reloadedRow == null) {
+                        allReplayed = false;
+                        break;
+                    }
+                    Shipment reloaded = toShipment(
+                            reloadedRow,
+                            detailItems(reloadedRow),
+                            detailLogs(reloadedRow)
+                    );
+                    String rowSourceRef = sourceRef + ":" + shipmentId;
+                    boolean hasLog = reloaded.getStatusLogList().stream()
+                            .anyMatch(log -> log.getSourceType() == ShipmentStatusEventSource.MANUAL
+                                    && Objects.equals(log.getSourceRef(), rowSourceRef));
+                    if (!hasLog) {
+                        allReplayed = false;
+                        break;
+                    }
+                }
+                if (!allReplayed)
+                    throw new ConflictException("物流单并发更新失败");
+
+                return dedupIds.stream()
+                        .map(id -> {
+                            ShipmentPO row = reloadedMap.get(id);
+                            if (row == null)
+                                throw new ConflictException("物流单回读失败");
+                            return toShipment(row, detailItems(row), detailLogs(row));
+                        })
+                        .toList();
+            }
         }
 
         if (!logPos.isEmpty())
             shipmentStatusLogMapper.batchInsert(logPos);
 
-        return result;
+        Map<Long, ShipmentPO> finalMap = loadShipmentDetailsByIds(dedupIds, true);
+        if (finalMap.size() != dedupIds.size())
+            throw new ConflictException("物流单回读失败");
+
+        return dedupIds.stream()
+                .map(id -> {
+                    ShipmentPO row = finalMap.get(id);
+                    if (row == null)
+                        throw new ConflictException("物流单回读失败");
+                    return toShipment(row, detailItems(row), detailLogs(row));
+                })
+                .toList();
     }
 
     /**
@@ -495,7 +549,7 @@ public class ShipmentRepository implements IShipmentRepository {
                 sourceRef + ":" + shipment.getId(),
                 actorUserId,
                 command.getNote()
-        );
+        ).shipment();
     }
 
     /**
@@ -510,9 +564,10 @@ public class ShipmentRepository implements IShipmentRepository {
         Shipment shipment = findShipmentDetailById(shipmentId, true)
                 .orElseThrow(() -> new NotFoundException("物流单不存在"));
         ShipmentStatus oldStatus = shipment.getStatus();
+        LocalDateTime oldUpdatedAt = shipment.getUpdatedAt();
 
         ShipmentStatusLog appendedLog = shipment.applyTrackingEvent(event);
-        int updated = updateShipmentWithStatusCas(shipment, oldStatus);
+        int updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
         if (updated <= 0) {
             Shipment reloaded = findShipmentDetailById(shipmentId, true)
                     .orElseThrow(() -> new ConflictException("物流单并发更新失败"));
@@ -727,6 +782,9 @@ public class ShipmentRepository implements IShipmentRepository {
             List<OrderItemPO> items = orderItemMap.get(candidate.getOrderId());
             if (items == null || items.isEmpty())
                 continue;
+            List<ShipmentItem> shipmentItemEntities = items.stream()
+                    .map(this::toShipmentItemEntity)
+                    .toList();
             for (OrderItemPO item : items)
                 shipmentItems.add(
                         ShipmentItemPO.builder()
@@ -739,7 +797,33 @@ public class ShipmentRepository implements IShipmentRepository {
                                 .build()
                 );
 
-            logs.add(buildCompensationCreatedLog(shipmentPO, sourceRefPrefix + ":" + candidate.getOrderId(), candidate.getOrderNo()));
+            Shipment shipment = Shipment.createPlaceholder(
+                    ShipmentNo.of(shipmentPO.getShipmentNo()),
+                    shipmentPO.getOrderId(),
+                    candidate.getOrderNo(),
+                    shipmentPO.getIdempotencyKey(),
+                    parseShippingAddress(shipmentPO.getShipFrom()),
+                    parseShippingAddress(shipmentPO.getShipTo()),
+                    shipmentPO.getDeclaredValue(),
+                    shipmentPO.getCurrency(),
+                    shipmentItemEntities,
+                    parseCustomsInfo(shipmentPO.getCustomsInfo())
+            );
+            shipment.assignId(shipmentPO.getId());
+            ShipmentStatusLog createdLog = shipment.applyTrackingEvent(
+                    ShipmentTrackingEvent.transition(
+                            ShipmentStatus.CREATED,
+                            LocalDateTime.now(),
+                            ShipmentStatusEventSource.SYSTEM_JOB,
+                            sourceRefPrefix + ":" + candidate.getOrderId(),
+                            null,
+                            null,
+                            "PAID 订单补偿补建物流单",
+                            candidate.getOrderNo() == null ? Map.of() : Map.of("order_no", candidate.getOrderNo()),
+                            null
+                    )
+            );
+            logs.add(toStatusLogPO(createdLog));
         }
 
         if (!shipmentItems.isEmpty())
@@ -980,11 +1064,13 @@ public class ShipmentRepository implements IShipmentRepository {
      * @return 更新行数
      */
     private int updateShipmentWithStatusCas(@NotNull Shipment shipment,
-                                            @NotNull ShipmentStatus oldStatus) {
+                                            @NotNull ShipmentStatus oldStatus,
+                                            @NotNull LocalDateTime oldUpdatedAt) {
         ShipmentDimension dimension = shipment.getDimension();
         return shipmentMapper.update(null, new LambdaUpdateWrapper<ShipmentPO>()
                 .eq(ShipmentPO::getId, shipment.getId())
                 .eq(ShipmentPO::getStatus, oldStatus.name())
+                .eq(ShipmentPO::getUpdatedAt, oldUpdatedAt)
                 .set(ShipmentPO::getCarrierCode, shipment.getCarrierCode())
                 .set(ShipmentPO::getCarrierName, shipment.getCarrierName())
                 .set(ShipmentPO::getServiceCode, shipment.getServiceCode())
@@ -1056,32 +1142,6 @@ public class ShipmentRepository implements IShipmentRepository {
                 .declaredValue(order.getTotalAmount())
                 .currency(order.getCurrency())
                 .customsInfo(toJsonOrNull(CustomsInfoSnapshot.empty().getExtra()))
-                .build();
-    }
-
-    /**
-     * 构造补偿任务写入的 CREATED 状态日志
-     *
-     * @param shipmentPO 物流单行
-     * @param sourceRef  来源引用
-     * @param orderNo    订单号
-     * @return 状态日志持久化对象
-     */
-    private @NotNull ShipmentStatusLogPO buildCompensationCreatedLog(@NotNull ShipmentPO shipmentPO,
-                                                                     @NotNull String sourceRef,
-                                                                     @Nullable String orderNo) {
-        return ShipmentStatusLogPO.builder()
-                .shipmentId(shipmentPO.getId())
-                .fromStatus(ShipmentStatus.CREATED.name())
-                .toStatus(ShipmentStatus.CREATED.name())
-                .eventTime(LocalDateTime.now())
-                .sourceType(ShipmentStatusEventSource.SYSTEM_JOB.name())
-                .sourceRef(sourceRef)
-                .carrierCode(null)
-                .trackingNo(null)
-                .note("PAID 订单补偿补建物流单")
-                .rawPayload(toJsonOrNull(orderNo == null ? null : Map.of("order_no", orderNo)))
-                .actorUserId(null)
                 .build();
     }
 
@@ -1205,6 +1265,7 @@ public class ShipmentRepository implements IShipmentRepository {
                 po.getTrackingNo(),
                 po.getNote(),
                 parseRawPayload(po.getRawPayload()),
+                po.getRawPayload(),
                 po.getActorUserId(),
                 po.getCreatedAt()
         );
@@ -1217,6 +1278,9 @@ public class ShipmentRepository implements IShipmentRepository {
      * @return 持久化对象
      */
     private @NotNull ShipmentStatusLogPO toStatusLogPO(@NotNull ShipmentStatusLog log) {
+        String rawPayload = log.getRawPayloadText() == null
+                ? toJsonOrNull(log.getRawPayload())
+                : log.getRawPayloadText();
         return ShipmentStatusLogPO.builder()
                 .id(log.getId())
                 .shipmentId(log.getShipmentId())
@@ -1228,7 +1292,7 @@ public class ShipmentRepository implements IShipmentRepository {
                 .carrierCode(log.getCarrierCode())
                 .trackingNo(log.getTrackingNo())
                 .note(log.getNote())
-                .rawPayload(toJsonOrNull(log.getRawPayload()))
+                .rawPayload(rawPayload)
                 .actorUserId(log.getActorUserId())
                 .createdAt(log.getCreatedAt())
                 .build();

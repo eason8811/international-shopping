@@ -8,6 +8,7 @@ import shopping.international.domain.adapter.port.shipping.ISeventeenTrackPort;
 import shopping.international.domain.adapter.repository.shipping.IShipmentRepository;
 import shopping.international.domain.model.aggregate.shipping.Shipment;
 import shopping.international.domain.model.entity.shipping.ShipmentStatusLog;
+import shopping.international.domain.model.enums.shipping.ShipmentStatusEventSource;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.shipping.*;
@@ -15,7 +16,10 @@ import shopping.international.domain.service.shipping.IAdminShipmentService;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.NotFoundException;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static shopping.international.types.utils.FieldValidateUtils.require;
 
@@ -82,24 +86,56 @@ public class AdminShipmentService implements IAdminShipmentService {
                                                @NotNull String sourceRef,
                                                @Nullable Long actorUserId,
                                                @Nullable String note) {
-        Shipment shipment = shipmentRepository.fillLabel(shipmentId, label, shipFromAddressId, idempotencyKey, sourceRef, actorUserId, note);
+        IShipmentRepository.FillLabelResult fillLabelResult = shipmentRepository.fillLabel(
+                shipmentId,
+                label,
+                shipFromAddressId,
+                idempotencyKey,
+                sourceRef,
+                actorUserId,
+                note
+        );
+        Shipment shipment = fillLabelResult.shipment();
         String trackingNo = shipment.getTrackingNo();
         require(trackingNo != null && !trackingNo.isBlank(), "trackingNo 不能为空");
 
-        // 事务外调用外部 API, 避免长事务占锁
-        try {
-            seventeenTrackPort.registerTracking(
-                    new ISeventeenTrackPort.RegisterTrackingCommand(
-                            trackingNo,
+        String registerSuccessSourceRef = sourceRef + ":17track:registered";
+        boolean hasRegisterSuccessLog = hasApiLog(shipment, registerSuccessSourceRef);
+
+        // 重放场景且已有“注册成功”标记时, 直接返回同一结果
+        if (fillLabelResult.replayed() && hasRegisterSuccessLog)
+            return shipment;
+
+        if (!hasRegisterSuccessLog) {
+            // 事务外调用外部 API, 避免长事务占锁
+            try {
+                seventeenTrackPort.registerTracking(
+                        new ISeventeenTrackPort.RegisterTrackingCommand(
+                                trackingNo,
+                                shipment.getCarrierCode(),
+                                idempotencyKey
+                        )
+                );
+            } catch (Exception exception) {
+                throw new ConflictException("17Track 注册单号失败, 请重试, " + exception.getMessage());
+            }
+
+            shipmentRepository.applyTrackingEvent(
+                    shipmentId,
+                    ShipmentTrackingEvent.keepCurrent(
+                            LocalDateTime.now(),
+                            ShipmentStatusEventSource.API,
+                            registerSuccessSourceRef,
                             shipment.getCarrierCode(),
-                            idempotencyKey
+                            trackingNo,
+                            "17Track 注册单号成功",
+                            Map.of("idempotency_key", idempotencyKey),
+                            actorUserId
                     )
             );
-        } catch (Exception exception) {
-            throw new ConflictException("17Track 注册单号失败, 请重试, " + exception.getMessage());
         }
 
-        return shipment;
+        return shipmentRepository.findShipmentDetailById(shipmentId, true).orElse(shipment);
     }
 
     /**
@@ -165,5 +201,18 @@ public class AdminShipmentService implements IAdminShipmentService {
                                                    @NotNull String sourceRefPrefix) {
         require(limit > 0, "limit 必须大于 0");
         return shipmentRepository.compensatePaidOrdersWithoutShipment(limit, sourceRefPrefix);
+    }
+
+    /**
+     * 判断物流单是否存在指定来源引用的 API 日志
+     *
+     * @param shipment 物流单
+     * @param sourceRef 来源引用
+     * @return true 表示日志已存在
+     */
+    private boolean hasApiLog(@NotNull Shipment shipment, @NotNull String sourceRef) {
+        return shipment.getStatusLogList().stream()
+                .anyMatch(log -> log.getSourceType() == ShipmentStatusEventSource.API
+                        && Objects.equals(log.getSourceRef(), sourceRef));
     }
 }

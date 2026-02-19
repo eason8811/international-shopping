@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import shopping.international.infrastructure.dao.shipping.po.PaidOrderCandidatePO;
+import shopping.international.infrastructure.dao.shipping.po.ShipmentDispatchStatusCasPO;
 import shopping.international.infrastructure.dao.shipping.po.ShipmentPO;
 
 import java.time.LocalDateTime;
@@ -153,4 +154,9 @@ public interface ShipmentMapper extends BaseMapper<ShipmentPO> {
      * 批量插入占位物流单, 使用 INSERT IGNORE 避免并发冲突
      */
     int batchInsertIgnore(@Param("items") List<ShipmentPO> items);
+
+    /**
+     * 批量按旧状态 CAS 更新物流单状态
+     */
+    int batchUpdateStatusWithCas(@Param("items") List<ShipmentDispatchStatusCasPO> items);
 }

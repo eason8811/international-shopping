@@ -9,12 +9,12 @@ import shopping.international.api.req.shipping.SeventeenTrackWebhookRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.domain.service.shipping.IShipmentWebhookService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.exceptions.IllegalParamException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 物流 WebHook 控制器, 提供 17Track 回调入口
@@ -37,22 +37,23 @@ public class ShipmentWebhookController {
      * 接收 17Track WebHook 回调
      *
      * @param sign    签名头
-     * @param request 请求对象
+     * @param rawBody 原始请求体
      * @return 处理结果
      */
     @PostMapping("/17track")
     public ResponseEntity<Result<Void>> seventeenTrackWebhook(@RequestHeader("sign") String sign,
-                                                              @RequestBody SeventeenTrackWebhookRequest request) {
+                                                              @RequestBody String rawBody) {
         requireNotBlank(sign, "sign 不能为空");
-        requireNotNull(request, "请求体不能为空");
+        requireNotBlank(rawBody, "请求体不能为空");
+
+        SeventeenTrackWebhookRequest request;
+        try {
+            request = objectMapper.readValue(rawBody, SeventeenTrackWebhookRequest.class);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalParamException("WebHook 请求体不是合法 JSON", exception);
+        }
         request.validate();
 
-        String rawBody;
-        try {
-            rawBody = objectMapper.writeValueAsString(request);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("序列化 WebHook 请求体失败", e);
-        }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("event", request.getEvent());
         payload.put("data", request.getData());

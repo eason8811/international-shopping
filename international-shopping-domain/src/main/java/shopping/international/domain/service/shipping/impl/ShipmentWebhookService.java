@@ -88,6 +88,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
                 eventTime,
                 sourceRef,
                 carrierCode,
+                rawBody,
                 payload
         );
         shipmentRepository.applyTrackingEvent(shipment.getId(), event);
@@ -102,6 +103,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
      * @param eventTime   事件时间
      * @param sourceRef   来源引用
      * @param carrierCode 运输商代码
+     * @param rawBody     原始请求体
      * @param payload     原始报文
      * @return 轨迹事件
      */
@@ -111,6 +113,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
                                                               @Nullable LocalDateTime eventTime,
                                                               @NotNull String sourceRef,
                                                               @Nullable String carrierCode,
+                                                              @NotNull String rawBody,
                                                               @NotNull Map<String, Object> payload) {
         String note = subStatus == null || subStatus.isBlank()
                 ? "17Track 未返回 sub_status, 仅记录日志"
@@ -125,6 +128,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
                     trackingNo,
                     note,
                     payload,
+                    rawBody,
                     null
             );
         }
@@ -139,6 +143,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
                     trackingNo,
                     note,
                     payload,
+                    rawBody,
                     null
             );
         }
@@ -153,6 +158,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
                     trackingNo,
                     note,
                     payload,
+                    rawBody,
                     null
             );
         }
@@ -168,6 +174,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
                     trackingNo,
                     note,
                     payload,
+                    rawBody,
                     null
             );
         }
@@ -181,6 +188,7 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
                 trackingNo,
                 note,
                 payload,
+                rawBody,
                 null
         );
     }

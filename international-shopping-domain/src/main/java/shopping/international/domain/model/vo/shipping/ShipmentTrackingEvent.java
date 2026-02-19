@@ -13,9 +13,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
-import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 物流轨迹事件值对象
@@ -66,6 +64,11 @@ public final class ShipmentTrackingEvent implements Verifiable {
     @Nullable
     private Map<String, Object> rawPayload;
     /**
+     * 原始报文文本, 用于保真落库 (如 WebHook 原始 JSON)
+     */
+    @Nullable
+    private final String rawPayloadText;
+    /**
      * 操作者用户 ID
      */
     @Nullable
@@ -82,6 +85,7 @@ public final class ShipmentTrackingEvent implements Verifiable {
      * @param trackingNo  追踪号
      * @param note        备注
      * @param rawPayload  原始报文
+     * @param rawPayloadText 原始报文文本
      * @param actorUserId 操作者用户 ID
      */
     private ShipmentTrackingEvent(@Nullable ShipmentStatus toStatus,
@@ -92,6 +96,7 @@ public final class ShipmentTrackingEvent implements Verifiable {
                                   @Nullable String trackingNo,
                                   @Nullable String note,
                                   @Nullable Map<String, Object> rawPayload,
+                                  @Nullable String rawPayloadText,
                                   @Nullable Long actorUserId) {
         this.toStatus = toStatus;
         this.eventTime = eventTime;
@@ -101,6 +106,7 @@ public final class ShipmentTrackingEvent implements Verifiable {
         this.trackingNo = trackingNo;
         this.note = note;
         this.rawPayload = rawPayload;
+        this.rawPayloadText = rawPayloadText;
         this.actorUserId = actorUserId;
     }
 
@@ -127,9 +133,48 @@ public final class ShipmentTrackingEvent implements Verifiable {
                                                    @Nullable String note,
                                                    @Nullable Map<String, Object> rawPayload,
                                                    @Nullable Long actorUserId) {
+        return transition(
+                toStatus,
+                eventTime,
+                sourceType,
+                sourceRef,
+                carrierCode,
+                trackingNo,
+                note,
+                rawPayload,
+                null,
+                actorUserId
+        );
+    }
+
+    /**
+     * 创建状态推进事件
+     *
+     * @param toStatus    目标状态
+     * @param eventTime   事件时间
+     * @param sourceType  来源类型
+     * @param sourceRef   来源引用
+     * @param carrierCode 承运商编码
+     * @param trackingNo  追踪号
+     * @param note        备注
+     * @param rawPayload  原始报文
+     * @param rawPayloadText 原始报文文本
+     * @param actorUserId 操作者用户 ID
+     * @return 物流轨迹事件值对象
+     */
+    public static ShipmentTrackingEvent transition(ShipmentStatus toStatus,
+                                                   @Nullable LocalDateTime eventTime,
+                                                   ShipmentStatusEventSource sourceType,
+                                                   String sourceRef,
+                                                   @Nullable String carrierCode,
+                                                   @Nullable String trackingNo,
+                                                   @Nullable String note,
+                                                   @Nullable Map<String, Object> rawPayload,
+                                                   @Nullable String rawPayloadText,
+                                                   @Nullable Long actorUserId) {
         ShipmentTrackingEvent event = new ShipmentTrackingEvent(
                 toStatus, eventTime, sourceType, sourceRef,
-                carrierCode, trackingNo, note, rawPayload, actorUserId
+                carrierCode, trackingNo, note, rawPayload, rawPayloadText, actorUserId
         );
         event.validate();
         return event;
@@ -156,9 +201,45 @@ public final class ShipmentTrackingEvent implements Verifiable {
                                                     @Nullable String note,
                                                     @Nullable Map<String, Object> rawPayload,
                                                     @Nullable Long actorUserId) {
+        return keepCurrent(
+                eventTime,
+                sourceType,
+                sourceRef,
+                carrierCode,
+                trackingNo,
+                note,
+                rawPayload,
+                null,
+                actorUserId
+        );
+    }
+
+    /**
+     * 创建仅记录日志的事件
+     *
+     * @param eventTime   事件时间
+     * @param sourceType  来源类型
+     * @param sourceRef   来源引用
+     * @param carrierCode 承运商编码
+     * @param trackingNo  追踪号
+     * @param note        备注
+     * @param rawPayload  原始报文
+     * @param rawPayloadText 原始报文文本
+     * @param actorUserId 操作者用户 ID
+     * @return 物流轨迹事件值对象
+     */
+    public static ShipmentTrackingEvent keepCurrent(@Nullable LocalDateTime eventTime,
+                                                    ShipmentStatusEventSource sourceType,
+                                                    String sourceRef,
+                                                    @Nullable String carrierCode,
+                                                    @Nullable String trackingNo,
+                                                    @Nullable String note,
+                                                    @Nullable Map<String, Object> rawPayload,
+                                                    @Nullable String rawPayloadText,
+                                                    @Nullable Long actorUserId) {
         ShipmentTrackingEvent event = new ShipmentTrackingEvent(
                 null, eventTime, sourceType, sourceRef,
-                carrierCode, trackingNo, note, rawPayload, actorUserId);
+                carrierCode, trackingNo, note, rawPayload, rawPayloadText, actorUserId);
         event.validate();
         return event;
     }
@@ -184,6 +265,8 @@ public final class ShipmentTrackingEvent implements Verifiable {
 
         if (rawPayload != null)
             rawPayload = Collections.unmodifiableMap(new LinkedHashMap<>(rawPayload));
+        if (rawPayloadText != null)
+            require(!rawPayloadText.isBlank(), "rawPayloadText 不能为空白");
 
         if (actorUserId != null)
             require(actorUserId > 0, "actorUserId 必须大于 0");

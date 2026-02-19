@@ -514,7 +514,7 @@ public class Shipment implements Verifiable {
                             persistedId, fromStatus, fromStatus,
                             effectiveEventTime, event.getSourceType(), event.getSourceRef(),
                             event.getCarrierCode(), event.getTrackingNo(), event.getNote(),
-                            event.getRawPayload(), event.getActorUserId()
+                            event.getRawPayload(), event.getRawPayloadText(), event.getActorUserId()
                     )
             );
 
@@ -524,7 +524,7 @@ public class Shipment implements Verifiable {
                             persistedId, fromStatus, targetStatus,
                             effectiveEventTime, event.getSourceType(), event.getSourceRef(),
                             event.getCarrierCode(), event.getTrackingNo(), event.getNote(),
-                            event.getRawPayload(), event.getActorUserId()
+                            event.getRawPayload(), event.getRawPayloadText(), event.getActorUserId()
                     )
             );
 
@@ -551,7 +551,7 @@ public class Shipment implements Verifiable {
                         persistedId, fromStatus, targetStatus,
                         effectiveEventTime, event.getSourceType(), event.getSourceRef(),
                         event.getCarrierCode(), event.getTrackingNo(), event.getNote(),
-                        event.getRawPayload(), event.getActorUserId()
+                        event.getRawPayload(), event.getRawPayloadText(), event.getActorUserId()
                 )
         );
     }

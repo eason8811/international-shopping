@@ -15,10 +15,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
-import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 物流状态流转日志实体
@@ -84,6 +81,11 @@ public class ShipmentStatusLog implements Verifiable {
     @Nullable
     private Map<String, Object> rawPayload;
     /**
+     * 原始报文文本, 用于保真落库 (如 WebHook 原始 JSON)
+     */
+    @Nullable
+    private String rawPayloadText;
+    /**
      * 操作者用户 ID
      */
     @Nullable
@@ -107,6 +109,7 @@ public class ShipmentStatusLog implements Verifiable {
      * @param trackingNo 追踪号
      * @param note 备注
      * @param rawPayload 原始报文
+     * @param rawPayloadText 原始报文文本
      * @param actorUserId 操作者用户 ID
      * @param createdAt 写入时间
      */
@@ -121,6 +124,7 @@ public class ShipmentStatusLog implements Verifiable {
                               @Nullable String trackingNo,
                               @Nullable String note,
                               @Nullable Map<String, Object> rawPayload,
+                              @Nullable String rawPayloadText,
                               @Nullable Long actorUserId,
                               LocalDateTime createdAt) {
         this.id = id;
@@ -134,6 +138,7 @@ public class ShipmentStatusLog implements Verifiable {
         this.trackingNo = trackingNo;
         this.note = note;
         this.rawPayload = rawPayload;
+        this.rawPayloadText = rawPayloadText;
         this.actorUserId = actorUserId;
         this.createdAt = createdAt;
     }
@@ -165,9 +170,55 @@ public class ShipmentStatusLog implements Verifiable {
                                            @Nullable String note,
                                            @Nullable Map<String, Object> rawPayload,
                                            @Nullable Long actorUserId) {
+        return create(
+                shipmentId,
+                fromStatus,
+                toStatus,
+                eventTime,
+                sourceType,
+                sourceRef,
+                carrierCode,
+                trackingNo,
+                note,
+                rawPayload,
+                null,
+                actorUserId
+        );
+    }
+
+    /**
+     * 创建新的物流状态日志
+     *
+     * @param shipmentId 物流单 ID
+     * @param fromStatus 变更前状态
+     * @param toStatus 变更后状态
+     * @param eventTime 事件发生时间
+     * @param sourceType 事件来源类型
+     * @param sourceRef 来源引用
+     * @param carrierCode 承运商编码
+     * @param trackingNo 追踪号
+     * @param note 备注
+     * @param rawPayload 原始报文
+     * @param rawPayloadText 原始报文文本
+     * @param actorUserId 操作者用户 ID
+     * @return 新建日志实体
+     */
+    public static ShipmentStatusLog create(Long shipmentId,
+                                           @Nullable ShipmentStatus fromStatus,
+                                           ShipmentStatus toStatus,
+                                           @Nullable LocalDateTime eventTime,
+                                           ShipmentStatusEventSource sourceType,
+                                           String sourceRef,
+                                           @Nullable String carrierCode,
+                                           @Nullable String trackingNo,
+                                           @Nullable String note,
+                                           @Nullable Map<String, Object> rawPayload,
+                                           @Nullable String rawPayloadText,
+                                           @Nullable Long actorUserId) {
         ShipmentStatusLog log = new ShipmentStatusLog(null, shipmentId, fromStatus, toStatus, eventTime,
                 sourceType, sourceRef, carrierCode, trackingNo, note,
                 rawPayload == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(rawPayload)),
+                rawPayloadText,
                 actorUserId, LocalDateTime.now());
         log.validate();
         return log;
@@ -204,9 +255,61 @@ public class ShipmentStatusLog implements Verifiable {
                                                  @Nullable Map<String, Object> rawPayload,
                                                  @Nullable Long actorUserId,
                                                  LocalDateTime createdAt) {
+        return reconstitute(
+                id,
+                shipmentId,
+                fromStatus,
+                toStatus,
+                eventTime,
+                sourceType,
+                sourceRef,
+                carrierCode,
+                trackingNo,
+                note,
+                rawPayload,
+                null,
+                actorUserId,
+                createdAt
+        );
+    }
+
+    /**
+     * 从持久化层重建物流状态日志
+     *
+     * @param id 主键 ID
+     * @param shipmentId 物流单 ID
+     * @param fromStatus 变更前状态
+     * @param toStatus 变更后状态
+     * @param eventTime 事件发生时间
+     * @param sourceType 事件来源类型
+     * @param sourceRef 来源引用
+     * @param carrierCode 承运商编码
+     * @param trackingNo 追踪号
+     * @param note 备注
+     * @param rawPayload 原始报文
+     * @param rawPayloadText 原始报文文本
+     * @param actorUserId 操作者用户 ID
+     * @param createdAt 写入时间
+     * @return 重建后的日志实体
+     */
+    public static ShipmentStatusLog reconstitute(Long id,
+                                                 Long shipmentId,
+                                                 @Nullable ShipmentStatus fromStatus,
+                                                 ShipmentStatus toStatus,
+                                                 @Nullable LocalDateTime eventTime,
+                                                 ShipmentStatusEventSource sourceType,
+                                                 String sourceRef,
+                                                 @Nullable String carrierCode,
+                                                 @Nullable String trackingNo,
+                                                 @Nullable String note,
+                                                 @Nullable Map<String, Object> rawPayload,
+                                                 @Nullable String rawPayloadText,
+                                                 @Nullable Long actorUserId,
+                                                 LocalDateTime createdAt) {
         ShipmentStatusLog log = new ShipmentStatusLog(id, shipmentId, fromStatus, toStatus, eventTime,
                 sourceType, sourceRef, carrierCode, trackingNo, note,
                 rawPayload == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(rawPayload)),
+                rawPayloadText,
                 actorUserId, createdAt);
         log.validate();
         return log;
@@ -244,6 +347,8 @@ public class ShipmentStatusLog implements Verifiable {
         note = normalizeNullableField(note, "note 不能为空",
                 value -> value.length() <= 255,
                 "note 长度不能超过 255 个字符");
+        if (rawPayloadText != null)
+            require(!rawPayloadText.isBlank(), "rawPayloadText 不能为空白");
         if (actorUserId != null)
             require(actorUserId > 0, "actorUserId 必须大于 0");
         requireNotNull(createdAt, "createdAt 不能为空");

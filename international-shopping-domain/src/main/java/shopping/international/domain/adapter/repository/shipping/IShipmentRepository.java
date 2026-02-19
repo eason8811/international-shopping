@@ -19,6 +19,15 @@ import java.util.Optional;
 public interface IShipmentRepository {
 
     /**
+     * 回填面单结果
+     *
+     * @param shipment 回填后的物流单
+     * @param replayed 是否命中幂等重放
+     */
+    record FillLabelResult(@NotNull Shipment shipment, boolean replayed) {
+    }
+
+    /**
      * 查询用户侧订单关联物流单详情列表
      *
      * @param userId      用户主键
@@ -27,9 +36,7 @@ public interface IShipmentRepository {
      * @return 物流单详情列表
      */
     @NotNull
-    List<Shipment> listUserOrderShipments(@NotNull Long userId,
-                                                    @NotNull OrderNo orderNo,
-                                                    boolean includeLogs);
+    List<Shipment> listUserOrderShipments(@NotNull Long userId, @NotNull OrderNo orderNo, boolean includeLogs);
 
     /**
      * 查询用户侧物流单详情
@@ -39,8 +46,7 @@ public interface IShipmentRepository {
      * @return 物流单详情, 不存在时为空
      */
     @NotNull
-    Optional<Shipment> findUserShipmentDetail(@NotNull Long userId,
-                                                        @NotNull ShipmentNo shipmentNo);
+    Optional<Shipment> findUserShipmentDetail(@NotNull Long userId, @NotNull ShipmentNo shipmentNo);
 
     /**
      * 管理侧分页查询物流单摘要
@@ -50,8 +56,7 @@ public interface IShipmentRepository {
      * @return 分页结果
      */
     @NotNull
-    PageResult<ShipmentSummaryView> pageShipments(@NotNull ShipmentPageCriteria criteria,
-                                                  @NotNull PageQuery pageQuery);
+    PageResult<ShipmentSummaryView> pageShipments(@NotNull ShipmentPageCriteria criteria, @NotNull PageQuery pageQuery);
 
     /**
      * 管理侧按主键查询物流单详情
@@ -61,8 +66,7 @@ public interface IShipmentRepository {
      * @return 物流单详情, 不存在时为空
      */
     @NotNull
-    Optional<Shipment> findShipmentDetailById(@NotNull Long shipmentId,
-                                                        boolean includeLogs);
+    Optional<Shipment> findShipmentDetailById(@NotNull Long shipmentId, boolean includeLogs);
 
     /**
      * 按追踪号查询物流单详情
@@ -72,8 +76,7 @@ public interface IShipmentRepository {
      * @return 物流单详情, 不存在时为空
      */
     @NotNull
-    Optional<Shipment> findShipmentDetailByTrackingNo(@NotNull String trackingNo,
-                                                                boolean includeLogs);
+    Optional<Shipment> findShipmentDetailByTrackingNo(@NotNull String trackingNo, boolean includeLogs);
 
     /**
      * 管理侧分页查询物流状态日志
@@ -83,8 +86,7 @@ public interface IShipmentRepository {
      * @return 分页结果
      */
     @NotNull
-    PageResult<ShipmentStatusLog> pageStatusLogs(@NotNull ShipmentStatusLogPageCriteria criteria,
-                                                 @NotNull PageQuery pageQuery);
+    PageResult<ShipmentStatusLog> pageStatusLogs(@NotNull ShipmentStatusLogPageCriteria criteria, @NotNull PageQuery pageQuery);
 
     /**
      * 回填物流面单, 并记录状态日志
@@ -99,13 +101,13 @@ public interface IShipmentRepository {
      * @return 更新后的物流单
      */
     @NotNull
-    Shipment fillLabel(@NotNull Long shipmentId,
-                       @NotNull ShipmentLabel label,
-                       @NotNull Integer shipFromAddressId,
-                       @NotNull String idempotencyKey,
-                       @NotNull String sourceRef,
-                       @Nullable Long actorUserId,
-                       @Nullable String note);
+    FillLabelResult fillLabel(@NotNull Long shipmentId,
+                              @NotNull ShipmentLabel label,
+                              @NotNull Integer shipFromAddressId,
+                              @NotNull String idempotencyKey,
+                              @NotNull String sourceRef,
+                              @Nullable Long actorUserId,
+                              @Nullable String note);
 
     /**
      * 批量发货, 每个物流单统一通过聚合 applyTrackingEvent 推进状态
@@ -144,7 +146,7 @@ public interface IShipmentRepository {
      * @param event      轨迹事件
      */
     void applyTrackingEvent(@NotNull Long shipmentId,
-                                @NotNull ShipmentTrackingEvent event);
+                            @NotNull ShipmentTrackingEvent event);
 
     /**
      * PAID 订单补建占位物流单, 用于支付链路或补偿任务
