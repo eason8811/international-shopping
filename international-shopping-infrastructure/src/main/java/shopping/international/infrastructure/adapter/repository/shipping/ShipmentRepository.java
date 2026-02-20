@@ -494,24 +494,20 @@ public class ShipmentRepository implements IShipmentRepository {
         if (!OrderStatus.PAID.name().equals(order.getStatus()))
             throw new ConflictException("仅已支付订单允许手工补建物流单");
 
-        ShipmentPO existing = shipmentMapper.selectOne(new LambdaQueryWrapper<ShipmentPO>()
-                .eq(ShipmentPO::getOrderId, order.getId())
-                .last("limit 1"));
-        if (existing != null) {
-            if (existing.getIdempotencyKey() != null && existing.getIdempotencyKey().equals(requestIdempotencyKey))
-                return assembleDetail(existing, true);
-            throw new ConflictException("订单已存在关联物流单");
-        }
+        ShipmentPO existingReplay = findShipmentByOrderAndIdempotencyKey(order.getId(), requestIdempotencyKey);
+        if (existingReplay != null)
+            return assembleDetail(existingReplay, true);
 
         String sourceRef = "admin:shipment:manual:create:" + requestIdempotencyKey;
-        Shipment shipment = ensurePlaceholderForPaidOrder(
+        Shipment shipment = createPlaceholderForPaidOrder(
                 order.getId(),
                 order.getOrderNo(),
                 requestIdempotencyKey,
                 sourceRef,
                 ShipmentStatusEventSource.MANUAL,
                 command.getNote(),
-                actorUserId
+                actorUserId,
+                false
         );
         if (shipment.getId() == null)
             throw new NotFoundException("占位物流单 ID 缺失");
@@ -608,14 +604,51 @@ public class ShipmentRepository implements IShipmentRepository {
                                                            @NotNull ShipmentStatusEventSource sourceType,
                                                            @Nullable String note,
                                                            @Nullable Long actorUserId) {
+        return createPlaceholderForPaidOrder(
+                orderId,
+                orderNo,
+                shipmentIdempotencyKey,
+                sourceRef,
+                sourceType,
+                note,
+                actorUserId,
+                true
+        );
+    }
+
+    /**
+     * 创建或复用 PAID 订单占位物流单
+     *
+     * @param orderId                  订单主键
+     * @param orderNo                  订单号
+     * @param shipmentIdempotencyKey   物流单幂等键
+     * @param sourceRef                状态日志来源引用
+     * @param sourceType               状态日志来源类型
+     * @param note                     状态日志备注
+     * @param actorUserId              操作者主键
+     * @param reuseAnyShipmentForOrder true 表示允许复用订单下任意物流单
+     * @return 创建或复用后的物流单
+     */
+    private @NotNull Shipment createPlaceholderForPaidOrder(@NotNull Long orderId,
+                                                            @NotNull String orderNo,
+                                                            @NotNull String shipmentIdempotencyKey,
+                                                            @NotNull String sourceRef,
+                                                            @NotNull ShipmentStatusEventSource sourceType,
+                                                            @Nullable String note,
+                                                            @Nullable Long actorUserId,
+                                                            boolean reuseAnyShipmentForOrder) {
         requireNotBlank(orderNo, "orderNo 不能为空");
         requireNotBlank(shipmentIdempotencyKey, "shipmentIdempotencyKey 不能为空");
 
-        ShipmentPO existing = shipmentMapper.selectOne(new LambdaQueryWrapper<ShipmentPO>()
-                .eq(ShipmentPO::getOrderId, orderId)
-                .last("limit 1"));
-        if (existing != null)
-            return assembleDetail(existing, true);
+        ShipmentPO byIdempotency = findShipmentByOrderAndIdempotencyKey(orderId, shipmentIdempotencyKey);
+        if (byIdempotency != null)
+            return assembleDetail(byIdempotency, true);
+
+        if (reuseAnyShipmentForOrder) {
+            ShipmentPO existing = findAnyShipmentByOrderId(orderId);
+            if (existing != null)
+                return assembleDetail(existing, true);
+        }
 
         OrdersPO order = ordersMapper.selectById(orderId);
         if (order == null)
@@ -651,22 +684,15 @@ public class ShipmentRepository implements IShipmentRepository {
         try {
             shipmentMapper.insert(shipmentPO);
         } catch (DuplicateKeyException duplicateKeyException) {
-            ShipmentPO byIdempotency = shipmentMapper.selectOne(
-                    new LambdaQueryWrapper<ShipmentPO>()
-                            .eq(ShipmentPO::getOrderId, orderId)
-                            .eq(ShipmentPO::getIdempotencyKey, shipmentIdempotencyKey)
-                            .last("limit 1")
-            );
-            if (byIdempotency != null)
-                return assembleDetail(byIdempotency, true);
+            ShipmentPO duplicatedByIdempotency = findShipmentByOrderAndIdempotencyKey(orderId, shipmentIdempotencyKey);
+            if (duplicatedByIdempotency != null)
+                return assembleDetail(duplicatedByIdempotency, true);
 
-            ShipmentPO byOrder = shipmentMapper.selectOne(
-                    new LambdaQueryWrapper<ShipmentPO>()
-                            .eq(ShipmentPO::getOrderId, orderId)
-                            .last("limit 1")
-            );
-            if (byOrder != null)
-                return assembleDetail(byOrder, true);
+            if (reuseAnyShipmentForOrder) {
+                ShipmentPO byOrder = findAnyShipmentByOrderId(orderId);
+                if (byOrder != null)
+                    return assembleDetail(byOrder, true);
+            }
             throw duplicateKeyException;
         }
 
@@ -692,6 +718,39 @@ public class ShipmentRepository implements IShipmentRepository {
         insertStatusLogIgnoreDuplicate(createdLog);
 
         return shipment;
+    }
+
+    /**
+     * 按订单和幂等键查询物流单
+     *
+     * @param orderId        订单主键
+     * @param idempotencyKey 幂等键
+     * @return 物流单行
+     */
+    private @Nullable ShipmentPO findShipmentByOrderAndIdempotencyKey(@NotNull Long orderId,
+                                                                      @NotNull String idempotencyKey) {
+        return shipmentMapper.selectOne(
+                new LambdaQueryWrapper<ShipmentPO>()
+                        .eq(ShipmentPO::getOrderId, orderId)
+                        .eq(ShipmentPO::getIdempotencyKey, idempotencyKey)
+                        .orderByDesc(ShipmentPO::getId)
+                        .last("limit 1")
+        );
+    }
+
+    /**
+     * 按订单查询任意物流单
+     *
+     * @param orderId 订单主键
+     * @return 物流单行
+     */
+    private @Nullable ShipmentPO findAnyShipmentByOrderId(@NotNull Long orderId) {
+        return shipmentMapper.selectOne(
+                new LambdaQueryWrapper<ShipmentPO>()
+                        .eq(ShipmentPO::getOrderId, orderId)
+                        .orderByDesc(ShipmentPO::getId)
+                        .last("limit 1")
+        );
     }
 
     /**
@@ -1135,7 +1194,7 @@ public class ShipmentRepository implements IShipmentRepository {
         return ShipmentPO.builder()
                 .shipmentNo(ShipmentNo.generate().getValue())
                 .orderId(orderId)
-                .idempotencyKey("paid-auto-" + orderId)
+                .idempotencyKey(buildPaidOrderPlaceholderIdempotencyKey(orderId))
                 .status(ShipmentStatus.CREATED.name())
                 .shipFrom(null)
                 .shipTo(toJsonOrNull(buildShipTo(order)))
@@ -1143,6 +1202,16 @@ public class ShipmentRepository implements IShipmentRepository {
                 .currency(order.getCurrency())
                 .customsInfo(toJsonOrNull(CustomsInfoSnapshot.empty().getExtra()))
                 .build();
+    }
+
+    /**
+     * 生成支付成功占位物流单幂等键
+     *
+     * @param orderId 订单主键
+     * @return 幂等键
+     */
+    private @NotNull String buildPaidOrderPlaceholderIdempotencyKey(@NotNull Long orderId) {
+        return "shipment-placeholder-" + orderId;
     }
 
     /**

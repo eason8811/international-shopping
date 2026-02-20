@@ -844,7 +844,7 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
             shipmentRepository.ensurePlaceholderForPaidOrder(
                     orderId,
                     orderNo,
-                    "payment-paid-" + orderId,
+                    "shipment-placeholder-" + orderId,
                     "payment-paid-" + orderId,
                     ShipmentStatusEventSource.API,
                     "订单支付成功后创建占位物流单",

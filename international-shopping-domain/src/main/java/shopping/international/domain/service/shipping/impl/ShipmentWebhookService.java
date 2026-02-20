@@ -14,10 +14,12 @@ import shopping.international.domain.model.enums.shipping.ShipmentStatusEventSou
 import shopping.international.domain.model.vo.shipping.ShipmentTrackingEvent;
 import shopping.international.domain.service.shipping.IShipmentWebhookService;
 import shopping.international.types.config.SeventeenTrackProperties;
+import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -57,41 +59,68 @@ public class ShipmentWebhookService implements IShipmentWebhookService {
     public void handleSeventeenTrackWebhook(@NotNull String signHeader,
                                             @NotNull String rawBody,
                                             @NotNull Map<String, Object> payload) {
+        Duration replayTtl = resolveReplayTtl();
         String dedupeKey = "17track:webhook:" + sha256(rawBody);
-        seventeenTrackPort.verifyWebhookAndReplayProtection(
-                new ISeventeenTrackPort.VerifyWebhookCommand(signHeader, rawBody, dedupeKey, properties.getReplayTtl())
+        ISeventeenTrackPort.WebhookGateResult gateResult = seventeenTrackPort.verifyWebhookAndTryEnterProcessing(
+                new ISeventeenTrackPort.VerifyWebhookCommand(signHeader, rawBody, dedupeKey, replayTtl)
         );
-
-        List<Map<String, Object>> eventDataList = extractEventDataList(payload);
-        if (eventDataList.isEmpty())
+        if (gateResult == ISeventeenTrackPort.WebhookGateResult.ALREADY_PROCESSED)
             return;
+        if (gateResult == ISeventeenTrackPort.WebhookGateResult.PROCESSING)
+            throw new ConflictException("17Track WebHook 事件处理中, 请重试");
 
-        String trackingNo = nestedString(payload, "data", "number");
-        String sourceRef = "17track:" + sha256(rawBody);
+        try {
+            List<Map<String, Object>> eventDataList = extractEventDataList(payload);
+            if (eventDataList.isEmpty()) {
+                seventeenTrackPort.markWebhookProcessed(dedupeKey, replayTtl);
+                return;
+            }
 
-        if (trackingNo == null || trackingNo.isBlank())
-            throw new IllegalParamException("WebHook 回调中缺失物流单号");
-        Optional<Shipment> shipmentOptional = shipmentRepository.findShipmentDetailByTrackingNo(trackingNo, true);
-        if (shipmentOptional.isEmpty() || shipmentOptional.get().getId() == null)
-            return;
-        Shipment shipment = shipmentOptional.get();
-        String subStatus = nestedString(payload, "data", "track_info", "latest_status", "sub_status");
-        LocalDateTime eventTime = LocalDateTime.now();
-        String iso = nestedString(payload, "data", "track_info", "latest_event", "time_iso");
-        if (iso != null && !iso.isBlank())
-            eventTime = OffsetDateTime.parse(iso.strip()).toLocalDateTime();
-        String carrierCode = nestedString(payload, "data", "carrier");
-        ShipmentTrackingEvent event = buildTrackingEvent(
-                shipment,
-                subStatus,
-                trackingNo,
-                eventTime,
-                sourceRef,
-                carrierCode,
-                rawBody,
-                payload
-        );
-        shipmentRepository.applyTrackingEvent(shipment.getId(), event);
+            String trackingNo = nestedString(payload, "data", "number");
+            String sourceRef = "17track:" + sha256(rawBody);
+
+            if (trackingNo == null || trackingNo.isBlank())
+                throw new IllegalParamException("WebHook 回调中缺失物流单号");
+            Optional<Shipment> shipmentOptional = shipmentRepository.findShipmentDetailByTrackingNo(trackingNo, true);
+            if (shipmentOptional.isEmpty() || shipmentOptional.get().getId() == null) {
+                seventeenTrackPort.markWebhookProcessed(dedupeKey, replayTtl);
+                return;
+            }
+
+            Shipment shipment = shipmentOptional.get();
+            String subStatus = nestedString(payload, "data", "track_info", "latest_status", "sub_status");
+            LocalDateTime eventTime = LocalDateTime.now();
+            String iso = nestedString(payload, "data", "track_info", "latest_event", "time_iso");
+            if (iso != null && !iso.isBlank())
+                eventTime = OffsetDateTime.parse(iso.strip()).toLocalDateTime();
+            String carrierCode = nestedString(payload, "data", "carrier");
+            ShipmentTrackingEvent event = buildTrackingEvent(
+                    shipment,
+                    subStatus,
+                    trackingNo,
+                    eventTime,
+                    sourceRef,
+                    carrierCode,
+                    rawBody,
+                    payload
+            );
+            shipmentRepository.applyTrackingEvent(shipment.getId(), event);
+            seventeenTrackPort.markWebhookProcessed(dedupeKey, replayTtl);
+        } catch (Exception exception) {
+            seventeenTrackPort.clearWebhookProcessing(dedupeKey);
+            throw exception;
+        }
+    }
+
+    /**
+     * 解析 WebHook 重放保护 TTL
+     *
+     * @return 重放保护 TTL
+     */
+    private @NotNull Duration resolveReplayTtl() {
+        if (properties.getReplayTtl() == null || properties.getReplayTtl().isNegative() || properties.getReplayTtl().isZero())
+            return Duration.ofDays(4);
+        return properties.getReplayTtl();
     }
 
     /**

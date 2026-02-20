@@ -16,7 +16,10 @@ import shopping.international.domain.service.shipping.IAdminShipmentService;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.NotFoundException;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -99,7 +102,9 @@ public class AdminShipmentService implements IAdminShipmentService {
         String trackingNo = shipment.getTrackingNo();
         require(trackingNo != null && !trackingNo.isBlank(), "trackingNo 不能为空");
 
-        String registerSuccessSourceRef = sourceRef + ":17track:registered";
+        String trackingDigest = shortTrackingDigest(trackingNo);
+        String registerSuccessSourceRef = "shipment:" + shipmentId + ":17track:registered:" + trackingDigest;
+        String registerOpIdempotencyKey = "shipment:" + shipmentId + ":17track:register:" + trackingDigest;
         boolean hasRegisterSuccessLog = hasApiLog(shipment, registerSuccessSourceRef);
 
         // 重放场景且已有“注册成功”标记时, 直接返回同一结果
@@ -113,7 +118,7 @@ public class AdminShipmentService implements IAdminShipmentService {
                         new ISeventeenTrackPort.RegisterTrackingCommand(
                                 trackingNo,
                                 shipment.getCarrierCode(),
-                                idempotencyKey
+                                registerOpIdempotencyKey
                         )
                 );
             } catch (Exception exception) {
@@ -129,7 +134,7 @@ public class AdminShipmentService implements IAdminShipmentService {
                             shipment.getCarrierCode(),
                             trackingNo,
                             "17Track 注册单号成功",
-                            Map.of("idempotency_key", idempotencyKey),
+                            Map.of("idempotency_key", registerOpIdempotencyKey),
                             actorUserId
                     )
             );
@@ -214,5 +219,22 @@ public class AdminShipmentService implements IAdminShipmentService {
         return shipment.getStatusLogList().stream()
                 .anyMatch(log -> log.getSourceType() == ShipmentStatusEventSource.API
                         && Objects.equals(log.getSourceRef(), sourceRef));
+    }
+
+    /**
+     * 计算追踪号短摘要, 用于构造稳定的来源引用
+     *
+     * @param trackingNo 追踪号
+     * @return 短摘要
+     */
+    private static @NotNull String shortTrackingDigest(@NotNull String trackingNo) {
+        require(!trackingNo.isBlank(), "trackingNo 不能为空");
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            String hex = HexFormat.of().formatHex(digest.digest(trackingNo.getBytes(StandardCharsets.UTF_8)));
+            return hex.substring(0, 16);
+        } catch (Exception exception) {
+            throw new IllegalStateException("计算 trackingNo 摘要失败, " + exception.getMessage(), exception);
+        }
     }
 }

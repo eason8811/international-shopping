@@ -11,6 +11,24 @@ import java.time.Duration;
 public interface ISeventeenTrackPort {
 
     /**
+     * WebHook 事件处理门禁结果
+     */
+    enum WebhookGateResult {
+        /**
+         * 首次事件, 当前请求应继续处理业务
+         */
+        SHOULD_PROCESS,
+        /**
+         * 事件已处理完成, 当前请求应直接幂等成功返回
+         */
+        ALREADY_PROCESSED,
+        /**
+         * 事件正在被其他请求处理, 当前请求应等待重试
+         */
+        PROCESSING
+    }
+
+    /**
      * 向 17Track 注册运单
      *
      * @param command 注册命令
@@ -18,11 +36,29 @@ public interface ISeventeenTrackPort {
     void registerTracking(@NotNull RegisterTrackingCommand command);
 
     /**
-     * WebHook 验签并防重放
+     * WebHook 验签并尝试进入处理态
      *
      * @param command 验签命令
+     * @return 门禁结果
      */
-    void verifyWebhookAndReplayProtection(@NotNull VerifyWebhookCommand command);
+    @NotNull
+    WebhookGateResult verifyWebhookAndTryEnterProcessing(@NotNull VerifyWebhookCommand command);
+
+    /**
+     * 标记 WebHook 事件处理完成
+     *
+     * @param dedupeKey 去重键
+     * @param doneTtl 完成态 TTL
+     */
+    void markWebhookProcessed(@NotNull String dedupeKey,
+                              @NotNull Duration doneTtl);
+
+    /**
+     * 清理 WebHook 处理态
+     *
+     * @param dedupeKey 去重键
+     */
+    void clearWebhookProcessing(@NotNull String dedupeKey);
 
     /**
      * 17Track 注册运单命令
