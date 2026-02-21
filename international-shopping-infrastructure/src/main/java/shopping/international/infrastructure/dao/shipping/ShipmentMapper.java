@@ -121,6 +121,17 @@ public interface ShipmentMapper extends BaseMapper<ShipmentPO> {
     ShipmentPO selectDetailByTrackingNo(@Param("trackingNo") String trackingNo);
 
     /**
+     * 按订单与幂等键查询物流单, 使用当前读避免 RR 快照漏读
+     */
+    ShipmentPO selectByOrderAndIdempotencyKeyForUpdate(@Param("orderId") Long orderId,
+                                                       @Param("idempotencyKey") String idempotencyKey);
+
+    /**
+     * 按订单查询任意物流单, 使用当前读避免 RR 快照漏读
+     */
+    ShipmentPO selectAnyByOrderIdForUpdate(@Param("orderId") Long orderId);
+
+    /**
      * 按物流单主键集合查询详情, 联表加载 shipment_item
      */
     List<ShipmentPO> selectDetailWithItemsByShipmentIds(@Param("shipmentIds") List<Long> shipmentIds);

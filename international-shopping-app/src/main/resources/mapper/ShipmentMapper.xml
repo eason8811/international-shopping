@@ -329,6 +329,29 @@
         LIMIT 1
     </select>
 
+    <select id="selectByOrderAndIdempotencyKeyForUpdate" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentPO">
+        SELECT
+        <include refid="BaseShipmentSelect"/>
+        FROM shipment s
+                 LEFT JOIN orders o ON o.id = s.order_id
+        WHERE s.order_id = #{orderId}
+          AND s.idempotency_key = #{idempotencyKey}
+        ORDER BY s.id DESC
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <select id="selectAnyByOrderIdForUpdate" resultType="shopping.international.infrastructure.dao.shipping.po.ShipmentPO">
+        SELECT
+        <include refid="BaseShipmentSelect"/>
+        FROM shipment s
+                 LEFT JOIN orders o ON o.id = s.order_id
+        WHERE s.order_id = #{orderId}
+        ORDER BY s.id DESC
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
     <select id="selectDetailWithItemsByShipmentIds" resultMap="ShipmentDetailWithItemsMap">
         SELECT
                <include refid="BaseShipmentSelect"/>,

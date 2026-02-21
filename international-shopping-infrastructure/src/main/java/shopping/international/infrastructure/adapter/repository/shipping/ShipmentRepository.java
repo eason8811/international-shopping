@@ -630,12 +630,12 @@ public class ShipmentRepository implements IShipmentRepository {
         try {
             shipmentMapper.insert(shipmentPO);
         } catch (DuplicateKeyException duplicateKeyException) {
-            ShipmentPO duplicatedByIdempotency = findShipmentByOrderAndIdempotencyKey(orderId, shipmentIdempotencyKey);
+            ShipmentPO duplicatedByIdempotency = shipmentMapper.selectByOrderAndIdempotencyKeyForUpdate(orderId, shipmentIdempotencyKey);
             if (duplicatedByIdempotency != null)
                 return assembleDetail(duplicatedByIdempotency, true);
 
             if (reuseAnyShipmentForOrder) {
-                ShipmentPO byOrder = findAnyShipmentByOrderId(orderId);
+                ShipmentPO byOrder = shipmentMapper.selectAnyByOrderIdForUpdate(orderId);
                 if (byOrder != null)
                     return assembleDetail(byOrder, true);
             }
