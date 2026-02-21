@@ -455,6 +455,30 @@
         </foreach>
     </update>
 
+    <update id="batchUpdateStatusWithCasAndGate">
+        UPDATE shipment s
+        JOIN (
+            <foreach collection="items" item="item" separator=" UNION ALL ">
+                SELECT
+                    #{item.shipmentId} AS shipment_id,
+                    #{item.oldStatus} AS old_status,
+                    #{item.newStatus} AS new_status,
+                    #{item.sourceType} AS source_type,
+                    #{item.sourceRef} AS source_ref
+            </foreach>
+        ) t ON t.shipment_id = s.id
+        JOIN shipment_status_log l
+          ON l.shipment_id = t.shipment_id
+         AND l.source_type = t.source_type
+         AND l.source_ref = t.source_ref
+         AND t.old_status = s.status
+        SET s.status = t.new_status
+        WHERE s.id IN
+        <foreach collection="items" item="item" open="(" separator="," close=")">
+            #{item.shipmentId}
+        </foreach>
+    </update>
+
     <update id="tryAdvanceOrderToFulfilled">
         UPDATE orders o
         SET o.status = 'FULFILLED'

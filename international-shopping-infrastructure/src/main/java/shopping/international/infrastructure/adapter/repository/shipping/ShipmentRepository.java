@@ -55,7 +55,6 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotBl
 @Repository
 @RequiredArgsConstructor
 public class ShipmentRepository implements IShipmentRepository {
-
     /**
      * shipment Mapper
      */
@@ -300,13 +299,6 @@ public class ShipmentRepository implements IShipmentRepository {
 
         Shipment shipment = findShipmentDetailById(shipmentId, true)
                 .orElseThrow(() -> new NotFoundException("物流单不存在"));
-        ShipmentStatusLog existingLog = shipment.getStatusLogList().stream()
-                .filter(log -> log.getSourceType() == ShipmentStatusEventSource.API
-                        && Objects.equals(log.getSourceRef(), sourceRef))
-                .findFirst()
-                .orElse(null);
-        if (existingLog != null)
-            return new FillLabelResult(shipment, true);
 
         ShipmentStatus oldStatus = shipment.getStatus();
         LocalDateTime oldUpdatedAt = shipment.getUpdatedAt();
@@ -331,19 +323,13 @@ public class ShipmentRepository implements IShipmentRepository {
         shipment.bindAddressSnapshots(shipFrom, shipment.getShipTo());
 
         ShipmentStatusLog appendedLog = shipment.applyTrackingEvent(event);
-        int updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
-        if (updated <= 0) {
-            Shipment reloaded = findShipmentDetailById(shipmentId, true)
-                    .orElseThrow(() -> new ConflictException("物流单并发更新失败"));
-            boolean hasLog = reloaded.getStatusLogList().stream()
-                    .anyMatch(log -> log.getSourceType() == ShipmentStatusEventSource.API
-                            && Objects.equals(log.getSourceRef(), sourceRef));
-            if (!hasLog)
-                throw new ConflictException("物流单并发更新失败");
-            return new FillLabelResult(reloaded, true);
-        }
+        boolean acquired = tryInsertStatusLogGate(appendedLog);
+        if (!acquired)
+            return new FillLabelResult(shipment, true);
 
-        insertStatusLogIgnoreDuplicate(appendedLog);
+        int updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
+        if (updated <= 0)
+            throw new ConflictException("物流单并发更新失败");
         Shipment reloaded = findShipmentDetailById(shipmentId, true)
                 .orElseThrow(() -> new ConflictException("物流单回读失败"));
         return new FillLabelResult(reloaded, false);
@@ -367,14 +353,16 @@ public class ShipmentRepository implements IShipmentRepository {
                                             @NotNull String note,
                                             @Nullable Long actorUserId) {
         require(!shipmentIds.isEmpty(), "shipmentIds 不能为空");
-        List<Long> dedupIds = shipmentIds.stream().filter(Objects::nonNull).distinct().toList();
-        Map<Long, ShipmentPO> detailMap = loadShipmentDetailsByIds(dedupIds, true);
-        if (detailMap.size() != dedupIds.size())
+        List<Long> responseOrderIds = shipmentIds.stream().filter(Objects::nonNull).distinct().toList();
+        require(!responseOrderIds.isEmpty(), "shipmentIds 不能为空");
+        List<Long> processOrderIds = responseOrderIds.stream().sorted().toList();
+        Map<Long, ShipmentPO> detailMap = loadShipmentDetailsByIds(processOrderIds, true);
+        if (detailMap.size() != processOrderIds.size())
             throw new NotFoundException("物流单不存在");
 
         List<ShipmentDispatchStatusCasPO> casRows = new ArrayList<>();
-        List<ShipmentStatusLogPO> logPos = new ArrayList<>();
-        for (Long shipmentId : dedupIds) {
+        List<ShipmentStatusLogPO> logRows = new ArrayList<>();
+        for (Long shipmentId : processOrderIds) {
             ShipmentPO detailRow = detailMap.get(shipmentId);
             if (detailRow == null)
                 throw new NotFoundException("物流单不存在");
@@ -406,61 +394,27 @@ public class ShipmentRepository implements IShipmentRepository {
                             .shipmentId(shipmentId)
                             .oldStatus(oldStatus.name())
                             .newStatus(shipment.getStatus().name())
+                            .sourceType(ShipmentStatusEventSource.MANUAL.name())
+                            .sourceRef(rowSourceRef)
                             .build()
             );
-            logPos.add(toStatusLogPO(appendedLog));
+            logRows.add(toStatusLogPO(appendedLog));
         }
 
         if (!casRows.isEmpty()) {
-            int updated = shipmentMapper.batchUpdateStatusWithCas(casRows);
-            if (updated != casRows.size()) {
-                Map<Long, ShipmentPO> reloadedMap = loadShipmentDetailsByIds(dedupIds, true);
-                if (reloadedMap.size() != dedupIds.size())
-                    throw new ConflictException("物流单并发更新失败");
+            int insertedLogs = shipmentStatusLogMapper.batchInsert(logRows);
+            int duplicateLogs = casRows.size() - insertedLogs;
 
-                boolean allReplayed = true;
-                for (Long shipmentId : dedupIds) {
-                    ShipmentPO reloadedRow = reloadedMap.get(shipmentId);
-                    if (reloadedRow == null) {
-                        allReplayed = false;
-                        break;
-                    }
-                    Shipment reloaded = toShipment(
-                            reloadedRow,
-                            detailItems(reloadedRow),
-                            detailLogs(reloadedRow)
-                    );
-                    String rowSourceRef = sourceRef + ":" + shipmentId;
-                    boolean hasLog = reloaded.getStatusLogList().stream()
-                            .anyMatch(log -> log.getSourceType() == ShipmentStatusEventSource.MANUAL
-                                    && Objects.equals(log.getSourceRef(), rowSourceRef));
-                    if (!hasLog) {
-                        allReplayed = false;
-                        break;
-                    }
-                }
-                if (!allReplayed)
-                    throw new ConflictException("物流单并发更新失败");
-
-                return dedupIds.stream()
-                        .map(id -> {
-                            ShipmentPO row = reloadedMap.get(id);
-                            if (row == null)
-                                throw new ConflictException("物流单回读失败");
-                            return toShipment(row, detailItems(row), detailLogs(row));
-                        })
-                        .toList();
-            }
+            int updated = shipmentMapper.batchUpdateStatusWithCasAndGate(casRows);
+            if (updated + duplicateLogs != casRows.size())
+                throw new ConflictException("物流单并发更新失败");
         }
 
-        if (!logPos.isEmpty())
-            shipmentStatusLogMapper.batchInsert(logPos);
-
-        Map<Long, ShipmentPO> finalMap = loadShipmentDetailsByIds(dedupIds, true);
-        if (finalMap.size() != dedupIds.size())
+        Map<Long, ShipmentPO> finalMap = loadShipmentDetailsByIds(processOrderIds, true);
+        if (finalMap.size() != processOrderIds.size())
             throw new ConflictException("物流单回读失败");
 
-        return dedupIds.stream()
+        return responseOrderIds.stream()
                 .map(id -> {
                     ShipmentPO row = finalMap.get(id);
                     if (row == null)
@@ -563,24 +517,16 @@ public class ShipmentRepository implements IShipmentRepository {
         LocalDateTime oldUpdatedAt = shipment.getUpdatedAt();
 
         ShipmentStatusLog appendedLog = shipment.applyTrackingEvent(event);
-        int updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
-        if (updated <= 0) {
-            Shipment reloaded = findShipmentDetailById(shipmentId, true)
-                    .orElseThrow(() -> new ConflictException("物流单并发更新失败"));
-            boolean hasLog = reloaded.getStatusLogList().stream()
-                    .anyMatch(log -> log.getSourceType() == event.getSourceType()
-                            && Objects.equals(log.getSourceRef(), event.getSourceRef()));
-            if (!hasLog)
-                throw new ConflictException("物流单并发更新失败");
-        }
+        boolean acquired = tryInsertStatusLogGate(appendedLog);
+        if (!acquired)
+            return;
 
-        insertStatusLogIgnoreDuplicate(appendedLog);
+        int updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
+        if (updated <= 0)
+            throw new ConflictException("物流单并发更新失败");
 
         if (shipment.getOrderId() != null && shipment.getStatus() == ShipmentStatus.DELIVERED)
             tryAdvanceOrderToFulfilled(shipment.getOrderId());
-
-        findShipmentDetailById(shipmentId, true)
-                .orElseThrow(() -> new ConflictException("物流单回读失败"));
     }
 
     /**
@@ -1160,6 +1106,21 @@ public class ShipmentRepository implements IShipmentRepository {
             shipmentStatusLogMapper.insert(toStatusLogPO(statusLog));
         } catch (DuplicateKeyException ignore) {
             // 去重索引命中时视为幂等成功
+        }
+    }
+
+    /**
+     * 尝试插入状态日志作为并发闸门
+     *
+     * @param statusLog 状态日志实体
+     * @return true 表示当前事务获得执行权
+     */
+    private boolean tryInsertStatusLogGate(@NotNull ShipmentStatusLog statusLog) {
+        try {
+            shipmentStatusLogMapper.insert(toStatusLogPO(statusLog));
+            return true;
+        } catch (DuplicateKeyException ignore) {
+            return false;
         }
     }
 

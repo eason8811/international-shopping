@@ -159,4 +159,9 @@ public interface ShipmentMapper extends BaseMapper<ShipmentPO> {
      * 批量按旧状态 CAS 更新物流单状态
      */
     int batchUpdateStatusWithCas(@Param("items") List<ShipmentDispatchStatusCasPO> items);
+
+    /**
+     * 批量按旧状态 CAS 更新物流单状态, 且要求命中状态日志闸门
+     */
+    int batchUpdateStatusWithCasAndGate(@Param("items") List<ShipmentDispatchStatusCasPO> items);
 }

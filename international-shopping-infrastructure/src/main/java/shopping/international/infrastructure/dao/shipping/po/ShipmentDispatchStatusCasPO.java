@@ -26,4 +26,12 @@ public class ShipmentDispatchStatusCasPO {
      * 目标新状态
      */
     private String newStatus;
+    /**
+     * 闸门来源类型
+     */
+    private String sourceType;
+    /**
+     * 闸门来源引用
+     */
+    private String sourceRef;
 }
