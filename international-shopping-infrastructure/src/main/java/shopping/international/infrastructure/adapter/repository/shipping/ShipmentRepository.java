@@ -586,6 +586,14 @@ public class ShipmentRepository implements IShipmentRepository {
         requireNotBlank(orderNo, "orderNo 不能为空");
         requireNotBlank(shipmentIdempotencyKey, "shipmentIdempotencyKey 不能为空");
 
+        OrdersPO order = ordersMapper.selectOne(new LambdaQueryWrapper<OrdersPO>()
+                .eq(OrdersPO::getId, orderId)
+                .last("limit 1 for update"));
+        if (order == null)
+            throw new NotFoundException("订单不存在");
+        if (!OrderStatus.PAID.name().equals(order.getStatus()))
+            throw new ConflictException("仅已支付订单允许创建占位物流单");
+
         ShipmentPO byIdempotency = findShipmentByOrderAndIdempotencyKey(orderId, shipmentIdempotencyKey);
         if (byIdempotency != null)
             return assembleDetail(byIdempotency, true);
@@ -595,12 +603,6 @@ public class ShipmentRepository implements IShipmentRepository {
             if (existing != null)
                 return assembleDetail(existing, true);
         }
-
-        OrdersPO order = ordersMapper.selectById(orderId);
-        if (order == null)
-            throw new NotFoundException("订单不存在");
-        if (!OrderStatus.PAID.name().equals(order.getStatus()))
-            throw new ConflictException("仅已支付订单允许创建占位物流单");
 
         List<OrderItemPO> orderItems = orderItemMapper.selectList(new LambdaQueryWrapper<OrderItemPO>()
                 .eq(OrderItemPO::getOrderId, orderId)
@@ -630,12 +632,12 @@ public class ShipmentRepository implements IShipmentRepository {
         try {
             shipmentMapper.insert(shipmentPO);
         } catch (DuplicateKeyException duplicateKeyException) {
-            ShipmentPO duplicatedByIdempotency = shipmentMapper.selectByOrderAndIdempotencyKeyForUpdate(orderId, shipmentIdempotencyKey);
+            ShipmentPO duplicatedByIdempotency = findShipmentByOrderAndIdempotencyKey(orderId, shipmentIdempotencyKey);
             if (duplicatedByIdempotency != null)
                 return assembleDetail(duplicatedByIdempotency, true);
 
             if (reuseAnyShipmentForOrder) {
-                ShipmentPO byOrder = shipmentMapper.selectAnyByOrderIdForUpdate(orderId);
+                ShipmentPO byOrder = findAnyShipmentByOrderId(orderId);
                 if (byOrder != null)
                     return assembleDetail(byOrder, true);
             }

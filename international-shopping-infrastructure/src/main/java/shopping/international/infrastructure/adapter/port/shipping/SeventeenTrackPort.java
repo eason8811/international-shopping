@@ -1,6 +1,7 @@
 package shopping.international.infrastructure.adapter.port.shipping;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.ResponseBody;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -29,6 +30,7 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
 /**
  * 17Track 端口实现, 基于 Retrofit 和 Redis
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @EnableConfigurationProperties(SeventeenTrackProperties.class)
@@ -98,7 +100,11 @@ public class SeventeenTrackPort implements ISeventeenTrackPort {
         if (!acquired) {
             if (hasRedisKey(doneKey))
                 return;
-            throw new ConflictException("17Track 注册运单处理中, 请稍后重试");
+            if (hasRedisKey(processingKey)) {
+                log.warn("17Track 注册运单处理中...");
+                return;
+            }
+            throw new ConflictException("17Track 注册运单抢占失败");
         }
 
         String url = properties.getBaseUrl() + REGISTER_PATH;
