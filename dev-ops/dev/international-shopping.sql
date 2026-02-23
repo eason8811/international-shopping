@@ -1051,7 +1051,7 @@ CREATE TABLE shipping_claim
 -- 6.1 客服工单（售后/异常/理赔/补寄等统一入口）
 /*
 uk_ticket_no：对外/对内统一的工单编号（雪花/ULID），便于定位与对账
-uk_ticket_open_dedupe：(order_id, shipment_id, issue_type, open_only) 保证同一订单/包裹、同一问题类型在“进行中”仅有一张工单（避免并发重复）
+uk_ticket_open_dedupe：(user_id, order_id_nvl, shipment_id_nvl, issue_type, open_only) 保证同一用户在同一订单/包裹、同一问题类型下“进行中”仅有一张工单（避免并发重复；规避NULL绕过）
 idx_ticket_user：用户侧列表
 idx_ticket_order / idx_ticket_shipment / idx_ticket_orderitem：从订单/包裹/明细反查工单
 idx_ticket_status_update：(status, updated_at) 轮询/看板扫描
@@ -1099,6 +1099,14 @@ CREATE TABLE cs_ticket
     resolved_at             DATETIME(3)                            NULL COMMENT '标记解决时间',
     closed_at               DATETIME(3)                            NULL COMMENT '关闭时间',
 
+    -- 去重辅助键（修复NULL参与唯一键时的绕过问题）
+    order_id_nvl            BIGINT UNSIGNED AS (IFNULL(order_id, 0)) STORED,
+    shipment_id_nvl         BIGINT UNSIGNED AS (IFNULL(shipment_id, 0)) STORED,
+    open_only               TINYINT AS (CASE
+                                            WHEN status IN
+                                                 ('OPEN', 'IN_PROGRESS', 'AWAITING_USER', 'AWAITING_CARRIER', 'ON_HOLD')
+                                                THEN 1 END) STORED,
+
     source_ref              VARCHAR(128)                           NULL COMMENT '来源引用ID(如回调/任务run_id/请求id)',
     extra                   JSON                                   NULL COMMENT '扩展字段(冗余业务信息/调试)',
 
@@ -1108,13 +1116,8 @@ CREATE TABLE cs_ticket
     PRIMARY KEY (id),
     UNIQUE KEY uk_ticket_no (ticket_no),
 
-    -- 仅对“进行中”状态做去重: 一个订单/包裹×问题类型，仅允许一张开放工单
-    open_only               TINYINT AS (CASE
-                                            WHEN status IN
-                                                 ('OPEN', 'IN_PROGRESS', 'AWAITING_USER', 'AWAITING_CARRIER', 'ON_HOLD')
-                                                THEN 1
-                                            ELSE NULL END) STORED,
-    UNIQUE KEY uk_ticket_open_dedupe (order_id, shipment_id, issue_type, open_only),
+    -- 仅对“进行中”状态做去重: 同一用户 + 同一订单/包裹 × 问题类型，仅允许一张开放工单
+    UNIQUE KEY uk_ticket_open_dedupe (user_id, order_id_nvl, shipment_id_nvl, issue_type, open_only),
     KEY idx_ticket_user (user_id, created_at),
     KEY idx_ticket_order (order_id),
     KEY idx_ticket_orderitem (order_item_id),
@@ -1127,7 +1130,117 @@ CREATE TABLE cs_ticket
     CHECK (requested_refund_amount IS NULL OR requested_refund_amount > 0)
 ) ENGINE = InnoDB COMMENT ='客服工单(售后/异常/理赔/补寄统一入口)';
 
--- 6.2 补发单（登记补发记录）
+-- 6.2 工单参与方（会话成员/已读位点）
+/*
+uk_ticket_participant：同一工单内，同类参与方 + 同一用户仅保留一条“活跃成员”记录
+idx_participant_user_active：按用户查其参与中的工单（用户侧/坐席侧列表）
+idx_participant_ticket：加载某工单全部参与方
+*/
+CREATE TABLE cs_ticket_participant
+(
+    id                      BIGINT UNSIGNED                                    NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    ticket_id               BIGINT UNSIGNED                                    NOT NULL COMMENT '工单ID, 指向 cs_ticket.id',
+    participant_type        ENUM ('USER','AGENT','MERCHANT','SYSTEM','BOT')    NOT NULL COMMENT '参与方类型',
+    participant_user_id     BIGINT UNSIGNED                                    NULL COMMENT '参与用户ID, 指向 user_account.id; SYSTEM/BOT可空',
+    role                    ENUM ('OWNER','ASSIGNEE','COLLABORATOR','WATCHER') NOT NULL DEFAULT 'OWNER' COMMENT '工单内角色',
+    joined_at               DATETIME(3)                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '加入时间',
+    left_at                 DATETIME(3)                                        NULL COMMENT '退出时间(空=仍在会话中)',
+    last_read_message_id    BIGINT UNSIGNED                                    NULL COMMENT '最后已读消息ID, 指向 cs_ticket_message.id',
+    last_read_at            DATETIME(3)                                        NULL COMMENT '最后已读时间',
+    created_at              DATETIME(3)                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at              DATETIME(3)                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    participant_user_id_nvl BIGINT UNSIGNED AS (IFNULL(participant_user_id, 0)) STORED,
+    active_only             TINYINT AS (CASE WHEN left_at IS NULL THEN 1 END) STORED,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_ticket_participant (ticket_id, participant_type, participant_user_id_nvl, active_only),
+    KEY idx_participant_user_active (participant_user_id, left_at, ticket_id),
+    KEY idx_participant_ticket (ticket_id)
+) ENGINE = InnoDB COMMENT ='工单参与方(成员/角色/已读位点)';
+
+-- 6.3 工单消息（用户-客服实时会话）
+/*
+uk_msg_no：消息编号唯一（雪花/ULID）
+uk_msg_client_dedupe：客户端消息ID幂等（弱网重试防重）
+idx_msg_ticket_time：按工单时间线加载消息
+idx_msg_sender_time：按发送方检索消息
+CHECK：消息至少包含文本或附件之一
+*/
+CREATE TABLE cs_ticket_message
+(
+    id                 BIGINT UNSIGNED                                    NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    message_no         CHAR(26)                                           NOT NULL COMMENT '消息编号(ULID/雪花等)',
+    ticket_id          BIGINT UNSIGNED                                    NOT NULL COMMENT '工单ID, 指向 cs_ticket.id',
+    sender_type        ENUM ('USER','AGENT','MERCHANT','SYSTEM','BOT')    NOT NULL COMMENT '发送方类型',
+    sender_user_id     BIGINT UNSIGNED                                    NULL COMMENT '发送用户ID, 指向 user_account.id; SYSTEM/BOT可空',
+    message_type       ENUM ('TEXT','IMAGE','FILE','SYSTEM_EVENT','RICH') NOT NULL DEFAULT 'TEXT' COMMENT '消息类型',
+    content            VARCHAR(4000)                                      NULL COMMENT '消息内容(文本/系统提示文案)',
+    attachments        JSON                                               NULL COMMENT '附件列表(JSON, 图片/文件等)',
+    metadata           JSON                                               NULL COMMENT '扩展元数据(JSON)',
+    client_message_id  VARCHAR(64)                                        NULL COMMENT '客户端消息ID(用于幂等重试)',
+    sent_at            DATETIME(3)                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '发送时间',
+    edited_at          DATETIME(3)                                        NULL COMMENT '编辑时间',
+    recalled_at        DATETIME(3)                                        NULL COMMENT '撤回时间',
+    created_at         DATETIME(3)                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at         DATETIME(3)                                        NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    sender_user_id_nvl BIGINT UNSIGNED AS (IFNULL(sender_user_id, 0)) STORED,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_msg_no (message_no),
+    UNIQUE KEY uk_msg_client_dedupe (ticket_id, sender_type, sender_user_id_nvl, client_message_id),
+    KEY idx_msg_ticket_time (ticket_id, sent_at, id),
+    KEY idx_msg_sender_time (sender_user_id, sent_at),
+    CHECK (content IS NOT NULL OR attachments IS NOT NULL)
+) ENGINE = InnoDB COMMENT ='工单消息(用户与客服会话)';
+
+-- 6.4 工单状态流转日志（状态机审计）
+/*
+idx_tsl_ticket_time：按工单回放状态时间线
+idx_tsl_to_status：按目标状态统计与筛查
+idx_tsl_actor：按操作者排查
+*/
+CREATE TABLE cs_ticket_status_log
+(
+    id            BIGINT UNSIGNED                                             NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    ticket_id     BIGINT UNSIGNED                                             NOT NULL COMMENT '工单ID, 指向 cs_ticket.id',
+    from_status   ENUM ('OPEN','IN_PROGRESS','AWAITING_USER','AWAITING_CARRIER','ON_HOLD','RESOLVED','REJECTED','CLOSED')
+                                                                              NULL COMMENT '变更前状态',
+    to_status     ENUM ('OPEN','IN_PROGRESS','AWAITING_USER','AWAITING_CARRIER','ON_HOLD','RESOLVED','REJECTED','CLOSED')
+                                                                              NOT NULL COMMENT '变更后状态',
+    actor_type    ENUM ('USER','AGENT','MERCHANT','SYSTEM','SCHEDULER','API') NOT NULL COMMENT '操作者类型',
+    actor_user_id BIGINT UNSIGNED                                             NULL COMMENT '操作者用户ID, 系统动作可空',
+    source_ref    VARCHAR(128)                                                NULL COMMENT '来源引用ID(请求id/任务run_id等)',
+    note          VARCHAR(255)                                                NULL COMMENT '变更说明',
+    created_at    DATETIME(3)                                                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_tsl_ticket_time (ticket_id, created_at),
+    KEY idx_tsl_to_status (to_status, created_at),
+    KEY idx_tsl_actor (actor_user_id, created_at)
+) ENGINE = InnoDB COMMENT ='工单状态流转日志';
+
+-- 6.5 工单指派日志（转派/认领审计）
+/*
+idx_tal_ticket_time：按工单回放指派历史
+idx_tal_to_assignee：按被指派用户检索
+idx_tal_actor：按操作者排查
+*/
+CREATE TABLE cs_ticket_assignment_log
+(
+    id                    BIGINT UNSIGNED                                             NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    ticket_id             BIGINT UNSIGNED                                             NOT NULL COMMENT '工单ID, 指向 cs_ticket.id',
+    from_assignee_user_id BIGINT UNSIGNED                                             NULL COMMENT '原指派用户ID, 指向 user_account.id',
+    to_assignee_user_id   BIGINT UNSIGNED                                             NULL COMMENT '新指派用户ID, 指向 user_account.id',
+    action_type           ENUM ('ASSIGN','REASSIGN','UNASSIGN','AUTO_ASSIGN')         NOT NULL COMMENT '指派动作',
+    actor_type            ENUM ('USER','AGENT','MERCHANT','SYSTEM','SCHEDULER','API') NOT NULL COMMENT '操作者类型',
+    actor_user_id         BIGINT UNSIGNED                                             NULL COMMENT '操作者用户ID',
+    source_ref            VARCHAR(128)                                                NULL COMMENT '来源引用ID(请求id/任务run_id等)',
+    note                  VARCHAR(255)                                                NULL COMMENT '备注',
+    created_at            DATETIME(3)                                                 NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_tal_ticket_time (ticket_id, created_at),
+    KEY idx_tal_to_assignee (to_assignee_user_id, created_at),
+    KEY idx_tal_actor (actor_user_id, created_at)
+) ENGINE = InnoDB COMMENT ='工单指派日志';
+
+-- 6.6 补发单（登记补发记录）
 /*
 uk_reship_no：对外/对内统一的补发单编号（雪花/ULID）
 idx_reship_order：从订单反查补发单
@@ -1154,7 +1267,7 @@ CREATE TABLE aftersales_reship
     KEY idx_reship_ticket (ticket_id)
 ) ENGINE = InnoDB COMMENT ='售后补发单(登记补发记录)';
 
--- 6.3 补发明细（基于原订单明细做数量维度的补发）
+-- 6.7 补发明细（基于原订单明细做数量维度的补发）
 /*
 uk_reship_item_once：同一补发单内，同一订单明细只允许出现一次
 idx_reship_item_reship：从补发单反查明细
@@ -1175,7 +1288,7 @@ CREATE TABLE aftersales_reship_item
     CHECK (quantity > 0)
 ) ENGINE = InnoDB COMMENT ='售后补发单明细';
 
--- 6.4 补发-包裹 关联（一个补发单可产生1..N个shipment）
+-- 6.8 补发-包裹 关联（一个补发单可产生1..N个shipment）
 /*
 uk_reship_one_shipment：一个包裹只能被一个补发单关联
 idx_reship_ship_reship：从补发单反查包裹
@@ -1232,5 +1345,4 @@ CREATE TABLE locale
     KEY idx_locale_enabled (enabled),
     CHECK (code REGEXP '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$')
 ) ENGINE = InnoDB COMMENT ='站点语言字典';
-
 
