@@ -1120,14 +1120,14 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: 7e8bcdee-6881-401a-9971-7ca708c98ad
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzEwNjQ3Niwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzM2NTY3NiwiaWF0IjoxNzYzMTA2NDc2LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.6BFtB4yqxifPEHnXpGmOyivAeIwI-jYioQcSwG46q-Y
           schema:
@@ -1135,7 +1135,7 @@ paths:
         - name: X-CSRF-Token
           in: header
           description: ''
-          required: false
+          required: true
           example: 7e8bcdee-6881-401a-9971-7ca708c98ad
           schema:
             type: string
@@ -1335,7 +1335,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzEwNjQ3Niwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzM2NTY3NiwiaWF0IjoxNzYzMTA2NDc2LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.6BFtB4yqxifPEHnXpGmOyivAeIwI-jYioQcSwG46q-Y
           schema:
@@ -1355,8 +1355,9 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateAccountRequest'
             example:
-              nickname: leila-user_02
-              phone: +81-80-0000-0000
+              nickname: Eason Chen
+              phone_country_code: '81'
+              phone_national_number: '8000000000'
         required: true
       responses:
         '200':
@@ -1544,7 +1545,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzEzMDgyMSwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzM5MDAyMSwiaWF0IjoxNzYzMTMwODIxLCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.6XhbpzXUd8ab51yqL-v08SiOZbQXNj_SvLcfoudyYfg
           schema:
@@ -1626,7 +1627,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
           schema:
@@ -1841,14 +1842,14 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: f3e4918d-2804-4dfa-9501-54fbf0852747
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
           schema:
@@ -1856,7 +1857,7 @@ paths:
         - name: X-CSRF-Token
           in: header
           description: ''
-          required: false
+          required: true
           example: f3e4918d-2804-4dfa-9501-54fbf0852747
           schema:
             type: string
@@ -2041,7 +2042,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
           schema:
@@ -2251,12 +2252,26 @@ paths:
         - user/Bindings
         - Bindings
       parameters:
+        - name: csrf_token
+          in: cookie
+          description: ''
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
+          schema:
+            type: string
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: ''
+          required: true
+          example: f3e4918d-2804-4dfa-9501-54fbf0852747
           schema:
             type: string
       responses:
@@ -2441,7 +2456,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzE4ODE5OCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzQ0NzM5OCwiaWF0IjoxNzYzMTg4MTk4LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.KlnJlxWr87a8JBlqxxQn5O50jdvrsmNt92mZ0O-8auw
           schema:
@@ -2470,7 +2485,7 @@ paths:
         - name: redirectUrl
           in: query
           description: ''
-          required: false
+          required: true
           example: https://shopping.mynatapp.cc/api/v1/users/me
           schema:
             type: string
@@ -2623,7 +2638,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NyIsInVpZCI6OTcsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzQ4MDE3Mywicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzczOTM3MywiaWF0IjoxNzYzNDgwMTczLCJlbWFpbCI6ImVhc29uODg4MTFAZ21haWwuY29tIiwidXNlcm5hbWUiOiJnb29nbGVfMTE4MTQ4NTU2MDk0MTE1NTk0ODI4In0.cwVNYBgiCjsD0jPIXFI7FImy2cGgo0lDWzsclaEs3c0
           schema:
@@ -2705,14 +2720,14 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
@@ -2721,20 +2736,20 @@ paths:
           in: query
           description: 页码
           required: false
-          example: '1'
+          example: 1
           schema:
-            type: string
+            type: integer
         - name: size
           in: query
           description: 每页个数
           required: false
-          example: '5'
+          example: 5
           schema:
-            type: string
+            type: integer
         - name: X-CSRF-Token
           in: header
           description: ''
-          required: false
+          required: true
           example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
@@ -2905,7 +2920,7 @@ paths:
         - name: csrf_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
@@ -2914,7 +2929,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
@@ -2922,7 +2937,7 @@ paths:
         - name: Idempotency-Key
           in: header
           description: 幂等键（建议对创建类接口提供，格式 UUID）
-          required: false
+          required: true
           example: '{{$string.uuid}}'
           schema:
             type: string
@@ -2931,7 +2946,7 @@ paths:
         - name: X-CSRF-Token
           in: header
           description: ''
-          required: false
+          required: true
           example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
@@ -2944,7 +2959,8 @@ paths:
               $ref: '#/components/schemas/CreateAddressRequest'
             example:
               receiver_name: 张三
-              phone: +81-90-1234-5678
+              phone_country_code: '81'
+              phone_national_number: '9012345678'
               country: JP
               province: Tokyo
               city: Shinjuku
@@ -3309,7 +3325,7 @@ paths:
         - name: csrf_token
           in: cookie
           description: 双提交 CSRF Cookie。必须与 Header `X-CSRF-Token` 等值
-          required: false
+          required: true
           example: c3c30828-0116-44d0-a5b5-72bef425b973
           schema:
             type: string
@@ -3318,7 +3334,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzMwMTQyNCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzU2MDYyNCwiaWF0IjoxNzYzMzAxNDI0LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.rjWq0GVyuwFQaZ90M3gYEywvO6chu709ZaArpdOxOwI
           schema:
@@ -3335,7 +3351,7 @@ paths:
         - name: X-CSRF-Token
           in: header
           description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
-          required: false
+          required: true
           example: c3c30828-0116-44d0-a5b5-72bef425b973
           schema:
             type: string
@@ -3554,7 +3570,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzMwMTQyNCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzU2MDYyNCwiaWF0IjoxNzYzMzAxNDI0LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.rjWq0GVyuwFQaZ90M3gYEywvO6chu709ZaArpdOxOwI
           schema:
@@ -3632,7 +3648,7 @@ paths:
         - name: access_token
           in: cookie
           description: ''
-          required: false
+          required: true
           example: >-
             eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5NiIsInVpZCI6OTYsImF1ZCI6IndlYiIsIm5iZiI6MTc2MzMwMTQyNCwicm9sZXMiOiJVU0VSIiwiaXNzIjoic2hvcHBpbmcuaW50ZXJuYXRpb25hbCIsInR5cCI6ImFjY2VzcyIsImV4cCI6MTc2MzU2MDYyNCwiaWF0IjoxNzYzMzAxNDI0LCJlbWFpbCI6ImxlaWxhOTQ2ODU1NUBnbWFpbC5jb20iLCJ1c2VybmFtZSI6ImxlaWxhLXVzZXJfMDEifQ.rjWq0GVyuwFQaZ90M3gYEywvO6chu709ZaArpdOxOwI
           schema:
@@ -3858,6 +3874,9 @@ components:
         - account
         - password
       properties:
+        country_code:
+          type: string
+          description: 手机国家码，account 为手机号时需要传
         account:
           type: string
           description: 用户名 / 邮箱 / 手机号其一
@@ -3869,6 +3888,7 @@ components:
           examples:
             - Passw0rd!
       x-apifox-orders:
+        - country_code
         - account
         - password
       x-apifox-ignore-properties: []
@@ -3989,6 +4009,11 @@ components:
         - phone_country_code
         - address_line1
         - phone_national_number
+        - country
+        - province
+        - city
+        - district
+        - zipcode
       properties:
         receiver_name:
           type: string
@@ -4001,27 +4026,19 @@ components:
         phone_national_number:
           type: string
         country:
-          type:
-            - string
-            - 'null'
+          type: string
           examples:
             - JP
         province:
-          type:
-            - string
-            - 'null'
+          type: string
           examples:
             - Tokyo
         city:
-          type:
-            - string
-            - 'null'
+          type: string
           examples:
             - Shinjuku
         district:
-          type:
-            - string
-            - 'null'
+          type: string
           examples:
             - Nishi-Shinjuku
         address_line1:
@@ -4035,9 +4052,7 @@ components:
           examples:
             - Room 901
         zipcode:
-          type:
-            - string
-            - 'null'
+          type: string
           examples:
             - 160-0023
         is_default:
@@ -4161,10 +4176,12 @@ components:
             - 'null'
           examples:
             - +81-80-0000-0000
+          description: phone_country_code 和 phone_national_number 必须同时传或同时为空
         phone_national_number:
           type:
             - string
             - 'null'
+          description: phone_country_code 和 phone_national_number 必须同时传或同时为空
       x-apifox-orders:
         - nickname
         - phone_country_code
@@ -4178,7 +4195,6 @@ components:
         - password
         - email
         - nickname
-        - phone_national_number
       properties:
         username:
           type: string
@@ -4187,7 +4203,7 @@ components:
         password:
           type: string
           format: password
-          minLength: 6
+          minLength: 8
           examples:
             - Passw0rd!
         nickname:
@@ -4205,10 +4221,14 @@ components:
             - 'null'
           examples:
             - '86'
+          description: phone_country_code 和 phone_national_number 必须同时传或同时为空
         phone_national_number:
-          type: string
+          type:
+            - string
+            - 'null'
           examples:
             - '13800135767'
+          description: phone_country_code 和 phone_national_number 必须同时传或同时为空
       x-apifox-orders:
         - username
         - password
@@ -4244,11 +4264,10 @@ components:
         - account
         - code
         - new_password
-        - country_code
       properties:
         country_code:
           type: string
-          description: 手机号国家码
+          description: 手机号国家码，account 为手机号时需要传
         account:
           type: string
           description: 用户名 / 邮箱 / 手机号其一

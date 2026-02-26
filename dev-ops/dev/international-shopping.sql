@@ -1252,6 +1252,7 @@ CREATE TABLE aftersales_reship
     reship_no     CHAR(26)                        NOT NULL COMMENT '补发单号(ULID/雪花)',
     order_id      BIGINT UNSIGNED                 NOT NULL COMMENT '原订单ID, 指向 orders.id',
     ticket_id     BIGINT UNSIGNED                 NULL COMMENT '关联客服工单, 指向 cs_ticket.id',
+    shipment_id   BIGINT UNSIGNED                 NOT NULL COMMENT '原物流单 ID, 指向 shipment.id',
     reason_code   ENUM ('LOST','DAMAGED','OTHER') NOT NULL DEFAULT 'OTHER' COMMENT '补发原因',
     status        ENUM ('INIT','APPROVED','FULFILLING','FULFILLED','CANCELLED')
                                                   NOT NULL DEFAULT 'INIT' COMMENT '补发状态',

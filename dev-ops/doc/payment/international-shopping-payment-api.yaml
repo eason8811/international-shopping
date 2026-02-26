@@ -63,33 +63,34 @@ paths:
         - payment/Payments
         - Payments
       parameters:
-        - name: access_token
-          in: cookie
-          description: 会话访问令牌（HttpOnly Cookie）
-          required: true
-          example: ''
-          schema:
-            type: string
         - name: csrf_token
           in: cookie
-          description: CSRF Cookie（双提交）
+          description: ''
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
-        - name: Idempotency-Key
-          in: header
-          description: 幂等键（建议 UUID/ULID；同一幂等键重复请求必须返回同一结果）
+        - name: access_token
+          in: cookie
+          description: ''
           required: true
-          example: ''
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
+          required: true
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
             maxLength: 64
-        - name: X-CSRF-Token
+        - name: Idempotency-Key
           in: header
-          description: CSRF Header（必须与 Cookie csrf_token 相等）
-          required: true
-          example: ''
+          description: 幂等键（同一用户相同键请求只创建一次订单）
+          required: false
+          example: 4a6b0b1f-1d20-4fd4-8c37-9d36c9b36a88
           schema:
             type: string
       requestBody:
@@ -98,7 +99,9 @@ paths:
             schema:
               $ref: '#/components/schemas/PayPalCheckoutCreateRequest'
             example:
-              order_no: 01JAZ9H1E9E3YQ9Y8KQ8X7W3QZ
+              order_no: 06E88YV6KMM0ZHZ1GAGJW01HJW
+              channel: PAYPAL
+              local: es-ES
               return_url: https://shopping.example.com/pay/return
               cancel_url: https://shopping.example.com/pay/cancel
         required: true
@@ -255,96 +258,29 @@ paths:
           x-apifox-name: 已创建
           x-apifox-ordering: 0
         '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: Bad Request
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 未找到
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: NOT_FOUND
-                message: Not Found
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
         '409':
-          description: 冲突（状态不允许/幂等冲突/并发冲突等）
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: CONFLICT
-                message: Conflict
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 5
-        '422':
-          description: 无法处理（网关失败/业务校验失败等）
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNPROCESSABLE_ENTITY
-                message: Unprocessable Entity
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 无法处理的实体
-          x-apifox-ordering: 6
         '429':
-          description: 请求过多
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: TOO_MANY_REQUESTS
-                message: Too Many Requests
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 请求过多
-          x-apifox-ordering: 7
+          $ref: '#/components/responses/请求过多'
+          description: ''
+          x-apifox-ordering: 6
       security: []
       x-apifox-folder: payment/Payments
       x-apifox-status: released
@@ -570,96 +506,29 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: Bad Request
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 未找到
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: NOT_FOUND
-                message: Not Found
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
         '409':
-          description: 冲突（状态不允许/幂等冲突/并发冲突等）
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: CONFLICT
-                message: Conflict
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 5
-        '422':
-          description: 无法处理（网关失败/业务校验失败等）
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNPROCESSABLE_ENTITY
-                message: Unprocessable Entity
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 无法处理的实体
-          x-apifox-ordering: 6
         '429':
-          description: 请求过多
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: TOO_MANY_REQUESTS
-                message: Too Many Requests
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 请求过多
-          x-apifox-ordering: 7
+          $ref: '#/components/responses/请求过多'
+          description: ''
+          x-apifox-ordering: 6
       security: []
       x-apifox-folder: payment/Payments
       x-apifox-status: released
@@ -865,69 +734,24 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: Bad Request
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 未找到
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: NOT_FOUND
-                message: Not Found
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
         '409':
-          description: 冲突（状态不允许/幂等冲突/并发冲突等）
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: CONFLICT
-                message: Conflict
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 5
       security: []
       x-apifox-folder: payment/Payments
@@ -951,7 +775,24 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PayPalWebhookEvent'
-            examples: {}
+            example:
+              id: '49'
+              create_time: '2013-06-25T21:41:28Z'
+              event_version: nostrud ad Excepteur exercitation
+              event_type: fugiat commodo
+              summary: ullamco minim sed
+              resource_version: dolor consectetur labore elit nostrud
+              resource: {}
+              links:
+                - href: magna officia in labore
+                  rel: dolor eiusmod
+                  method: qui nostrud nulla nisi quis
+                - href: magna officia in labore
+                  rel: dolor eiusmod
+                  method: qui nostrud nulla nisi quis
+                - href: magna officia in labore
+                  rel: dolor eiusmod
+                  method: qui nostrud nulla nisi quis
         required: true
       responses:
         '200':
@@ -970,17 +811,8 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: Bad Request
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
       security: []
       x-apifox-folder: payment/PayPalWebhook
@@ -1043,56 +875,20 @@ paths:
           x-apifox-name: 已接受
           x-apifox-ordering: 0
         '400':
-          description: 参数错误
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: Bad Request
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 未找到
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: NOT_FOUND
-                message: Not Found
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: payment/OpsSync
@@ -1414,32 +1210,18 @@ paths:
           headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
-        '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
-        '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
       security: []
       x-apifox-folder: payment/AdminPayments
       x-apifox-status: released
@@ -1622,45 +1404,22 @@ paths:
           headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
-        '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
-        '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
-        '404':
-          description: 未找到
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: NOT_FOUND
-                message: Not Found
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未找到
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
+        '404':
+          $ref: '#/components/responses/未找到'
+          description: ''
+          x-apifox-ordering: 4
       security: []
       x-apifox-folder: payment/AdminPayments
       x-apifox-status: released
@@ -1958,32 +1717,18 @@ paths:
           headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
-        '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
-        '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
       security: []
       x-apifox-folder: payment/AdminRefunds
       x-apifox-status: released
@@ -2166,45 +1911,22 @@ paths:
           headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
-        '401':
-          description: 未登录/未鉴权
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未认证
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
-        '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Forbidden
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 权限不足
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
-        '404':
-          description: 未找到
-          content:
-            application/json:
-              schema: {}
-              example:
-                success: false
-                code: NOT_FOUND
-                message: Not Found
-                timestamp: '2026-01-20T14:30:00+08:00'
-          headers: {}
-          x-apifox-name: 未找到
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
+        '404':
+          $ref: '#/components/responses/未找到'
+          description: ''
+          x-apifox-ordering: 4
       security: []
       x-apifox-folder: payment/AdminRefunds
       x-apifox-status: released
@@ -2402,6 +2124,8 @@ components:
         order_no:
           type: string
           description: 业务订单号（orders.order_no）
+          maxLength: 26
+          minLength: 26
         channel:
           $ref: '#/components/schemas/PaymentChannel'
         local:
@@ -2409,9 +2133,11 @@ components:
         return_url:
           type: string
           description: 支付成功回跳地址（前端）
+          maxLength: 500
         cancel_url:
           type: string
           description: 用户取消回跳地址（前端）
+          maxLength: 500
       x-apifox-orders:
         - order_no
         - channel
@@ -2474,11 +2200,13 @@ components:
             - string
             - 'null'
           description: 可选：回跳携带的 payer_id（如有）
+          maxLength: 128
         note:
           type:
             - string
             - 'null'
           description: 可选：备注
+          maxLength: 500
       x-apifox-orders:
         - payer_id
         - note
@@ -2538,6 +2266,8 @@ components:
         create_time:
           type: string
           format: date-time
+          examples:
+            - '2013-06-25T21:41:28Z'
         event_version:
           type: string
         event_type:

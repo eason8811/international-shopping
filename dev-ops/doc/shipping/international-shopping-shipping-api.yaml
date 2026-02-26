@@ -33,25 +33,26 @@ paths:
         - shipping/UserShipments
         - UserShipments
       parameters:
-        - name: access_token
-          in: cookie
-          description: 会话访问令牌（HttpOnly Cookie）
-          required: true
-          example: ''
-          schema:
-            type: string
         - name: csrf_token
           in: cookie
-          description: CSRF Cookie（双提交）
+          description: ''
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: true
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: order_no
           in: path
           description: ''
           required: true
-          example: ''
+          example: 06E88RMBQY7WBSKM5F2W52VR0C
           schema:
             type: string
             minLength: 10
@@ -60,6 +61,7 @@ paths:
           in: query
           description: 是否返回状态变更记录
           required: false
+          example: 'true'
           schema:
             type: boolean
             default: true
@@ -67,7 +69,7 @@ paths:
           in: header
           description: CSRF Header（必须与 Cookie csrf_token 相等）
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -213,36 +215,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 订单不存在或不属于当前用户
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: shipping/UserShipments
@@ -478,18 +464,19 @@ paths:
         - shipping/AdminShipments
         - AdminShipments
       parameters:
-        - name: access_token
-          in: cookie
-          description: 会话访问令牌（HttpOnly Cookie）
-          required: true
-          example: ''
-          schema:
-            type: string
         - name: csrf_token
           in: cookie
           description: CSRF Cookie（双提交）
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌（HttpOnly Cookie）
+          required: true
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: shipment_no
@@ -604,7 +591,7 @@ paths:
           in: header
           description: CSRF Header（必须与 Cookie csrf_token 相等）
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
       responses:
@@ -750,28 +737,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: shipping/AdminShipments
@@ -957,36 +932,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: shipment 不存在
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: shipping/AdminShipments
@@ -1006,50 +965,63 @@ paths:
         - shipping/AdminShipments
         - AdminShipments
       parameters:
-        - name: access_token
-          in: cookie
-          description: 会话访问令牌（HttpOnly Cookie）
-          required: true
-          example: ''
-          schema:
-            type: string
         - name: csrf_token
           in: cookie
-          description: CSRF Cookie（双提交）
+          description: ''
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: true
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: shipment_id
           in: path
           description: ''
           required: true
-          example: 0
+          example: 134
           schema:
             type: integer
             format: int64
             minimum: 1
         - name: X-CSRF-Token
           in: header
-          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: Idempotency-Key
           in: header
-          description: 幂等键（建议 UUID/ULID；同一键重复请求返回同一结果）
-          required: true
-          example: ''
+          description: 幂等键（同一用户相同键请求只创建一次订单）
+          required: false
+          example: 4a6b0b1f-1d20-4fd4-8c37-9d36c9b36a88
           schema:
             type: string
-            maxLength: 64
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminFillShipmentLabelRequest'
-            examples: {}
+            example:
+              ship_from_address_id: 1
+              carrier_code: '3011'
+              carrier_name: 面包车
+              service_code: '49'
+              tracking_no: TRK1771741311038aefcb4e586
+              ext_external_id: '90'
+              label_url: https://considerate-passport.info/
+              weight_kg: null
+              length_cm: '13.5'
+              width_cm: '51'
+              height_cm: '60'
+              declared_value: '86.6'
+              currency: Dui
         required: true
       responses:
         '200':
@@ -1190,44 +1162,24 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: shipment 不存在
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
         '409':
-          description: 状态不允许或幂等冲突
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 5
       security: []
       x-apifox-folder: shipping/AdminShipments
@@ -1255,32 +1207,33 @@ paths:
         - shipping/AdminShipments
         - AdminShipments
       parameters:
-        - name: access_token
-          in: cookie
-          description: 会话访问令牌（HttpOnly Cookie）
-          required: true
-          example: ''
-          schema:
-            type: string
         - name: csrf_token
           in: cookie
-          description: CSRF Cookie（双提交）
+          description: ''
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
+          schema:
+            type: string
+        - name: access_token
+          in: cookie
+          description: ''
+          required: true
+          example: >-
+            eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwidWlkIjoxLCJhdWQiOiJ3ZWIiLCJuYmYiOjE3NjY4OTg3MTYsInJvbGVzIjoiVVNFUiIsImlzcyI6InNob3BwaW5nLmludGVybmF0aW9uYWwiLCJ0eXAiOiJhY2Nlc3MiLCJleHAiOjE3ODI0NTA3MTYsImlhdCI6MTc2Njg5ODcxNiwiZW1haWwiOiJsZWlsYTk0Njg1NTVAZ21haWwuY29tIiwidXNlcm5hbWUiOiJsZWlsYS11c2VyXzAxIn0.saKZnZfE9pPS7r3BCzwspIBUXk00-p-CebwCDtrDvHs
           schema:
             type: string
         - name: X-CSRF-Token
           in: header
-          description: CSRF Header（必须与 Cookie csrf_token 相等）
+          description: 双提交 CSRF 头。必须与 Cookie `csrf_token` 等值
           required: true
-          example: ''
+          example: ec562f27-410f-4c67-9272-7905c5607172
           schema:
             type: string
         - name: Idempotency-Key
           in: header
-          description: 幂等键（建议 UUID/ULID；同一键重复请求返回同一结果）
-          required: true
-          example: ''
+          description: 幂等键（同一用户相同键请求只创建一次订单）
+          required: false
+          example: 4a6b0b1f-1d20-4fd4-8c37-9d36c9b36a88
           schema:
             type: string
             maxLength: 64
@@ -1289,7 +1242,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AdminDispatchShipmentsRequest'
-            examples: {}
+            example:
+              shipment_ids:
+                - 134
+              note: 管理侧发货
         required: true
       responses:
         '200':
@@ -1430,36 +1386,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 状态不允许或幂等冲突
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: shipping/AdminShipments
@@ -1655,44 +1595,24 @@ paths:
           x-apifox-name: 已创建
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 订单不存在
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
         '409':
-          description: 订单已存在关联 shipment 或幂等冲突
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 5
       security: []
       x-apifox-folder: shipping/AdminShipments
@@ -2117,28 +2037,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: shipping/AdminShipmentLogs
@@ -2307,12 +2215,8 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 验签失败或参数错误
-          content:
-            application/json:
-              schema: {}
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
       security: []
       x-apifox-folder: shipping/Webhook17Track
@@ -2923,6 +2827,7 @@ components:
         - carrier_name
         - tracking_no
         - ship_from_address_id
+        - declared_value
       properties:
         ship_from_address_id:
           type: integer
@@ -2967,9 +2872,7 @@ components:
             - string
             - 'null'
         declared_value:
-          type:
-            - integer
-            - 'null'
+          type: integer
           format: int64
           minimum: 0
         currency:
@@ -3010,6 +2913,7 @@ components:
         note:
           type: string
           description: 备注
+          maxLength: 255
       x-apifox-orders:
         - shipment_ids
         - note
@@ -3034,9 +2938,10 @@ components:
       required:
         - order_no
         - ship_from_address_id
+        - declared_value
       properties:
         ship_from_address_id:
-          type: string
+          type: integer
         order_no:
           type: string
           minLength: 10
@@ -3088,9 +2993,7 @@ components:
             - string
             - 'null'
         declared_value:
-          type:
-            - integer
-            - 'null'
+          type: integer
           format: int64
           minimum: 0
         currency:

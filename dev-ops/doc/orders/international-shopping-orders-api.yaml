@@ -98,46 +98,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Cart
@@ -195,60 +165,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '429':
-          description: 请求过多
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: TOO_MANY_REQUESTS
-                message: 尝试次数过多, 请过段时间再试
-                timestamp: '2025-11-15 14:25:35'
-          headers: {}
-          x-apifox-name: 请求过多
+          $ref: '#/components/responses/请求过多'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Cart
@@ -314,46 +244,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Cart
@@ -409,46 +309,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Cart
@@ -517,46 +387,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Orders
@@ -678,46 +518,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Orders
@@ -760,7 +570,7 @@ paths:
           in: header
           description: 幂等键（同一用户相同键请求只创建一次订单）
           required: false
-          example: 4a6b0b1f-1d20-4fd4-8c37-9d36c9b36a77
+          example: 4a6b0b1f-1d20-4fd4-8c37-9d36c9b36a99
           schema:
             type: string
       requestBody:
@@ -775,7 +585,6 @@ paths:
               items:
                 - sku_id: 1
                   quantity: 3
-              discount_code: LBCY6Q
               buyer_remark: TC-C1-item-percent-line-300
               locale: en-US
         required: true
@@ -790,55 +599,20 @@ paths:
           x-apifox-name: 已创建
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 库存不足/价格变动/折扣不可用
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Orders
@@ -874,7 +648,7 @@ paths:
           in: path
           description: ''
           required: true
-          example: 06DVFPSM28WM166FQQV1PFAN74
+          example: 06DXD7Y8EF0TXJC93KWWXZT8HW
           schema:
             type: string
             minLength: 10
@@ -897,55 +671,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 订单不存在
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Orders
@@ -1012,55 +751,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 状态不允许取消
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Orders
@@ -1129,55 +833,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 已修改过/状态不允许修改
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Orders
@@ -1247,55 +916,20 @@ paths:
           x-apifox-name: 已接受
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 状态不允许申请退款
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Refunds
@@ -1497,46 +1131,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -1593,55 +1197,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '404':
-          description: 订单不存在
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 未找到
+          $ref: '#/components/responses/未找到'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -1696,46 +1265,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -1790,46 +1329,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -1957,64 +1466,25 @@ paths:
             type: string
       responses:
         '200':
-          x-apifox-name: 成功
-          x-apifox-ordering: 0
           description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResultInventoryLogList'
           headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
         '400':
+          $ref: '#/components/responses/参数错误'
           description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                properties: {}
-                x-apifox-ignore-properties: []
-                x-apifox-orders: []
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 用户名不能为空
-                timestamp: '2025-11-06 11:38:39'
-          headers: {}
-          x-apifox-name: 请求有误
           x-apifox-ordering: 1
         '401':
+          $ref: '#/components/responses/未鉴权'
           description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                properties: {}
-                x-apifox-ignore-properties: []
-                x-apifox-orders: []
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-11-15 14:23:57'
-          headers: {}
-          x-apifox-name: 未认证
           x-apifox-ordering: 2
         '403':
+          $ref: '#/components/responses/权限不足'
           description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                properties: {}
-                x-apifox-ignore-properties: []
-                x-apifox-orders: []
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-11-06 17:31:36'
-          headers: {}
-          x-apifox-name: 权限不足
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -2081,55 +1551,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 状态不允许取消
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -2195,55 +1630,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 状态不允许关闭
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -2298,7 +1698,22 @@ paths:
             schema:
               $ref: '#/components/schemas/AdminConfirmRefundRequest'
             example:
-              note: null
+              note: ullamco
+              itemsAmount: '763.49'
+              shippingAmount: '462.85'
+              items:
+                - orderItemId: 33
+                  quantity: 42767971
+                  amount: '186.19'
+                  reason: velit eu qui
+                - orderItemId: 6
+                  quantity: 71615247
+                  amount: '266.39'
+                  reason: null
+                - orderItemId: 20
+                  quantity: 89055132
+                  amount: '714.79'
+                  reason: null
         required: true
       responses:
         '200':
@@ -2311,55 +1726,20 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: 状态不允许确认退款（如未申请退款）
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Admin Orders
@@ -2464,46 +1844,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -2564,46 +1914,16 @@ paths:
           x-apifox-name: 已创建
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -2668,46 +1988,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -2763,46 +2053,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -2829,11 +2089,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResultDiscountPolicyAmountUpdate'
+          headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+          x-apifox-ordering: 1
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+          x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
-      x-apifox-status: developing
+      x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402648465-run
   /admin/discount-policies/amount/recompute:
     post:
@@ -2999,11 +2272,24 @@ paths:
                   - traceId
                   - data
                   - meta
+          headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+          x-apifox-ordering: 1
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+          x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
-      x-apifox-status: developing
+      x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402651468-run
   /admin/discount-policies/{policy_id}/amount/{currency}/manual:
     patch:
@@ -3059,9 +2345,21 @@ paths:
           headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+          x-apifox-ordering: 1
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+          x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
-      x-apifox-status: developing
+      x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402652681-run
   /admin/discount-policies/{policy_id}/amount/{currency}/fx-auto:
     patch:
@@ -3117,9 +2415,21 @@ paths:
           headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+          x-apifox-ordering: 1
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+          x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
-      x-apifox-status: developing
+      x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-402653044-run
   /admin/discount-codes:
     get:
@@ -3239,46 +2549,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -3341,55 +2621,20 @@ paths:
           x-apifox-name: 已创建
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
         '409':
-          description: code 冲突
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-          headers: {}
-          x-apifox-name: 冲突
+          $ref: '#/components/responses/冲突'
+          description: ''
           x-apifox-ordering: 4
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -3454,46 +2699,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -3549,46 +2764,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -3645,46 +2830,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -3750,46 +2905,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -3873,46 +2998,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Discounts
@@ -4027,46 +3122,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Stats
@@ -4228,46 +3293,16 @@ paths:
           x-apifox-name: 成功
           x-apifox-ordering: 0
         '400':
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: BAD_REQUEST
-                message: 参数错误
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 请求有误
+          $ref: '#/components/responses/参数错误'
+          description: ''
           x-apifox-ordering: 1
         '401':
-          description: 未登录/会话无效
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: UNAUTHORIZED
-                message: Unauthorized
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 未认证
+          $ref: '#/components/responses/未鉴权'
+          description: ''
           x-apifox-ordering: 2
         '403':
-          description: 权限不足
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Result'
-              example:
-                success: false
-                code: FORBIDDEN
-                message: Access denied
-                timestamp: '2025-10-26T06:30:00.123Z'
-          headers: {}
-          x-apifox-name: 权限不足
+          $ref: '#/components/responses/权限不足'
+          description: ''
           x-apifox-ordering: 3
       security: []
       x-apifox-folder: orders/Admin Stats
@@ -4506,7 +3541,7 @@ components:
         - source
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderPreviewRequest:
+    OrderPreviewRequest: &ref_1
       type: object
       required:
         - source
@@ -4544,6 +3579,7 @@ components:
           type:
             - string
             - 'null'
+          maxLength: 500
         locale:
           type:
             - string
@@ -4617,59 +3653,7 @@ components:
         - subtotal_amount
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderCreateRequest:
-      type: object
-      required:
-        - source
-        - address_id
-        - currency
-      properties:
-        source:
-          type: string
-          enum:
-            - CART
-            - DIRECT
-        items:
-          type:
-            - array
-            - 'null'
-          description: source=DIRECT 时必填
-          items:
-            $ref: '#/components/schemas/OrderPreviewItemInput'
-        address_id:
-          type: integer
-          format: int64
-          minimum: 1
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-        discount_code:
-          type:
-            - string
-            - 'null'
-          description: 折扣码（不支持叠加，最多 1 个）
-          minLength: 6
-          maxLength: 32
-        buyer_remark:
-          type:
-            - string
-            - 'null'
-          maxLength: 500
-        locale:
-          type:
-            - string
-            - 'null'
-      x-apifox-orders:
-        - source
-        - items
-        - address_id
-        - currency
-        - discount_code
-        - buyer_remark
-        - locale
-      x-apifox-ignore-properties: []
-      x-apifox-folder: orders
+    OrderCreateRequest: *ref_1
     ResultDiscountPolicyAmountUpdate:
       type: object
       x-apifox-refs:
@@ -4679,13 +3663,13 @@ components:
             data:
               type: object
               properties:
-                policy_id: &ref_1
+                policy_id: &ref_2
                   type: integer
                   format: int64
                   description: 折扣策略 ID
                 currencies:
                   type: array
-                  items: &ref_2
+                  items: &ref_3
                     type: string
                   description: 受影响的币种列表
               x-apifox-orders:
@@ -4780,10 +3764,10 @@ components:
         data:
           type: object
           properties:
-            policy_id: *ref_1
+            policy_id: *ref_2
             currencies:
               type: array
-              items: *ref_2
+              items: *ref_3
               description: 受影响的币种列表
           x-apifox-orders:
             - policy_id
@@ -5040,6 +4024,9 @@ components:
         - sku_id
         - quantity
         - selected
+      required:
+        - quantity
+        - sku_id
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
     OrderSummary:
@@ -5256,7 +4243,7 @@ components:
         - discount_breakdown
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderCancelRequest: &ref_3
+    OrderCancelRequest: &ref_4
       type: object
       required:
         - reason
@@ -5268,7 +4255,7 @@ components:
         - reason
       x-apifox-ignore-properties: []
       x-apifox-folder: orders
-    OrderCloseRequest: *ref_3
+    OrderCloseRequest: *ref_4
     OrderChangeAddressRequest:
       type: object
       required:
@@ -5532,7 +4519,6 @@ components:
         - policy_id
         - name
         - scope_mode
-        - expires_at
         - permanent
       properties:
         code:
@@ -5557,6 +4543,7 @@ components:
           x-apifox-mock: >-
             {{$date.anytime(refDate='2026-01-08T16:00:00.910Z')|format('yyyy-MM-dd
             HH:mm:ss')}}
+          description: permanent=false 时必填，permanent=true 时必须为空
         permanent:
           type: boolean
       x-apifox-orders:
@@ -7596,7 +6583,7 @@ components:
           x-apifox-overrides:
             data:
               type: array
-              items: &ref_4
+              items: &ref_5
                 type: integer
                 format: int64
               description: 业务数据（随具体接口定义）
@@ -7683,7 +6670,7 @@ components:
             - af9c5b1f0e2a4c1b
         data:
           type: array
-          items: *ref_4
+          items: *ref_5
           description: 业务数据（随具体接口定义）
         meta:
           description: 附加元信息（分页等，可选）
