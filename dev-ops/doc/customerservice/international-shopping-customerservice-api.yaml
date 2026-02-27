@@ -4588,7 +4588,10 @@ paths:
     patch:
       summary: 管理侧编辑消息
       deprecated: false
-      description: ''
+      description: |-
+        仅消息发送者可编辑,
+        仅未撤回消息可编辑,
+        编辑后更新 `edited_at`
       tags:
         - customerservice/AdminTickets
         - AdminTickets
@@ -4811,7 +4814,10 @@ paths:
     post:
       summary: 管理侧撤回消息
       deprecated: false
-      description: ''
+      description: |-
+        仅消息发送者可撤回,
+        撤回后更新 `recalled_at`,
+        不保留已撤回信息内容，将内容替换为占位文案
       tags:
         - customerservice/AdminTickets
         - AdminTickets
@@ -7790,7 +7796,31 @@ paths:
         - `ticket_id`: integer, 非必须, 可选, 管理侧指定单工单订阅范围
       tags:
         - customerservice/Websocket
-      parameters: []
+      parameters:
+        - name: ws_token
+          in: query
+          description: 由 `/users/me/ws-sessions` 或 `/admin/ws-sessions` 签发的短期令牌
+          required: true
+          schema:
+            type: string
+        - name: last_event_id
+          in: query
+          description: 非必须, 上次已成功处理的事件ID, 用于断线续传
+          required: false
+          schema:
+            type: string
+        - name: ticket_no
+          in: query
+          description: 可选, 用户侧指定单工单订阅范围
+          required: false
+          schema:
+            type: string
+        - name: ticket_id
+          in: query
+          description: 可选, 管理侧指定单工单订阅范围
+          required: false
+          schema:
+            type: integer
       responses:
         '200':
           description: ''
@@ -7800,6 +7830,7 @@ paths:
                 anyOf:
                   - $ref: '#/components/schemas/CsWsServerEventFrame'
                   - $ref: '#/components/schemas/CsWsServerErrorFrame'
+          headers: {}
           x-apifox-name: 成功
           x-apifox-ordering: 0
       security: []
@@ -8566,6 +8597,7 @@ components:
       properties:
         last_read_message_id:
           type: integer
+          description: 不可回退
       required:
         - last_read_message_id
       x-apifox-orders:
@@ -8580,6 +8612,7 @@ components:
         content:
           type: string
           maxLength: 4000
+          description: 不能为空
         attachments:
           type: array
           items:
@@ -8592,6 +8625,7 @@ components:
           maxLength: 64
       required:
         - client_message_id
+        - content
       x-apifox-orders:
         - message_type
         - content
@@ -8605,7 +8639,10 @@ components:
         content:
           type: string
           maxLength: 4000
+          description: 不能为空
       x-apifox-orders:
+        - content
+      required:
         - content
       x-apifox-ignore-properties: []
       x-apifox-folder: customerservice
@@ -9756,13 +9793,6 @@ components:
                 code: FORBIDDEN
                 message: Access denied
                 timestamp: '2025-11-06 17:31:36'
-    未找到:
-      description: ''
-      content:
-        application/json:
-          schema:
-            type: object
-            properties: {}
     冲突:
       description: ''
       content:
@@ -9811,6 +9841,12 @@ components:
                 code: TOO_MANY_REQUESTS
                 message: 尝试次数过多, 请过段时间再试
                 timestamp: '2025-11-15 14:25:35'
+    未找到:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
   securitySchemes: {}
 servers: []
 security: []
