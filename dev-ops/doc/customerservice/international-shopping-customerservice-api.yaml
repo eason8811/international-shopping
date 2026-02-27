@@ -11,6 +11,7 @@ tags:
   - name: customerservice/UserTickets
   - name: customerservice/AdminTickets
   - name: customerservice/AdminReships
+  - name: customerservice/Websocket
   - name: UserTickets
   - name: AdminTickets
   - name: AdminReships
@@ -980,10 +981,11 @@ paths:
       summary: 用户侧查询工单消息列表
       deprecated: false
       description: |
-        按时间倒序分页返回消息,
+        默认按时间倒序分页返回消息,
         用户侧只返回允许外显的消息,
         不返回内部可见消息,
-        消息编辑/撤回状态通过字段 `edited_at/recalled_at` 体现
+        消息编辑/撤回状态通过字段 `edited_at/recalled_at` 体现,
+        支持使用 `after_id` + `order=asc` 进行断线后的增量补偿
       tags:
         - customerservice/UserTickets
         - UserTickets
@@ -1027,6 +1029,29 @@ paths:
             default: 20
             minimum: 1
             maximum: 100
+        - name: after_id
+          in: query
+          description: 向后增量补偿锚点 (仅返回 id > after_id 的消息)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: order
+          in: query
+          description: 排序方向, `desc` 用于历史分页, `asc` 用于断线补偿
+          required: false
+          schema:
+            type: string
+            enum:
+              - desc
+              - asc
+            x-apifox-enum:
+              - value: desc
+                name: ''
+                description: ''
+              - value: asc
+                name: ''
+                description: ''
         - name: X-CSRF-Token
           in: header
           description: CSRF Header, 必须与 Cookie `csrf_token` 相等
@@ -1409,6 +1434,198 @@ paths:
       x-apifox-folder: customerservice/UserTickets
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-419556778-run
+  /users/me/ws-sessions:
+    post:
+      summary: 用户侧创建消息实时通道会话
+      deprecated: false
+      description: |-
+        签发短期 `ws_token` 用于建立 WebSocket 连接,
+        `ws_token` 仅用于实时通道, 过期需重新申请
+      tags:
+        - customerservice/UserTickets
+        - UserTickets
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌 (HttpOnly Cookie)
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header, 必须与 Cookie `csrf_token` 相等
+          required: true
+          example: ''
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CsWsSessionCreateRequest'
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KJEKYXJ9X3TGQGBNXAHHZAY1:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/CsWsSessionIssueData'
+                    required: []
+                x-apifox-orders:
+                  - 01KJEKYXJ9X3TGQGBNXAHHZAY1
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/CsWsSessionIssueData'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+          x-apifox-ordering: 1
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+          x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
+      security: []
+      x-apifox-folder: customerservice/UserTickets
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-420337738-run
   /users/me/tickets/{ticket_no}/messages/{message_no}:
     patch:
       summary: 用户侧编辑消息
@@ -3651,7 +3868,9 @@ paths:
     get:
       summary: 管理侧查询工单消息列表
       deprecated: false
-      description: ''
+      description: |-
+        默认按时间倒序分页返回消息,
+        支持使用 `after_id` + `order=asc` 进行断线后的增量补偿
       tags:
         - customerservice/AdminTickets
         - AdminTickets
@@ -3680,11 +3899,34 @@ paths:
             minimum: 1
         - name: before_id
           in: query
-          description: ''
+          description: 向前翻页锚点 (消息主键 id)
           required: false
           schema:
             type: integer
             minimum: 1
+        - name: after_id
+          in: query
+          description: 向后增量补偿锚点 (仅返回 id > after_id 的消息)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: order
+          in: query
+          description: 排序方向, `desc` 用于历史分页, `asc` 用于断线补偿
+          required: false
+          schema:
+            type: string
+            enum:
+              - desc
+              - asc
+            x-apifox-enum:
+              - value: desc
+                name: ''
+                description: ''
+              - value: asc
+                name: ''
+                description: ''
         - name: size
           in: query
           description: ''
@@ -4066,6 +4308,199 @@ paths:
       x-apifox-folder: customerservice/AdminTickets
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-419556792-run
+  /admin/ws-sessions:
+    post:
+      summary: 管理侧创建消息实时通道会话
+      deprecated: false
+      description: |-
+        签发短期 `ws_token` 用于建立 WebSocket 连接,
+        管理侧可订阅多个工单范围
+      tags:
+        - customerservice/AdminTickets
+        - AdminTickets
+      parameters:
+        - name: access_token
+          in: cookie
+          description: 会话访问令牌 (HttpOnly Cookie)
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: csrf_token
+          in: cookie
+          description: CSRF Cookie
+          required: true
+          example: ''
+          schema:
+            type: string
+        - name: X-CSRF-Token
+          in: header
+          description: CSRF Header, 必须与 Cookie `csrf_token` 相等
+          required: true
+          example: ''
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CsWsSessionCreateRequest'
+            examples: {}
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                x-apifox-refs:
+                  01KJEPJ4NW7VX2T1PBCCHPSGBY:
+                    $ref: '#/components/schemas/Result'
+                    x-apifox-overrides:
+                      data:
+                        description: 业务数据（随具体接口定义）
+                        $ref: '#/components/schemas/CsWsSessionIssueData'
+                    required: []
+                x-apifox-orders:
+                  - 01KJEPJ4NW7VX2T1PBCCHPSGBY
+                properties:
+                  success:
+                    type: boolean
+                    description: 业务是否成功（非 HTTP 含义）
+                    examples:
+                      - true
+                  code:
+                    type: string
+                    description: 业务码
+                    examples:
+                      - OK
+                    enum:
+                      - OK
+                      - CREATED
+                      - ACCEPTED
+                      - FOUND
+                      - BAD_REQUEST
+                      - UNAUTHORIZED
+                      - FORBIDDEN
+                      - NOT_FOUND
+                      - CONFLICT
+                      - UNPROCESSABLE_ENTITY
+                      - TOO_MANY_REQUESTS
+                      - INTERNAL_SERVER_ERROR
+                    x-apifox-enum:
+                      - value: OK
+                        name: OK
+                        description: 成功
+                      - value: CREATED
+                        name: Created
+                        description: 已创建
+                      - value: ACCEPTED
+                        name: Accepted
+                        description: 已接受
+                      - value: FOUND
+                        name: Found / Redirect
+                        description: 重定向
+                      - value: BAD_REQUEST
+                        name: Bad Request
+                        description: 参数错误
+                      - value: UNAUTHORIZED
+                        name: Unauthorized
+                        description: 未授权
+                      - value: FORBIDDEN
+                        name: Forbidden
+                        description: 没有权限
+                      - value: NOT_FOUND
+                        name: Not Found
+                        description: 未找到
+                      - value: CONFLICT
+                        name: Conflict
+                        description: 冲突
+                      - value: UNPROCESSABLE_ENTITY
+                        name: Unprocessable Entity
+                        description: 不能处理的实体
+                      - value: TOO_MANY_REQUESTS
+                        name: Too Many Requests
+                        description: 请求过多
+                      - value: INTERNAL_SERVER_ERROR
+                        name: Internal Server Error
+                        description: 服务器内部错误
+                  message:
+                    type: string
+                    description: 人类可读的简短信息
+                    examples:
+                      - OK
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: 服务器时间
+                    examples:
+                      - '2025-10-26T06:30:00.123Z'
+                  traceId:
+                    type:
+                      - string
+                      - 'null'
+                    description: 请求追踪ID
+                    examples:
+                      - af9c5b1f0e2a4c1b
+                  data:
+                    description: 业务数据（随具体接口定义）
+                    $ref: '#/components/schemas/CsWsSessionIssueData'
+                  meta:
+                    description: 附加元信息（分页等，可选）
+                    type:
+                      - object
+                      - 'null'
+                    properties:
+                      page:
+                        type: integer
+                        examples:
+                          - 1
+                      size:
+                        type: integer
+                        examples:
+                          - 20
+                      total:
+                        type: integer
+                        examples:
+                          - 135
+                    x-apifox-orders:
+                      - page
+                      - size
+                      - total
+                    x-apifox-ignore-properties: []
+                required:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                x-apifox-ignore-properties:
+                  - success
+                  - code
+                  - message
+                  - timestamp
+                  - traceId
+                  - data
+                  - meta
+          headers: {}
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+        '400':
+          $ref: '#/components/responses/参数错误'
+          description: ''
+          x-apifox-ordering: 1
+        '401':
+          $ref: '#/components/responses/未鉴权'
+          description: ''
+          x-apifox-ordering: 2
+        '403':
+          $ref: '#/components/responses/权限不足'
+          description: ''
+          x-apifox-ordering: 3
+      security: []
+      x-apifox-folder: customerservice/AdminTickets
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-420338311-run
   /admin/tickets/{ticket_id}/read:
     post:
       summary: 管理侧标记工单消息已读
@@ -7301,6 +7736,76 @@ paths:
       x-apifox-folder: customerservice/AdminReships
       x-apifox-status: released
       x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-419556808-run
+  /:
+    get:
+      summary: 建立售后消息 WebSocket 连接
+      deprecated: false
+      description: >
+        注意：此接口实际上为 `Websocket` 接口，接口 URL 通过 `/users/me/ws-sessions` 或
+        `/admin/ws-sessions` 获取
+
+
+        接口说明：
+
+        使用 `ws_token` 进行握手认证,
+
+        通过 `last_event_id` 支持断线续传,
+
+        成功后服务端将按 `CsWsServerFrame` 推送帧
+
+
+
+        帧级协议:
+
+        - 客户端上行:
+          - `CsWsClientPingFrame` (`type=ping`) 心跳探活
+          - `CsWsClientAckFrame` (`type=ack`) 确认已处理到某个 `event_id`
+        - 服务端下行:
+          - `CsWsServerEventFrame` (`type=event`) 业务事件, 包含 `CsWsEventEnvelope`
+          - `CsWsServerErrorFrame` (`type=error`) 协议/鉴权/续传错误
+
+
+        `last_event_id` 续传失败回退策略:
+
+        1) 服务端下发 `type=error` 且 `code in (RESUME_EXPIRED, RESUME_NOT_FOUND,
+        RESUME_NOT_AVAILABLE)`,
+           并携带 `fallback` 建议
+        2) 客户端优先执行 `fallback.strategy=HTTP_CATCHUP_THEN_RECONNECT`,
+           使用消息列表接口 `after_id` 增量补偿:
+           - 用户侧: `GET /users/me/tickets/{ticket_no}/messages?after_id={fallback.suggest_after_id}&order=asc`
+           - 管理侧: `GET /admin/tickets/{ticket_id}/messages?after_id={fallback.suggest_after_id}&order=asc`
+        3) 完成补偿后重新建立 WS 连接:
+           - 若继续带 `last_event_id`, 取最新已处理事件ID
+           - 若服务端要求 `RECONNECT_WITHOUT_LAST_EVENT_ID`, 则不带该参数重连
+
+        Websocket 连接URL参数：
+
+        - `ws_token`: string, 必须, 由 `/users/me/ws-sessions` 或
+        `/admin/ws-sessions` 签发的短期令牌
+
+        - `last_event_id`: string, 非必须, 上次已成功处理的事件ID, 用于断线续传
+
+        - `ticket_no`: string, 非必须, 可选, 用户侧指定单工单订阅范围
+
+        - `ticket_id`: integer, 非必须, 可选, 管理侧指定单工单订阅范围
+      tags:
+        - customerservice/Websocket
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/CsWsServerEventFrame'
+                  - $ref: '#/components/schemas/CsWsServerErrorFrame'
+          x-apifox-name: 成功
+          x-apifox-ordering: 0
+      security: []
+      x-apifox-folder: customerservice/Websocket
+      x-apifox-status: released
+      x-run-in-apifox: https://app.apifox.com/web/project/7302473/apis/api-420376515-run
 webhooks: {}
 components:
   schemas:
@@ -7559,6 +8064,318 @@ components:
         - updated_at
       x-apifox-ignore-properties: []
       x-apifox-folder: shipping
+    CsWsSessionIssueData:
+      type: object
+      properties:
+        ws_token:
+          type: string
+          description: WebSocket 短期访问令牌
+          minLength: 16
+          maxLength: 2048
+        ws_url:
+          type: string
+          format: uri
+          description: WebSocket 连接地址
+          examples:
+            - wss://api.example.com/ws/customerservice
+        issued_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        heartbeat_interval_seconds:
+          type: integer
+          minimum: 5
+          maximum: 300
+          description: 客户端建议心跳间隔（秒）
+        resume_ttl_seconds:
+          type: integer
+          minimum: 30
+          maximum: 86400
+          description: 事件续传窗口（秒）
+      required:
+        - ws_token
+        - ws_url
+        - issued_at
+        - expires_at
+        - heartbeat_interval_seconds
+        - resume_ttl_seconds
+      x-apifox-orders:
+        - ws_token
+        - ws_url
+        - issued_at
+        - expires_at
+        - heartbeat_interval_seconds
+        - resume_ttl_seconds
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
+    CsWsConnectAck:
+      type: object
+      properties:
+        connection_id:
+          type: string
+          maxLength: 64
+        server_time:
+          type: string
+          format: date-time
+        heartbeat_interval_seconds:
+          type: integer
+          minimum: 5
+          maximum: 300
+        resume_ttl_seconds:
+          type: integer
+          minimum: 30
+          maximum: 86400
+      required:
+        - connection_id
+        - server_time
+        - heartbeat_interval_seconds
+        - resume_ttl_seconds
+      x-apifox-orders:
+        - connection_id
+        - server_time
+        - heartbeat_interval_seconds
+        - resume_ttl_seconds
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
+    CsWsTicketReadUpdatedEventData:
+      type: object
+      properties:
+        ticket_id:
+          type: integer
+          minimum: 1
+        participant_id:
+          type: integer
+          minimum: 1
+        participant_type:
+          $ref: '#/components/schemas/CsParticipantType'
+        participant_user_id:
+          type:
+            - integer
+            - 'null'
+        last_read_message_id:
+          type: integer
+          minimum: 1
+        last_read_at:
+          type: string
+          format: date-time
+      required:
+        - ticket_id
+        - participant_id
+        - participant_type
+        - last_read_message_id
+        - last_read_at
+      x-apifox-orders:
+        - ticket_id
+        - participant_id
+        - participant_type
+        - participant_user_id
+        - last_read_message_id
+        - last_read_at
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
+    CsWsEventType:
+      type: string
+      enum:
+        - WS_CONNECTED
+        - MESSAGE_CREATED
+        - MESSAGE_UPDATED
+        - MESSAGE_RECALLED
+        - TICKET_READ_UPDATED
+        - TICKET_STATUS_CHANGED
+        - TICKET_ASSIGNMENT_CHANGED
+      x-apifox-folder: customerservice
+    CsWsSessionCreateRequest:
+      type: object
+      properties:
+        ticket_nos:
+          type: array
+          description: 可选, 指定订阅的工单号集合
+          maxItems: 100
+          items:
+            type: string
+            minLength: 10
+            maxLength: 32
+        ticket_ids:
+          type: array
+          description: 可选, 指定订阅的工单ID集合(管理侧常用)
+          maxItems: 100
+          items:
+            type: integer
+            minimum: 1
+        event_types:
+          type: array
+          description: 可选, 指定订阅的事件类型集合
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/CsWsEventType'
+        last_event_id:
+          type: string
+          description: 可选, 续传锚点(已成功消费的最后事件ID)
+          maxLength: 64
+      x-apifox-orders:
+        - ticket_nos
+        - ticket_ids
+        - event_types
+        - last_event_id
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
+    CsWsEventEnvelope:
+      type: object
+      description: 统一 WebSocket 事件包裹
+      properties:
+        event_id:
+          type: string
+          maxLength: 64
+          description: 事件唯一ID, 用于断线续传
+        seq:
+          type: integer
+          minimum: 1
+          description: 单连接内单调递增序号
+        event_type:
+          $ref: '#/components/schemas/CsWsEventType'
+        occurred_at:
+          type: string
+          format: date-time
+          description: 事件发生时间(服务端时间)
+        ticket_id:
+          type:
+            - integer
+            - 'null'
+        ticket_no:
+          type:
+            - string
+            - 'null'
+        trace_id:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+        data:
+          anyOf:
+            - $ref: '#/components/schemas/CsWsConnectAck'
+            - $ref: '#/components/schemas/TicketMessage'
+            - $ref: '#/components/schemas/CsWsTicketReadUpdatedEventData'
+            - $ref: '#/components/schemas/TicketStatusLog'
+            - $ref: '#/components/schemas/TicketAssignmentLog'
+      required:
+        - event_id
+        - seq
+        - event_type
+        - occurred_at
+        - data
+      x-apifox-orders:
+        - event_id
+        - seq
+        - event_type
+        - occurred_at
+        - ticket_id
+        - ticket_no
+        - trace_id
+        - data
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
+    CsWsServerEventFrame:
+      type: object
+      description: 服务端下行事件帧
+      properties:
+        type:
+          type: string
+          enum:
+            - event
+        event:
+          $ref: '#/components/schemas/CsWsEventEnvelope'
+      required:
+        - type
+        - event
+      x-apifox-orders:
+        - type
+        - event
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
+    CsWsErrorCode:
+      type: string
+      enum:
+        - INVALID_FRAME
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - RATE_LIMITED
+        - RESUME_EXPIRED
+        - RESUME_NOT_FOUND
+        - RESUME_NOT_AVAILABLE
+      x-apifox-folder: customerservice
+    CsWsResumeFallbackStrategy:
+      type: string
+      enum:
+        - HTTP_CATCHUP_THEN_RECONNECT
+        - RECONNECT_WITHOUT_LAST_EVENT_ID
+      x-apifox-folder: customerservice
+    CsWsResumeFallback:
+      type: object
+      properties:
+        strategy:
+          $ref: '#/components/schemas/CsWsResumeFallbackStrategy'
+        suggest_after_id:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          description: 推荐用于 HTTP 增量补偿的 after_id
+        retry_after_seconds:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 3600
+      required:
+        - strategy
+      x-apifox-orders:
+        - strategy
+        - suggest_after_id
+        - retry_after_seconds
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
+    CsWsServerErrorFrame:
+      type: object
+      description: 服务端下行错误帧
+      properties:
+        type:
+          type: string
+          enum:
+            - error
+        code:
+          $ref: '#/components/schemas/CsWsErrorCode'
+        message:
+          type: string
+          maxLength: 255
+        occurred_at:
+          type: string
+          format: date-time
+        last_event_id:
+          type:
+            - string
+            - 'null'
+          maxLength: 64
+          description: 服务端确认的最后可续传事件ID
+        fallback:
+          anyOf:
+            - $ref: '#/components/schemas/CsWsResumeFallback'
+            - type: 'null'
+      required:
+        - type
+        - message
+        - occurred_at
+        - code
+      x-apifox-orders:
+        - type
+        - code
+        - message
+        - occurred_at
+        - last_event_id
+        - fallback
+      x-apifox-folder: customerservice
+      x-apifox-ignore-properties: []
     CsTicketIssueType:
       type: string
       enum:
@@ -7748,7 +8565,7 @@ components:
       type: object
       properties:
         last_read_message_id:
-          type: string
+          type: integer
       required:
         - last_read_message_id
       x-apifox-orders:
