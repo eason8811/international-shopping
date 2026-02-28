@@ -1,0 +1,153 @@
+package shopping.international.api.resp.customerservice;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * 用户侧工单详情响应对象
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserTicketDetailRespond {
+    /**
+     * 工单编号
+     */
+    @NotNull
+    private String ticketNo;
+    /**
+     * 问题类型
+     */
+    @NotNull
+    private String issueType;
+    /**
+     * 工单状态
+     */
+    @NotNull
+    private String status;
+    /**
+     * 工单标题
+     */
+    @NotNull
+    private String title;
+    /**
+     * 订单 ID
+     */
+    @NotNull
+    private Long orderId;
+    /**
+     * 订单号
+     */
+    @NotNull
+    private String orderNo;
+    /**
+     * 订单状态
+     */
+    @NotNull
+    private String orderStatus;
+    /**
+     * 订单支付金额
+     */
+    @NotNull
+    private String payAmount;
+    /**
+     * 订单封面图
+     */
+    @NotNull
+    private String orderCover;
+    /**
+     * 物流单 ID
+     */
+    @Nullable
+    private Long shipmentId;
+    /**
+     * 物流状态
+     */
+    @Nullable
+    private String shipmentStatus;
+    /**
+     * 物流状态快照说明
+     */
+    @NotNull
+    private String shipmentStatusLogSnapshot;
+    /**
+     * 指派坐席用户 ID
+     */
+    @Nullable
+    private Long assignedToUserId;
+    /**
+     * 最近消息时间
+     */
+    @Nullable
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastMessageAt;
+    /**
+     * 创建时间
+     */
+    @NotNull
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间
+     */
+    @NotNull
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime updatedAt;
+    /**
+     * 工单描述
+     */
+    @Nullable
+    private String description;
+    /**
+     * 附件链接列表
+     */
+    @Nullable
+    private List<String> attachments;
+    /**
+     * 证据链接列表
+     */
+    @Nullable
+    private List<String> evidence;
+    /**
+     * 标签列表
+     */
+    @Nullable
+    private List<String> tags;
+    /**
+     * 申请退款金额（分）
+     */
+    @Nullable
+    private Long requestedRefundAmount;
+    /**
+     * 币种代码
+     */
+    @Nullable
+    private String currency;
+    /**
+     * 解决时间
+     */
+    @Nullable
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime resolvedAt;
+    /**
+     * 关闭时间
+     */
+    @Nullable
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime closedAt;
+    /**
+     * SLA 到期时间
+     */
+    @Nullable
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime slaDueAt;
+}
