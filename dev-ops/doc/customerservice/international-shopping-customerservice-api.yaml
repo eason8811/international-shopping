@@ -8819,11 +8819,11 @@ components:
           minLength: 3
           maxLength: 3
         items_cost:
-          type: integer
-          minimum: 0
+          type: string
+          description: 货物成本 Major 形式
         shipping_cost:
-          type: integer
-          minimum: 0
+          type: string
+          description: 运费成本 Major 形式
         note:
           type: string
           maxLength: 255
