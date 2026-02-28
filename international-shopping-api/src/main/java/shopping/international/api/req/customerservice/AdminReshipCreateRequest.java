@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.ReshipReasonCode;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.List;
@@ -27,7 +28,7 @@ public class AdminReshipCreateRequest implements Verifiable {
      * 补发原因编码
      */
     @Nullable
-    private String reasonCode;
+    private ReshipReasonCode reasonCode;
     /**
      * 币种代码
      */
@@ -52,9 +53,7 @@ public class AdminReshipCreateRequest implements Verifiable {
         requireNotNull(orderId, "orderId 不能为空");
         require(orderId >= 1, "orderId 必须大于等于 1");
 
-        reasonCode = normalizeNotNullField(reasonCode, "reasonCode 不能为空",
-                AdminReshipCreateRequest::isReasonCode,
-                "reasonCode 不支持").toUpperCase(Locale.ROOT);
+        requireNotNull(reasonCode, "reasonCode 不能为空");
 
         if (currency != null)
             currency = normalizeNotNullField(currency, "currency 不能为空",
@@ -72,19 +71,5 @@ public class AdminReshipCreateRequest implements Verifiable {
             requireNotNull(i, "items 元素不能为空");
             i.validate();
         });
-    }
-
-    /**
-     * 判断是否为受支持的补发原因
-     *
-     * @param value 原始原因编码
-     * @return 若受支持则返回 {@code true}
-     */
-    private static boolean isReasonCode(String value) {
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "LOST", "DAMAGED", "OTHER" -> true;
-            default -> false;
-        };
     }
 }

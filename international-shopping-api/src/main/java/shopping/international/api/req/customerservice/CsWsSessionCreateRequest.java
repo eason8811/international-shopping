@@ -4,12 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.WsEventType;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
@@ -35,7 +35,7 @@ public class CsWsSessionCreateRequest implements Verifiable {
      * 订阅的事件类型列表
      */
     @Nullable
-    private List<String> eventTypes;
+    private List<WsEventType> eventTypes;
     /**
      * 续传锚点事件 ID
      */
@@ -104,33 +104,16 @@ public class CsWsSessionCreateRequest implements Verifiable {
      * @param values 原始事件类型列表
      * @return 规范化后的事件类型列表
      */
-    private static List<String> normalizeEventTypeList(@Nullable List<String> values) {
+    private static List<WsEventType> normalizeEventTypeList(@Nullable List<WsEventType> values) {
         if (values == null || values.isEmpty())
             return List.of();
         require(values.size() <= 20, "eventTypes 元素数量不能超过 20");
 
-        Set<String> dedup = new LinkedHashSet<>();
-        for (String value : values) {
-            String normalized = normalizeNotNullField(value, "eventTypes 元素不能为空",
-                    CsWsSessionCreateRequest::isEventType,
-                    "eventTypes 存在不支持的值").toUpperCase(Locale.ROOT);
-            dedup.add(normalized);
+        Set<WsEventType> dedup = new LinkedHashSet<>();
+        for (WsEventType value : values) {
+            requireNotNull(value, "eventTypes 元素不能为空");
+            dedup.add(value);
         }
         return new ArrayList<>(dedup);
-    }
-
-    /**
-     * 判断是否为受支持的事件类型
-     *
-     * @param value 原始事件类型
-     * @return 若受支持则返回 {@code true}
-     */
-    private static boolean isEventType(String value) {
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "WS_CONNECTED", "MESSAGE_CREATED", "MESSAGE_UPDATED", "MESSAGE_RECALLED", "TICKET_READ_UPDATED", "TICKET_STATUS_CHANGED", "TICKET_ASSIGNMENT_CHANGED" ->
-                    true;
-            default -> false;
-        };
     }
 }

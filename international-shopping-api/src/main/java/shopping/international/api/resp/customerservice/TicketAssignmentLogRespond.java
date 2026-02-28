@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketActorType;
+import shopping.international.domain.model.enums.customerservice.TicketAssignmentActionType;
 
 import java.time.LocalDateTime;
 
@@ -42,12 +44,12 @@ public class TicketAssignmentLogRespond {
      * 指派动作类型
      */
     @NotNull
-    private String actionType;
+    private TicketAssignmentActionType actionType;
     /**
      * 操作者类型
      */
     @NotNull
-    private String actorType;
+    private TicketActorType actorType;
     /**
      * 操作者用户 ID
      */

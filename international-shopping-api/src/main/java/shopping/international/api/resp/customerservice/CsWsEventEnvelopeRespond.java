@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.WsEventType;
 
 import java.time.LocalDateTime;
 
@@ -34,7 +35,7 @@ public class CsWsEventEnvelopeRespond<T> {
      * 事件类型
      */
     @NotNull
-    private String eventType;
+    private WsEventType eventType;
     /**
      * 事件发生时间
      */

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.shipping.ShipmentStatus;
 
 import java.time.LocalDateTime;
 
@@ -72,7 +73,7 @@ public class ShipmentSummaryRespond {
      * 物流状态
      */
     @NotNull
-    private String status;
+    private ShipmentStatus status;
     /**
      * 揽收时间
      */

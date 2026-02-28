@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketParticipantRole;
+import shopping.international.domain.model.enums.customerservice.TicketParticipantType;
 
 import java.time.LocalDateTime;
 
@@ -32,7 +34,7 @@ public class TicketParticipantRespond {
      * 参与方类型
      */
     @NotNull
-    private String participantType;
+    private TicketParticipantType participantType;
     /**
      * 参与方用户 ID
      */
@@ -42,7 +44,7 @@ public class TicketParticipantRespond {
      * 工单内角色
      */
     @NotNull
-    private String role;
+    private TicketParticipantRole role;
     /**
      * 加入时间
      */

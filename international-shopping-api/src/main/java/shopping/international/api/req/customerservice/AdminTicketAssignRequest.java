@@ -4,9 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketAssignmentActionType;
 import shopping.international.types.utils.Verifiable;
-
-import java.util.Locale;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
 
@@ -26,7 +25,7 @@ public class AdminTicketAssignRequest implements Verifiable {
      * 指派动作类型
      */
     @Nullable
-    private String actionType;
+    private TicketAssignmentActionType actionType;
     /**
      * 操作备注
      */
@@ -43,9 +42,7 @@ public class AdminTicketAssignRequest implements Verifiable {
      */
     @Override
     public void validate() {
-        actionType = normalizeNotNullField(actionType, "actionType 不能为空",
-                AdminTicketAssignRequest::isActionType,
-                "actionType 不支持").toUpperCase(Locale.ROOT);
+        requireNotNull(actionType, "actionType 不能为空");
 
         if (toAssigneeUserId != null)
             require(toAssigneeUserId >= 1, "toAssigneeUserId 必须大于等于 1");
@@ -58,21 +55,7 @@ public class AdminTicketAssignRequest implements Verifiable {
                 value -> value.length() <= 128,
                 "sourceRef 长度不能超过 128 个字符");
 
-        if ("ASSIGN".equals(actionType) || "REASSIGN".equals(actionType) || "AUTO_ASSIGN".equals(actionType))
+        if (actionType.requiresAssignee())
             requireNotNull(toAssigneeUserId, "当前 actionType 需要提供 toAssigneeUserId");
-    }
-
-    /**
-     * 判断是否为受支持的指派动作
-     *
-     * @param value 原始动作
-     * @return 若受支持则返回 {@code true}
-     */
-    private static boolean isActionType(String value) {
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "ASSIGN", "REASSIGN", "UNASSIGN", "AUTO_ASSIGN" -> true;
-            default -> false;
-        };
     }
 }

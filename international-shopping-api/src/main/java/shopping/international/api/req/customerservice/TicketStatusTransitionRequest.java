@@ -4,12 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.types.utils.Verifiable;
 
-import java.util.Locale;
-
-import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 工单状态流转请求对象
@@ -22,7 +21,7 @@ public class TicketStatusTransitionRequest implements Verifiable {
      * 目标状态
      */
     @Nullable
-    private String toStatus;
+    private TicketStatus toStatus;
     /**
      * 备注信息
      */
@@ -39,9 +38,7 @@ public class TicketStatusTransitionRequest implements Verifiable {
      */
     @Override
     public void validate() {
-        toStatus = normalizeNotNullField(toStatus, "toStatus 不能为空",
-                TicketStatusTransitionRequest::isTicketStatus,
-                "toStatus 不支持").toUpperCase(Locale.ROOT);
+        requireNotNull(toStatus, "toStatus 不能为空");
 
         note = normalizeNullableField(note, "note 不能为空",
                 value -> value.length() <= 255,
@@ -50,20 +47,5 @@ public class TicketStatusTransitionRequest implements Verifiable {
         sourceRef = normalizeNullableField(sourceRef, "sourceRef 不能为空",
                 value -> value.length() <= 128,
                 "sourceRef 长度不能超过 128 个字符");
-    }
-
-    /**
-     * 判断是否为受支持的工单状态
-     *
-     * @param value 原始状态
-     * @return 若受支持则返回 {@code true}
-     */
-    private static boolean isTicketStatus(String value) {
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "OPEN", "IN_PROGRESS", "AWAITING_USER", "AWAITING_CARRIER", "ON_HOLD", "RESOLVED", "REJECTED", "CLOSED" ->
-                    true;
-            default -> false;
-        };
     }
 }

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketPriority;
 import shopping.international.types.utils.Verifiable;
 
 import java.time.LocalDateTime;
@@ -26,7 +27,7 @@ public class AdminTicketPatchRequest implements Verifiable {
      * 工单优先级
      */
     @Nullable
-    private String priority;
+    private TicketPriority priority;
     /**
      * 工单标签列表
      */
@@ -58,12 +59,6 @@ public class AdminTicketPatchRequest implements Verifiable {
      */
     @Override
     public void validate() {
-        priority = normalizeNullableField(priority, "priority 不能为空",
-                AdminTicketPatchRequest::isPriority,
-                "priority 不支持");
-        if (priority != null)
-            priority = priority.toUpperCase(Locale.ROOT);
-
         tags = normalizeTags(tags);
 
         if (requestedRefundAmount != null)
@@ -81,20 +76,6 @@ public class AdminTicketPatchRequest implements Verifiable {
 
         require(priority != null || !tags.isEmpty() || requestedRefundAmount != null || currency != null || claimExternalId != null || slaDueAt != null,
                 "至少需要提供一个可更新字段");
-    }
-
-    /**
-     * 判断是否为受支持的优先级
-     *
-     * @param value 原始优先级
-     * @return 若受支持则返回 {@code true}
-     */
-    private static boolean isPriority(String value) {
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "LOW", "NORMAL", "HIGH", "URGENT" -> true;
-            default -> false;
-        };
     }
 
     /**

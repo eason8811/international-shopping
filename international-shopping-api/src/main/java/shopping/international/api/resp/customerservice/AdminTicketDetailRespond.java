@@ -7,6 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketChannel;
+import shopping.international.domain.model.enums.customerservice.TicketIssueType;
+import shopping.international.domain.model.enums.customerservice.TicketPriority;
+import shopping.international.domain.model.enums.customerservice.TicketStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,22 +42,22 @@ public class AdminTicketDetailRespond {
      * 问题类型
      */
     @NotNull
-    private String issueType;
+    private TicketIssueType issueType;
     /**
      * 工单状态
      */
     @NotNull
-    private String status;
+    private TicketStatus status;
     /**
      * 工单优先级
      */
     @NotNull
-    private String priority;
+    private TicketPriority priority;
     /**
      * 工单来源渠道
      */
     @NotNull
-    private String channel;
+    private TicketChannel channel;
     /**
      * 工单标题
      */

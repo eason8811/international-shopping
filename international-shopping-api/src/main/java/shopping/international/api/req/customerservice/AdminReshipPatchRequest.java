@@ -24,12 +24,12 @@ public class AdminReshipPatchRequest implements Verifiable {
     @Nullable
     private String currency;
     /**
-     * 货品成本 (分)
+     * 货品成本 Major 形式
      */
     @Nullable
     private String itemsCost;
     /**
-     * 运费成本 (分)
+     * 运费成本 Major 形式
      */
     @Nullable
     private String shippingCost;

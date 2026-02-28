@@ -7,6 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketIssueType;
+import shopping.international.domain.model.enums.customerservice.TicketStatus;
+import shopping.international.domain.model.enums.orders.OrderStatus;
+import shopping.international.domain.model.enums.shipping.ShipmentStatus;
 
 import java.time.LocalDateTime;
 
@@ -27,12 +31,12 @@ public class UserTicketSummaryRespond {
      * 问题类型
      */
     @NotNull
-    private String issueType;
+    private TicketIssueType issueType;
     /**
      * 工单状态
      */
     @NotNull
-    private String status;
+    private TicketStatus status;
     /**
      * 工单标题
      */
@@ -52,7 +56,7 @@ public class UserTicketSummaryRespond {
      * 订单状态
      */
     @NotNull
-    private String orderStatus;
+    private OrderStatus orderStatus;
     /**
      * 订单支付金额
      */
@@ -72,7 +76,7 @@ public class UserTicketSummaryRespond {
      * 物流状态
      */
     @Nullable
-    private String shipmentStatus;
+    private ShipmentStatus shipmentStatus;
     /**
      * 物流状态快照说明
      */

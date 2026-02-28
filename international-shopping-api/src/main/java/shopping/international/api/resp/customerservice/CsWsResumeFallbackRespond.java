@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.WsResumeFallbackStrategy;
 
 /**
  * WebSocket 续传降级建议响应对象
@@ -19,7 +20,7 @@ public class CsWsResumeFallbackRespond {
      * 降级策略
      */
     @NotNull
-    private String strategy;
+    private WsResumeFallbackStrategy strategy;
     /**
      * 建议用于 HTTP 增量补偿的 after_id
      */

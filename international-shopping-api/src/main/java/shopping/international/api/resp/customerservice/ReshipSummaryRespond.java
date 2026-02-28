@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.ReshipReasonCode;
+import shopping.international.domain.model.enums.customerservice.ReshipStatus;
 
 import java.time.LocalDateTime;
 
@@ -42,12 +44,12 @@ public class ReshipSummaryRespond {
      * 补发原因编码
      */
     @NotNull
-    private String reasonCode;
+    private ReshipReasonCode reasonCode;
     /**
      * 补发状态
      */
     @NotNull
-    private String status;
+    private ReshipStatus status;
     /**
      * 币种代码
      */

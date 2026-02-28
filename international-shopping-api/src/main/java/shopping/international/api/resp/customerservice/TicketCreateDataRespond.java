@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
+import shopping.international.domain.model.enums.customerservice.TicketStatus;
 
 import java.time.LocalDateTime;
 
@@ -31,7 +32,7 @@ public class TicketCreateDataRespond {
      * 工单状态
      */
     @NotNull
-    private String status;
+    private TicketStatus status;
     /**
      * 创建时间
      */

@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketMessageType;
+import shopping.international.domain.model.enums.customerservice.TicketParticipantType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,7 +40,7 @@ public class TicketMessageRespond {
      * 发送方类型
      */
     @NotNull
-    private String senderType;
+    private TicketParticipantType senderType;
     /**
      * 发送方用户 ID
      */
@@ -48,7 +50,7 @@ public class TicketMessageRespond {
      * 消息类型
      */
     @NotNull
-    private String messageType;
+    private TicketMessageType messageType;
     /**
      * 消息内容
      */

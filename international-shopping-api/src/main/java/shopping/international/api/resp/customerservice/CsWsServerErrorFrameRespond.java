@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.WsErrorCode;
+import shopping.international.domain.model.enums.customerservice.WsFrameType;
 
 import java.time.LocalDateTime;
 
@@ -22,12 +24,12 @@ public class CsWsServerErrorFrameRespond {
      * 帧类型，固定为 error
      */
     @NotNull
-    private String type;
+    private WsFrameType type;
     /**
      * 错误码
      */
     @NotNull
-    private String code;
+    private WsErrorCode code;
     /**
      * 错误消息
      */

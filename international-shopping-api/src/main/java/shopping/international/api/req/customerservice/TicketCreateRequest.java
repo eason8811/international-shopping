@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketIssueType;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.ArrayList;
@@ -40,7 +41,7 @@ public class TicketCreateRequest implements Verifiable {
      * 问题类型
      */
     @Nullable
-    private String issueType;
+    private TicketIssueType issueType;
     /**
      * 工单标题
      */
@@ -85,9 +86,7 @@ public class TicketCreateRequest implements Verifiable {
         if (shipmentId != null)
             require(shipmentId >= 1, "shipmentId 必须大于等于 1");
 
-        issueType = normalizeNotNullField(issueType, "issueType 不能为空",
-                TicketCreateRequest::isIssueType,
-                "issueType 不支持").toUpperCase(Locale.ROOT);
+        requireNotNull(issueType, "issueType 不能为空");
 
         title = normalizeNotNullField(title, "title 不能为空",
                 value -> value.length() <= 200,
@@ -106,20 +105,6 @@ public class TicketCreateRequest implements Verifiable {
         currency = normalizeNotNullField(currency, "currency 不能为空",
                 value -> CURRENCY_PATTERN.matcher(value.strip().toUpperCase(Locale.ROOT)).matches(),
                 "currency 需为 3 位字母代码").toUpperCase(Locale.ROOT);
-    }
-
-    /**
-     * 判断是否为受支持的问题类型
-     *
-     * @param value 原始问题类型
-     * @return 若受支持则返回 {@code true}
-     */
-    private static boolean isIssueType(String value) {
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "REFUND", "RESHIP", "CLAIM", "DELIVERY", "ADDRESS", "PRODUCT", "PAYMENT", "OTHER" -> true;
-            default -> false;
-        };
     }
 
     /**

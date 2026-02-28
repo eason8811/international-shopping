@@ -4,12 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketMessageType;
 import shopping.international.types.utils.Verifiable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 import static shopping.international.types.utils.FieldValidateUtils.*;
@@ -25,7 +25,7 @@ public class TicketMessageCreateRequest implements Verifiable {
      * 消息类型
      */
     @Nullable
-    private String messageType;
+    private TicketMessageType messageType;
     /**
      * 消息内容
      */
@@ -47,12 +47,6 @@ public class TicketMessageCreateRequest implements Verifiable {
      */
     @Override
     public void validate() {
-        messageType = normalizeNullableField(messageType, "messageType 不能为空",
-                TicketMessageCreateRequest::isMessageType,
-                "messageType 不支持");
-        if (messageType != null)
-            messageType = messageType.toUpperCase(Locale.ROOT);
-
         content = normalizeNullableField(content, "content 不能为空",
                 value -> value.length() <= 4000,
                 "content 长度不能超过 4000 个字符");
@@ -64,20 +58,6 @@ public class TicketMessageCreateRequest implements Verifiable {
                 "clientMessageId 长度不能超过 64 个字符");
 
         require(content != null || !attachments.isEmpty(), "content 与 attachments 不能同时为空");
-    }
-
-    /**
-     * 判断是否为受支持的消息类型
-     *
-     * @param value 原始消息类型
-     * @return 若受支持则返回 {@code true}
-     */
-    private static boolean isMessageType(String value) {
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return switch (normalized) {
-            case "TEXT", "IMAGE", "FILE", "SYSTEM_EVENT", "RICH" -> true;
-            default -> false;
-        };
     }
 
     /**
