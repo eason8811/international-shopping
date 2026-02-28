@@ -11484,13 +11484,6 @@ components:
                 code: FORBIDDEN
                 message: Access denied
                 timestamp: '2025-11-06 17:31:36'
-    未找到:
-      description: ''
-      content:
-        application/json:
-          schema:
-            type: object
-            properties: {}
     冲突:
       description: ''
       content:
@@ -11539,6 +11532,12 @@ components:
                 code: TOO_MANY_REQUESTS
                 message: 尝试次数过多, 请过段时间再试
                 timestamp: '2025-11-15 14:25:35'
+    未找到:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
   securitySchemes: {}
 servers: []
 security: []
