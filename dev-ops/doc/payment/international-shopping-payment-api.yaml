@@ -89,7 +89,7 @@ paths:
         - name: Idempotency-Key
           in: header
           description: 幂等键（同一用户相同键请求只创建一次订单）
-          required: false
+          required: true
           example: 4a6b0b1f-1d20-4fd4-8c37-9d36c9b36a88
           schema:
             type: string
@@ -338,7 +338,7 @@ paths:
         - name: Idempotency-Key
           in: header
           description: 幂等键（可选；对重复点击/重试友好）
-          required: false
+          required: true
           example: ''
           schema:
             type: string
@@ -572,7 +572,7 @@ paths:
         - name: Idempotency-Key
           in: header
           description: 幂等键（可选；对重复点击/重试友好）
-          required: false
+          required: true
           example: ''
           schema:
             type: string
@@ -2705,13 +2705,6 @@ components:
                 code: FORBIDDEN
                 message: Access denied
                 timestamp: '2025-11-06 17:31:36'
-    未找到:
-      description: ''
-      content:
-        application/json:
-          schema:
-            type: object
-            properties: {}
     冲突:
       description: ''
       content:
@@ -2760,6 +2753,12 @@ components:
                 code: TOO_MANY_REQUESTS
                 message: 尝试次数过多, 请过段时间再试
                 timestamp: '2025-11-15 14:25:35'
+    未找到:
+      description: ''
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Result'
   securitySchemes: {}
 servers: []
 security: []
