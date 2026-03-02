@@ -5,6 +5,7 @@ import shopping.international.api.resp.customerservice.AdminTicketDetailRespond;
 import shopping.international.api.resp.customerservice.AdminTicketSummaryRespond;
 import shopping.international.domain.model.vo.customerservice.AdminTicketDetailView;
 import shopping.international.domain.model.vo.customerservice.AdminTicketSummaryView;
+import shopping.international.types.currency.CurrencyConfig;
 
 /**
  * 管理侧工单响应装配器, 负责 View 和 DTO 之间的转换
@@ -20,10 +21,12 @@ public final class AdminTicketRespondAssembler {
     /**
      * 管理侧工单摘要视图转换为响应 DTO
      *
-     * @param view 摘要视图
+     * @param view              摘要视图
+     * @param payCurrencyConfig 支付金额币种配置
      * @return 摘要响应 DTO
      */
-    public static @NotNull AdminTicketSummaryRespond toSummaryRespond(@NotNull AdminTicketSummaryView view) {
+    public static @NotNull AdminTicketSummaryRespond toSummaryRespond(@NotNull AdminTicketSummaryView view,
+                                                                      @NotNull CurrencyConfig payCurrencyConfig) {
         return AdminTicketSummaryRespond.builder()
                 .ticketId(view.ticketId())
                 .ticketNo(view.ticketNo())
@@ -35,7 +38,13 @@ public final class AdminTicketRespondAssembler {
                 .title(view.title())
                 .orderId(view.orderId())
                 .orderItemId(view.orderItemId())
+                .orderNo(view.orderNo())
+                .orderStatus(view.orderStatus())
+                .payAmount(payCurrencyConfig.toMajor(view.payAmountMinor()).toPlainString())
+                .orderCover(view.orderCover())
                 .shipmentId(view.shipmentId())
+                .shipmentStatus(view.shipmentStatus())
+                .shipmentStatusLogSnapshot(view.shipmentStatusLogSnapshot())
                 .assignedToUserId(view.assignedToUserId())
                 .assignedAt(view.assignedAt())
                 .lastMessageAt(view.lastMessageAt())
@@ -48,10 +57,12 @@ public final class AdminTicketRespondAssembler {
     /**
      * 管理侧工单详情视图转换为响应 DTO
      *
-     * @param view 详情视图
+     * @param view              详情视图
+     * @param payCurrencyConfig 支付金额币种配置
      * @return 详情响应 DTO
      */
-    public static @NotNull AdminTicketDetailRespond toDetailRespond(@NotNull AdminTicketDetailView view) {
+    public static @NotNull AdminTicketDetailRespond toDetailRespond(@NotNull AdminTicketDetailView view,
+                                                                    @NotNull CurrencyConfig payCurrencyConfig) {
         return AdminTicketDetailRespond.builder()
                 .ticketId(view.ticketId())
                 .ticketNo(view.ticketNo())
@@ -63,7 +74,13 @@ public final class AdminTicketRespondAssembler {
                 .title(view.title())
                 .orderId(view.orderId())
                 .orderItemId(view.orderItemId())
+                .orderNo(view.orderNo())
+                .orderStatus(view.orderStatus())
+                .payAmount(payCurrencyConfig.toMajor(view.payAmountMinor()).toPlainString())
+                .orderCover(view.orderCover())
                 .shipmentId(view.shipmentId())
+                .shipmentStatus(view.shipmentStatus())
+                .shipmentStatusLogSnapshot(view.shipmentStatusLogSnapshot())
                 .assignedToUserId(view.assignedToUserId())
                 .assignedAt(view.assignedAt())
                 .lastMessageAt(view.lastMessageAt())

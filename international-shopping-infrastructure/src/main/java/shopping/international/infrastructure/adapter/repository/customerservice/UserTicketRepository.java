@@ -39,16 +39,13 @@ import shopping.international.infrastructure.dao.customerservice.CsTicketAssignm
 import shopping.international.infrastructure.dao.customerservice.CsTicketMessageMapper;
 import shopping.international.infrastructure.dao.customerservice.CsTicketParticipantMapper;
 import shopping.international.infrastructure.dao.customerservice.CsTicketStatusLogMapper;
-import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketDetailPO;
-import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketSummaryPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketAssignmentLogPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketMessagePO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketParticipantPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketStatusLogPO;
-import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketDetailPO;
+import shopping.international.infrastructure.dao.customerservice.po.CsTicketQueryPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketShipmentSummaryPO;
-import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketSummaryPO;
 import shopping.international.types.exceptions.AppException;
 import shopping.international.types.exceptions.ConflictException;
 
@@ -133,7 +130,7 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
 
         String statusValue = status == null ? null : status.name();
         String issueTypeValue = issueType == null ? null : issueType.name();
-        List<CsUserTicketSummaryPO> rowList = csTicketMapper.pageUserTicketSummaries(
+        List<CsTicketQueryPO> rowList = csTicketMapper.pageUserTicketSummaries(
                 userId,
                 statusValue,
                 issueTypeValue,
@@ -179,7 +176,7 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     @Override
     public @NotNull Optional<UserTicketDetailView> findUserTicketDetail(@NotNull Long userId,
                                                                         @NotNull TicketNo ticketNo) {
-        CsUserTicketDetailPO row = csTicketMapper.selectUserTicketDetail(userId, ticketNo.getValue());
+        CsTicketQueryPO row = csTicketMapper.selectUserTicketDetail(userId, ticketNo.getValue());
         if (row == null)
             return Optional.empty();
         return Optional.of(toUserTicketDetailView(row));
@@ -750,7 +747,7 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
         String issueType = criteria.getIssueType() == null ? null : criteria.getIssueType().name();
         String status = criteria.getStatus() == null ? null : criteria.getStatus().name();
         String priority = criteria.getPriority() == null ? null : criteria.getPriority().name();
-        List<CsAdminTicketSummaryPO> rowList = csTicketMapper.pageAdminTicketSummaries(
+        List<CsTicketQueryPO> rowList = csTicketMapper.pageAdminTicketSummaries(
                 criteria.getTicketNo(),
                 criteria.getUserId(),
                 criteria.getOrderId(),
@@ -806,7 +803,7 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      */
     @Override
     public @NotNull Optional<AdminTicketDetailView> findAdminTicketDetail(@NotNull Long ticketId) {
-        CsAdminTicketDetailPO row = csTicketMapper.selectAdminTicketDetailById(ticketId);
+        CsTicketQueryPO row = csTicketMapper.selectAdminTicketDetailById(ticketId);
         if (row == null)
             return Optional.empty();
         return Optional.of(toAdminTicketDetailView(row));
@@ -998,7 +995,7 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @param row 持久化行
      * @return 用户工单摘要视图
      */
-    private @NotNull UserTicketSummaryView toUserTicketSummaryView(@NotNull CsUserTicketSummaryPO row) {
+    private @NotNull UserTicketSummaryView toUserTicketSummaryView(@NotNull CsTicketQueryPO row) {
         String ticketNo = requireColumn(row.getTicketNo(), "ticketNo");
         String issueType = requireColumn(row.getIssueType(), "issueType");
         String status = requireColumn(row.getStatus(), "status");
@@ -1036,7 +1033,7 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @param row 持久化行
      * @return 用户工单详情视图
      */
-    private @NotNull UserTicketDetailView toUserTicketDetailView(@NotNull CsUserTicketDetailPO row) {
+    private @NotNull UserTicketDetailView toUserTicketDetailView(@NotNull CsTicketQueryPO row) {
         String ticketNo = requireColumn(row.getTicketNo(), "ticketNo");
         String issueType = requireColumn(row.getIssueType(), "issueType");
         String status = requireColumn(row.getStatus(), "status");
@@ -1084,7 +1081,12 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @param row 持久化行
      * @return 管理侧工单摘要视图
      */
-    private @NotNull AdminTicketSummaryView toAdminTicketSummaryView(@NotNull CsAdminTicketSummaryPO row) {
+    private @NotNull AdminTicketSummaryView toAdminTicketSummaryView(@NotNull CsTicketQueryPO row) {
+        String orderNo = requireColumn(row.getOrderNo(), "orderNo");
+        String orderStatus = requireColumn(row.getOrderStatus(), "orderStatus");
+        String payCurrency = normalizeCurrency(row.getPayCurrency());
+        String orderCover = row.getOrderCover() == null ? "" : row.getOrderCover();
+
         return new AdminTicketSummaryView(
                 requireColumn(row.getTicketId(), "ticketId"),
                 requireColumn(row.getTicketNo(), "ticketNo"),
@@ -1096,7 +1098,14 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
                 requireColumn(row.getTitle(), "title"),
                 row.getOrderId(),
                 row.getOrderItemId(),
+                orderNo,
+                OrderStatus.valueOf(orderStatus),
+                row.getPayAmount() == null ? 0L : row.getPayAmount(),
+                payCurrency,
+                orderCover,
                 row.getShipmentId(),
+                row.getShipmentStatus() == null ? null : ShipmentStatus.valueOf(row.getShipmentStatus()),
+                row.getShipmentStatusLogSnapshot(),
                 row.getAssignedToUserId(),
                 row.getAssignedAt(),
                 row.getLastMessageAt(),
@@ -1112,7 +1121,12 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @param row 持久化行
      * @return 管理侧工单详情视图
      */
-    private @NotNull AdminTicketDetailView toAdminTicketDetailView(@NotNull CsAdminTicketDetailPO row) {
+    private @NotNull AdminTicketDetailView toAdminTicketDetailView(@NotNull CsTicketQueryPO row) {
+        String orderNo = requireColumn(row.getOrderNo(), "orderNo");
+        String orderStatus = requireColumn(row.getOrderStatus(), "orderStatus");
+        String payCurrency = normalizeCurrency(row.getPayCurrency());
+        String orderCover = row.getOrderCover() == null ? "" : row.getOrderCover();
+
         return new AdminTicketDetailView(
                 requireColumn(row.getTicketId(), "ticketId"),
                 requireColumn(row.getTicketNo(), "ticketNo"),
@@ -1124,7 +1138,14 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
                 requireColumn(row.getTitle(), "title"),
                 row.getOrderId(),
                 row.getOrderItemId(),
+                orderNo,
+                OrderStatus.valueOf(orderStatus),
+                row.getPayAmount() == null ? 0L : row.getPayAmount(),
+                payCurrency,
+                orderCover,
                 row.getShipmentId(),
+                row.getShipmentStatus() == null ? null : ShipmentStatus.valueOf(row.getShipmentStatus()),
+                row.getShipmentStatusLogSnapshot(),
                 row.getAssignedToUserId(),
                 row.getAssignedAt(),
                 row.getLastMessageAt(),

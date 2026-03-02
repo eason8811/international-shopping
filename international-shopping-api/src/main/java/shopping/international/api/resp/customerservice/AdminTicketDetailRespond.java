@@ -11,6 +11,8 @@ import shopping.international.domain.model.enums.customerservice.TicketChannel;
 import shopping.international.domain.model.enums.customerservice.TicketIssueType;
 import shopping.international.domain.model.enums.customerservice.TicketPriority;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
+import shopping.international.domain.model.enums.orders.OrderStatus;
+import shopping.international.domain.model.enums.shipping.ShipmentStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -74,10 +76,40 @@ public class AdminTicketDetailRespond {
     @Nullable
     private Long orderItemId;
     /**
+     * 订单号
+     */
+    @NotNull
+    private String orderNo;
+    /**
+     * 订单状态
+     */
+    @NotNull
+    private OrderStatus orderStatus;
+    /**
+     * 订单支付金额
+     */
+    @NotNull
+    private String payAmount;
+    /**
+     * 订单封面图
+     */
+    @NotNull
+    private String orderCover;
+    /**
      * 物流单 ID
      */
     @Nullable
     private Long shipmentId;
+    /**
+     * 物流状态
+     */
+    @Nullable
+    private ShipmentStatus shipmentStatus;
+    /**
+     * 物流状态快照说明
+     */
+    @NotNull
+    private String shipmentStatusLogSnapshot;
     /**
      * 指派坐席用户 ID
      */

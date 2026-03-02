@@ -29,8 +29,10 @@ import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.customerservice.AdminTicketDetailView;
 import shopping.international.domain.model.vo.customerservice.AdminTicketPageCriteria;
 import shopping.international.domain.model.vo.customerservice.AdminTicketSummaryView;
+import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.customerservice.IAdminTicketService;
 import shopping.international.types.constant.SecurityConstants;
+import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.exceptions.AccountException;
 import shopping.international.types.exceptions.IllegalParamException;
 
@@ -56,6 +58,10 @@ public class AdminTicketController {
      * 管理侧工单领域服务
      */
     private final IAdminTicketService adminTicketService;
+    /**
+     * 币种配置服务
+     */
+    private final ICurrencyConfigService currencyConfigService;
 
     /**
      * 管理侧分页检索工单
@@ -150,7 +156,10 @@ public class AdminTicketController {
         PageResult<AdminTicketSummaryView> pageResult = adminTicketService.pageTickets(criteria, pageQuery);
 
         List<AdminTicketSummaryRespond> data = pageResult.items().stream()
-                .map(AdminTicketRespondAssembler::toSummaryRespond)
+                .map(item -> {
+                    CurrencyConfig payCurrencyConfig = currencyConfigService.get(item.payCurrency());
+                    return AdminTicketRespondAssembler.toSummaryRespond(item, payCurrencyConfig);
+                })
                 .toList();
         return ResponseEntity.ok(Result.ok(
                 data,
@@ -172,7 +181,8 @@ public class AdminTicketController {
     public ResponseEntity<Result<AdminTicketDetailRespond>> getTicketDetail(@PathVariable("ticket_id") Long ticketId) {
         require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
         AdminTicketDetailView detailView = adminTicketService.getTicketDetail(ticketId);
-        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView)));
+        CurrencyConfig payCurrencyConfig = currencyConfigService.get(detailView.payCurrency());
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView, payCurrencyConfig)));
     }
 
     /**
@@ -208,7 +218,8 @@ public class AdminTicketController {
                 request.getSlaDueAt(),
                 normalizedIdempotencyKey
         );
-        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView)));
+        CurrencyConfig payCurrencyConfig = currencyConfigService.get(detailView.payCurrency());
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView, payCurrencyConfig)));
     }
 
     /**
@@ -242,7 +253,8 @@ public class AdminTicketController {
                 request.getSourceRef(),
                 normalizedIdempotencyKey
         );
-        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView)));
+        CurrencyConfig payCurrencyConfig = currencyConfigService.get(detailView.payCurrency());
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView, payCurrencyConfig)));
     }
 
     /**
@@ -255,8 +267,8 @@ public class AdminTicketController {
      */
     @PostMapping("/{ticket_id}/status")
     public ResponseEntity<Result<AdminTicketDetailRespond>> transitionTicketStatus(@PathVariable("ticket_id") Long ticketId,
-                                                                                    @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-                                                                                    @RequestBody TicketStatusTransitionRequest request) {
+                                                                                   @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                                   @RequestBody TicketStatusTransitionRequest request) {
         require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
         String normalizedIdempotencyKey = normalizeNotNullField(
                 idempotencyKey,
@@ -275,7 +287,8 @@ public class AdminTicketController {
                 request.getSourceRef(),
                 normalizedIdempotencyKey
         );
-        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView)));
+        CurrencyConfig payCurrencyConfig = currencyConfigService.get(detailView.payCurrency());
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toDetailRespond(detailView, payCurrencyConfig)));
     }
 
     /**

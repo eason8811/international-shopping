@@ -8,13 +8,13 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 管理侧工单详情投影对象
+ * 工单查询投影对象, 同时覆盖用户侧和管理侧摘要与详情查询字段
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CsAdminTicketDetailPO {
+public class CsTicketQueryPO {
 
     /**
      * 工单 ID
@@ -57,9 +57,37 @@ public class CsAdminTicketDetailPO {
      */
     private Long orderItemId;
     /**
+     * 订单号
+     */
+    private String orderNo;
+    /**
+     * 订单状态
+     */
+    private String orderStatus;
+    /**
+     * 支付金额, 最小货币单位
+     */
+    private Long payAmount;
+    /**
+     * 支付币种
+     */
+    private String payCurrency;
+    /**
+     * 订单封面图
+     */
+    private String orderCover;
+    /**
      * 物流单 ID
      */
     private Long shipmentId;
+    /**
+     * 物流状态
+     */
+    private String shipmentStatus;
+    /**
+     * 物流状态快照
+     */
+    private String shipmentStatusLogSnapshot;
     /**
      * 指派坐席用户 ID
      */

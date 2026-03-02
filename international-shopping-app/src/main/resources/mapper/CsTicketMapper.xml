@@ -3,7 +3,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="shopping.international.infrastructure.dao.customerservice.CsTicketMapper">
 
-    <select id="pageUserTicketSummaries" resultType="shopping.international.infrastructure.dao.customerservice.po.CsUserTicketSummaryPO">
+    <select id="pageUserTicketSummaries" resultType="shopping.international.infrastructure.dao.customerservice.po.CsTicketQueryPO">
         SELECT t.ticket_no                      AS ticketNo,
                t.issue_type                     AS issueType,
                t.status                         AS status,
@@ -88,25 +88,45 @@
         </where>
     </select>
 
-    <select id="pageAdminTicketSummaries" resultType="shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketSummaryPO">
-        SELECT t.id                  AS ticketId,
-               t.ticket_no           AS ticketNo,
-               t.user_id             AS userId,
-               t.issue_type          AS issueType,
-               t.status              AS status,
-               t.priority            AS priority,
-               t.channel             AS channel,
-               t.title               AS title,
-               t.order_id            AS orderId,
-               t.order_item_id       AS orderItemId,
-               t.shipment_id         AS shipmentId,
-               t.assigned_to_user_id AS assignedToUserId,
-               t.assigned_at         AS assignedAt,
-               t.last_message_at     AS lastMessageAt,
-               t.sla_due_at          AS slaDueAt,
-               t.created_at          AS createdAt,
-               t.updated_at          AS updatedAt
+    <select id="pageAdminTicketSummaries" resultType="shopping.international.infrastructure.dao.customerservice.po.CsTicketQueryPO">
+        SELECT t.id                             AS ticketId,
+               t.ticket_no                      AS ticketNo,
+               t.user_id                        AS userId,
+               t.issue_type                     AS issueType,
+               t.status                         AS status,
+               t.priority                       AS priority,
+               t.channel                        AS channel,
+               t.title                          AS title,
+               t.order_id                       AS orderId,
+               t.order_item_id                  AS orderItemId,
+               o.order_no                       AS orderNo,
+               o.status                         AS orderStatus,
+               COALESCE(o.pay_amount, 0)        AS payAmount,
+               COALESCE(o.currency, 'USD')      AS payCurrency,
+               COALESCE(oi.cover_image_url, '') AS orderCover,
+               t.shipment_id                    AS shipmentId,
+               s.status                         AS shipmentStatus,
+               COALESCE(lsn.note, '')           AS shipmentStatusLogSnapshot,
+               t.assigned_to_user_id            AS assignedToUserId,
+               t.assigned_at                    AS assignedAt,
+               t.last_message_at                AS lastMessageAt,
+               t.sla_due_at                     AS slaDueAt,
+               t.created_at                     AS createdAt,
+               t.updated_at                     AS updatedAt
         FROM cs_ticket t
+                 LEFT JOIN orders o ON o.id = t.order_id
+                 LEFT JOIN shipment s ON s.id = t.shipment_id
+                 LEFT JOIN order_item oi ON oi.id = (SELECT oi_min.id
+                                                     FROM order_item oi_min
+                                                     WHERE oi_min.order_id = t.order_id
+                                                     ORDER BY oi_min.id
+                                                     LIMIT 1)
+                 LEFT JOIN shipment_status_log lsn ON lsn.id = (SELECT l.id
+                                                                FROM shipment_status_log l
+                                                                WHERE l.shipment_id = t.shipment_id
+                                                                ORDER BY COALESCE(l.event_time, l.created_at) DESC,
+                                                                         l.id DESC
+                                                                LIMIT 1)
         <where>
             <if test="ticketNo != null and ticketNo != ''">
                 AND t.ticket_no = #{ticketNo}
@@ -200,40 +220,60 @@
         </where>
     </select>
 
-    <select id="selectAdminTicketDetailById" resultType="shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketDetailPO">
-        SELECT t.id                      AS ticketId,
-               t.ticket_no               AS ticketNo,
-               t.user_id                 AS userId,
-               t.issue_type              AS issueType,
-               t.status                  AS status,
-               t.priority                AS priority,
-               t.channel                 AS channel,
-               t.title                   AS title,
-               t.order_id                AS orderId,
-               t.order_item_id           AS orderItemId,
-               t.shipment_id             AS shipmentId,
-               t.assigned_to_user_id     AS assignedToUserId,
-               t.assigned_at             AS assignedAt,
-               t.last_message_at         AS lastMessageAt,
-               t.sla_due_at              AS slaDueAt,
-               t.created_at              AS createdAt,
-               t.updated_at              AS updatedAt,
-               t.description             AS description,
-               t.attachments             AS attachments,
-               t.evidence                AS evidence,
-               t.tags                    AS tags,
-               t.requested_refund_amount AS requestedRefundAmount,
-               t.currency                AS currency,
-               t.claim_external_id       AS claimExternalId,
-               t.source_ref              AS sourceRef,
-               t.resolved_at             AS resolvedAt,
-               t.closed_at               AS closedAt
+    <select id="selectAdminTicketDetailById" resultType="shopping.international.infrastructure.dao.customerservice.po.CsTicketQueryPO">
+        SELECT t.id                             AS ticketId,
+               t.ticket_no                      AS ticketNo,
+               t.user_id                        AS userId,
+               t.issue_type                     AS issueType,
+               t.status                         AS status,
+               t.priority                       AS priority,
+               t.channel                        AS channel,
+               t.title                          AS title,
+               t.order_id                       AS orderId,
+               t.order_item_id                  AS orderItemId,
+               o.order_no                       AS orderNo,
+               o.status                         AS orderStatus,
+               COALESCE(o.pay_amount, 0)        AS payAmount,
+               COALESCE(o.currency, 'USD')      AS payCurrency,
+               COALESCE(oi.cover_image_url, '') AS orderCover,
+               t.shipment_id                    AS shipmentId,
+               s.status                         AS shipmentStatus,
+               COALESCE(lsn.note, '')           AS shipmentStatusLogSnapshot,
+               t.assigned_to_user_id            AS assignedToUserId,
+               t.assigned_at                    AS assignedAt,
+               t.last_message_at                AS lastMessageAt,
+               t.sla_due_at                     AS slaDueAt,
+               t.created_at                     AS createdAt,
+               t.updated_at                     AS updatedAt,
+               t.description                    AS description,
+               t.attachments                    AS attachments,
+               t.evidence                       AS evidence,
+               t.tags                           AS tags,
+               t.requested_refund_amount        AS requestedRefundAmount,
+               t.currency                       AS currency,
+               t.claim_external_id              AS claimExternalId,
+               t.source_ref                     AS sourceRef,
+               t.resolved_at                    AS resolvedAt,
+               t.closed_at                      AS closedAt
         FROM cs_ticket t
+                 LEFT JOIN orders o ON o.id = t.order_id
+                 LEFT JOIN shipment s ON s.id = t.shipment_id
+                 LEFT JOIN order_item oi ON oi.id = (SELECT oi_min.id
+                                                     FROM order_item oi_min
+                                                     WHERE oi_min.order_id = t.order_id
+                                                     ORDER BY oi_min.id
+                                                     LIMIT 1)
+                 LEFT JOIN shipment_status_log lsn ON lsn.id = (SELECT l.id
+                                                                FROM shipment_status_log l
+                                                                WHERE l.shipment_id = t.shipment_id
+                                                                ORDER BY COALESCE(l.event_time, l.created_at) DESC,
+                                                                         l.id DESC
+                                                                LIMIT 1)
         WHERE t.id = #{ticketId}
         LIMIT 1
     </select>
 
-    <select id="selectUserTicketDetail" resultType="shopping.international.infrastructure.dao.customerservice.po.CsUserTicketDetailPO">
+    <select id="selectUserTicketDetail" resultType="shopping.international.infrastructure.dao.customerservice.po.CsTicketQueryPO">
         SELECT t.id                             AS ticketId,
                t.ticket_no                      AS ticketNo,
                t.issue_type                     AS issueType,

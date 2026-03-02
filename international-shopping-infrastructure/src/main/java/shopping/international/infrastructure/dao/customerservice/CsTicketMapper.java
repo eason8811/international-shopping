@@ -3,12 +3,9 @@ package shopping.international.infrastructure.dao.customerservice;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketDetailPO;
-import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketSummaryPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketPO;
-import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketDetailPO;
+import shopping.international.infrastructure.dao.customerservice.po.CsTicketQueryPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketShipmentSummaryPO;
-import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketSummaryPO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,15 +30,15 @@ public interface CsTicketMapper extends BaseMapper<CsTicketPO> {
      * @param limit        分页条数
      * @return 工单摘要列表
      */
-    List<CsUserTicketSummaryPO> pageUserTicketSummaries(@Param("userId") Long userId,
-                                                        @Param("status") String status,
-                                                        @Param("issueType") String issueType,
-                                                        @Param("orderNo") String orderNo,
-                                                        @Param("shipmentNo") String shipmentNo,
-                                                        @Param("createdFrom") LocalDateTime createdFrom,
-                                                        @Param("createdTo") LocalDateTime createdTo,
-                                                        @Param("offset") int offset,
-                                                        @Param("limit") int limit);
+    List<CsTicketQueryPO> pageUserTicketSummaries(@Param("userId") Long userId,
+                                                  @Param("status") String status,
+                                                  @Param("issueType") String issueType,
+                                                  @Param("orderNo") String orderNo,
+                                                  @Param("shipmentNo") String shipmentNo,
+                                                  @Param("createdFrom") LocalDateTime createdFrom,
+                                                  @Param("createdTo") LocalDateTime createdTo,
+                                                  @Param("offset") int offset,
+                                                  @Param("limit") int limit);
 
     /**
      * 统计用户侧工单摘要总数
@@ -83,21 +80,21 @@ public interface CsTicketMapper extends BaseMapper<CsTicketPO> {
      * @param limit             分页条数
      * @return 工单摘要列表
      */
-    List<CsAdminTicketSummaryPO> pageAdminTicketSummaries(@Param("ticketNo") String ticketNo,
-                                                          @Param("userId") Long userId,
-                                                          @Param("orderId") Long orderId,
-                                                          @Param("shipmentId") Long shipmentId,
-                                                          @Param("issueType") String issueType,
-                                                          @Param("status") String status,
-                                                          @Param("priority") String priority,
-                                                          @Param("assignedToUserId") Long assignedToUserId,
-                                                          @Param("claimExternalId") String claimExternalId,
-                                                          @Param("slaDueFrom") LocalDateTime slaDueFrom,
-                                                          @Param("slaDueTo") LocalDateTime slaDueTo,
-                                                          @Param("createdFrom") LocalDateTime createdFrom,
-                                                          @Param("createdTo") LocalDateTime createdTo,
-                                                          @Param("offset") int offset,
-                                                          @Param("limit") int limit);
+    List<CsTicketQueryPO> pageAdminTicketSummaries(@Param("ticketNo") String ticketNo,
+                                                   @Param("userId") Long userId,
+                                                   @Param("orderId") Long orderId,
+                                                   @Param("shipmentId") Long shipmentId,
+                                                   @Param("issueType") String issueType,
+                                                   @Param("status") String status,
+                                                   @Param("priority") String priority,
+                                                   @Param("assignedToUserId") Long assignedToUserId,
+                                                   @Param("claimExternalId") String claimExternalId,
+                                                   @Param("slaDueFrom") LocalDateTime slaDueFrom,
+                                                   @Param("slaDueTo") LocalDateTime slaDueTo,
+                                                   @Param("createdFrom") LocalDateTime createdFrom,
+                                                   @Param("createdTo") LocalDateTime createdTo,
+                                                   @Param("offset") int offset,
+                                                   @Param("limit") int limit);
 
     /**
      * 统计管理侧工单摘要总数
@@ -137,7 +134,7 @@ public interface CsTicketMapper extends BaseMapper<CsTicketPO> {
      * @param ticketId 工单 ID
      * @return 工单详情
      */
-    CsAdminTicketDetailPO selectAdminTicketDetailById(@Param("ticketId") Long ticketId);
+    CsTicketQueryPO selectAdminTicketDetailById(@Param("ticketId") Long ticketId);
 
     /**
      * 查询用户侧工单详情
@@ -146,8 +143,8 @@ public interface CsTicketMapper extends BaseMapper<CsTicketPO> {
      * @param ticketNo  工单编号
      * @return 工单详情
      */
-    CsUserTicketDetailPO selectUserTicketDetail(@Param("userId") Long userId,
-                                                @Param("ticketNo") String ticketNo);
+    CsTicketQueryPO selectUserTicketDetail(@Param("userId") Long userId,
+                                           @Param("ticketNo") String ticketNo);
 
     /**
      * 基于状态 CAS 更新工单状态
