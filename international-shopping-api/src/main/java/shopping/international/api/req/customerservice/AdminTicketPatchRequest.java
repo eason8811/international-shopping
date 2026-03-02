@@ -59,7 +59,9 @@ public class AdminTicketPatchRequest implements Verifiable {
      */
     @Override
     public void validate() {
-        tags = normalizeTags(tags);
+        boolean tagsProvided = tags != null;
+        if (tagsProvided)
+            tags = normalizeTags(tags);
 
         if (requestedRefundAmount != null)
             require(requestedRefundAmount >= 1, "requestedRefundAmount 必须大于等于 1");
@@ -74,7 +76,7 @@ public class AdminTicketPatchRequest implements Verifiable {
                 value -> value.length() <= 128,
                 "claimExternalId 长度不能超过 128 个字符");
 
-        require(priority != null || !tags.isEmpty() || requestedRefundAmount != null || currency != null || claimExternalId != null || slaDueAt != null,
+        require(priority != null || tagsProvided || requestedRefundAmount != null || currency != null || claimExternalId != null || slaDueAt != null,
                 "至少需要提供一个可更新字段");
     }
 

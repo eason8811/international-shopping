@@ -3,6 +3,8 @@ package shopping.international.infrastructure.dao.customerservice;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketDetailPO;
+import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketSummaryPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketDetailPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketShipmentSummaryPO;
@@ -60,6 +62,82 @@ public interface CsTicketMapper extends BaseMapper<CsTicketPO> {
                                   @Param("shipmentNo") String shipmentNo,
                                   @Param("createdFrom") LocalDateTime createdFrom,
                                   @Param("createdTo") LocalDateTime createdTo);
+
+    /**
+     * 分页查询管理侧工单摘要
+     *
+     * @param ticketNo          工单编号
+     * @param userId            用户 ID
+     * @param orderId           订单 ID
+     * @param shipmentId        物流单 ID
+     * @param issueType         问题类型
+     * @param status            工单状态
+     * @param priority          工单优先级
+     * @param assignedToUserId  指派坐席用户 ID
+     * @param claimExternalId   理赔外部编号
+     * @param slaDueFrom        SLA 到期时间起始
+     * @param slaDueTo          SLA 到期时间结束
+     * @param createdFrom       创建时间起始
+     * @param createdTo         创建时间结束
+     * @param offset            分页偏移量
+     * @param limit             分页条数
+     * @return 工单摘要列表
+     */
+    List<CsAdminTicketSummaryPO> pageAdminTicketSummaries(@Param("ticketNo") String ticketNo,
+                                                          @Param("userId") Long userId,
+                                                          @Param("orderId") Long orderId,
+                                                          @Param("shipmentId") Long shipmentId,
+                                                          @Param("issueType") String issueType,
+                                                          @Param("status") String status,
+                                                          @Param("priority") String priority,
+                                                          @Param("assignedToUserId") Long assignedToUserId,
+                                                          @Param("claimExternalId") String claimExternalId,
+                                                          @Param("slaDueFrom") LocalDateTime slaDueFrom,
+                                                          @Param("slaDueTo") LocalDateTime slaDueTo,
+                                                          @Param("createdFrom") LocalDateTime createdFrom,
+                                                          @Param("createdTo") LocalDateTime createdTo,
+                                                          @Param("offset") int offset,
+                                                          @Param("limit") int limit);
+
+    /**
+     * 统计管理侧工单摘要总数
+     *
+     * @param ticketNo          工单编号
+     * @param userId            用户 ID
+     * @param orderId           订单 ID
+     * @param shipmentId        物流单 ID
+     * @param issueType         问题类型
+     * @param status            工单状态
+     * @param priority          工单优先级
+     * @param assignedToUserId  指派坐席用户 ID
+     * @param claimExternalId   理赔外部编号
+     * @param slaDueFrom        SLA 到期时间起始
+     * @param slaDueTo          SLA 到期时间结束
+     * @param createdFrom       创建时间起始
+     * @param createdTo         创建时间结束
+     * @return 总数
+     */
+    long countAdminTicketSummaries(@Param("ticketNo") String ticketNo,
+                                   @Param("userId") Long userId,
+                                   @Param("orderId") Long orderId,
+                                   @Param("shipmentId") Long shipmentId,
+                                   @Param("issueType") String issueType,
+                                   @Param("status") String status,
+                                   @Param("priority") String priority,
+                                   @Param("assignedToUserId") Long assignedToUserId,
+                                   @Param("claimExternalId") String claimExternalId,
+                                   @Param("slaDueFrom") LocalDateTime slaDueFrom,
+                                   @Param("slaDueTo") LocalDateTime slaDueTo,
+                                   @Param("createdFrom") LocalDateTime createdFrom,
+                                   @Param("createdTo") LocalDateTime createdTo);
+
+    /**
+     * 查询管理侧工单详情
+     *
+     * @param ticketId 工单 ID
+     * @return 工单详情
+     */
+    CsAdminTicketDetailPO selectAdminTicketDetailById(@Param("ticketId") Long ticketId);
 
     /**
      * 查询用户侧工单详情

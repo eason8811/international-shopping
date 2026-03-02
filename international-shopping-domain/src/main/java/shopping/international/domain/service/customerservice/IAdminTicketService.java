@@ -1,0 +1,106 @@
+package shopping.international.domain.service.customerservice;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.customerservice.TicketAssignmentActionType;
+import shopping.international.domain.model.enums.customerservice.TicketPriority;
+import shopping.international.domain.model.enums.customerservice.TicketStatus;
+import shopping.international.domain.model.vo.PageQuery;
+import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.customerservice.AdminTicketDetailView;
+import shopping.international.domain.model.vo.customerservice.AdminTicketPageCriteria;
+import shopping.international.domain.model.vo.customerservice.AdminTicketSummaryView;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * 管理侧工单领域服务接口
+ */
+public interface IAdminTicketService {
+
+    /**
+     * 分页查询管理侧工单摘要
+     *
+     * @param criteria  查询条件
+     * @param pageQuery 分页参数
+     * @return 工单摘要分页结果
+     */
+    @NotNull
+    PageResult<AdminTicketSummaryView> pageTickets(@NotNull AdminTicketPageCriteria criteria,
+                                                   @NotNull PageQuery pageQuery);
+
+    /**
+     * 查询管理侧工单详情
+     *
+     * @param ticketId 工单 ID
+     * @return 工单详情视图
+     */
+    @NotNull
+    AdminTicketDetailView getTicketDetail(@NotNull Long ticketId);
+
+    /**
+     * 更新工单元数据
+     *
+     * @param actorUserId            操作者用户 ID
+     * @param ticketId               工单 ID
+     * @param priority               工单优先级
+     * @param tags                   工单标签
+     * @param requestedRefundAmount  申请退款金额
+     * @param currency               币种
+     * @param claimExternalId        理赔外部编号
+     * @param slaDueAt               SLA 到期时间
+     * @param idempotencyKey         幂等键
+     * @return 更新后的工单详情视图
+     */
+    @NotNull
+    AdminTicketDetailView patchTicket(@NotNull Long actorUserId,
+                                      @NotNull Long ticketId,
+                                      @Nullable TicketPriority priority,
+                                      @Nullable List<String> tags,
+                                      @Nullable Long requestedRefundAmount,
+                                      @Nullable String currency,
+                                      @Nullable String claimExternalId,
+                                      @Nullable LocalDateTime slaDueAt,
+                                      @NotNull String idempotencyKey);
+
+    /**
+     * 指派或转派工单
+     *
+     * @param actorUserId       操作者用户 ID
+     * @param ticketId          工单 ID
+     * @param toAssigneeUserId  目标指派坐席用户 ID
+     * @param actionType        指派动作
+     * @param note              备注
+     * @param sourceRef         来源引用 ID
+     * @param idempotencyKey    幂等键
+     * @return 更新后的工单详情视图
+     */
+    @NotNull
+    AdminTicketDetailView assignTicket(@NotNull Long actorUserId,
+                                       @NotNull Long ticketId,
+                                       @Nullable Long toAssigneeUserId,
+                                       @NotNull TicketAssignmentActionType actionType,
+                                       @Nullable String note,
+                                       @Nullable String sourceRef,
+                                       @NotNull String idempotencyKey);
+
+    /**
+     * 推进工单状态
+     *
+     * @param actorUserId     操作者用户 ID
+     * @param ticketId        工单 ID
+     * @param toStatus        目标状态
+     * @param note            备注
+     * @param sourceRef       来源引用 ID
+     * @param idempotencyKey  幂等键
+     * @return 更新后的工单详情视图
+     */
+    @NotNull
+    AdminTicketDetailView transitionTicketStatus(@NotNull Long actorUserId,
+                                                 @NotNull Long ticketId,
+                                                 @NotNull TicketStatus toStatus,
+                                                 @Nullable String note,
+                                                 @Nullable String sourceRef,
+                                                 @NotNull String idempotencyKey);
+}

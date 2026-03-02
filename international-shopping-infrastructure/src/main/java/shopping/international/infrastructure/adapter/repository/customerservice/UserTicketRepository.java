@@ -11,8 +11,10 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import shopping.international.domain.adapter.repository.customerservice.IAdminTicketRepository;
 import shopping.international.domain.adapter.repository.customerservice.IUserTicketRepository;
 import shopping.international.domain.model.aggregate.customerservice.CustomerServiceTicket;
+import shopping.international.domain.model.entity.customerservice.TicketAssignmentLog;
 import shopping.international.domain.model.entity.customerservice.TicketMessage;
 import shopping.international.domain.model.entity.customerservice.TicketParticipant;
 import shopping.international.domain.model.entity.customerservice.TicketStatusLog;
@@ -21,6 +23,9 @@ import shopping.international.domain.model.enums.orders.OrderStatus;
 import shopping.international.domain.model.enums.shipping.ShipmentStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.customerservice.AdminTicketDetailView;
+import shopping.international.domain.model.vo.customerservice.AdminTicketPageCriteria;
+import shopping.international.domain.model.vo.customerservice.AdminTicketSummaryView;
 import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
 import shopping.international.domain.model.vo.customerservice.TicketNo;
 import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
@@ -30,9 +35,13 @@ import shopping.international.domain.model.vo.customerservice.UserTicketShipment
 import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
 import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
 import shopping.international.infrastructure.dao.customerservice.CsTicketMapper;
+import shopping.international.infrastructure.dao.customerservice.CsTicketAssignmentLogMapper;
 import shopping.international.infrastructure.dao.customerservice.CsTicketMessageMapper;
 import shopping.international.infrastructure.dao.customerservice.CsTicketParticipantMapper;
 import shopping.international.infrastructure.dao.customerservice.CsTicketStatusLogMapper;
+import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketDetailPO;
+import shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketSummaryPO;
+import shopping.international.infrastructure.dao.customerservice.po.CsTicketAssignmentLogPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketMessagePO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketParticipantPO;
@@ -55,7 +64,7 @@ import static shopping.international.types.utils.FieldValidateUtils.require;
  */
 @Repository
 @RequiredArgsConstructor
-public class UserTicketRepository implements IUserTicketRepository {
+public class UserTicketRepository implements IUserTicketRepository, IAdminTicketRepository {
 
     /**
      * 字符串列表 JSON 类型引用
@@ -89,6 +98,10 @@ public class UserTicketRepository implements IUserTicketRepository {
      * 工单状态日志 Mapper
      */
     private final CsTicketStatusLogMapper csTicketStatusLogMapper;
+    /**
+     * 工单指派日志 Mapper
+     */
+    private final CsTicketAssignmentLogMapper csTicketAssignmentLogMapper;
     /**
      * JSON 序列化和反序列化工具
      */
@@ -722,6 +735,264 @@ public class UserTicketRepository implements IUserTicketRepository {
     }
 
     /**
+     * 分页查询管理侧工单摘要
+     *
+     * @param criteria  查询条件
+     * @param pageQuery 分页参数
+     * @return 工单摘要分页结果
+     */
+    @Override
+    public @NotNull PageResult<AdminTicketSummaryView> pageAdminTicketSummaries(@NotNull AdminTicketPageCriteria criteria,
+                                                                                @NotNull PageQuery pageQuery) {
+        criteria.validate();
+        pageQuery.validate();
+
+        String issueType = criteria.getIssueType() == null ? null : criteria.getIssueType().name();
+        String status = criteria.getStatus() == null ? null : criteria.getStatus().name();
+        String priority = criteria.getPriority() == null ? null : criteria.getPriority().name();
+        List<CsAdminTicketSummaryPO> rowList = csTicketMapper.pageAdminTicketSummaries(
+                criteria.getTicketNo(),
+                criteria.getUserId(),
+                criteria.getOrderId(),
+                criteria.getShipmentId(),
+                issueType,
+                status,
+                priority,
+                criteria.getAssignedToUserId(),
+                criteria.getClaimExternalId(),
+                criteria.getSlaDueFrom(),
+                criteria.getSlaDueTo(),
+                criteria.getCreatedFrom(),
+                criteria.getCreatedTo(),
+                pageQuery.offset(),
+                pageQuery.limit()
+        );
+        long total = csTicketMapper.countAdminTicketSummaries(
+                criteria.getTicketNo(),
+                criteria.getUserId(),
+                criteria.getOrderId(),
+                criteria.getShipmentId(),
+                issueType,
+                status,
+                priority,
+                criteria.getAssignedToUserId(),
+                criteria.getClaimExternalId(),
+                criteria.getSlaDueFrom(),
+                criteria.getSlaDueTo(),
+                criteria.getCreatedFrom(),
+                criteria.getCreatedTo()
+        );
+
+        if (rowList == null || rowList.isEmpty())
+            return PageResult.<AdminTicketSummaryView>builder()
+                    .items(List.of())
+                    .total(total)
+                    .build();
+
+        List<AdminTicketSummaryView> itemList = rowList.stream()
+                .map(this::toAdminTicketSummaryView)
+                .toList();
+        return PageResult.<AdminTicketSummaryView>builder()
+                .items(itemList)
+                .total(total)
+                .build();
+    }
+
+    /**
+     * 按工单 ID 查询管理侧工单详情
+     *
+     * @param ticketId 工单 ID
+     * @return 工单详情视图
+     */
+    @Override
+    public @NotNull Optional<AdminTicketDetailView> findAdminTicketDetail(@NotNull Long ticketId) {
+        CsAdminTicketDetailPO row = csTicketMapper.selectAdminTicketDetailById(ticketId);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toAdminTicketDetailView(row));
+    }
+
+    /**
+     * 按工单 ID 查询工单聚合
+     *
+     * @param ticketId 工单 ID
+     * @return 工单聚合
+     */
+    @Override
+    public @NotNull Optional<CustomerServiceTicket> findByTicketId(@NotNull Long ticketId) {
+        CsTicketPO row = csTicketMapper.selectById(ticketId);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toTicketAggregate(row));
+    }
+
+    /**
+     * 基于更新时间 CAS 更新工单元数据
+     *
+     * @param ticket             已完成元数据变更的工单聚合
+     * @param expectedUpdatedAt  期望旧更新时间
+     * @return 更新是否成功
+     */
+    @Override
+    public boolean updateTicketMetadataWithCas(@NotNull CustomerServiceTicket ticket,
+                                               @NotNull LocalDateTime expectedUpdatedAt) {
+        Long ticketId = ticket.getId();
+        if (ticketId == null)
+            throw new AppException("工单未持久化, 无法更新元数据");
+
+        LambdaUpdateWrapper<CsTicketPO> updateWrapper = new LambdaUpdateWrapper<CsTicketPO>()
+                .eq(CsTicketPO::getId, ticketId)
+                .eq(CsTicketPO::getUpdatedAt, expectedUpdatedAt)
+                .set(CsTicketPO::getPriority, ticket.getPriority().name())
+                .set(CsTicketPO::getTags, toJsonArray(ticket.getTags(), "tags"))
+                .set(CsTicketPO::getRequestedRefundAmount, ticket.getRequestedRefundAmount())
+                .set(CsTicketPO::getCurrency, ticket.getCurrency())
+                .set(CsTicketPO::getClaimExternalId, ticket.getClaimExternalId())
+                .set(CsTicketPO::getSlaDueAt, ticket.getSlaDueAt());
+        int affectedRowCount = csTicketMapper.update(null, updateWrapper);
+        return affectedRowCount > 0;
+    }
+
+    /**
+     * 基于更新时间 CAS 更新工单指派信息, 并写入指派日志
+     *
+     * @param ticket             已完成指派变更的工单聚合
+     * @param expectedUpdatedAt  期望旧更新时间
+     * @param assignmentLog      指派日志实体
+     * @return 更新是否成功
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateTicketAssignmentWithCasAndAppendLog(@NotNull CustomerServiceTicket ticket,
+                                                             @NotNull LocalDateTime expectedUpdatedAt,
+                                                             @NotNull TicketAssignmentLog assignmentLog) {
+        Long ticketId = ticket.getId();
+        if (ticketId == null)
+            throw new AppException("工单未持久化, 无法更新指派信息");
+
+        LambdaUpdateWrapper<CsTicketPO> updateWrapper = new LambdaUpdateWrapper<CsTicketPO>()
+                .eq(CsTicketPO::getId, ticketId)
+                .eq(CsTicketPO::getUpdatedAt, expectedUpdatedAt)
+                .set(CsTicketPO::getAssignedToUserId, ticket.getAssignedToUserId())
+                .set(CsTicketPO::getAssignedAt, ticket.getAssignedAt());
+        int affectedRowCount = csTicketMapper.update(null, updateWrapper);
+        if (affectedRowCount <= 0)
+            return false;
+
+        if (ticket.getAssignedToUserId() == null)
+            demoteActiveAssigneeParticipants(ticketId, null);
+        else {
+            demoteActiveAssigneeParticipants(ticketId, ticket.getAssignedToUserId());
+            upsertActiveAgentParticipantRole(ticketId, ticket.getAssignedToUserId(), TicketParticipantRole.ASSIGNEE);
+        }
+
+        CsTicketAssignmentLogPO assignmentLogRow = toAssignmentLogPO(assignmentLog);
+        int assignmentLogAffected = csTicketAssignmentLogMapper.insert(assignmentLogRow);
+        require(assignmentLogAffected == 1, "写入工单指派日志失败");
+        return true;
+    }
+
+    /**
+     * 基于状态 CAS 更新工单状态, 并写入状态日志
+     *
+     * @param ticket               已完成状态推进的工单聚合
+     * @param expectedFromStatus   期望旧状态
+     * @param statusLog            状态日志实体
+     * @return 更新是否成功
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateTicketStatusWithCasAndAppendLog(@NotNull CustomerServiceTicket ticket,
+                                                         @NotNull TicketStatus expectedFromStatus,
+                                                         @NotNull TicketStatusLog statusLog) {
+        Long ticketId = ticket.getId();
+        if (ticketId == null)
+            throw new AppException("工单未持久化, 无法更新状态");
+
+        LambdaUpdateWrapper<CsTicketPO> updateWrapper = new LambdaUpdateWrapper<CsTicketPO>()
+                .eq(CsTicketPO::getId, ticketId)
+                .eq(CsTicketPO::getStatus, expectedFromStatus.name())
+                .set(CsTicketPO::getStatus, ticket.getStatus().name())
+                .set(CsTicketPO::getResolvedAt, ticket.getResolvedAt())
+                .set(CsTicketPO::getClosedAt, ticket.getClosedAt())
+                .set(CsTicketPO::getStatusChangedAt, ticket.getStatusChangedAt());
+        int affectedRowCount = csTicketMapper.update(null, updateWrapper);
+        if (affectedRowCount <= 0)
+            return false;
+
+        CsTicketStatusLogPO statusLogRow = toStatusLogPO(statusLog);
+        int statusLogAffected = csTicketStatusLogMapper.insert(statusLogRow);
+        require(statusLogAffected == 1, "写入工单状态日志失败");
+        return true;
+    }
+
+    /**
+     * 将工单内现有 ASSIGNEE 角色降级为 COLLABORATOR
+     *
+     * @param ticketId          工单 ID
+     * @param keepAssigneeUserId 需要保留 ASSIGNEE 角色的用户 ID
+     */
+    private void demoteActiveAssigneeParticipants(@NotNull Long ticketId,
+                                                  @Nullable Long keepAssigneeUserId) {
+        LambdaUpdateWrapper<CsTicketParticipantPO> updateWrapper = new LambdaUpdateWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .eq(CsTicketParticipantPO::getParticipantType, TicketParticipantType.AGENT.name())
+                .eq(CsTicketParticipantPO::getRole, TicketParticipantRole.ASSIGNEE.name())
+                .isNull(CsTicketParticipantPO::getLeftAt)
+                .set(CsTicketParticipantPO::getRole, TicketParticipantRole.COLLABORATOR.name());
+        if (keepAssigneeUserId != null)
+            updateWrapper.ne(CsTicketParticipantPO::getParticipantUserId, keepAssigneeUserId);
+        csTicketParticipantMapper.update(null, updateWrapper);
+    }
+
+    /**
+     * 新增或更新活跃坐席参与方角色
+     *
+     * @param ticketId          工单 ID
+     * @param participantUserId 参与方用户 ID
+     * @param role              目标角色
+     */
+    private void upsertActiveAgentParticipantRole(@NotNull Long ticketId,
+                                                  @NotNull Long participantUserId,
+                                                  @NotNull TicketParticipantRole role) {
+        LambdaQueryWrapper<CsTicketParticipantPO> queryWrapper = new LambdaQueryWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .eq(CsTicketParticipantPO::getParticipantType, TicketParticipantType.AGENT.name())
+                .eq(CsTicketParticipantPO::getParticipantUserId, participantUserId)
+                .isNull(CsTicketParticipantPO::getLeftAt)
+                .last("LIMIT 1");
+        CsTicketParticipantPO existedRow = csTicketParticipantMapper.selectOne(queryWrapper);
+        if (existedRow != null) {
+            LambdaUpdateWrapper<CsTicketParticipantPO> updateWrapper = new LambdaUpdateWrapper<CsTicketParticipantPO>()
+                    .eq(CsTicketParticipantPO::getId, existedRow.getId())
+                    .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                    .set(CsTicketParticipantPO::getRole, role.name());
+            csTicketParticipantMapper.update(null, updateWrapper);
+            return;
+        }
+
+        CsTicketParticipantPO insertRow = CsTicketParticipantPO.builder()
+                .ticketId(ticketId)
+                .participantType(TicketParticipantType.AGENT.name())
+                .participantUserId(participantUserId)
+                .role(role.name())
+                .build();
+        try {
+            int affectedRowCount = csTicketParticipantMapper.insert(insertRow);
+            require(affectedRowCount == 1, "写入工单坐席参与方失败");
+        } catch (DuplicateKeyException exception) {
+            LambdaUpdateWrapper<CsTicketParticipantPO> updateWrapper = new LambdaUpdateWrapper<CsTicketParticipantPO>()
+                    .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                    .eq(CsTicketParticipantPO::getParticipantType, TicketParticipantType.AGENT.name())
+                    .eq(CsTicketParticipantPO::getParticipantUserId, participantUserId)
+                    .isNull(CsTicketParticipantPO::getLeftAt)
+                    .set(CsTicketParticipantPO::getRole, role.name());
+            int affectedRowCount = csTicketParticipantMapper.update(null, updateWrapper);
+            require(affectedRowCount >= 1, "更新工单坐席参与方失败");
+        }
+    }
+
+    /**
      * 持久化行转换为用户工单摘要视图
      *
      * @param row 持久化行
@@ -804,6 +1075,72 @@ public class UserTicketRepository implements IUserTicketRepository {
                 row.getResolvedAt(),
                 row.getClosedAt(),
                 row.getSlaDueAt()
+        );
+    }
+
+    /**
+     * 持久化行转换为管理侧工单摘要视图
+     *
+     * @param row 持久化行
+     * @return 管理侧工单摘要视图
+     */
+    private @NotNull AdminTicketSummaryView toAdminTicketSummaryView(@NotNull CsAdminTicketSummaryPO row) {
+        return new AdminTicketSummaryView(
+                requireColumn(row.getTicketId(), "ticketId"),
+                requireColumn(row.getTicketNo(), "ticketNo"),
+                requireColumn(row.getUserId(), "userId"),
+                TicketIssueType.fromValue(requireColumn(row.getIssueType(), "issueType")),
+                TicketStatus.fromValue(requireColumn(row.getStatus(), "status")),
+                TicketPriority.fromValue(requireColumn(row.getPriority(), "priority")),
+                TicketChannel.fromValue(requireColumn(row.getChannel(), "channel")),
+                requireColumn(row.getTitle(), "title"),
+                row.getOrderId(),
+                row.getOrderItemId(),
+                row.getShipmentId(),
+                row.getAssignedToUserId(),
+                row.getAssignedAt(),
+                row.getLastMessageAt(),
+                row.getSlaDueAt(),
+                requireColumn(row.getCreatedAt(), "createdAt"),
+                requireColumn(row.getUpdatedAt(), "updatedAt")
+        );
+    }
+
+    /**
+     * 持久化行转换为管理侧工单详情视图
+     *
+     * @param row 持久化行
+     * @return 管理侧工单详情视图
+     */
+    private @NotNull AdminTicketDetailView toAdminTicketDetailView(@NotNull CsAdminTicketDetailPO row) {
+        return new AdminTicketDetailView(
+                requireColumn(row.getTicketId(), "ticketId"),
+                requireColumn(row.getTicketNo(), "ticketNo"),
+                requireColumn(row.getUserId(), "userId"),
+                TicketIssueType.fromValue(requireColumn(row.getIssueType(), "issueType")),
+                TicketStatus.fromValue(requireColumn(row.getStatus(), "status")),
+                TicketPriority.fromValue(requireColumn(row.getPriority(), "priority")),
+                TicketChannel.fromValue(requireColumn(row.getChannel(), "channel")),
+                requireColumn(row.getTitle(), "title"),
+                row.getOrderId(),
+                row.getOrderItemId(),
+                row.getShipmentId(),
+                row.getAssignedToUserId(),
+                row.getAssignedAt(),
+                row.getLastMessageAt(),
+                row.getSlaDueAt(),
+                requireColumn(row.getCreatedAt(), "createdAt"),
+                requireColumn(row.getUpdatedAt(), "updatedAt"),
+                row.getDescription(),
+                parseStringList(row.getAttachments(), "attachments"),
+                parseStringList(row.getEvidence(), "evidence"),
+                parseStringList(row.getTags(), "tags"),
+                row.getRequestedRefundAmount(),
+                row.getCurrency(),
+                row.getClaimExternalId(),
+                row.getSourceRef(),
+                row.getResolvedAt(),
+                row.getClosedAt()
         );
     }
 
@@ -904,6 +1241,26 @@ public class UserTicketRepository implements IUserTicketRepository {
                 .sourceRef(statusLog.getSourceRef())
                 .note(statusLog.getNote())
                 .createdAt(statusLog.getCreatedAt())
+                .build();
+    }
+
+    /**
+     * 指派日志实体转换为指派日志持久化行
+     *
+     * @param assignmentLog 指派日志实体
+     * @return 指派日志持久化行
+     */
+    private @NotNull CsTicketAssignmentLogPO toAssignmentLogPO(@NotNull TicketAssignmentLog assignmentLog) {
+        return CsTicketAssignmentLogPO.builder()
+                .ticketId(assignmentLog.getTicketId())
+                .fromAssigneeUserId(assignmentLog.getFromAssigneeUserId())
+                .toAssigneeUserId(assignmentLog.getToAssigneeUserId())
+                .actionType(assignmentLog.getActionType().name())
+                .actorType(assignmentLog.getActorType().name())
+                .actorUserId(assignmentLog.getActorUserId())
+                .sourceRef(assignmentLog.getSourceRef())
+                .note(assignmentLog.getNote())
+                .createdAt(assignmentLog.getCreatedAt())
                 .build();
     }
 

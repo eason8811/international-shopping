@@ -88,6 +88,151 @@
         </where>
     </select>
 
+    <select id="pageAdminTicketSummaries" resultType="shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketSummaryPO">
+        SELECT t.id                  AS ticketId,
+               t.ticket_no           AS ticketNo,
+               t.user_id             AS userId,
+               t.issue_type          AS issueType,
+               t.status              AS status,
+               t.priority            AS priority,
+               t.channel             AS channel,
+               t.title               AS title,
+               t.order_id            AS orderId,
+               t.order_item_id       AS orderItemId,
+               t.shipment_id         AS shipmentId,
+               t.assigned_to_user_id AS assignedToUserId,
+               t.assigned_at         AS assignedAt,
+               t.last_message_at     AS lastMessageAt,
+               t.sla_due_at          AS slaDueAt,
+               t.created_at          AS createdAt,
+               t.updated_at          AS updatedAt
+        FROM cs_ticket t
+        <where>
+            <if test="ticketNo != null and ticketNo != ''">
+                AND t.ticket_no = #{ticketNo}
+            </if>
+            <if test="userId != null">
+                AND t.user_id = #{userId}
+            </if>
+            <if test="orderId != null">
+                AND t.order_id = #{orderId}
+            </if>
+            <if test="shipmentId != null">
+                AND t.shipment_id = #{shipmentId}
+            </if>
+            <if test="issueType != null and issueType != ''">
+                AND t.issue_type = #{issueType}
+            </if>
+            <if test="status != null and status != ''">
+                AND t.status = #{status}
+            </if>
+            <if test="priority != null and priority != ''">
+                AND t.priority = #{priority}
+            </if>
+            <if test="assignedToUserId != null">
+                AND t.assigned_to_user_id = #{assignedToUserId}
+            </if>
+            <if test="claimExternalId != null and claimExternalId != ''">
+                AND t.claim_external_id = #{claimExternalId}
+            </if>
+            <if test="slaDueFrom != null">
+                AND t.sla_due_at <![CDATA[ >= ]]> #{slaDueFrom}
+            </if>
+            <if test="slaDueTo != null">
+                AND t.sla_due_at <![CDATA[ <= ]]> #{slaDueTo}
+            </if>
+            <if test="createdFrom != null">
+                AND t.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND t.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+        ORDER BY FIELD(t.priority, 'URGENT', 'HIGH', 'NORMAL', 'LOW'),
+                 t.created_at DESC,
+                 t.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminTicketSummaries" resultType="long">
+        SELECT COUNT(1)
+        FROM cs_ticket t
+        <where>
+            <if test="ticketNo != null and ticketNo != ''">
+                AND t.ticket_no = #{ticketNo}
+            </if>
+            <if test="userId != null">
+                AND t.user_id = #{userId}
+            </if>
+            <if test="orderId != null">
+                AND t.order_id = #{orderId}
+            </if>
+            <if test="shipmentId != null">
+                AND t.shipment_id = #{shipmentId}
+            </if>
+            <if test="issueType != null and issueType != ''">
+                AND t.issue_type = #{issueType}
+            </if>
+            <if test="status != null and status != ''">
+                AND t.status = #{status}
+            </if>
+            <if test="priority != null and priority != ''">
+                AND t.priority = #{priority}
+            </if>
+            <if test="assignedToUserId != null">
+                AND t.assigned_to_user_id = #{assignedToUserId}
+            </if>
+            <if test="claimExternalId != null and claimExternalId != ''">
+                AND t.claim_external_id = #{claimExternalId}
+            </if>
+            <if test="slaDueFrom != null">
+                AND t.sla_due_at <![CDATA[ >= ]]> #{slaDueFrom}
+            </if>
+            <if test="slaDueTo != null">
+                AND t.sla_due_at <![CDATA[ <= ]]> #{slaDueTo}
+            </if>
+            <if test="createdFrom != null">
+                AND t.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND t.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectAdminTicketDetailById" resultType="shopping.international.infrastructure.dao.customerservice.po.CsAdminTicketDetailPO">
+        SELECT t.id                      AS ticketId,
+               t.ticket_no               AS ticketNo,
+               t.user_id                 AS userId,
+               t.issue_type              AS issueType,
+               t.status                  AS status,
+               t.priority                AS priority,
+               t.channel                 AS channel,
+               t.title                   AS title,
+               t.order_id                AS orderId,
+               t.order_item_id           AS orderItemId,
+               t.shipment_id             AS shipmentId,
+               t.assigned_to_user_id     AS assignedToUserId,
+               t.assigned_at             AS assignedAt,
+               t.last_message_at         AS lastMessageAt,
+               t.sla_due_at              AS slaDueAt,
+               t.created_at              AS createdAt,
+               t.updated_at              AS updatedAt,
+               t.description             AS description,
+               t.attachments             AS attachments,
+               t.evidence                AS evidence,
+               t.tags                    AS tags,
+               t.requested_refund_amount AS requestedRefundAmount,
+               t.currency                AS currency,
+               t.claim_external_id       AS claimExternalId,
+               t.source_ref              AS sourceRef,
+               t.resolved_at             AS resolvedAt,
+               t.closed_at               AS closedAt
+        FROM cs_ticket t
+        WHERE t.id = #{ticketId}
+        LIMIT 1
+    </select>
+
     <select id="selectUserTicketDetail" resultType="shopping.international.infrastructure.dao.customerservice.po.CsUserTicketDetailPO">
         SELECT t.id                             AS ticketId,
                t.ticket_no                      AS ticketNo,
