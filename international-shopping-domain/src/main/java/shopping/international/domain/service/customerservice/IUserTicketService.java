@@ -3,13 +3,25 @@ package shopping.international.domain.service.customerservice;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.customerservice.TicketIssueType;
+import shopping.international.domain.model.enums.customerservice.TicketMessageType;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
-import shopping.international.domain.model.vo.customerservice.*;
+import shopping.international.domain.model.vo.customerservice.TicketCreateCommand;
+import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
 import shopping.international.domain.model.vo.customerservice.TicketNo;
+import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
+import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
+import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
+import shopping.international.domain.model.vo.customerservice.UserTicketReadUpdateView;
+import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
+import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
+import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
+import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionCreateCommand;
+import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionIssueView;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 用户侧工单领域服务接口
@@ -77,4 +89,130 @@ public interface IUserTicketService {
                                        @NotNull TicketNo ticketNo,
                                        @Nullable String note,
                                        @NotNull String idempotencyKey);
+
+    /**
+     * 查询当前用户指定工单的消息列表
+     *
+     * @param userId    当前用户 ID
+     * @param ticketNo  工单编号
+     * @param beforeId  向前翻页锚点
+     * @param afterId   向后补偿锚点
+     * @param ascOrder  是否按升序返回
+     * @param size      返回条数
+     * @return 消息列表
+     */
+    @NotNull
+    List<UserTicketMessageView> listMyTicketMessages(@NotNull Long userId,
+                                                     @NotNull TicketNo ticketNo,
+                                                     @Nullable Long beforeId,
+                                                     @Nullable Long afterId,
+                                                     boolean ascOrder,
+                                                     int size);
+
+    /**
+     * 发送当前用户的工单消息
+     *
+     * @param userId           当前用户 ID
+     * @param ticketNo         工单编号
+     * @param messageType      消息类型
+     * @param content          消息正文
+     * @param attachments      附件列表
+     * @param clientMessageId  客户端消息幂等键
+     * @param idempotencyKey   请求幂等键
+     * @return 发送后的消息
+     */
+    @NotNull
+    UserTicketMessageView createMyTicketMessage(@NotNull Long userId,
+                                                @NotNull TicketNo ticketNo,
+                                                @Nullable TicketMessageType messageType,
+                                                @Nullable String content,
+                                                @Nullable List<String> attachments,
+                                                @NotNull String clientMessageId,
+                                                @NotNull String idempotencyKey);
+
+    /**
+     * 编辑当前用户的工单消息
+     *
+     * @param userId          当前用户 ID
+     * @param ticketNo        工单编号
+     * @param messageNo       消息编号
+     * @param content         新正文
+     * @param idempotencyKey  请求幂等键
+     * @return 编辑后的消息
+     */
+    @NotNull
+    UserTicketMessageView editMyTicketMessage(@NotNull Long userId,
+                                              @NotNull TicketNo ticketNo,
+                                              @NotNull TicketMessageNo messageNo,
+                                              @NotNull String content,
+                                              @NotNull String idempotencyKey);
+
+    /**
+     * 撤回当前用户的工单消息
+     *
+     * @param userId          当前用户 ID
+     * @param ticketNo        工单编号
+     * @param messageNo       消息编号
+     * @param reason          撤回原因
+     * @param idempotencyKey  请求幂等键
+     * @return 撤回后的消息
+     */
+    @NotNull
+    UserTicketMessageView recallMyTicketMessage(@NotNull Long userId,
+                                                @NotNull TicketNo ticketNo,
+                                                @NotNull TicketMessageNo messageNo,
+                                                @Nullable String reason,
+                                                @NotNull String idempotencyKey);
+
+    /**
+     * 标记当前用户在工单下的消息已读位点
+     *
+     * @param userId             当前用户 ID
+     * @param ticketNo           工单编号
+     * @param lastReadMessageId  最后已读消息 ID
+     * @param idempotencyKey     请求幂等键
+     * @return 已读位点更新结果
+     */
+    @NotNull
+    UserTicketReadUpdateView markMyTicketRead(@NotNull Long userId,
+                                              @NotNull TicketNo ticketNo,
+                                              @NotNull Long lastReadMessageId,
+                                              @NotNull String idempotencyKey);
+
+    /**
+     * 分页查询当前用户可见的工单状态日志
+     *
+     * @param userId     当前用户 ID
+     * @param ticketNo   工单编号
+     * @param pageQuery  分页参数
+     * @return 状态日志分页结果
+     */
+    @NotNull
+    PageResult<UserTicketStatusLogView> listMyTicketStatusLogs(@NotNull Long userId,
+                                                               @NotNull TicketNo ticketNo,
+                                                               @NotNull PageQuery pageQuery);
+
+    /**
+     * 查询当前用户工单关联的补发物流列表
+     *
+     * @param userId    当前用户 ID
+     * @param ticketNo  工单编号
+     * @return 物流摘要列表
+     */
+    @NotNull
+    List<UserTicketShipmentSummaryView> listMyTicketReshipShipments(@NotNull Long userId,
+                                                                    @NotNull TicketNo ticketNo);
+
+    /**
+     * 创建当前用户的 WebSocket 会话签发结果
+     *
+     * @param userId          当前用户 ID
+     * @param command         会话创建命令
+     * @param idempotencyKey  请求幂等键
+     * @return 会话签发结果
+     */
+    @NotNull
+    UserTicketWsSessionIssueView createMyWsSession(@NotNull Long userId,
+                                                   @NotNull UserTicketWsSessionCreateCommand command,
+                                                   @NotNull String idempotencyKey);
 }

@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketDetailPO;
+import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketShipmentSummaryPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketSummaryPO;
 
 import java.time.LocalDateTime;
@@ -89,4 +90,24 @@ public interface CsTicketMapper extends BaseMapper<CsTicketPO> {
                             @Param("resolvedAt") LocalDateTime resolvedAt,
                             @Param("closedAt") LocalDateTime closedAt,
                             @Param("updatedAt") LocalDateTime updatedAt);
+
+    /**
+     * 更新工单最近消息时间, 使用单调更新避免并发覆盖
+     *
+     * @param ticketId     工单 ID
+     * @param userId       用户 ID
+     * @param messageTime  消息时间
+     * @return 影响行数
+     */
+    int touchLastMessageAt(@Param("ticketId") Long ticketId,
+                           @Param("userId") Long userId,
+                           @Param("messageTime") LocalDateTime messageTime);
+
+    /**
+     * 查询工单关联补发单下的物流摘要列表
+     *
+     * @param ticketId 工单 ID
+     * @return 物流摘要列表
+     */
+    List<CsUserTicketShipmentSummaryPO> listTicketReshipShipmentSummaries(@Param("ticketId") Long ticketId);
 }

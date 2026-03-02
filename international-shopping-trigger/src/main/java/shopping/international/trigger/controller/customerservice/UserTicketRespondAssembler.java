@@ -1,12 +1,22 @@
 package shopping.international.trigger.controller.customerservice;
 
 import org.jetbrains.annotations.NotNull;
+import shopping.international.api.resp.customerservice.CsWsSessionIssueDataRespond;
+import shopping.international.api.resp.customerservice.CsWsTicketReadUpdatedEventDataRespond;
+import shopping.international.api.resp.customerservice.ShipmentSummaryRespond;
 import shopping.international.api.resp.customerservice.TicketCreateDataRespond;
+import shopping.international.api.resp.customerservice.TicketMessageRespond;
+import shopping.international.api.resp.customerservice.TicketStatusLogRespond;
 import shopping.international.api.resp.customerservice.UserTicketDetailRespond;
 import shopping.international.api.resp.customerservice.UserTicketSummaryRespond;
 import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
 import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
+import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
+import shopping.international.domain.model.vo.customerservice.UserTicketReadUpdateView;
+import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
+import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
 import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
+import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionIssueView;
 import shopping.international.types.currency.CurrencyConfig;
 
 /**
@@ -99,6 +109,110 @@ public final class UserTicketRespondAssembler {
                 .ticketNo(view.ticketNo())
                 .status(view.status())
                 .createdAt(view.createdAt())
+                .build();
+    }
+
+    /**
+     * 用户侧消息视图转换为响应 DTO
+     *
+     * @param view 消息视图
+     * @return 消息响应 DTO
+     */
+    public static @NotNull TicketMessageRespond toMessageRespond(@NotNull UserTicketMessageView view) {
+        return TicketMessageRespond.builder()
+                .id(view.id())
+                .messageNo(view.messageNo())
+                .ticketId(view.ticketId())
+                .senderType(view.senderType())
+                .senderUserId(view.senderUserId())
+                .messageType(view.messageType())
+                .content(view.content())
+                .attachments(view.attachments())
+                .clientMessageId(view.clientMessageId())
+                .sentAt(view.sentAt())
+                .editedAt(view.editedAt())
+                .recalledAt(view.recalledAt())
+                .build();
+    }
+
+    /**
+     * 用户侧状态日志视图转换为响应 DTO
+     *
+     * @param view 状态日志视图
+     * @return 状态日志响应 DTO
+     */
+    public static @NotNull TicketStatusLogRespond toStatusLogRespond(@NotNull UserTicketStatusLogView view) {
+        return TicketStatusLogRespond.builder()
+                .id(view.id())
+                .ticketId(view.ticketId())
+                .fromStatus(view.fromStatus())
+                .toStatus(view.toStatus())
+                .actorType(view.actorType())
+                .actorUserId(view.actorUserId())
+                .sourceRef(view.sourceRef())
+                .note(view.note())
+                .createdAt(view.createdAt())
+                .build();
+    }
+
+    /**
+     * 用户侧工单关联物流视图转换为响应 DTO
+     *
+     * @param view 物流摘要视图
+     * @return 物流摘要响应 DTO
+     */
+    public static @NotNull ShipmentSummaryRespond toShipmentSummaryRespond(@NotNull UserTicketShipmentSummaryView view) {
+        return ShipmentSummaryRespond.builder()
+                .id(view.id())
+                .shipmentNo(view.shipmentNo())
+                .orderId(view.orderId())
+                .orderNo(view.orderNo())
+                .idempotencyKey(view.idempotencyKey())
+                .carrierCode(view.carrierCode())
+                .carrierName(view.carrierName())
+                .serviceCode(view.serviceCode())
+                .trackingNo(view.trackingNo())
+                .extExternalId(view.extExternalId())
+                .status(view.status())
+                .pickupTime(view.pickupTime())
+                .deliveredTime(view.deliveredTime())
+                .currency(view.currency())
+                .createdAt(view.createdAt())
+                .updatedAt(view.updatedAt())
+                .build();
+    }
+
+    /**
+     * 已读位点更新视图转换为 WebSocket 事件数据响应 DTO
+     *
+     * @param view 已读位点更新视图
+     * @return 已读事件数据响应 DTO
+     */
+    public static @NotNull CsWsTicketReadUpdatedEventDataRespond toReadUpdatedEventDataRespond(@NotNull UserTicketReadUpdateView view) {
+        return CsWsTicketReadUpdatedEventDataRespond.builder()
+                .ticketId(view.ticketId())
+                .participantId(view.participantId())
+                .participantType(view.participantType())
+                .participantUserId(view.participantUserId())
+                .lastReadMessageId(view.lastReadMessageId())
+                .lastReadAt(view.lastReadAt())
+                .build();
+    }
+
+    /**
+     * WebSocket 会话签发视图转换为响应 DTO
+     *
+     * @param view 会话签发视图
+     * @return 会话签发响应 DTO
+     */
+    public static @NotNull CsWsSessionIssueDataRespond toWsSessionIssueDataRespond(@NotNull UserTicketWsSessionIssueView view) {
+        return CsWsSessionIssueDataRespond.builder()
+                .wsToken(view.wsToken())
+                .wsUrl(view.wsUrl())
+                .issuedAt(view.issuedAt())
+                .expiresAt(view.expiresAt())
+                .heartbeatIntervalSeconds(view.heartbeatIntervalSeconds())
+                .resumeTtlSeconds(view.resumeTtlSeconds())
                 .build();
     }
 }

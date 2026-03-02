@@ -6,11 +6,27 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import shopping.international.api.req.customerservice.TicketCloseRequest;
 import shopping.international.api.req.customerservice.TicketCreateRequest;
+import shopping.international.api.req.customerservice.TicketMessageCreateRequest;
+import shopping.international.api.req.customerservice.TicketMessageRecallRequest;
+import shopping.international.api.req.customerservice.TicketMessageUpdateRequest;
+import shopping.international.api.req.customerservice.TicketReadRequest;
 import shopping.international.api.resp.Result;
+import shopping.international.api.resp.customerservice.CsWsTicketReadUpdatedEventDataRespond;
+import shopping.international.api.resp.customerservice.ShipmentSummaryRespond;
 import shopping.international.api.resp.customerservice.TicketCreateDataRespond;
+import shopping.international.api.resp.customerservice.TicketMessageRespond;
+import shopping.international.api.resp.customerservice.TicketStatusLogRespond;
 import shopping.international.api.resp.customerservice.UserTicketDetailRespond;
 import shopping.international.api.resp.customerservice.UserTicketSummaryRespond;
 import shopping.international.domain.model.enums.customerservice.TicketIssueType;
@@ -18,9 +34,14 @@ import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.customerservice.TicketCreateCommand;
+import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
 import shopping.international.domain.model.vo.customerservice.TicketNo;
 import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
 import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
+import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
+import shopping.international.domain.model.vo.customerservice.UserTicketReadUpdateView;
+import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
+import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
 import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.customerservice.IUserTicketService;
@@ -41,7 +62,7 @@ import static shopping.international.types.utils.FieldValidateUtils.normalizeNul
 import static shopping.international.types.utils.FieldValidateUtils.require;
 
 /**
- * 用户侧工单控制器, 提供工单列表, 创建, 详情, 关闭能力
+ * 用户侧工单控制器, 提供工单列表, 创建, 详情, 关闭, 消息, 已读, 状态日志, 补发物流能力
  */
 @RestController
 @RequiredArgsConstructor
@@ -231,6 +252,291 @@ public class UserTicketController {
     }
 
     /**
+     * 用户侧查询工单消息列表
+     *
+     * @param ticketNo 工单编号
+     * @param beforeId 向前翻页锚点
+     * @param size     返回条数
+     * @param afterId  向后增量锚点
+     * @param order    排序方向
+     * @return 消息列表
+     */
+    @GetMapping("/{ticket_no}/messages")
+    public ResponseEntity<Result<List<TicketMessageRespond>>> listMyTicketMessages(@PathVariable("ticket_no") String ticketNo,
+                                                                                   @RequestParam(value = "before_id", required = false) Long beforeId,
+                                                                                   @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
+                                                                                   @RequestParam(value = "after_id", required = false) Long afterId,
+                                                                                   @RequestParam(value = "order", required = false, defaultValue = "desc") String order) {
+        String normalizedTicketNo = normalizeNotNullField(
+                ticketNo,
+                "ticket_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "ticket_no 长度需在 10 到 32 之间"
+        );
+        int normalizedSize = size == null ? 20 : size;
+        require(normalizedSize >= 1 && normalizedSize <= 100, "size 必须在 1 到 100 之间");
+        if (beforeId != null)
+            require(beforeId >= 1, "before_id 必须大于等于 1");
+        if (afterId != null)
+            require(afterId >= 1, "after_id 必须大于等于 1");
+
+        boolean ascOrder = parseMessageOrder(order);
+
+        Long userId = requireCurrentUserId();
+        List<UserTicketMessageView> messageViewList = userTicketService.listMyTicketMessages(
+                userId,
+                TicketNo.of(normalizedTicketNo),
+                beforeId,
+                afterId,
+                ascOrder,
+                normalizedSize
+        );
+        List<TicketMessageRespond> data = messageViewList.stream()
+                .map(UserTicketRespondAssembler::toMessageRespond)
+                .toList();
+        return ResponseEntity.ok(Result.ok(data));
+    }
+
+    /**
+     * 用户侧发送工单消息
+     *
+     * @param ticketNo       工单编号
+     * @param idempotencyKey 幂等键
+     * @param request        消息发送请求
+     * @return 发送后的消息
+     */
+    @PostMapping("/{ticket_no}/messages")
+    public ResponseEntity<Result<TicketMessageRespond>> createMyTicketMessage(@PathVariable("ticket_no") String ticketNo,
+                                                                              @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                              @RequestBody TicketMessageCreateRequest request) {
+        String normalizedTicketNo = normalizeNotNullField(
+                ticketNo,
+                "ticket_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "ticket_no 长度需在 10 到 32 之间"
+        );
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long userId = requireCurrentUserId();
+        UserTicketMessageView created = userTicketService.createMyTicketMessage(
+                userId,
+                TicketNo.of(normalizedTicketNo),
+                request.getMessageType(),
+                request.getContent(),
+                request.getAttachments(),
+                request.getClientMessageId(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
+                .body(Result.created(UserTicketRespondAssembler.toMessageRespond(created)));
+    }
+
+    /**
+     * 用户侧编辑消息
+     *
+     * @param ticketNo       工单编号
+     * @param messageNo      消息编号
+     * @param idempotencyKey 幂等键
+     * @param request        消息编辑请求
+     * @return 编辑后的消息
+     */
+    @PatchMapping("/{ticket_no}/messages/{message_no}")
+    public ResponseEntity<Result<TicketMessageRespond>> updateMyTicketMessage(@PathVariable("ticket_no") String ticketNo,
+                                                                              @PathVariable("message_no") String messageNo,
+                                                                              @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                              @RequestBody TicketMessageUpdateRequest request) {
+        String normalizedTicketNo = normalizeNotNullField(
+                ticketNo,
+                "ticket_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "ticket_no 长度需在 10 到 32 之间"
+        );
+        String normalizedMessageNo = normalizeNotNullField(
+                messageNo,
+                "message_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "message_no 长度需在 10 到 32 之间"
+        );
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long userId = requireCurrentUserId();
+        UserTicketMessageView updated = userTicketService.editMyTicketMessage(
+                userId,
+                TicketNo.of(normalizedTicketNo),
+                TicketMessageNo.of(normalizedMessageNo),
+                request.getContent(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.ok(Result.ok(UserTicketRespondAssembler.toMessageRespond(updated)));
+    }
+
+    /**
+     * 用户侧撤回消息
+     *
+     * @param ticketNo       工单编号
+     * @param messageNo      消息编号
+     * @param idempotencyKey 幂等键
+     * @param request        撤回请求
+     * @return 撤回后的消息
+     */
+    @PostMapping("/{ticket_no}/messages/{message_no}/recall")
+    public ResponseEntity<Result<TicketMessageRespond>> recallMyTicketMessage(@PathVariable("ticket_no") String ticketNo,
+                                                                              @PathVariable("message_no") String messageNo,
+                                                                              @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                              @RequestBody(required = false) TicketMessageRecallRequest request) {
+        String normalizedTicketNo = normalizeNotNullField(
+                ticketNo,
+                "ticket_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "ticket_no 长度需在 10 到 32 之间"
+        );
+        String normalizedMessageNo = normalizeNotNullField(
+                messageNo,
+                "message_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "message_no 长度需在 10 到 32 之间"
+        );
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+
+        TicketMessageRecallRequest recallRequest = request == null ? new TicketMessageRecallRequest() : request;
+        recallRequest.validate();
+
+        Long userId = requireCurrentUserId();
+        UserTicketMessageView recalled = userTicketService.recallMyTicketMessage(
+                userId,
+                TicketNo.of(normalizedTicketNo),
+                TicketMessageNo.of(normalizedMessageNo),
+                recallRequest.getReason(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.ok(Result.ok(UserTicketRespondAssembler.toMessageRespond(recalled)));
+    }
+
+    /**
+     * 用户侧标记工单消息已读
+     *
+     * @param ticketNo       工单编号
+     * @param idempotencyKey 幂等键
+     * @param request        已读请求
+     * @return 已读位点事件数据
+     */
+    @PostMapping("/{ticket_no}/read")
+    public ResponseEntity<Result<CsWsTicketReadUpdatedEventDataRespond>> markMyTicketRead(@PathVariable("ticket_no") String ticketNo,
+                                                                                          @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                                          @RequestBody TicketReadRequest request) {
+        String normalizedTicketNo = normalizeNotNullField(
+                ticketNo,
+                "ticket_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "ticket_no 长度需在 10 到 32 之间"
+        );
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long userId = requireCurrentUserId();
+        UserTicketReadUpdateView updated = userTicketService.markMyTicketRead(
+                userId,
+                TicketNo.of(normalizedTicketNo),
+                request.getLastReadMessageId(),
+                normalizedIdempotencyKey
+        );
+        CsWsTicketReadUpdatedEventDataRespond respond = UserTicketRespondAssembler.toReadUpdatedEventDataRespond(updated);
+        return ResponseEntity.ok(Result.ok(respond));
+    }
+
+    /**
+     * 用户侧查询工单状态流转日志
+     *
+     * @param ticketNo 工单编号
+     * @param page     页码
+     * @param size     每页条数
+     * @return 状态日志分页结果
+     */
+    @GetMapping("/{ticket_no}/status-logs")
+    public ResponseEntity<Result<List<TicketStatusLogRespond>>> listMyTicketStatusLogs(@PathVariable("ticket_no") String ticketNo,
+                                                                                       @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
+                                                                                       @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        String normalizedTicketNo = normalizeNotNullField(
+                ticketNo,
+                "ticket_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "ticket_no 长度需在 10 到 32 之间"
+        );
+
+        int normalizedPage = page == null ? 1 : page;
+        int normalizedSize = size == null ? 20 : size;
+        require(normalizedPage >= 1, "page 必须大于等于 1");
+        require(normalizedSize >= 1 && normalizedSize <= 200, "size 必须在 1 到 200 之间");
+
+        Long userId = requireCurrentUserId();
+        PageQuery pageQuery = PageQuery.of(normalizedPage, normalizedSize, 200);
+        PageResult<UserTicketStatusLogView> pageResult = userTicketService.listMyTicketStatusLogs(
+                userId,
+                TicketNo.of(normalizedTicketNo),
+                pageQuery
+        );
+        List<TicketStatusLogRespond> data = pageResult.items().stream()
+                .map(UserTicketRespondAssembler::toStatusLogRespond)
+                .toList();
+        return ResponseEntity.ok(Result.ok(
+                data,
+                Result.Meta.builder()
+                        .page(pageQuery.page())
+                        .size(pageQuery.size())
+                        .total(pageResult.total())
+                        .build()
+        ));
+    }
+
+    /**
+     * 用户侧查询工单下的补发单关联物流单列表
+     *
+     * @param ticketNo 工单编号
+     * @return 物流摘要列表
+     */
+    @GetMapping("/{ticket_no}/reships")
+    public ResponseEntity<Result<List<ShipmentSummaryRespond>>> listMyTicketReships(@PathVariable("ticket_no") String ticketNo) {
+        String normalizedTicketNo = normalizeNotNullField(
+                ticketNo,
+                "ticket_no 不能为空",
+                value -> value.length() >= 10 && value.length() <= 32,
+                "ticket_no 长度需在 10 到 32 之间"
+        );
+
+        Long userId = requireCurrentUserId();
+        List<UserTicketShipmentSummaryView> shipmentViewList = userTicketService.listMyTicketReshipShipments(
+                userId,
+                TicketNo.of(normalizedTicketNo)
+        );
+        List<ShipmentSummaryRespond> data = shipmentViewList.stream()
+                .map(UserTicketRespondAssembler::toShipmentSummaryRespond)
+                .toList();
+        return ResponseEntity.ok(Result.ok(data));
+    }
+
+    /**
      * 解析工单状态查询参数
      *
      * @param status 工单状态文本
@@ -262,6 +568,21 @@ public class UserTicketController {
         } catch (IllegalArgumentException exception) {
             throw new IllegalParamException("issue_type 不合法: " + issueType);
         }
+    }
+
+    /**
+     * 解析消息排序参数
+     *
+     * @param order 排序方向
+     * @return true 表示升序, false 表示降序
+     */
+    private boolean parseMessageOrder(@Nullable String order) {
+        if (order == null || order.isBlank())
+            return false;
+        String normalized = order.strip().toLowerCase(Locale.ROOT);
+        if (!"asc".equals(normalized) && !"desc".equals(normalized))
+            throw new IllegalParamException("order 只支持 asc 或 desc");
+        return "asc".equals(normalized);
     }
 
     /**

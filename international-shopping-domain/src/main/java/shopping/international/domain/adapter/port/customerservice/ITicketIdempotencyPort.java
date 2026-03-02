@@ -100,4 +100,38 @@ public interface ITicketIdempotencyPort {
                             @NotNull String ticketNo,
                             @NotNull String idempotencyKey,
                             @NotNull Duration ttl);
+
+    /**
+     * 注册或查询通用写操作幂等令牌
+     *
+     * @param scene           场景标识
+     * @param userId          用户 ID
+     * @param resource        资源标识
+     * @param idempotencyKey  幂等键
+     * @param ttl             占位状态 TTL
+     * @return 幂等状态
+     */
+    @NotNull
+    TokenStatus registerActionOrGet(@NotNull String scene,
+                                    @NotNull Long userId,
+                                    @NotNull String resource,
+                                    @NotNull String idempotencyKey,
+                                    @NotNull Duration ttl);
+
+    /**
+     * 标记通用写操作幂等令牌成功
+     *
+     * @param scene           场景标识
+     * @param userId          用户 ID
+     * @param resource        资源标识
+     * @param idempotencyKey  幂等键
+     * @param resultRef       成功结果引用
+     * @param ttl             成功状态 TTL
+     */
+    void markActionSucceeded(@NotNull String scene,
+                             @NotNull Long userId,
+                             @NotNull String resource,
+                             @NotNull String idempotencyKey,
+                             @NotNull String resultRef,
+                             @NotNull Duration ttl);
 }

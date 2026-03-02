@@ -16,13 +16,9 @@ import java.time.Duration;
 public class TicketIdempotencyPort implements ITicketIdempotencyPort {
 
     /**
-     * 创建工单幂等键前缀
+     * 工单幂等键总前缀
      */
-    private static final String CREATE_KEY_PREFIX = "cs:ticket:idemp:create:";
-    /**
-     * 关闭工单幂等键前缀
-     */
-    private static final String CLOSE_KEY_PREFIX = "cs:ticket:idemp:close:";
+    private static final String KEY_PREFIX = "cs:ticket:idemp:";
     /**
      * 请求处理中标记值
      */
@@ -49,8 +45,7 @@ public class TicketIdempotencyPort implements ITicketIdempotencyPort {
     public @NotNull TokenStatus registerCreateOrGet(@NotNull Long userId,
                                                     @NotNull String idempotencyKey,
                                                     @NotNull Duration ttl) {
-        String key = CREATE_KEY_PREFIX + userId + ":" + idempotencyKey;
-        return registerOrGet(key, ttl);
+        return registerActionOrGet("create", userId, "ticket", idempotencyKey, ttl);
     }
 
     /**
@@ -66,8 +61,7 @@ public class TicketIdempotencyPort implements ITicketIdempotencyPort {
                                     @NotNull String idempotencyKey,
                                     @NotNull String ticketNo,
                                     @NotNull Duration ttl) {
-        String key = CREATE_KEY_PREFIX + userId + ":" + idempotencyKey;
-        redisTemplate.opsForValue().set(key, VALUE_OK_PREFIX + ticketNo, ttl);
+        markActionSucceeded("create", userId, "ticket", idempotencyKey, ticketNo, ttl);
     }
 
     /**
@@ -84,8 +78,7 @@ public class TicketIdempotencyPort implements ITicketIdempotencyPort {
                                                    @NotNull String ticketNo,
                                                    @NotNull String idempotencyKey,
                                                    @NotNull Duration ttl) {
-        String key = CLOSE_KEY_PREFIX + userId + ":" + ticketNo + ":" + idempotencyKey;
-        return registerOrGet(key, ttl);
+        return registerActionOrGet("close", userId, ticketNo, idempotencyKey, ttl);
     }
 
     /**
@@ -101,8 +94,64 @@ public class TicketIdempotencyPort implements ITicketIdempotencyPort {
                                    @NotNull String ticketNo,
                                    @NotNull String idempotencyKey,
                                    @NotNull Duration ttl) {
-        String key = CLOSE_KEY_PREFIX + userId + ":" + ticketNo + ":" + idempotencyKey;
-        redisTemplate.opsForValue().set(key, VALUE_OK_PREFIX + ticketNo, ttl);
+        markActionSucceeded("close", userId, ticketNo, idempotencyKey, ticketNo, ttl);
+    }
+
+    /**
+     * 注册或查询通用写操作幂等令牌
+     *
+     * @param scene           场景标识
+     * @param userId          用户 ID
+     * @param resource        资源标识
+     * @param idempotencyKey  幂等键
+     * @param ttl             占位状态 TTL
+     * @return 幂等状态
+     */
+    @Override
+    public @NotNull TokenStatus registerActionOrGet(@NotNull String scene,
+                                                    @NotNull Long userId,
+                                                    @NotNull String resource,
+                                                    @NotNull String idempotencyKey,
+                                                    @NotNull Duration ttl) {
+        String key = buildKey(scene, userId, resource, idempotencyKey);
+        return registerOrGet(key, ttl);
+    }
+
+    /**
+     * 标记通用写操作幂等令牌成功
+     *
+     * @param scene           场景标识
+     * @param userId          用户 ID
+     * @param resource        资源标识
+     * @param idempotencyKey  幂等键
+     * @param resultRef       成功结果引用
+     * @param ttl             成功状态 TTL
+     */
+    @Override
+    public void markActionSucceeded(@NotNull String scene,
+                                    @NotNull Long userId,
+                                    @NotNull String resource,
+                                    @NotNull String idempotencyKey,
+                                    @NotNull String resultRef,
+                                    @NotNull Duration ttl) {
+        String key = buildKey(scene, userId, resource, idempotencyKey);
+        redisTemplate.opsForValue().set(key, VALUE_OK_PREFIX + resultRef, ttl);
+    }
+
+    /**
+     * 构造 Redis Key
+     *
+     * @param scene           场景标识
+     * @param userId          用户 ID
+     * @param resource        资源标识
+     * @param idempotencyKey  幂等键
+     * @return Redis Key
+     */
+    private @NotNull String buildKey(@NotNull String scene,
+                                     @NotNull Long userId,
+                                     @NotNull String resource,
+                                     @NotNull String idempotencyKey) {
+        return KEY_PREFIX + scene + ":" + userId + ":" + resource + ":" + idempotencyKey;
     }
 
     /**
@@ -129,10 +178,10 @@ public class TicketIdempotencyPort implements ITicketIdempotencyPort {
             return new TokenStatus(TokenStatus.Status.IN_PROGRESS, null);
 
         if (value.startsWith(VALUE_OK_PREFIX)) {
-            String ticketNo = value.substring(VALUE_OK_PREFIX.length());
-            if (ticketNo.isBlank())
+            String resultRef = value.substring(VALUE_OK_PREFIX.length());
+            if (resultRef.isBlank())
                 return new TokenStatus(TokenStatus.Status.IN_PROGRESS, null);
-            return new TokenStatus(TokenStatus.Status.SUCCEEDED, ticketNo);
+            return new TokenStatus(TokenStatus.Status.SUCCEEDED, resultRef);
         }
         return new TokenStatus(TokenStatus.Status.IN_PROGRESS, null);
     }

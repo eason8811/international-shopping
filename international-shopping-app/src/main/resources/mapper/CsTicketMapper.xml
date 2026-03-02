@@ -147,4 +147,38 @@
         LIMIT 1
     </update>
 
+    <update id="touchLastMessageAt">
+        UPDATE cs_ticket
+        SET last_message_at = IF(last_message_at IS NULL OR last_message_at <![CDATA[ < ]]> #{messageTime}, #{messageTime},
+                                 last_message_at),
+            updated_at      = IF(updated_at <![CDATA[ < ]]> #{messageTime}, #{messageTime}, updated_at)
+        WHERE id = #{ticketId}
+          AND user_id = #{userId}
+        LIMIT 1
+    </update>
+
+    <select id="listTicketReshipShipmentSummaries" resultType="shopping.international.infrastructure.dao.customerservice.po.CsUserTicketShipmentSummaryPO">
+        SELECT s.id              AS id,
+               s.shipment_no     AS shipmentNo,
+               s.order_id        AS orderId,
+               o.order_no        AS orderNo,
+               s.idempotency_key AS idempotencyKey,
+               s.carrier_code    AS carrierCode,
+               s.carrier_name    AS carrierName,
+               s.service_code    AS serviceCode,
+               s.tracking_no     AS trackingNo,
+               s.ext_external_id AS extExternalId,
+               s.status          AS status,
+               s.pickup_time     AS pickupTime,
+               s.delivered_time  AS deliveredTime,
+               s.currency        AS currency,
+               s.created_at      AS createdAt,
+               s.updated_at      AS updatedAt
+        FROM aftersales_reship r
+                 JOIN aftersales_reship_shipment rs ON rs.reship_id = r.id
+                 JOIN shipment s ON s.id = rs.shipment_id
+                 LEFT JOIN orders o ON o.id = s.order_id
+        WHERE r.ticket_id = #{ticketId}
+        ORDER BY rs.created_at DESC, s.id DESC
+    </select>
 </mapper>

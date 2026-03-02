@@ -1,6 +1,7 @@
 package shopping.international.infrastructure.adapter.repository.customerservice;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,23 +13,32 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import shopping.international.domain.adapter.repository.customerservice.IUserTicketRepository;
 import shopping.international.domain.model.aggregate.customerservice.CustomerServiceTicket;
+import shopping.international.domain.model.entity.customerservice.TicketMessage;
+import shopping.international.domain.model.entity.customerservice.TicketParticipant;
 import shopping.international.domain.model.entity.customerservice.TicketStatusLog;
 import shopping.international.domain.model.enums.customerservice.*;
 import shopping.international.domain.model.enums.orders.OrderStatus;
 import shopping.international.domain.model.enums.shipping.ShipmentStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
 import shopping.international.domain.model.vo.customerservice.TicketNo;
 import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
 import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
+import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
+import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
+import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
 import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
 import shopping.international.infrastructure.dao.customerservice.CsTicketMapper;
+import shopping.international.infrastructure.dao.customerservice.CsTicketMessageMapper;
 import shopping.international.infrastructure.dao.customerservice.CsTicketParticipantMapper;
 import shopping.international.infrastructure.dao.customerservice.CsTicketStatusLogMapper;
+import shopping.international.infrastructure.dao.customerservice.po.CsTicketMessagePO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketParticipantPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsTicketStatusLogPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketDetailPO;
+import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketShipmentSummaryPO;
 import shopping.international.infrastructure.dao.customerservice.po.CsUserTicketSummaryPO;
 import shopping.international.types.exceptions.AppException;
 import shopping.international.types.exceptions.ConflictException;
@@ -71,6 +81,10 @@ public class UserTicketRepository implements IUserTicketRepository {
      * 工单参与方 Mapper
      */
     private final CsTicketParticipantMapper csTicketParticipantMapper;
+    /**
+     * 工单消息 Mapper
+     */
+    private final CsTicketMessageMapper csTicketMessageMapper;
     /**
      * 工单状态日志 Mapper
      */
@@ -330,6 +344,384 @@ public class UserTicketRepository implements IUserTicketRepository {
     }
 
     /**
+     * 查询工单消息列表
+     *
+     * @param ticketId   工单 ID
+     * @param beforeId   向前锚点
+     * @param afterId    向后锚点
+     * @param ascOrder   是否升序
+     * @param size       返回条数
+     * @return 消息列表
+     */
+    @Override
+    public @NotNull List<UserTicketMessageView> listTicketMessages(@NotNull Long ticketId,
+                                                                   @Nullable Long beforeId,
+                                                                   @Nullable Long afterId,
+                                                                   boolean ascOrder,
+                                                                   int size) {
+        LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getTicketId, ticketId);
+        if (beforeId != null)
+            queryWrapper.lt(CsTicketMessagePO::getId, beforeId);
+        if (afterId != null)
+            queryWrapper.gt(CsTicketMessagePO::getId, afterId);
+        queryWrapper.orderBy(true, ascOrder, CsTicketMessagePO::getId)
+                .last("LIMIT " + size);
+
+        List<CsTicketMessagePO> rowList = csTicketMessageMapper.selectList(queryWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return List.of();
+        return rowList.stream()
+                .map(this::toUserTicketMessageView)
+                .toList();
+    }
+
+    /**
+     * 按消息编号查询消息实体
+     *
+     * @param ticketId   工单 ID
+     * @param messageNo  消息编号
+     * @return 消息实体
+     */
+    @Override
+    public @NotNull Optional<TicketMessage> findTicketMessageByNo(@NotNull Long ticketId,
+                                                                  @NotNull TicketMessageNo messageNo) {
+        LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .eq(CsTicketMessagePO::getMessageNo, messageNo.getValue())
+                .last("LIMIT 1");
+        CsTicketMessagePO row = csTicketMessageMapper.selectOne(queryWrapper);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toTicketMessageEntity(row));
+    }
+
+    /**
+     * 按消息编号查询消息视图
+     *
+     * @param ticketId   工单 ID
+     * @param messageNo  消息编号
+     * @return 消息视图
+     */
+    @Override
+    public @NotNull Optional<UserTicketMessageView> findTicketMessageViewByNo(@NotNull Long ticketId,
+                                                                              @NotNull TicketMessageNo messageNo) {
+        LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .eq(CsTicketMessagePO::getMessageNo, messageNo.getValue())
+                .last("LIMIT 1");
+        CsTicketMessagePO row = csTicketMessageMapper.selectOne(queryWrapper);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toUserTicketMessageView(row));
+    }
+
+    /**
+     * 按客户端消息幂等键查询消息视图
+     *
+     * @param ticketId          工单 ID
+     * @param senderType        发送方类型
+     * @param senderUserId      发送方用户 ID
+     * @param clientMessageId   客户端消息幂等键
+     * @return 消息视图
+     */
+    @Override
+    public @NotNull Optional<UserTicketMessageView> findMessageViewByClientMessageId(@NotNull Long ticketId,
+                                                                                     @NotNull TicketParticipantType senderType,
+                                                                                     @Nullable Long senderUserId,
+                                                                                     @NotNull String clientMessageId) {
+        LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .eq(CsTicketMessagePO::getSenderType, senderType.name())
+                .eq(CsTicketMessagePO::getClientMessageId, clientMessageId)
+                .last("LIMIT 1");
+        if (senderUserId == null)
+            queryWrapper.isNull(CsTicketMessagePO::getSenderUserId);
+        else
+            queryWrapper.eq(CsTicketMessagePO::getSenderUserId, senderUserId);
+
+        CsTicketMessagePO row = csTicketMessageMapper.selectOne(queryWrapper);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toUserTicketMessageView(row));
+    }
+
+    /**
+     * 保存工单消息并更新工单最近消息时间
+     *
+     * @param userId    用户 ID
+     * @param ticket    工单聚合
+     * @param message   消息实体
+     * @return 落库后的消息视图
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public @NotNull UserTicketMessageView saveTicketMessageAndTouchTicket(@NotNull Long userId,
+                                                                          @NotNull CustomerServiceTicket ticket,
+                                                                          @NotNull TicketMessage message) {
+        Long ticketId = ticket.getId();
+        if (ticketId == null)
+            throw new AppException("工单未持久化, 无法写入消息");
+
+        CsTicketMessagePO insertRow = toTicketMessagePO(message);
+        try {
+            int affectedRowCount = csTicketMessageMapper.insert(insertRow);
+            require(affectedRowCount == 1, "写入工单消息失败");
+        } catch (DuplicateKeyException exception) {
+            String clientMessageId = requireColumn(message.getClientMessageId(), "clientMessageId");
+            return findMessageViewByClientMessageId(ticketId, message.getSenderType(), message.getSenderUserId(), clientMessageId)
+                    .orElseThrow(() -> new AppException("命中消息去重键, 但未找到已存在消息"));
+        }
+
+        int touchAffected = csTicketMapper.touchLastMessageAt(ticketId, userId, message.getSentAt());
+        require(touchAffected == 1, "更新工单最近消息时间失败");
+
+        Long messageId = insertRow.getId();
+        if (messageId == null)
+            throw new AppException("写入工单消息后未返回主键");
+
+        CsTicketMessagePO persistedRow = csTicketMessageMapper.selectById(messageId);
+        if (persistedRow == null)
+            throw new AppException("写入工单消息后回读失败");
+        return toUserTicketMessageView(persistedRow);
+    }
+
+    /**
+     * 基于 CAS 条件更新消息内容
+     *
+     * @param ticketId   工单 ID
+     * @param messageId  消息 ID
+     * @param content    新内容
+     * @param editedAt   编辑时间
+     * @param updatedAt  更新时间
+     * @return 更新是否成功
+     */
+    @Override
+    public boolean updateTicketMessageContentWithCas(@NotNull Long ticketId,
+                                                     @NotNull Long messageId,
+                                                     @NotNull String content,
+                                                     @NotNull LocalDateTime editedAt,
+                                                     @NotNull LocalDateTime updatedAt) {
+        CsTicketMessagePO updateRow = CsTicketMessagePO.builder()
+                .content(content)
+                .editedAt(editedAt)
+                .updatedAt(updatedAt)
+                .build();
+        LambdaUpdateWrapper<CsTicketMessagePO> updateWrapper = new LambdaUpdateWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getId, messageId)
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .isNull(CsTicketMessagePO::getRecalledAt);
+        int affectedRowCount = csTicketMessageMapper.update(updateRow, updateWrapper);
+        return affectedRowCount > 0;
+    }
+
+    /**
+     * 基于 CAS 条件撤回消息
+     *
+     * @param ticketId         工单 ID
+     * @param messageId        消息 ID
+     * @param recalledContent  撤回占位内容
+     * @param recalledAt       撤回时间
+     * @param updatedAt        更新时间
+     * @return 更新是否成功
+     */
+    @Override
+    public boolean recallTicketMessageWithCas(@NotNull Long ticketId,
+                                              @NotNull Long messageId,
+                                              @NotNull String recalledContent,
+                                              @NotNull LocalDateTime recalledAt,
+                                              @NotNull LocalDateTime updatedAt) {
+        CsTicketMessagePO updateRow = CsTicketMessagePO.builder()
+                .content(recalledContent)
+                .attachments("[]")
+                .recalledAt(recalledAt)
+                .updatedAt(updatedAt)
+                .build();
+        LambdaUpdateWrapper<CsTicketMessagePO> updateWrapper = new LambdaUpdateWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getId, messageId)
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .isNull(CsTicketMessagePO::getRecalledAt);
+        int affectedRowCount = csTicketMessageMapper.update(updateRow, updateWrapper);
+        return affectedRowCount > 0;
+    }
+
+    /**
+     * 查询活跃参与方
+     *
+     * @param ticketId          工单 ID
+     * @param participantType   参与方类型
+     * @param participantUserId 参与方用户 ID
+     * @return 参与方实体
+     */
+    @Override
+    public @NotNull Optional<TicketParticipant> findActiveParticipant(@NotNull Long ticketId,
+                                                                      @NotNull TicketParticipantType participantType,
+                                                                      @Nullable Long participantUserId) {
+        LambdaQueryWrapper<CsTicketParticipantPO> queryWrapper = new LambdaQueryWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .eq(CsTicketParticipantPO::getParticipantType, participantType.name())
+                .isNull(CsTicketParticipantPO::getLeftAt)
+                .last("LIMIT 1");
+        if (participantUserId == null)
+            queryWrapper.isNull(CsTicketParticipantPO::getParticipantUserId);
+        else
+            queryWrapper.eq(CsTicketParticipantPO::getParticipantUserId, participantUserId);
+
+        CsTicketParticipantPO row = csTicketParticipantMapper.selectOne(queryWrapper);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toTicketParticipantEntity(row));
+    }
+
+    /**
+     * 校验消息 ID 是否属于工单
+     *
+     * @param ticketId   工单 ID
+     * @param messageId  消息 ID
+     * @return 是否属于当前工单
+     */
+    @Override
+    public boolean existsMessageInTicket(@NotNull Long ticketId,
+                                         @NotNull Long messageId) {
+        LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .eq(CsTicketMessagePO::getId, messageId);
+        return csTicketMessageMapper.selectCount(queryWrapper) > 0;
+    }
+
+    /**
+     * 基于 CAS 条件更新参与方已读位点
+     *
+     * @param participantId      参与方 ID
+     * @param ticketId           工单 ID
+     * @param lastReadMessageId  最后已读消息 ID
+     * @param lastReadAt         最后已读时间
+     * @param updatedAt          更新时间
+     * @return 更新是否成功
+     */
+    @Override
+    public boolean updateParticipantReadWithCas(@NotNull Long participantId,
+                                                @NotNull Long ticketId,
+                                                @NotNull Long lastReadMessageId,
+                                                @NotNull LocalDateTime lastReadAt,
+                                                @NotNull LocalDateTime updatedAt) {
+        CsTicketParticipantPO updateRow = CsTicketParticipantPO.builder()
+                .lastReadMessageId(lastReadMessageId)
+                .lastReadAt(lastReadAt)
+                .updatedAt(updatedAt)
+                .build();
+        LambdaUpdateWrapper<CsTicketParticipantPO> updateWrapper = new LambdaUpdateWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getId, participantId)
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .and(wrapper -> wrapper.isNull(CsTicketParticipantPO::getLastReadMessageId)
+                        .or()
+                        .le(CsTicketParticipantPO::getLastReadMessageId, lastReadMessageId));
+        int affectedRowCount = csTicketParticipantMapper.update(updateRow, updateWrapper);
+        return affectedRowCount > 0;
+    }
+
+    /**
+     * 分页查询工单状态日志
+     *
+     * @param ticketId    工单 ID
+     * @param pageQuery   分页参数
+     * @return 状态日志分页结果
+     */
+    @Override
+    public @NotNull PageResult<UserTicketStatusLogView> pageTicketStatusLogs(@NotNull Long ticketId,
+                                                                             @NotNull PageQuery pageQuery) {
+        pageQuery.validate();
+        LambdaQueryWrapper<CsTicketStatusLogPO> queryWrapper = new LambdaQueryWrapper<CsTicketStatusLogPO>()
+                .eq(CsTicketStatusLogPO::getTicketId, ticketId)
+                .orderByDesc(CsTicketStatusLogPO::getCreatedAt, CsTicketStatusLogPO::getId)
+                .last("LIMIT " + pageQuery.limit() + " OFFSET " + pageQuery.offset());
+        List<CsTicketStatusLogPO> rowList = csTicketStatusLogMapper.selectList(queryWrapper);
+
+        LambdaQueryWrapper<CsTicketStatusLogPO> countWrapper = new LambdaQueryWrapper<CsTicketStatusLogPO>()
+                .eq(CsTicketStatusLogPO::getTicketId, ticketId);
+        long total = csTicketStatusLogMapper.selectCount(countWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return PageResult.<UserTicketStatusLogView>builder()
+                    .items(List.of())
+                    .total(total)
+                    .build();
+
+        List<UserTicketStatusLogView> itemList = rowList.stream()
+                .map(this::toUserTicketStatusLogView)
+                .toList();
+        return PageResult.<UserTicketStatusLogView>builder()
+                .items(itemList)
+                .total(total)
+                .build();
+    }
+
+    /**
+     * 查询工单关联补发物流摘要
+     *
+     * @param ticketId 工单 ID
+     * @return 物流摘要列表
+     */
+    @Override
+    public @NotNull List<UserTicketShipmentSummaryView> listTicketReshipShipments(@NotNull Long ticketId) {
+        List<CsUserTicketShipmentSummaryPO> rowList = csTicketMapper.listTicketReshipShipmentSummaries(ticketId);
+        if (rowList == null || rowList.isEmpty())
+            return List.of();
+        return rowList.stream()
+                .map(this::toUserTicketShipmentSummaryView)
+                .toList();
+    }
+
+    /**
+     * 按工单号列表查询属于用户的工单 ID 列表
+     *
+     * @param userId     用户 ID
+     * @param ticketNos  工单号列表
+     * @return 工单 ID 列表
+     */
+    @Override
+    public @NotNull List<Long> listOwnedTicketIdsByNos(@NotNull Long userId,
+                                                       @NotNull List<String> ticketNos) {
+        if (ticketNos.isEmpty())
+            return List.of();
+        LambdaQueryWrapper<CsTicketPO> queryWrapper = new LambdaQueryWrapper<CsTicketPO>()
+                .eq(CsTicketPO::getUserId, userId)
+                .in(CsTicketPO::getTicketNo, ticketNos)
+                .select(CsTicketPO::getId);
+        List<CsTicketPO> rowList = csTicketMapper.selectList(queryWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return List.of();
+        return rowList.stream()
+                .map(CsTicketPO::getId)
+                .filter(item -> item != null && item > 0)
+                .toList();
+    }
+
+    /**
+     * 按工单 ID 列表查询属于用户的工单 ID 列表
+     *
+     * @param userId     用户 ID
+     * @param ticketIds  工单 ID 列表
+     * @return 工单 ID 列表
+     */
+    @Override
+    public @NotNull List<Long> listOwnedTicketIdsByIds(@NotNull Long userId,
+                                                       @NotNull List<Long> ticketIds) {
+        if (ticketIds.isEmpty())
+            return List.of();
+        LambdaQueryWrapper<CsTicketPO> queryWrapper = new LambdaQueryWrapper<CsTicketPO>()
+                .eq(CsTicketPO::getUserId, userId)
+                .in(CsTicketPO::getId, ticketIds)
+                .select(CsTicketPO::getId);
+        List<CsTicketPO> rowList = csTicketMapper.selectList(queryWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return List.of();
+        return rowList.stream()
+                .map(CsTicketPO::getId)
+                .filter(item -> item != null && item > 0)
+                .toList();
+    }
+
+    /**
      * 持久化行转换为用户工单摘要视图
      *
      * @param row 持久化行
@@ -513,6 +905,149 @@ public class UserTicketRepository implements IUserTicketRepository {
                 .note(statusLog.getNote())
                 .createdAt(statusLog.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * 消息实体转换为消息持久化行
+     *
+     * @param message 消息实体
+     * @return 消息持久化行
+     */
+    private @NotNull CsTicketMessagePO toTicketMessagePO(@NotNull TicketMessage message) {
+        return CsTicketMessagePO.builder()
+                .messageNo(message.getMessageNo().getValue())
+                .ticketId(message.getTicketId())
+                .senderType(message.getSenderType().name())
+                .senderUserId(message.getSenderUserId())
+                .messageType(message.getMessageType().name())
+                .content(message.getContent())
+                .attachments(toJsonArray(message.getAttachments(), "message.attachments"))
+                .metadata(message.getMetadata())
+                .clientMessageId(message.getClientMessageId())
+                .sentAt(message.getSentAt())
+                .editedAt(message.getEditedAt())
+                .recalledAt(message.getRecalledAt())
+                .createdAt(message.getCreatedAt())
+                .updatedAt(message.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * 消息持久化行转换为消息实体
+     *
+     * @param row 消息持久化行
+     * @return 消息实体
+     */
+    private @NotNull TicketMessage toTicketMessageEntity(@NotNull CsTicketMessagePO row) {
+        return TicketMessage.reconstitute(
+                row.getId(),
+                TicketMessageNo.of(requireColumn(row.getMessageNo(), "messageNo")),
+                requireColumn(row.getTicketId(), "ticketId"),
+                TicketParticipantType.fromValue(requireColumn(row.getSenderType(), "senderType")),
+                row.getSenderUserId(),
+                TicketMessageType.fromValue(requireColumn(row.getMessageType(), "messageType")),
+                row.getContent(),
+                parseStringList(row.getAttachments(), "message.attachments"),
+                row.getMetadata(),
+                row.getClientMessageId(),
+                requireColumn(row.getSentAt(), "sentAt"),
+                row.getEditedAt(),
+                row.getRecalledAt(),
+                requireColumn(row.getCreatedAt(), "createdAt"),
+                requireColumn(row.getUpdatedAt(), "updatedAt")
+        );
+    }
+
+    /**
+     * 消息持久化行转换为消息视图
+     *
+     * @param row 消息持久化行
+     * @return 消息视图
+     */
+    private @NotNull UserTicketMessageView toUserTicketMessageView(@NotNull CsTicketMessagePO row) {
+        return new UserTicketMessageView(
+                requireColumn(row.getId(), "id"),
+                requireColumn(row.getMessageNo(), "messageNo"),
+                requireColumn(row.getTicketId(), "ticketId"),
+                TicketParticipantType.fromValue(requireColumn(row.getSenderType(), "senderType")),
+                row.getSenderUserId(),
+                TicketMessageType.fromValue(requireColumn(row.getMessageType(), "messageType")),
+                row.getContent(),
+                parseStringList(row.getAttachments(), "message.attachments"),
+                row.getClientMessageId(),
+                requireColumn(row.getSentAt(), "sentAt"),
+                row.getEditedAt(),
+                row.getRecalledAt()
+        );
+    }
+
+    /**
+     * 参与方持久化行转换为参与方实体
+     *
+     * @param row 参与方持久化行
+     * @return 参与方实体
+     */
+    private @NotNull TicketParticipant toTicketParticipantEntity(@NotNull CsTicketParticipantPO row) {
+        return TicketParticipant.reconstitute(
+                row.getId(),
+                requireColumn(row.getTicketId(), "ticketId"),
+                TicketParticipantType.fromValue(requireColumn(row.getParticipantType(), "participantType")),
+                row.getParticipantUserId(),
+                TicketParticipantRole.fromValue(requireColumn(row.getRole(), "role")),
+                requireColumn(row.getJoinedAt(), "joinedAt"),
+                row.getLeftAt(),
+                row.getLastReadMessageId(),
+                row.getLastReadAt(),
+                requireColumn(row.getCreatedAt(), "createdAt"),
+                requireColumn(row.getUpdatedAt(), "updatedAt")
+        );
+    }
+
+    /**
+     * 状态日志持久化行转换为状态日志视图
+     *
+     * @param row 状态日志持久化行
+     * @return 状态日志视图
+     */
+    private @NotNull UserTicketStatusLogView toUserTicketStatusLogView(@NotNull CsTicketStatusLogPO row) {
+        return new UserTicketStatusLogView(
+                requireColumn(row.getId(), "id"),
+                requireColumn(row.getTicketId(), "ticketId"),
+                row.getFromStatus() == null ? null : TicketStatus.fromValue(row.getFromStatus()),
+                TicketStatus.fromValue(requireColumn(row.getToStatus(), "toStatus")),
+                TicketActorType.fromValue(requireColumn(row.getActorType(), "actorType")),
+                row.getActorUserId(),
+                row.getSourceRef(),
+                row.getNote(),
+                requireColumn(row.getCreatedAt(), "createdAt")
+        );
+    }
+
+    /**
+     * 补发物流投影行转换为物流摘要视图
+     *
+     * @param row 补发物流投影行
+     * @return 物流摘要视图
+     */
+    private @NotNull UserTicketShipmentSummaryView toUserTicketShipmentSummaryView(@NotNull CsUserTicketShipmentSummaryPO row) {
+        return new UserTicketShipmentSummaryView(
+                requireColumn(row.getId(), "id"),
+                requireColumn(row.getShipmentNo(), "shipmentNo"),
+                row.getOrderId(),
+                row.getOrderNo(),
+                row.getIdempotencyKey(),
+                row.getCarrierCode(),
+                row.getCarrierName(),
+                row.getServiceCode(),
+                row.getTrackingNo(),
+                row.getExtExternalId(),
+                ShipmentStatus.valueOf(requireColumn(row.getStatus(), "status")),
+                row.getPickupTime(),
+                row.getDeliveredTime(),
+                normalizeCurrency(row.getCurrency()),
+                requireColumn(row.getCreatedAt(), "createdAt"),
+                requireColumn(row.getUpdatedAt(), "updatedAt")
+        );
     }
 
     /**
