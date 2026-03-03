@@ -2,8 +2,13 @@ package shopping.international.domain.service.customerservice;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.entity.customerservice.TicketAssignmentLog;
+import shopping.international.domain.model.entity.customerservice.TicketParticipant;
+import shopping.international.domain.model.entity.customerservice.TicketStatusLog;
 import shopping.international.domain.model.enums.customerservice.TicketAssignmentActionType;
 import shopping.international.domain.model.enums.customerservice.TicketMessageType;
+import shopping.international.domain.model.enums.customerservice.TicketParticipantRole;
+import shopping.international.domain.model.enums.customerservice.TicketParticipantType;
 import shopping.international.domain.model.enums.customerservice.TicketPriority;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
@@ -191,6 +196,92 @@ public interface IAdminTicketService {
                                         @NotNull Long ticketId,
                                         @NotNull Long lastReadMessageId,
                                         @NotNull String idempotencyKey);
+
+    /**
+     * 查询管理侧工单参与方列表
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketId    工单 ID
+     * @return 参与方列表
+     */
+    @NotNull
+    List<TicketParticipant> listTicketParticipants(@NotNull Long actorUserId,
+                                                   @NotNull Long ticketId);
+
+    /**
+     * 新增管理侧工单参与方
+     *
+     * @param actorUserId       操作者用户 ID
+     * @param ticketId          工单 ID
+     * @param participantType   参与方类型
+     * @param participantUserId 参与方用户 ID
+     * @param role              参与方角色
+     * @param idempotencyKey    请求幂等键
+     * @return 新增后的参与方
+     */
+    @NotNull
+    TicketParticipant createTicketParticipant(@NotNull Long actorUserId,
+                                              @NotNull Long ticketId,
+                                              @NotNull TicketParticipantType participantType,
+                                              @Nullable Long participantUserId,
+                                              @NotNull TicketParticipantRole role,
+                                              @NotNull String idempotencyKey);
+
+    /**
+     * 更新管理侧工单参与方角色
+     *
+     * @param actorUserId     操作者用户 ID
+     * @param ticketId        工单 ID
+     * @param participantId   参与方 ID
+     * @param role            目标角色
+     * @param idempotencyKey  请求幂等键
+     * @return 更新后的参与方
+     */
+    @NotNull
+    TicketParticipant patchTicketParticipant(@NotNull Long actorUserId,
+                                             @NotNull Long ticketId,
+                                             @NotNull Long participantId,
+                                             @NotNull TicketParticipantRole role,
+                                             @NotNull String idempotencyKey);
+
+    /**
+     * 将管理侧工单参与方设为离开
+     *
+     * @param actorUserId     操作者用户 ID
+     * @param ticketId        工单 ID
+     * @param participantId   参与方 ID
+     * @param idempotencyKey  请求幂等键
+     */
+    void leaveTicketParticipant(@NotNull Long actorUserId,
+                                @NotNull Long ticketId,
+                                @NotNull Long participantId,
+                                @NotNull String idempotencyKey);
+
+    /**
+     * 分页查询管理侧工单状态日志
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketId    工单 ID
+     * @param pageQuery   分页参数
+     * @return 状态日志分页结果
+     */
+    @NotNull
+    PageResult<TicketStatusLog> listTicketStatusLogs(@NotNull Long actorUserId,
+                                                     @NotNull Long ticketId,
+                                                     @NotNull PageQuery pageQuery);
+
+    /**
+     * 分页查询管理侧工单指派日志
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketId    工单 ID
+     * @param pageQuery   分页参数
+     * @return 指派日志分页结果
+     */
+    @NotNull
+    PageResult<TicketAssignmentLog> listTicketAssignmentLogs(@NotNull Long actorUserId,
+                                                             @NotNull Long ticketId,
+                                                             @NotNull PageQuery pageQuery);
 
     /**
      * 创建管理侧 WebSocket 会话签发结果

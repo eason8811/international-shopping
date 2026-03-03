@@ -107,14 +107,14 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 分页查询用户工单摘要
      *
-     * @param userId       用户 ID
-     * @param pageQuery    分页参数
-     * @param status       状态筛选
-     * @param issueType    问题类型筛选
-     * @param orderNo      订单号筛选
-     * @param shipmentNo   物流单号筛选
-     * @param createdFrom  创建时间起始
-     * @param createdTo    创建时间结束
+     * @param userId      用户 ID
+     * @param pageQuery   分页参数
+     * @param status      状态筛选
+     * @param issueType   问题类型筛选
+     * @param orderNo     订单号筛选
+     * @param shipmentNo  物流单号筛选
+     * @param createdFrom 创建时间起始
+     * @param createdTo   创建时间结束
      * @return 工单摘要分页结果
      */
     @Override
@@ -169,8 +169,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按用户和工单编号查询工单详情视图
      *
-     * @param userId    用户 ID
-     * @param ticketNo  工单编号
+     * @param userId   用户 ID
+     * @param ticketNo 工单编号
      * @return 工单详情视图
      */
     @Override
@@ -185,8 +185,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按用户和工单编号查询工单聚合
      *
-     * @param userId    用户 ID
-     * @param ticketNo  工单编号
+     * @param userId   用户 ID
+     * @param ticketNo 工单编号
      * @return 工单聚合
      */
     @Override
@@ -205,10 +205,10 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按去重维度查询进行中的工单
      *
-     * @param userId      用户 ID
-     * @param orderId     订单 ID
-     * @param shipmentId  物流单 ID
-     * @param issueType   问题类型
+     * @param userId     用户 ID
+     * @param orderId    订单 ID
+     * @param shipmentId 物流单 ID
+     * @param issueType  问题类型
      * @return 进行中的工单
      */
     @Override
@@ -237,9 +237,9 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 保存新建工单, 同时写入默认参与方和初始化状态日志
      *
-     * @param ticket        待保存工单聚合
-     * @param ownerUserId   发起用户 ID
-     * @param sourceRef     来源引用标识
+     * @param ticket      待保存工单聚合
+     * @param ownerUserId 发起用户 ID
+     * @param sourceRef   来源引用标识
      * @return 创建结果
      */
     @Override
@@ -294,8 +294,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按用户和工单编号查询创建结果
      *
-     * @param userId    用户 ID
-     * @param ticketNo  工单编号
+     * @param userId   用户 ID
+     * @param ticketNo 工单编号
      * @return 创建结果
      */
     @Override
@@ -319,10 +319,10 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 基于状态 CAS 更新工单状态, 并写入状态日志
      *
-     * @param userId               用户 ID
-     * @param ticket               已完成状态推进的工单聚合
-     * @param expectedFromStatus   期望旧状态
-     * @param statusLog            状态日志实体
+     * @param userId             用户 ID
+     * @param ticket             已完成状态推进的工单聚合
+     * @param expectedFromStatus 期望旧状态
+     * @param statusLog          状态日志实体
      * @return 更新是否成功
      */
     @Override
@@ -356,11 +356,11 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 查询工单消息列表
      *
-     * @param ticketId   工单 ID
-     * @param beforeId   向前锚点
-     * @param afterId    向后锚点
-     * @param ascOrder   是否升序
-     * @param size       返回条数
+     * @param ticketId 工单 ID
+     * @param beforeId 向前锚点
+     * @param afterId  向后锚点
+     * @param ascOrder 是否升序
+     * @param size     返回条数
      * @return 消息列表
      */
     @Override
@@ -389,8 +389,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按消息编号查询消息实体
      *
-     * @param ticketId   工单 ID
-     * @param messageNo  消息编号
+     * @param ticketId  工单 ID
+     * @param messageNo 消息编号
      * @return 消息实体
      */
     @Override
@@ -409,8 +409,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按消息主键查询消息实体
      *
-     * @param ticketId   工单 ID
-     * @param messageId  消息 ID
+     * @param ticketId  工单 ID
+     * @param messageId 消息 ID
      * @return 消息实体
      */
     @Override
@@ -429,8 +429,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按消息编号查询消息视图
      *
-     * @param ticketId   工单 ID
-     * @param messageNo  消息编号
+     * @param ticketId  工单 ID
+     * @param messageNo 消息编号
      * @return 消息视图
      */
     @Override
@@ -449,8 +449,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按消息主键查询消息视图
      *
-     * @param ticketId   工单 ID
-     * @param messageId  消息 ID
+     * @param ticketId  工单 ID
+     * @param messageId 消息 ID
      * @return 消息视图
      */
     @Override
@@ -469,10 +469,10 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按客户端消息幂等键查询消息视图
      *
-     * @param ticketId          工单 ID
-     * @param senderType        发送方类型
-     * @param senderUserId      发送方用户 ID
-     * @param clientMessageId   客户端消息幂等键
+     * @param ticketId        工单 ID
+     * @param senderType      发送方类型
+     * @param senderUserId    发送方用户 ID
+     * @param clientMessageId 客户端消息幂等键
      * @return 消息视图
      */
     @Override
@@ -499,9 +499,9 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 保存工单消息并更新工单最近消息时间
      *
-     * @param userId    用户 ID
-     * @param ticket    工单聚合
-     * @param message   消息实体
+     * @param userId  用户 ID
+     * @param ticket  工单聚合
+     * @param message 消息实体
      * @return 落库后的消息视图
      */
     @Override
@@ -539,11 +539,11 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 基于 CAS 条件更新消息内容
      *
-     * @param ticketId   工单 ID
-     * @param messageId  消息 ID
-     * @param content    新内容
-     * @param editedAt   编辑时间
-     * @param updatedAt  更新时间
+     * @param ticketId  工单 ID
+     * @param messageId 消息 ID
+     * @param content   新内容
+     * @param editedAt  编辑时间
+     * @param updatedAt 更新时间
      * @return 更新是否成功
      */
     @Override
@@ -568,11 +568,11 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 基于 CAS 条件撤回消息
      *
-     * @param ticketId         工单 ID
-     * @param messageId        消息 ID
-     * @param recalledContent  撤回占位内容
-     * @param recalledAt       撤回时间
-     * @param updatedAt        更新时间
+     * @param ticketId        工单 ID
+     * @param messageId       消息 ID
+     * @param recalledContent 撤回占位内容
+     * @param recalledAt      撤回时间
+     * @param updatedAt       更新时间
      * @return 更新是否成功
      */
     @Override
@@ -624,10 +624,133 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     }
 
     /**
+     * 查询工单全部参与方列表
+     *
+     * @param ticketId 工单 ID
+     * @return 参与方列表
+     */
+    @Override
+    public @NotNull List<TicketParticipant> listTicketParticipants(@NotNull Long ticketId) {
+        LambdaQueryWrapper<CsTicketParticipantPO> queryWrapper = new LambdaQueryWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .orderByAsc(CsTicketParticipantPO::getJoinedAt, CsTicketParticipantPO::getId);
+        List<CsTicketParticipantPO> rowList = csTicketParticipantMapper.selectList(queryWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return List.of();
+        return rowList.stream()
+                .map(this::toTicketParticipantEntity)
+                .toList();
+    }
+
+    /**
+     * 按主键查询工单参与方
+     *
+     * @param ticketId      工单 ID
+     * @param participantId 参与方主键
+     * @return 参与方实体
+     */
+    @Override
+    public @NotNull Optional<TicketParticipant> findTicketParticipantById(@NotNull Long ticketId,
+                                                                          @NotNull Long participantId) {
+        LambdaQueryWrapper<CsTicketParticipantPO> queryWrapper = new LambdaQueryWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .eq(CsTicketParticipantPO::getId, participantId)
+                .last("LIMIT 1");
+        CsTicketParticipantPO row = csTicketParticipantMapper.selectOne(queryWrapper);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toTicketParticipantEntity(row));
+    }
+
+    /**
+     * 保存工单参与方
+     *
+     * @param participant 参与方实体
+     * @return 落库后的参与方实体
+     */
+    @Override
+    public @NotNull TicketParticipant saveTicketParticipant(@NotNull TicketParticipant participant) {
+        CsTicketParticipantPO insertRow = CsTicketParticipantPO.builder()
+                .ticketId(participant.getTicketId())
+                .participantType(participant.getParticipantType().name())
+                .participantUserId(participant.getParticipantUserId())
+                .role(participant.getRole().name())
+                .joinedAt(participant.getJoinedAt())
+                .leftAt(participant.getLeftAt())
+                .lastReadMessageId(participant.getLastReadMessageId())
+                .lastReadAt(participant.getLastReadAt())
+                .build();
+        try {
+            int affectedRowCount = csTicketParticipantMapper.insert(insertRow);
+            require(affectedRowCount == 1, "写入工单参与方失败");
+        } catch (DuplicateKeyException exception) {
+            throw new ConflictException("同类型同用户的活跃参与方已存在");
+        }
+
+        Long participantId = insertRow.getId();
+        if (participantId == null)
+            throw new AppException("写入工单参与方后未返回主键");
+        return findTicketParticipantById(requireColumn(participant.getTicketId(), "ticketId"), participantId)
+                .orElseThrow(() -> new AppException("写入工单参与方后回读失败"));
+    }
+
+    /**
+     * 基于更新时间 CAS 更新参与方角色
+     *
+     * @param participantId     参与方 ID
+     * @param ticketId          工单 ID
+     * @param role              目标角色
+     * @param expectedUpdatedAt 期望旧更新时间
+     * @return 更新是否成功
+     */
+    @Override
+    public boolean updateTicketParticipantRoleWithCas(@NotNull Long participantId,
+                                                      @NotNull Long ticketId,
+                                                      @NotNull TicketParticipantRole role,
+                                                      @NotNull LocalDateTime expectedUpdatedAt) {
+        CsTicketParticipantPO updateRow = CsTicketParticipantPO.builder()
+                .role(role.name())
+                .build();
+        LambdaUpdateWrapper<CsTicketParticipantPO> updateWrapper = new LambdaUpdateWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getId, participantId)
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .eq(CsTicketParticipantPO::getUpdatedAt, expectedUpdatedAt)
+                .isNull(CsTicketParticipantPO::getLeftAt);
+        int affectedRowCount = csTicketParticipantMapper.update(updateRow, updateWrapper);
+        return affectedRowCount > 0;
+    }
+
+    /**
+     * 基于更新时间 CAS 将参与方设为离开
+     *
+     * @param participantId     参与方 ID
+     * @param ticketId          工单 ID
+     * @param leftAt            离开时间
+     * @param expectedUpdatedAt 期望旧更新时间
+     * @return 更新是否成功
+     */
+    @Override
+    public boolean leaveTicketParticipantWithCas(@NotNull Long participantId,
+                                                 @NotNull Long ticketId,
+                                                 @NotNull LocalDateTime leftAt,
+                                                 @NotNull LocalDateTime expectedUpdatedAt) {
+        CsTicketParticipantPO updateRow = CsTicketParticipantPO.builder()
+                .leftAt(leftAt)
+                .build();
+        LambdaUpdateWrapper<CsTicketParticipantPO> updateWrapper = new LambdaUpdateWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getId, participantId)
+                .eq(CsTicketParticipantPO::getTicketId, ticketId)
+                .eq(CsTicketParticipantPO::getUpdatedAt, expectedUpdatedAt)
+                .isNull(CsTicketParticipantPO::getLeftAt);
+        int affectedRowCount = csTicketParticipantMapper.update(updateRow, updateWrapper);
+        return affectedRowCount > 0;
+    }
+
+    /**
      * 校验消息 ID 是否属于工单
      *
-     * @param ticketId   工单 ID
-     * @param messageId  消息 ID
+     * @param ticketId  工单 ID
+     * @param messageId 消息 ID
      * @return 是否属于当前工单
      */
     @Override
@@ -642,11 +765,11 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 基于 CAS 条件更新参与方已读位点
      *
-     * @param participantId      参与方 ID
-     * @param ticketId           工单 ID
-     * @param lastReadMessageId  最后已读消息 ID
-     * @param lastReadAt         最后已读时间
-     * @param updatedAt          更新时间
+     * @param participantId     参与方 ID
+     * @param ticketId          工单 ID
+     * @param lastReadMessageId 最后已读消息 ID
+     * @param lastReadAt        最后已读时间
+     * @param updatedAt         更新时间
      * @return 更新是否成功
      */
     @Override
@@ -673,8 +796,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 分页查询工单状态日志
      *
-     * @param ticketId    工单 ID
-     * @param pageQuery   分页参数
+     * @param ticketId  工单 ID
+     * @param pageQuery 分页参数
      * @return 状态日志分页结果
      */
     @Override
@@ -706,6 +829,76 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     }
 
     /**
+     * 分页查询管理侧工单状态日志
+     *
+     * @param ticketId  工单 ID
+     * @param pageQuery 分页参数
+     * @return 状态日志分页结果
+     */
+    @Override
+    public @NotNull PageResult<TicketStatusLog> pageAdminTicketStatusLogs(@NotNull Long ticketId,
+                                                                          @NotNull PageQuery pageQuery) {
+        pageQuery.validate();
+        LambdaQueryWrapper<CsTicketStatusLogPO> queryWrapper = new LambdaQueryWrapper<CsTicketStatusLogPO>()
+                .eq(CsTicketStatusLogPO::getTicketId, ticketId)
+                .orderByDesc(CsTicketStatusLogPO::getCreatedAt, CsTicketStatusLogPO::getId)
+                .last("LIMIT " + pageQuery.limit() + " OFFSET " + pageQuery.offset());
+        List<CsTicketStatusLogPO> rowList = csTicketStatusLogMapper.selectList(queryWrapper);
+
+        LambdaQueryWrapper<CsTicketStatusLogPO> countWrapper = new LambdaQueryWrapper<CsTicketStatusLogPO>()
+                .eq(CsTicketStatusLogPO::getTicketId, ticketId);
+        long total = csTicketStatusLogMapper.selectCount(countWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return PageResult.<TicketStatusLog>builder()
+                    .items(List.of())
+                    .total(total)
+                    .build();
+
+        List<TicketStatusLog> itemList = rowList.stream()
+                .map(this::toTicketStatusLogEntity)
+                .toList();
+        return PageResult.<TicketStatusLog>builder()
+                .items(itemList)
+                .total(total)
+                .build();
+    }
+
+    /**
+     * 分页查询工单指派日志
+     *
+     * @param ticketId  工单 ID
+     * @param pageQuery 分页参数
+     * @return 指派日志分页结果
+     */
+    @Override
+    public @NotNull PageResult<TicketAssignmentLog> pageTicketAssignmentLogs(@NotNull Long ticketId,
+                                                                             @NotNull PageQuery pageQuery) {
+        pageQuery.validate();
+        LambdaQueryWrapper<CsTicketAssignmentLogPO> queryWrapper = new LambdaQueryWrapper<CsTicketAssignmentLogPO>()
+                .eq(CsTicketAssignmentLogPO::getTicketId, ticketId)
+                .orderByDesc(CsTicketAssignmentLogPO::getCreatedAt, CsTicketAssignmentLogPO::getId)
+                .last("LIMIT " + pageQuery.limit() + " OFFSET " + pageQuery.offset());
+        List<CsTicketAssignmentLogPO> rowList = csTicketAssignmentLogMapper.selectList(queryWrapper);
+
+        LambdaQueryWrapper<CsTicketAssignmentLogPO> countWrapper = new LambdaQueryWrapper<CsTicketAssignmentLogPO>()
+                .eq(CsTicketAssignmentLogPO::getTicketId, ticketId);
+        long total = csTicketAssignmentLogMapper.selectCount(countWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return PageResult.<TicketAssignmentLog>builder()
+                    .items(List.of())
+                    .total(total)
+                    .build();
+
+        List<TicketAssignmentLog> itemList = rowList.stream()
+                .map(this::toTicketAssignmentLogEntity)
+                .toList();
+        return PageResult.<TicketAssignmentLog>builder()
+                .items(itemList)
+                .total(total)
+                .build();
+    }
+
+    /**
      * 查询工单关联补发物流摘要
      *
      * @param ticketId 工单 ID
@@ -724,8 +917,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按工单号列表查询属于用户的工单 ID 列表
      *
-     * @param userId     用户 ID
-     * @param ticketNos  工单号列表
+     * @param userId    用户 ID
+     * @param ticketNos 工单号列表
      * @return 工单 ID 列表
      */
     @Override
@@ -820,8 +1013,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 按工单 ID 列表查询属于用户的工单 ID 列表
      *
-     * @param userId     用户 ID
-     * @param ticketIds  工单 ID 列表
+     * @param userId    用户 ID
+     * @param ticketIds 工单 ID 列表
      * @return 工单 ID 列表
      */
     @Override
@@ -937,8 +1130,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 基于更新时间 CAS 更新工单元数据
      *
-     * @param ticket             已完成元数据变更的工单聚合
-     * @param expectedUpdatedAt  期望旧更新时间
+     * @param ticket            已完成元数据变更的工单聚合
+     * @param expectedUpdatedAt 期望旧更新时间
      * @return 更新是否成功
      */
     @Override
@@ -964,9 +1157,9 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 基于更新时间 CAS 更新工单指派信息, 并写入指派日志
      *
-     * @param ticket             已完成指派变更的工单聚合
-     * @param expectedUpdatedAt  期望旧更新时间
-     * @param assignmentLog      指派日志实体
+     * @param ticket            已完成指派变更的工单聚合
+     * @param expectedUpdatedAt 期望旧更新时间
+     * @param assignmentLog     指派日志实体
      * @return 更新是否成功
      */
     @Override
@@ -1003,9 +1196,9 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 基于状态 CAS 更新工单状态, 并写入状态日志
      *
-     * @param ticket               已完成状态推进的工单聚合
-     * @param expectedFromStatus   期望旧状态
-     * @param statusLog            状态日志实体
+     * @param ticket             已完成状态推进的工单聚合
+     * @param expectedFromStatus 期望旧状态
+     * @param statusLog          状态日志实体
      * @return 更新是否成功
      */
     @Override
@@ -1037,7 +1230,7 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     /**
      * 将工单内现有 ASSIGNEE 角色降级为 COLLABORATOR
      *
-     * @param ticketId          工单 ID
+     * @param ticketId           工单 ID
      * @param keepAssigneeUserId 需要保留 ASSIGNEE 角色的用户 ID
      */
     private void demoteActiveAssigneeParticipants(@NotNull Long ticketId,
@@ -1489,6 +1682,47 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
                 row.getLastReadAt(),
                 requireColumn(row.getCreatedAt(), "createdAt"),
                 requireColumn(row.getUpdatedAt(), "updatedAt")
+        );
+    }
+
+    /**
+     * 状态日志持久化行转换为状态日志实体
+     *
+     * @param row 状态日志持久化行
+     * @return 状态日志实体
+     */
+    private @NotNull TicketStatusLog toTicketStatusLogEntity(@NotNull CsTicketStatusLogPO row) {
+        return TicketStatusLog.reconstitute(
+                row.getId(),
+                requireColumn(row.getTicketId(), "ticketId"),
+                row.getFromStatus() == null ? null : TicketStatus.fromValue(row.getFromStatus()),
+                TicketStatus.fromValue(requireColumn(row.getToStatus(), "toStatus")),
+                TicketActorType.fromValue(requireColumn(row.getActorType(), "actorType")),
+                row.getActorUserId(),
+                row.getSourceRef(),
+                row.getNote(),
+                requireColumn(row.getCreatedAt(), "createdAt")
+        );
+    }
+
+    /**
+     * 指派日志持久化行转换为指派日志实体
+     *
+     * @param row 指派日志持久化行
+     * @return 指派日志实体
+     */
+    private @NotNull TicketAssignmentLog toTicketAssignmentLogEntity(@NotNull CsTicketAssignmentLogPO row) {
+        return TicketAssignmentLog.reconstitute(
+                row.getId(),
+                requireColumn(row.getTicketId(), "ticketId"),
+                row.getFromAssigneeUserId(),
+                row.getToAssigneeUserId(),
+                TicketAssignmentActionType.fromValue(requireColumn(row.getActionType(), "actionType")),
+                TicketActorType.fromValue(requireColumn(row.getActorType(), "actorType")),
+                row.getActorUserId(),
+                row.getSourceRef(),
+                row.getNote(),
+                requireColumn(row.getCreatedAt(), "createdAt")
         );
     }
 

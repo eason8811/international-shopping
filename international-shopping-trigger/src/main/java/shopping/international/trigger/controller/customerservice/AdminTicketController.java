@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import shopping.international.api.req.customerservice.AdminTicketAssignRequest;
+import shopping.international.api.req.customerservice.AdminTicketParticipantCreateRequest;
+import shopping.international.api.req.customerservice.AdminTicketParticipantPatchRequest;
 import shopping.international.api.req.customerservice.AdminTicketPatchRequest;
 import shopping.international.api.req.customerservice.TicketMessageCreateRequest;
 import shopping.international.api.req.customerservice.TicketMessageRecallRequest;
@@ -26,7 +28,13 @@ import shopping.international.api.resp.Result;
 import shopping.international.api.resp.customerservice.AdminTicketDetailRespond;
 import shopping.international.api.resp.customerservice.AdminTicketSummaryRespond;
 import shopping.international.api.resp.customerservice.CsWsTicketReadUpdatedEventDataRespond;
+import shopping.international.api.resp.customerservice.TicketAssignmentLogRespond;
 import shopping.international.api.resp.customerservice.TicketMessageRespond;
+import shopping.international.api.resp.customerservice.TicketParticipantRespond;
+import shopping.international.api.resp.customerservice.TicketStatusLogRespond;
+import shopping.international.domain.model.entity.customerservice.TicketAssignmentLog;
+import shopping.international.domain.model.entity.customerservice.TicketParticipant;
+import shopping.international.domain.model.entity.customerservice.TicketStatusLog;
 import shopping.international.domain.model.enums.customerservice.TicketIssueType;
 import shopping.international.domain.model.enums.customerservice.TicketPriority;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
@@ -475,6 +483,198 @@ public class AdminTicketController {
                 normalizedIdempotencyKey
         );
         return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toReadUpdatedEventDataRespond(updated)));
+    }
+
+    /**
+     * 管理侧查询工单参与方列表
+     *
+     * @param ticketId 工单 ID
+     * @return 参与方列表
+     */
+    @GetMapping("/{ticket_id}/participants")
+    public ResponseEntity<Result<List<TicketParticipantRespond>>> listTicketParticipants(@PathVariable("ticket_id") Long ticketId) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+
+        Long actorUserId = requireCurrentUserId();
+        List<TicketParticipant> participantList = adminTicketService.listTicketParticipants(actorUserId, ticketId);
+        List<TicketParticipantRespond> data = participantList.stream()
+                .map(AdminTicketRespondAssembler::toParticipantRespond)
+                .toList();
+        return ResponseEntity.ok(Result.ok(data));
+    }
+
+    /**
+     * 管理侧新增工单参与方
+     *
+     * @param ticketId       工单 ID
+     * @param idempotencyKey 幂等键
+     * @param request        新增参与方请求
+     * @return 新增后的参与方
+     */
+    @PostMapping("/{ticket_id}/participants")
+    public ResponseEntity<Result<TicketParticipantRespond>> createTicketParticipant(@PathVariable("ticket_id") Long ticketId,
+                                                                                    @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                                    @RequestBody AdminTicketParticipantCreateRequest request) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long actorUserId = requireCurrentUserId();
+        TicketParticipant participant = adminTicketService.createTicketParticipant(
+                actorUserId,
+                ticketId,
+                request.getParticipantType(),
+                request.getParticipantUserId(),
+                request.getRole(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
+                .body(Result.created(AdminTicketRespondAssembler.toParticipantRespond(participant)));
+    }
+
+    /**
+     * 管理侧更新工单参与方角色
+     *
+     * @param ticketId       工单 ID
+     * @param participantId  参与方 ID
+     * @param idempotencyKey 幂等键
+     * @param request        角色更新请求
+     * @return 更新后的参与方
+     */
+    @PatchMapping("/{ticket_id}/participants/{participant_id}")
+    public ResponseEntity<Result<TicketParticipantRespond>> patchTicketParticipant(@PathVariable("ticket_id") Long ticketId,
+                                                                                   @PathVariable("participant_id") Long participantId,
+                                                                                   @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                                   @RequestBody AdminTicketParticipantPatchRequest request) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        require(participantId != null && participantId >= 1, "participant_id 必须大于等于 1");
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long actorUserId = requireCurrentUserId();
+        TicketParticipant participant = adminTicketService.patchTicketParticipant(
+                actorUserId,
+                ticketId,
+                participantId,
+                request.getRole(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toParticipantRespond(participant)));
+    }
+
+    /**
+     * 管理侧将工单参与方设为离开
+     *
+     * @param ticketId       工单 ID
+     * @param participantId  参与方 ID
+     * @param idempotencyKey 幂等键
+     * @return 空数据响应
+     */
+    @PostMapping("/{ticket_id}/participants/{participant_id}/leave")
+    public ResponseEntity<Result<Object>> leaveTicketParticipant(@PathVariable("ticket_id") Long ticketId,
+                                                                 @PathVariable("participant_id") Long participantId,
+                                                                 @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        require(participantId != null && participantId >= 1, "participant_id 必须大于等于 1");
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+
+        Long actorUserId = requireCurrentUserId();
+        adminTicketService.leaveTicketParticipant(
+                actorUserId,
+                ticketId,
+                participantId,
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.ok(Result.ok(null));
+    }
+
+    /**
+     * 管理侧查询工单状态流转日志
+     *
+     * @param ticketId 工单 ID
+     * @param page     页码
+     * @param size     每页条数
+     * @return 状态日志分页结果
+     */
+    @GetMapping("/{ticket_id}/status-logs")
+    public ResponseEntity<Result<List<TicketStatusLogRespond>>> listTicketStatusLogs(@PathVariable("ticket_id") Long ticketId,
+                                                                                     @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
+                                                                                     @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        PageQuery pageQuery = pagePreprocess(ticketId, page, size);
+        Long actorUserId = requireCurrentUserId();
+        PageResult<TicketStatusLog> pageResult = adminTicketService.listTicketStatusLogs(actorUserId, ticketId, pageQuery);
+        List<TicketStatusLogRespond> data = pageResult.items().stream()
+                .map(AdminTicketRespondAssembler::toStatusLogRespond)
+                .toList();
+        return ResponseEntity.ok(Result.ok(
+                data,
+                Result.Meta.builder()
+                        .page(pageQuery.page())
+                        .size(pageQuery.size())
+                        .total(pageResult.total())
+                        .build()
+        ));
+    }
+
+    /**
+     * 管理侧查询工单指派日志
+     *
+     * @param ticketId 工单 ID
+     * @param page     页码
+     * @param size     每页条数
+     * @return 指派日志分页结果
+     */
+    @GetMapping("/{ticket_id}/assignment-logs")
+    public ResponseEntity<Result<List<TicketAssignmentLogRespond>>> listTicketAssignmentLogs(@PathVariable("ticket_id") Long ticketId,
+                                                                                             @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
+                                                                                             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        PageQuery pageQuery = pagePreprocess(ticketId, page, size);
+        Long actorUserId = requireCurrentUserId();
+        PageResult<TicketAssignmentLog> pageResult = adminTicketService.listTicketAssignmentLogs(actorUserId, ticketId, pageQuery);
+        List<TicketAssignmentLogRespond> data = pageResult.items().stream()
+                .map(AdminTicketRespondAssembler::toAssignmentLogRespond)
+                .toList();
+        return ResponseEntity.ok(Result.ok(
+                data,
+                Result.Meta.builder()
+                        .page(pageQuery.page())
+                        .size(pageQuery.size())
+                        .total(pageResult.total())
+                        .build()
+        ));
+    }
+
+    /**
+     * 对分页查询参数进行预处理, 确保其符合要求
+     *
+     * @param ticketId 票据 ID, 必须大于等于 1
+     * @param page     分页的页码, 如果为 null, 则默认值为 1, 必须大于等于 1
+     * @param size     每页的数据条数, 如果为 null, 则默认值为 20, 必须在 1 到 200 之间
+     * @return 返回一个经过验证和规范化后的 {@code PageQuery} 对象
+     */
+    private static @NotNull PageQuery pagePreprocess(Long ticketId, Integer page, Integer size) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        int normalizedPage = page == null ? 1 : page;
+        int normalizedSize = size == null ? 20 : size;
+        require(normalizedPage >= 1, "page 必须大于等于 1");
+        require(normalizedSize >= 1 && normalizedSize <= 200, "size 必须在 1 到 200 之间");
+
+        return PageQuery.of(normalizedPage, normalizedSize, 200);
     }
 
     /**

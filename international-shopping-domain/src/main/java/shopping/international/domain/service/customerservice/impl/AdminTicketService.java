@@ -19,6 +19,7 @@ import shopping.international.domain.model.entity.customerservice.TicketStatusLo
 import shopping.international.domain.model.enums.customerservice.TicketActorType;
 import shopping.international.domain.model.enums.customerservice.TicketAssignmentActionType;
 import shopping.international.domain.model.enums.customerservice.TicketMessageType;
+import shopping.international.domain.model.enums.customerservice.TicketParticipantRole;
 import shopping.international.domain.model.enums.customerservice.TicketParticipantType;
 import shopping.international.domain.model.enums.customerservice.TicketPriority;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
@@ -109,6 +110,18 @@ public class AdminTicketService implements IAdminTicketService {
      * 管理侧 WebSocket 会话签发幂等场景
      */
     private static final String IDEMPOTENCY_SCENE_ADMIN_WS_SESSION_CREATE = "admin_ws_session_create";
+    /**
+     * 管理侧新增参与方幂等场景
+     */
+    private static final String IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_CREATE = "admin_participant_create";
+    /**
+     * 管理侧更新参与方幂等场景
+     */
+    private static final String IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_PATCH = "admin_participant_patch";
+    /**
+     * 管理侧参与方离场幂等场景
+     */
+    private static final String IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_LEAVE = "admin_participant_leave";
 
     /**
      * 撤回消息占位文案
@@ -161,15 +174,15 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 更新工单元数据
      *
-     * @param actorUserId            操作者用户 ID
-     * @param ticketId               工单 ID
-     * @param priority               工单优先级
-     * @param tags                   工单标签
-     * @param requestedRefundAmount  申请退款金额
-     * @param currency               币种
-     * @param claimExternalId        理赔外部编号
-     * @param slaDueAt               SLA 到期时间
-     * @param idempotencyKey         幂等键
+     * @param actorUserId           操作者用户 ID
+     * @param ticketId              工单 ID
+     * @param priority              工单优先级
+     * @param tags                  工单标签
+     * @param requestedRefundAmount 申请退款金额
+     * @param currency              币种
+     * @param claimExternalId       理赔外部编号
+     * @param slaDueAt              SLA 到期时间
+     * @param idempotencyKey        幂等键
      * @return 更新后的工单详情视图
      */
     @Override
@@ -216,13 +229,13 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 指派或转派工单
      *
-     * @param actorUserId       操作者用户 ID
-     * @param ticketId          工单 ID
-     * @param toAssigneeUserId  目标指派坐席用户 ID
-     * @param actionType        指派动作
-     * @param note              备注
-     * @param sourceRef         来源引用 ID
-     * @param idempotencyKey    幂等键
+     * @param actorUserId      操作者用户 ID
+     * @param ticketId         工单 ID
+     * @param toAssigneeUserId 目标指派坐席用户 ID
+     * @param actionType       指派动作
+     * @param note             备注
+     * @param sourceRef        来源引用 ID
+     * @param idempotencyKey   幂等键
      * @return 更新后的工单详情视图
      */
     @Override
@@ -281,12 +294,12 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 推进工单状态
      *
-     * @param actorUserId     操作者用户 ID
-     * @param ticketId        工单 ID
-     * @param toStatus        目标状态
-     * @param note            备注
-     * @param sourceRef       来源引用 ID
-     * @param idempotencyKey  幂等键
+     * @param actorUserId    操作者用户 ID
+     * @param ticketId       工单 ID
+     * @param toStatus       目标状态
+     * @param note           备注
+     * @param sourceRef      来源引用 ID
+     * @param idempotencyKey 幂等键
      * @return 更新后的工单详情视图
      */
     @Override
@@ -377,13 +390,13 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 发送管理侧工单消息
      *
-     * @param actorUserId      操作者用户 ID
-     * @param ticketId         工单 ID
-     * @param messageType      消息类型
-     * @param content          消息正文
-     * @param attachments      附件列表
-     * @param clientMessageId  客户端消息幂等键
-     * @param idempotencyKey   请求幂等键
+     * @param actorUserId     操作者用户 ID
+     * @param ticketId        工单 ID
+     * @param messageType     消息类型
+     * @param content         消息正文
+     * @param attachments     附件列表
+     * @param clientMessageId 客户端消息幂等键
+     * @param idempotencyKey  请求幂等键
      * @return 发送后的消息
      */
     @Override
@@ -482,11 +495,11 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 编辑管理侧工单消息
      *
-     * @param actorUserId     操作者用户 ID
-     * @param ticketId        工单 ID
-     * @param messageId       消息 ID
-     * @param content         新正文
-     * @param idempotencyKey  请求幂等键
+     * @param actorUserId    操作者用户 ID
+     * @param ticketId       工单 ID
+     * @param messageId      消息 ID
+     * @param content        新正文
+     * @param idempotencyKey 请求幂等键
      * @return 编辑后的消息
      */
     @Override
@@ -563,11 +576,11 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 撤回管理侧工单消息
      *
-     * @param actorUserId     操作者用户 ID
-     * @param ticketId        工单 ID
-     * @param messageId       消息 ID
-     * @param reason          撤回原因
-     * @param idempotencyKey  请求幂等键
+     * @param actorUserId    操作者用户 ID
+     * @param ticketId       工单 ID
+     * @param messageId      消息 ID
+     * @param reason         撤回原因
+     * @param idempotencyKey 请求幂等键
      * @return 撤回后的消息
      */
     @Override
@@ -644,10 +657,10 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 标记管理侧工单消息已读位点
      *
-     * @param actorUserId        操作者用户 ID
-     * @param ticketId           工单 ID
-     * @param lastReadMessageId  最后已读消息 ID
-     * @param idempotencyKey     请求幂等键
+     * @param actorUserId       操作者用户 ID
+     * @param ticketId          工单 ID
+     * @param lastReadMessageId 最后已读消息 ID
+     * @param idempotencyKey    请求幂等键
      * @return 已读位点更新结果
      */
     @Override
@@ -714,11 +727,317 @@ public class AdminTicketService implements IAdminTicketService {
     }
 
     /**
+     * 查询管理侧工单参与方列表
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketId    工单 ID
+     * @return 参与方列表
+     */
+    @Override
+    public @NotNull List<TicketParticipant> listTicketParticipants(@NotNull Long actorUserId,
+                                                                   @NotNull Long ticketId) {
+        CustomerServiceTicket ticket = requireTicket(ticketId);
+        Long persistedTicketId = requirePersistedTicketId(ticket);
+        requireActiveAgentParticipant(persistedTicketId, actorUserId);
+        return adminTicketRepository.listTicketParticipants(persistedTicketId);
+    }
+
+    /**
+     * 新增管理侧工单参与方
+     *
+     * @param actorUserId       操作者用户 ID
+     * @param ticketId          工单 ID
+     * @param participantType   参与方类型
+     * @param participantUserId 参与方用户 ID
+     * @param role              参与方角色
+     * @param idempotencyKey    请求幂等键
+     * @return 新增后的参与方
+     */
+    @Override
+    public @NotNull TicketParticipant createTicketParticipant(@NotNull Long actorUserId,
+                                                              @NotNull Long ticketId,
+                                                              @NotNull TicketParticipantType participantType,
+                                                              @Nullable Long participantUserId,
+                                                              @NotNull TicketParticipantRole role,
+                                                              @NotNull String idempotencyKey) {
+        CustomerServiceTicket ticket = requireTicket(ticketId);
+        Long persistedTicketId = requirePersistedTicketId(ticket);
+        TicketParticipant actorParticipant = requireActiveAgentParticipant(persistedTicketId, actorUserId);
+        requireParticipantManagePermission(actorParticipant);
+        validateParticipantCreateRole(ticket, participantType, participantUserId, role);
+
+        String resource = String.valueOf(ticketId);
+        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+                IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_CREATE,
+                actorUserId,
+                resource,
+                idempotencyKey,
+                IDEMPOTENCY_PENDING_TTL
+        );
+        if (tokenStatus.isSucceeded()) {
+            String resultRef = tokenStatus.ticketNo();
+            if (resultRef != null && !resultRef.isBlank()) {
+                try {
+                    Long participantId = Long.parseLong(resultRef);
+                    return adminTicketRepository.findTicketParticipantById(persistedTicketId, participantId)
+                            .orElseThrow(() -> new AppException("幂等参与方创建结果已存在, 但参与方记录不存在"));
+                } catch (NumberFormatException ignored) {
+                    return adminTicketRepository.findActiveParticipant(persistedTicketId, participantType, participantUserId)
+                            .orElseThrow(() -> new AppException("幂等参与方创建结果已存在, 但参与方记录不存在"));
+                }
+            }
+            return adminTicketRepository.findActiveParticipant(persistedTicketId, participantType, participantUserId)
+                    .orElseThrow(() -> new AppException("幂等参与方创建结果已存在, 但参与方记录不存在"));
+        }
+        if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
+            throw new ConflictException("相同幂等键的新增参与方请求正在处理中");
+
+        TicketParticipant existed = adminTicketRepository.findActiveParticipant(persistedTicketId, participantType, participantUserId)
+                .orElse(null);
+        if (existed != null) {
+            if (existed.getRole() == role) {
+                ticketIdempotencyPort.markActionSucceeded(
+                        IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_CREATE,
+                        actorUserId,
+                        resource,
+                        idempotencyKey,
+                        String.valueOf(normalizeNotNull(existed.getId(), "participantId 不能为空")),
+                        IDEMPOTENCY_SUCCESS_TTL
+                );
+                return existed;
+            }
+            throw new ConflictException("同类型同用户的活跃参与方已存在");
+        }
+
+        TicketParticipant created = ticket.addParticipant(participantType, participantUserId, role);
+        TicketParticipant persisted = adminTicketRepository.saveTicketParticipant(created);
+        ticketIdempotencyPort.markActionSucceeded(
+                IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_CREATE,
+                actorUserId,
+                resource,
+                idempotencyKey,
+                String.valueOf(normalizeNotNull(persisted.getId(), "participantId 不能为空")),
+                IDEMPOTENCY_SUCCESS_TTL
+        );
+        return persisted;
+    }
+
+    /**
+     * 更新管理侧工单参与方角色
+     *
+     * @param actorUserId    操作者用户 ID
+     * @param ticketId       工单 ID
+     * @param participantId  参与方 ID
+     * @param role           目标角色
+     * @param idempotencyKey 请求幂等键
+     * @return 更新后的参与方
+     */
+    @Override
+    public @NotNull TicketParticipant patchTicketParticipant(@NotNull Long actorUserId,
+                                                             @NotNull Long ticketId,
+                                                             @NotNull Long participantId,
+                                                             @NotNull TicketParticipantRole role,
+                                                             @NotNull String idempotencyKey) {
+        CustomerServiceTicket ticket = requireTicket(ticketId);
+        Long persistedTicketId = requirePersistedTicketId(ticket);
+        TicketParticipant actorParticipant = requireActiveAgentParticipant(persistedTicketId, actorUserId);
+        requireParticipantManagePermission(actorParticipant);
+
+        String resource = ticketId + ":" + participantId;
+        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+                IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_PATCH,
+                actorUserId,
+                resource,
+                idempotencyKey,
+                IDEMPOTENCY_PENDING_TTL
+        );
+        if (tokenStatus.isSucceeded())
+            return adminTicketRepository.findTicketParticipantById(persistedTicketId, participantId)
+                    .orElseThrow(() -> new AppException("幂等参与方更新结果已存在, 但参与方记录不存在"));
+        if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
+            throw new ConflictException("相同幂等键的参与方更新请求正在处理中");
+
+        TicketParticipant participant = adminTicketRepository.findTicketParticipantById(persistedTicketId, participantId)
+                .orElseThrow(() -> new NotFoundException("参与方不存在"));
+        validateParticipantPatchRole(participant, role);
+
+        if (participant.getRole() == role) {
+            ticketIdempotencyPort.markActionSucceeded(
+                    IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_PATCH,
+                    actorUserId,
+                    resource,
+                    idempotencyKey,
+                    String.valueOf(participantId),
+                    IDEMPOTENCY_SUCCESS_TTL
+            );
+            return participant;
+        }
+
+        LocalDateTime expectedUpdatedAt = normalizeNotNull(participant.getUpdatedAt(), "updatedAt 不能为空");
+        participant.changeRole(role);
+        boolean updated = adminTicketRepository.updateTicketParticipantRoleWithCas(
+                participantId,
+                persistedTicketId,
+                role,
+                expectedUpdatedAt
+        );
+        if (!updated) {
+            TicketParticipant latest = adminTicketRepository.findTicketParticipantById(persistedTicketId, participantId)
+                    .orElseThrow(() -> new NotFoundException("参与方不存在"));
+            if (!latest.isActive())
+                throw new ConflictException("参与方已离开会话, 不允许更新角色");
+            if (latest.getRole() == role) {
+                ticketIdempotencyPort.markActionSucceeded(
+                        IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_PATCH,
+                        actorUserId,
+                        resource,
+                        idempotencyKey,
+                        String.valueOf(participantId),
+                        IDEMPOTENCY_SUCCESS_TTL
+                );
+                return latest;
+            }
+            throw new ConflictException("参与方角色已变化, 请刷新后重试");
+        }
+
+        TicketParticipant updatedParticipant = adminTicketRepository.findTicketParticipantById(persistedTicketId, participantId)
+                .orElseThrow(() -> new NotFoundException("参与方不存在"));
+        ticketIdempotencyPort.markActionSucceeded(
+                IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_PATCH,
+                actorUserId,
+                resource,
+                idempotencyKey,
+                String.valueOf(participantId),
+                IDEMPOTENCY_SUCCESS_TTL
+        );
+        return updatedParticipant;
+    }
+
+    /**
+     * 将管理侧工单参与方设为离开
+     *
+     * @param actorUserId    操作者用户 ID
+     * @param ticketId       工单 ID
+     * @param participantId  参与方 ID
+     * @param idempotencyKey 请求幂等键
+     */
+    @Override
+    public void leaveTicketParticipant(@NotNull Long actorUserId,
+                                       @NotNull Long ticketId,
+                                       @NotNull Long participantId,
+                                       @NotNull String idempotencyKey) {
+        CustomerServiceTicket ticket = requireTicket(ticketId);
+        Long persistedTicketId = requirePersistedTicketId(ticket);
+        TicketParticipant actorParticipant = requireActiveAgentParticipant(persistedTicketId, actorUserId);
+        requireParticipantManagePermission(actorParticipant);
+
+        String resource = ticketId + ":" + participantId;
+        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+                IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_LEAVE,
+                actorUserId,
+                resource,
+                idempotencyKey,
+                IDEMPOTENCY_PENDING_TTL
+        );
+        if (tokenStatus.isSucceeded())
+            return;
+        if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
+            throw new ConflictException("相同幂等键的参与方离场请求正在处理中");
+
+        TicketParticipant participant = adminTicketRepository.findTicketParticipantById(persistedTicketId, participantId)
+                .orElseThrow(() -> new NotFoundException("参与方不存在"));
+        if (!participant.isActive()) {
+            ticketIdempotencyPort.markActionSucceeded(
+                    IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_LEAVE,
+                    actorUserId,
+                    resource,
+                    idempotencyKey,
+                    String.valueOf(participantId),
+                    IDEMPOTENCY_SUCCESS_TTL
+            );
+            return;
+        }
+        validateParticipantLeave(participant);
+
+        LocalDateTime expectedUpdatedAt = normalizeNotNull(participant.getUpdatedAt(), "updatedAt 不能为空");
+        participant.leave(null);
+        boolean updated = adminTicketRepository.leaveTicketParticipantWithCas(
+                participantId,
+                persistedTicketId,
+                normalizeNotNull(participant.getLeftAt(), "leftAt 不能为空"),
+                expectedUpdatedAt
+        );
+        if (!updated) {
+            TicketParticipant latest = adminTicketRepository.findTicketParticipantById(persistedTicketId, participantId)
+                    .orElseThrow(() -> new NotFoundException("参与方不存在"));
+            if (latest.getLeftAt() != null) {
+                ticketIdempotencyPort.markActionSucceeded(
+                        IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_LEAVE,
+                        actorUserId,
+                        resource,
+                        idempotencyKey,
+                        String.valueOf(participantId),
+                        IDEMPOTENCY_SUCCESS_TTL
+                );
+                return;
+            }
+            throw new ConflictException("参与方状态已变化, 请刷新后重试");
+        }
+
+        ticketIdempotencyPort.markActionSucceeded(
+                IDEMPOTENCY_SCENE_ADMIN_PARTICIPANT_LEAVE,
+                actorUserId,
+                resource,
+                idempotencyKey,
+                String.valueOf(participantId),
+                IDEMPOTENCY_SUCCESS_TTL
+        );
+    }
+
+    /**
+     * 分页查询管理侧工单状态日志
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketId    工单 ID
+     * @param pageQuery   分页参数
+     * @return 状态日志分页结果
+     */
+    @Override
+    public @NotNull PageResult<TicketStatusLog> listTicketStatusLogs(@NotNull Long actorUserId,
+                                                                     @NotNull Long ticketId,
+                                                                     @NotNull PageQuery pageQuery) {
+        CustomerServiceTicket ticket = requireTicket(ticketId);
+        Long persistedTicketId = requirePersistedTicketId(ticket);
+        requireActiveAgentParticipant(persistedTicketId, actorUserId);
+        pageQuery.validate();
+        return adminTicketRepository.pageAdminTicketStatusLogs(persistedTicketId, pageQuery);
+    }
+
+    /**
+     * 分页查询管理侧工单指派日志
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketId    工单 ID
+     * @param pageQuery   分页参数
+     * @return 指派日志分页结果
+     */
+    @Override
+    public @NotNull PageResult<TicketAssignmentLog> listTicketAssignmentLogs(@NotNull Long actorUserId,
+                                                                             @NotNull Long ticketId,
+                                                                             @NotNull PageQuery pageQuery) {
+        CustomerServiceTicket ticket = requireTicket(ticketId);
+        Long persistedTicketId = requirePersistedTicketId(ticket);
+        requireActiveAgentParticipant(persistedTicketId, actorUserId);
+        pageQuery.validate();
+        return adminTicketRepository.pageTicketAssignmentLogs(persistedTicketId, pageQuery);
+    }
+
+    /**
      * 创建管理侧 WebSocket 会话签发结果
      *
-     * @param actorUserId     操作者用户 ID
-     * @param command         会话创建命令
-     * @param idempotencyKey  请求幂等键
+     * @param actorUserId    操作者用户 ID
+     * @param command        会话创建命令
+     * @param idempotencyKey 请求幂等键
      * @return 会话签发结果
      */
     @Override
@@ -789,14 +1108,80 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 校验当前坐席是工单活跃参与方
      *
-     * @param ticketId     工单 ID
-     * @param actorUserId  操作者用户 ID
+     * @param ticketId    工单 ID
+     * @param actorUserId 操作者用户 ID
      * @return 活跃参与方
      */
     private @NotNull TicketParticipant requireActiveAgentParticipant(@NotNull Long ticketId,
                                                                      @NotNull Long actorUserId) {
         return adminTicketRepository.findActiveParticipant(ticketId, TicketParticipantType.AGENT, actorUserId)
                 .orElseThrow(() -> new ConflictException("当前坐席不是工单活跃参与方"));
+    }
+
+    /**
+     * 校验操作者具备参与方管理权限
+     *
+     * @param actorParticipant 操作者参与方实体
+     */
+    private void requireParticipantManagePermission(@NotNull TicketParticipant actorParticipant) {
+        if (!actorParticipant.getRole().canTransitStatus())
+            throw new ConflictException("当前角色不允许管理工单参与方");
+    }
+
+    /**
+     * 校验新增参与方的角色组合是否合法
+     *
+     * @param ticket            工单聚合
+     * @param participantType   参与方类型
+     * @param participantUserId 参与方用户 ID
+     * @param role              参与方角色
+     */
+    private void validateParticipantCreateRole(@NotNull CustomerServiceTicket ticket,
+                                               @NotNull TicketParticipantType participantType,
+                                               @Nullable Long participantUserId,
+                                               @NotNull TicketParticipantRole role) {
+        if (role == TicketParticipantRole.ASSIGNEE)
+            throw new ConflictException("ASSIGNEE 角色请通过指派接口维护");
+        if (participantType == TicketParticipantType.USER) {
+            if (role != TicketParticipantRole.OWNER)
+                throw new ConflictException("USER 类型参与方角色只能为 OWNER");
+            Long ticketOwnerUserId = normalizeNotNull(ticket.getUserId(), "ticketOwnerUserId 不能为空");
+            if (!Objects.equals(ticketOwnerUserId, participantUserId))
+                throw new ConflictException("USER 类型参与方必须绑定工单所属用户");
+            return;
+        }
+        if (role == TicketParticipantRole.OWNER)
+            throw new ConflictException("仅 USER 类型参与方允许 OWNER 角色");
+    }
+
+    /**
+     * 校验参与方角色更新是否合法
+     *
+     * @param participant 参与方实体
+     * @param targetRole  目标角色
+     */
+    private void validateParticipantPatchRole(@NotNull TicketParticipant participant,
+                                              @NotNull TicketParticipantRole targetRole) {
+        if (!participant.isActive())
+            throw new ConflictException("参与方已离开会话, 不允许更新角色");
+        if (participant.getParticipantType() == TicketParticipantType.USER)
+            throw new ConflictException("USER 类型参与方角色不可修改");
+        if (participant.getRole() == TicketParticipantRole.ASSIGNEE || targetRole == TicketParticipantRole.ASSIGNEE)
+            throw new ConflictException("ASSIGNEE 角色请通过指派接口维护");
+        if (targetRole == TicketParticipantRole.OWNER)
+            throw new ConflictException("仅 USER 类型参与方允许 OWNER 角色");
+    }
+
+    /**
+     * 校验参与方离场操作是否合法
+     *
+     * @param participant 参与方实体
+     */
+    private void validateParticipantLeave(@NotNull TicketParticipant participant) {
+        if (participant.getRole() == TicketParticipantRole.OWNER)
+            throw new ConflictException("OWNER 参与方不允许离开工单");
+        if (participant.getRole() == TicketParticipantRole.ASSIGNEE)
+            throw new ConflictException("ASSIGNEE 参与方请先通过指派接口取消指派");
     }
 
     /**
@@ -816,8 +1201,8 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 构建已读位点更新视图
      *
-     * @param ticketId     工单 ID
-     * @param participant  参与方实体
+     * @param ticketId    工单 ID
+     * @param participant 参与方实体
      * @return 已读位点更新视图
      */
     private @NotNull TicketReadUpdateView toReadUpdateView(@NotNull Long ticketId,
@@ -902,13 +1287,13 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 判断元数据变更是否已由其他并发请求生效
      *
-     * @param detailView             最新工单详情
-     * @param priority               工单优先级
-     * @param tags                   工单标签
-     * @param requestedRefundAmount  申请退款金额
-     * @param currency               币种
-     * @param claimExternalId        理赔外部编号
-     * @param slaDueAt               SLA 到期时间
+     * @param detailView            最新工单详情
+     * @param priority              工单优先级
+     * @param tags                  工单标签
+     * @param requestedRefundAmount 申请退款金额
+     * @param currency              币种
+     * @param claimExternalId       理赔外部编号
+     * @param slaDueAt              SLA 到期时间
      * @return 是否已生效
      */
     private boolean metadataAlreadyApplied(@NotNull AdminTicketDetailView detailView,
@@ -937,9 +1322,9 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 判断指派结果是否已由其他并发请求生效
      *
-     * @param detailView        最新工单详情
-     * @param toAssigneeUserId  目标指派坐席用户 ID
-     * @param actionType        指派动作
+     * @param detailView       最新工单详情
+     * @param toAssigneeUserId 目标指派坐席用户 ID
+     * @param actionType       指派动作
      * @return 是否已生效
      */
     private boolean assignmentAlreadyApplied(@NotNull AdminTicketDetailView detailView,
@@ -953,10 +1338,10 @@ public class AdminTicketService implements IAdminTicketService {
     /**
      * 标记写操作幂等成功
      *
-     * @param scene           幂等场景
-     * @param actorUserId     操作者用户 ID
-     * @param ticketId        工单 ID
-     * @param idempotencyKey  幂等键
+     * @param scene          幂等场景
+     * @param actorUserId    操作者用户 ID
+     * @param ticketId       工单 ID
+     * @param idempotencyKey 幂等键
      */
     private void markSucceeded(@NotNull String scene,
                                @NotNull Long actorUserId,

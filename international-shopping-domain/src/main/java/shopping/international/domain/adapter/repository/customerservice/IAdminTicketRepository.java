@@ -7,6 +7,7 @@ import shopping.international.domain.model.entity.customerservice.TicketAssignme
 import shopping.international.domain.model.entity.customerservice.TicketMessage;
 import shopping.international.domain.model.entity.customerservice.TicketParticipant;
 import shopping.international.domain.model.entity.customerservice.TicketStatusLog;
+import shopping.international.domain.model.enums.customerservice.TicketParticipantRole;
 import shopping.international.domain.model.enums.customerservice.TicketParticipantType;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
@@ -100,6 +101,63 @@ public interface IAdminTicketRepository {
     Optional<TicketParticipant> findActiveParticipant(@NotNull Long ticketId,
                                                       @NotNull TicketParticipantType participantType,
                                                       @Nullable Long participantUserId);
+
+    /**
+     * 查询工单全部参与方列表
+     *
+     * @param ticketId 工单 ID
+     * @return 参与方列表
+     */
+    @NotNull
+    List<TicketParticipant> listTicketParticipants(@NotNull Long ticketId);
+
+    /**
+     * 按主键查询工单参与方
+     *
+     * @param ticketId       工单 ID
+     * @param participantId  参与方主键
+     * @return 参与方实体
+     */
+    @NotNull
+    Optional<TicketParticipant> findTicketParticipantById(@NotNull Long ticketId,
+                                                          @NotNull Long participantId);
+
+    /**
+     * 保存工单参与方
+     *
+     * @param participant 参与方实体
+     * @return 落库后的参与方实体
+     */
+    @NotNull
+    TicketParticipant saveTicketParticipant(@NotNull TicketParticipant participant);
+
+    /**
+     * 基于更新时间 CAS 更新参与方角色
+     *
+     * @param participantId      参与方 ID
+     * @param ticketId           工单 ID
+     * @param role               目标角色
+     * @param expectedUpdatedAt  期望旧更新时间
+     * @return 更新是否成功
+     */
+    boolean updateTicketParticipantRoleWithCas(@NotNull Long participantId,
+                                               @NotNull Long ticketId,
+                                               @NotNull TicketParticipantRole role,
+                                               @NotNull LocalDateTime expectedUpdatedAt);
+
+    /**
+     * 基于更新时间 CAS 将参与方设为离开
+     *
+     * @param participantId      参与方 ID
+     * @param ticketId           工单 ID
+     * @param leftAt             离开时间
+     * @param expectedUpdatedAt  期望旧更新时间
+     * @return 更新是否成功
+     */
+    boolean leaveTicketParticipantWithCas(@NotNull Long participantId,
+                                          @NotNull Long ticketId,
+                                          @NotNull LocalDateTime leftAt,
+                                          @NotNull LocalDateTime expectedUpdatedAt);
 
     /**
      * 查询工单消息列表
@@ -225,6 +283,28 @@ public interface IAdminTicketRepository {
                                          @NotNull Long lastReadMessageId,
                                          @NotNull LocalDateTime lastReadAt,
                                          @NotNull LocalDateTime updatedAt);
+
+    /**
+     * 分页查询管理侧工单状态日志
+     *
+     * @param ticketId   工单 ID
+     * @param pageQuery  分页参数
+     * @return 状态日志分页结果
+     */
+    @NotNull
+    PageResult<TicketStatusLog> pageAdminTicketStatusLogs(@NotNull Long ticketId,
+                                                          @NotNull PageQuery pageQuery);
+
+    /**
+     * 分页查询工单指派日志
+     *
+     * @param ticketId   工单 ID
+     * @param pageQuery  分页参数
+     * @return 指派日志分页结果
+     */
+    @NotNull
+    PageResult<TicketAssignmentLog> pageTicketAssignmentLogs(@NotNull Long ticketId,
+                                                             @NotNull PageQuery pageQuery);
 
     /**
      * 按工单号列表查询坐席可访问的工单 ID 列表
