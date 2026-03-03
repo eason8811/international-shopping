@@ -13,15 +13,15 @@ import java.util.List;
  * @param eventTypes   订阅事件类型列表
  * @param lastEventId  续传锚点事件 ID
  */
-public record UserTicketWsSessionCreateCommand(List<String> ticketNos,
-                                               List<Long> ticketIds,
-                                               List<WsEventType> eventTypes,
-                                               @Nullable String lastEventId) {
+public record TicketWsSessionCreateCommand(List<String> ticketNos,
+                                           List<Long> ticketIds,
+                                           List<WsEventType> eventTypes,
+                                           @Nullable String lastEventId) {
 
     /**
      * 规范化构造, 避免可选集合字段为 null
      */
-    public UserTicketWsSessionCreateCommand {
+    public TicketWsSessionCreateCommand {
         ticketNos = ticketNos == null ? List.of() : List.copyOf(ticketNos);
         ticketIds = ticketIds == null ? List.of() : List.copyOf(ticketIds);
         eventTypes = eventTypes == null ? List.of() : List.copyOf(eventTypes);

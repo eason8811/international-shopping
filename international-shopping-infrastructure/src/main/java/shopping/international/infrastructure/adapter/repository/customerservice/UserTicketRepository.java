@@ -30,7 +30,7 @@ import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
 import shopping.international.domain.model.vo.customerservice.TicketNo;
 import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
 import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
-import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
+import shopping.international.domain.model.vo.customerservice.TicketMessageView;
 import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
 import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
 import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
@@ -364,11 +364,11 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @return 消息列表
      */
     @Override
-    public @NotNull List<UserTicketMessageView> listTicketMessages(@NotNull Long ticketId,
-                                                                   @Nullable Long beforeId,
-                                                                   @Nullable Long afterId,
-                                                                   boolean ascOrder,
-                                                                   int size) {
+    public @NotNull List<TicketMessageView> listTicketMessages(@NotNull Long ticketId,
+                                                               @Nullable Long beforeId,
+                                                               @Nullable Long afterId,
+                                                               boolean ascOrder,
+                                                               int size) {
         LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
                 .eq(CsTicketMessagePO::getTicketId, ticketId);
         if (beforeId != null)
@@ -407,6 +407,26 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
     }
 
     /**
+     * 按消息主键查询消息实体
+     *
+     * @param ticketId   工单 ID
+     * @param messageId  消息 ID
+     * @return 消息实体
+     */
+    @Override
+    public @NotNull Optional<TicketMessage> findTicketMessageById(@NotNull Long ticketId,
+                                                                  @NotNull Long messageId) {
+        LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .eq(CsTicketMessagePO::getId, messageId)
+                .last("LIMIT 1");
+        CsTicketMessagePO row = csTicketMessageMapper.selectOne(queryWrapper);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toTicketMessageEntity(row));
+    }
+
+    /**
      * 按消息编号查询消息视图
      *
      * @param ticketId   工单 ID
@@ -414,11 +434,31 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @return 消息视图
      */
     @Override
-    public @NotNull Optional<UserTicketMessageView> findTicketMessageViewByNo(@NotNull Long ticketId,
-                                                                              @NotNull TicketMessageNo messageNo) {
+    public @NotNull Optional<TicketMessageView> findTicketMessageViewByNo(@NotNull Long ticketId,
+                                                                          @NotNull TicketMessageNo messageNo) {
         LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
                 .eq(CsTicketMessagePO::getTicketId, ticketId)
                 .eq(CsTicketMessagePO::getMessageNo, messageNo.getValue())
+                .last("LIMIT 1");
+        CsTicketMessagePO row = csTicketMessageMapper.selectOne(queryWrapper);
+        if (row == null)
+            return Optional.empty();
+        return Optional.of(toUserTicketMessageView(row));
+    }
+
+    /**
+     * 按消息主键查询消息视图
+     *
+     * @param ticketId   工单 ID
+     * @param messageId  消息 ID
+     * @return 消息视图
+     */
+    @Override
+    public @NotNull Optional<TicketMessageView> findTicketMessageViewById(@NotNull Long ticketId,
+                                                                          @NotNull Long messageId) {
+        LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
+                .eq(CsTicketMessagePO::getTicketId, ticketId)
+                .eq(CsTicketMessagePO::getId, messageId)
                 .last("LIMIT 1");
         CsTicketMessagePO row = csTicketMessageMapper.selectOne(queryWrapper);
         if (row == null)
@@ -436,10 +476,10 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @return 消息视图
      */
     @Override
-    public @NotNull Optional<UserTicketMessageView> findMessageViewByClientMessageId(@NotNull Long ticketId,
-                                                                                     @NotNull TicketParticipantType senderType,
-                                                                                     @Nullable Long senderUserId,
-                                                                                     @NotNull String clientMessageId) {
+    public @NotNull Optional<TicketMessageView> findMessageViewByClientMessageId(@NotNull Long ticketId,
+                                                                                 @NotNull TicketParticipantType senderType,
+                                                                                 @Nullable Long senderUserId,
+                                                                                 @NotNull String clientMessageId) {
         LambdaQueryWrapper<CsTicketMessagePO> queryWrapper = new LambdaQueryWrapper<CsTicketMessagePO>()
                 .eq(CsTicketMessagePO::getTicketId, ticketId)
                 .eq(CsTicketMessagePO::getSenderType, senderType.name())
@@ -466,9 +506,9 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public @NotNull UserTicketMessageView saveTicketMessageAndTouchTicket(@NotNull Long userId,
-                                                                          @NotNull CustomerServiceTicket ticket,
-                                                                          @NotNull TicketMessage message) {
+    public @NotNull TicketMessageView saveTicketMessageAndTouchTicket(@NotNull Long userId,
+                                                                      @NotNull CustomerServiceTicket ticket,
+                                                                      @NotNull TicketMessage message) {
         Long ticketId = ticket.getId();
         if (ticketId == null)
             throw new AppException("工单未持久化, 无法写入消息");
@@ -703,6 +743,77 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
         return rowList.stream()
                 .map(CsTicketPO::getId)
                 .filter(item -> item != null && item > 0)
+                .toList();
+    }
+
+    /**
+     * 按工单号列表查询坐席可访问的工单 ID 列表
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketNos   工单号列表
+     * @return 工单 ID 列表
+     */
+    @Override
+    public @NotNull List<Long> listAgentTicketIdsByNos(@NotNull Long actorUserId,
+                                                       @NotNull List<String> ticketNos) {
+        if (ticketNos.isEmpty())
+            return List.of();
+
+        LambdaQueryWrapper<CsTicketPO> ticketQueryWrapper = new LambdaQueryWrapper<CsTicketPO>()
+                .in(CsTicketPO::getTicketNo, ticketNos)
+                .select(CsTicketPO::getId);
+        List<CsTicketPO> ticketRowList = csTicketMapper.selectList(ticketQueryWrapper);
+        if (ticketRowList == null || ticketRowList.isEmpty())
+            return List.of();
+
+        List<Long> ticketIdList = ticketRowList.stream()
+                .map(CsTicketPO::getId)
+                .filter(item -> item != null && item > 0)
+                .toList();
+        if (ticketIdList.isEmpty())
+            return List.of();
+
+        LambdaQueryWrapper<CsTicketParticipantPO> queryWrapper = new LambdaQueryWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getParticipantType, TicketParticipantType.AGENT.name())
+                .eq(CsTicketParticipantPO::getParticipantUserId, actorUserId)
+                .isNull(CsTicketParticipantPO::getLeftAt)
+                .in(CsTicketParticipantPO::getTicketId, ticketIdList)
+                .select(CsTicketParticipantPO::getTicketId);
+        List<CsTicketParticipantPO> rowList = csTicketParticipantMapper.selectList(queryWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return List.of();
+        return rowList.stream()
+                .map(CsTicketParticipantPO::getTicketId)
+                .filter(item -> item != null && item > 0)
+                .distinct()
+                .toList();
+    }
+
+    /**
+     * 按工单 ID 列表查询坐席可访问的工单 ID 列表
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketIds   工单 ID 列表
+     * @return 工单 ID 列表
+     */
+    @Override
+    public @NotNull List<Long> listAgentTicketIdsByIds(@NotNull Long actorUserId,
+                                                       @NotNull List<Long> ticketIds) {
+        if (ticketIds.isEmpty())
+            return List.of();
+        LambdaQueryWrapper<CsTicketParticipantPO> queryWrapper = new LambdaQueryWrapper<CsTicketParticipantPO>()
+                .eq(CsTicketParticipantPO::getParticipantType, TicketParticipantType.AGENT.name())
+                .eq(CsTicketParticipantPO::getParticipantUserId, actorUserId)
+                .isNull(CsTicketParticipantPO::getLeftAt)
+                .in(CsTicketParticipantPO::getTicketId, ticketIds)
+                .select(CsTicketParticipantPO::getTicketId);
+        List<CsTicketParticipantPO> rowList = csTicketParticipantMapper.selectList(queryWrapper);
+        if (rowList == null || rowList.isEmpty())
+            return List.of();
+        return rowList.stream()
+                .map(CsTicketParticipantPO::getTicketId)
+                .filter(item -> item != null && item > 0)
+                .distinct()
                 .toList();
     }
 
@@ -1342,8 +1453,8 @@ public class UserTicketRepository implements IUserTicketRepository, IAdminTicket
      * @param row 消息持久化行
      * @return 消息视图
      */
-    private @NotNull UserTicketMessageView toUserTicketMessageView(@NotNull CsTicketMessagePO row) {
-        return new UserTicketMessageView(
+    private @NotNull TicketMessageView toUserTicketMessageView(@NotNull CsTicketMessagePO row) {
+        return new TicketMessageView(
                 requireColumn(row.getId(), "id"),
                 requireColumn(row.getMessageNo(), "messageNo"),
                 requireColumn(row.getTicketId(), "ticketId"),

@@ -23,23 +23,23 @@ import java.util.List;
  * @param editedAt         编辑时间
  * @param recalledAt       撤回时间
  */
-public record UserTicketMessageView(Long id,
-                                    String messageNo,
-                                    Long ticketId,
-                                    TicketParticipantType senderType,
-                                    @Nullable Long senderUserId,
-                                    TicketMessageType messageType,
-                                    @Nullable String content,
-                                    List<String> attachments,
-                                    @Nullable String clientMessageId,
-                                    LocalDateTime sentAt,
-                                    @Nullable LocalDateTime editedAt,
-                                    @Nullable LocalDateTime recalledAt) {
+public record TicketMessageView(Long id,
+                                String messageNo,
+                                Long ticketId,
+                                TicketParticipantType senderType,
+                                @Nullable Long senderUserId,
+                                TicketMessageType messageType,
+                                @Nullable String content,
+                                List<String> attachments,
+                                @Nullable String clientMessageId,
+                                LocalDateTime sentAt,
+                                @Nullable LocalDateTime editedAt,
+                                @Nullable LocalDateTime recalledAt) {
 
     /**
      * 规范化构造, 避免可选集合字段为 null
      */
-    public UserTicketMessageView {
+    public TicketMessageView {
         attachments = attachments == null ? List.of() : List.copyOf(attachments);
     }
 }

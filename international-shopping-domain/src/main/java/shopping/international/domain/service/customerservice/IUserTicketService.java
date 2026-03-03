@@ -7,18 +7,7 @@ import shopping.international.domain.model.enums.customerservice.TicketMessageTy
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
-import shopping.international.domain.model.vo.customerservice.TicketCreateCommand;
-import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
-import shopping.international.domain.model.vo.customerservice.TicketNo;
-import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
-import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
-import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
-import shopping.international.domain.model.vo.customerservice.UserTicketReadUpdateView;
-import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
-import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
-import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
-import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionCreateCommand;
-import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionIssueView;
+import shopping.international.domain.model.vo.customerservice.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -102,12 +91,12 @@ public interface IUserTicketService {
      * @return 消息列表
      */
     @NotNull
-    List<UserTicketMessageView> listMyTicketMessages(@NotNull Long userId,
-                                                     @NotNull TicketNo ticketNo,
-                                                     @Nullable Long beforeId,
-                                                     @Nullable Long afterId,
-                                                     boolean ascOrder,
-                                                     int size);
+    List<TicketMessageView> listMyTicketMessages(@NotNull Long userId,
+                                                 @NotNull TicketNo ticketNo,
+                                                 @Nullable Long beforeId,
+                                                 @Nullable Long afterId,
+                                                 boolean ascOrder,
+                                                 int size);
 
     /**
      * 发送当前用户的工单消息
@@ -122,13 +111,13 @@ public interface IUserTicketService {
      * @return 发送后的消息
      */
     @NotNull
-    UserTicketMessageView createMyTicketMessage(@NotNull Long userId,
-                                                @NotNull TicketNo ticketNo,
-                                                @Nullable TicketMessageType messageType,
-                                                @Nullable String content,
-                                                @Nullable List<String> attachments,
-                                                @NotNull String clientMessageId,
-                                                @NotNull String idempotencyKey);
+    TicketMessageView createMyTicketMessage(@NotNull Long userId,
+                                            @NotNull TicketNo ticketNo,
+                                            @Nullable TicketMessageType messageType,
+                                            @Nullable String content,
+                                            @Nullable List<String> attachments,
+                                            @NotNull String clientMessageId,
+                                            @NotNull String idempotencyKey);
 
     /**
      * 编辑当前用户的工单消息
@@ -141,11 +130,11 @@ public interface IUserTicketService {
      * @return 编辑后的消息
      */
     @NotNull
-    UserTicketMessageView editMyTicketMessage(@NotNull Long userId,
-                                              @NotNull TicketNo ticketNo,
-                                              @NotNull TicketMessageNo messageNo,
-                                              @NotNull String content,
-                                              @NotNull String idempotencyKey);
+    TicketMessageView editMyTicketMessage(@NotNull Long userId,
+                                          @NotNull TicketNo ticketNo,
+                                          @NotNull TicketMessageNo messageNo,
+                                          @NotNull String content,
+                                          @NotNull String idempotencyKey);
 
     /**
      * 撤回当前用户的工单消息
@@ -158,11 +147,11 @@ public interface IUserTicketService {
      * @return 撤回后的消息
      */
     @NotNull
-    UserTicketMessageView recallMyTicketMessage(@NotNull Long userId,
-                                                @NotNull TicketNo ticketNo,
-                                                @NotNull TicketMessageNo messageNo,
-                                                @Nullable String reason,
-                                                @NotNull String idempotencyKey);
+    TicketMessageView recallMyTicketMessage(@NotNull Long userId,
+                                            @NotNull TicketNo ticketNo,
+                                            @NotNull TicketMessageNo messageNo,
+                                            @Nullable String reason,
+                                            @NotNull String idempotencyKey);
 
     /**
      * 标记当前用户在工单下的消息已读位点
@@ -174,10 +163,10 @@ public interface IUserTicketService {
      * @return 已读位点更新结果
      */
     @NotNull
-    UserTicketReadUpdateView markMyTicketRead(@NotNull Long userId,
-                                              @NotNull TicketNo ticketNo,
-                                              @NotNull Long lastReadMessageId,
-                                              @NotNull String idempotencyKey);
+    TicketReadUpdateView markMyTicketRead(@NotNull Long userId,
+                                          @NotNull TicketNo ticketNo,
+                                          @NotNull Long lastReadMessageId,
+                                          @NotNull String idempotencyKey);
 
     /**
      * 分页查询当前用户可见的工单状态日志
@@ -212,7 +201,7 @@ public interface IUserTicketService {
      * @return 会话签发结果
      */
     @NotNull
-    UserTicketWsSessionIssueView createMyWsSession(@NotNull Long userId,
-                                                   @NotNull UserTicketWsSessionCreateCommand command,
-                                                   @NotNull String idempotencyKey);
+    TicketWsSessionIssueView createMyWsSession(@NotNull Long userId,
+                                               @NotNull TicketWsSessionCreateCommand command,
+                                               @NotNull String idempotencyKey);
 }

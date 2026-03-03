@@ -15,7 +15,7 @@ import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
 import shopping.international.domain.model.vo.customerservice.TicketNo;
 import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
 import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
-import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
+import shopping.international.domain.model.vo.customerservice.TicketMessageView;
 import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
 import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
 import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
@@ -138,11 +138,11 @@ public interface IUserTicketRepository {
      * @return 消息列表
      */
     @NotNull
-    List<UserTicketMessageView> listTicketMessages(@NotNull Long ticketId,
-                                                   @Nullable Long beforeId,
-                                                   @Nullable Long afterId,
-                                                   boolean ascOrder,
-                                                   int size);
+    List<TicketMessageView> listTicketMessages(@NotNull Long ticketId,
+                                               @Nullable Long beforeId,
+                                               @Nullable Long afterId,
+                                               boolean ascOrder,
+                                               int size);
 
     /**
      * 按消息编号查询消息实体
@@ -163,8 +163,8 @@ public interface IUserTicketRepository {
      * @return 消息视图
      */
     @NotNull
-    Optional<UserTicketMessageView> findTicketMessageViewByNo(@NotNull Long ticketId,
-                                                              @NotNull TicketMessageNo messageNo);
+    Optional<TicketMessageView> findTicketMessageViewByNo(@NotNull Long ticketId,
+                                                          @NotNull TicketMessageNo messageNo);
 
     /**
      * 按客户端消息幂等键查询消息视图
@@ -176,10 +176,10 @@ public interface IUserTicketRepository {
      * @return 消息视图
      */
     @NotNull
-    Optional<UserTicketMessageView> findMessageViewByClientMessageId(@NotNull Long ticketId,
-                                                                     @NotNull TicketParticipantType senderType,
-                                                                     @Nullable Long senderUserId,
-                                                                     @NotNull String clientMessageId);
+    Optional<TicketMessageView> findMessageViewByClientMessageId(@NotNull Long ticketId,
+                                                                 @NotNull TicketParticipantType senderType,
+                                                                 @Nullable Long senderUserId,
+                                                                 @NotNull String clientMessageId);
 
     /**
      * 保存工单消息并更新工单最近消息时间
@@ -190,9 +190,9 @@ public interface IUserTicketRepository {
      * @return 落库后的消息视图
      */
     @NotNull
-    UserTicketMessageView saveTicketMessageAndTouchTicket(@NotNull Long userId,
-                                                          @NotNull CustomerServiceTicket ticket,
-                                                          @NotNull TicketMessage message);
+    TicketMessageView saveTicketMessageAndTouchTicket(@NotNull Long userId,
+                                                      @NotNull CustomerServiceTicket ticket,
+                                                      @NotNull TicketMessage message);
 
     /**
      * 基于 CAS 条件更新消息内容

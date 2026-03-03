@@ -23,18 +23,7 @@ import shopping.international.domain.model.enums.customerservice.TicketParticipa
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
-import shopping.international.domain.model.vo.customerservice.TicketCreateCommand;
-import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
-import shopping.international.domain.model.vo.customerservice.TicketNo;
-import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
-import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
-import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
-import shopping.international.domain.model.vo.customerservice.UserTicketReadUpdateView;
-import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
-import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
-import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
-import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionCreateCommand;
-import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionIssueView;
+import shopping.international.domain.model.vo.customerservice.*;
 import shopping.international.domain.model.vo.user.JwtIssueSpec;
 import shopping.international.domain.service.customerservice.IUserTicketService;
 import shopping.international.types.constant.SecurityConstants;
@@ -318,12 +307,12 @@ public class UserTicketService implements IUserTicketService {
      * @return 消息列表
      */
     @Override
-    public @NotNull List<UserTicketMessageView> listMyTicketMessages(@NotNull Long userId,
-                                                                     @NotNull TicketNo ticketNo,
-                                                                     @Nullable Long beforeId,
-                                                                     @Nullable Long afterId,
-                                                                     boolean ascOrder,
-                                                                     int size) {
+    public @NotNull List<TicketMessageView> listMyTicketMessages(@NotNull Long userId,
+                                                                 @NotNull TicketNo ticketNo,
+                                                                 @Nullable Long beforeId,
+                                                                 @Nullable Long afterId,
+                                                                 boolean ascOrder,
+                                                                 int size) {
         require(size >= 1 && size <= 100, "size 必须在 1 到 100 之间");
         if (beforeId != null)
             require(beforeId >= 1, "before_id 必须大于等于 1");
@@ -350,13 +339,13 @@ public class UserTicketService implements IUserTicketService {
      * @return 发送后的消息
      */
     @Override
-    public @NotNull UserTicketMessageView createMyTicketMessage(@NotNull Long userId,
-                                                                @NotNull TicketNo ticketNo,
-                                                                @Nullable TicketMessageType messageType,
-                                                                @Nullable String content,
-                                                                @Nullable List<String> attachments,
-                                                                @NotNull String clientMessageId,
-                                                                @NotNull String idempotencyKey) {
+    public @NotNull TicketMessageView createMyTicketMessage(@NotNull Long userId,
+                                                            @NotNull TicketNo ticketNo,
+                                                            @Nullable TicketMessageType messageType,
+                                                            @Nullable String content,
+                                                            @Nullable List<String> attachments,
+                                                            @NotNull String clientMessageId,
+                                                            @NotNull String idempotencyKey) {
         CustomerServiceTicket ticket = requireUserTicket(userId, ticketNo);
         Long ticketId = requirePersistedTicketId(ticket);
         if (ticket.getStatus() == TicketStatus.CLOSED)
@@ -383,14 +372,14 @@ public class UserTicketService implements IUserTicketService {
         if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
             throw new ConflictException("相同幂等键的发送消息请求正在处理中");
 
-        Optional<UserTicketMessageView> duplicatedByClientMessageId = userTicketRepository.findMessageViewByClientMessageId(
+        Optional<TicketMessageView> duplicatedByClientMessageId = userTicketRepository.findMessageViewByClientMessageId(
                 ticketId,
                 TicketParticipantType.USER,
                 userId,
                 clientMessageId
         );
         if (duplicatedByClientMessageId.isPresent()) {
-            UserTicketMessageView duplicated = duplicatedByClientMessageId.get();
+            TicketMessageView duplicated = duplicatedByClientMessageId.get();
             ticketIdempotencyPort.markActionSucceeded(
                     IDEMPOTENCY_SCENE_MESSAGE_CREATE,
                     userId,
@@ -411,7 +400,7 @@ public class UserTicketService implements IUserTicketService {
                 null,
                 clientMessageId
         );
-        UserTicketMessageView created = userTicketRepository.saveTicketMessageAndTouchTicket(userId, ticket, message);
+        TicketMessageView created = userTicketRepository.saveTicketMessageAndTouchTicket(userId, ticket, message);
         ticketIdempotencyPort.markActionSucceeded(
                 IDEMPOTENCY_SCENE_MESSAGE_CREATE,
                 userId,
@@ -434,11 +423,11 @@ public class UserTicketService implements IUserTicketService {
      * @return 编辑后的消息
      */
     @Override
-    public @NotNull UserTicketMessageView editMyTicketMessage(@NotNull Long userId,
-                                                              @NotNull TicketNo ticketNo,
-                                                              @NotNull TicketMessageNo messageNo,
-                                                              @NotNull String content,
-                                                              @NotNull String idempotencyKey) {
+    public @NotNull TicketMessageView editMyTicketMessage(@NotNull Long userId,
+                                                          @NotNull TicketNo ticketNo,
+                                                          @NotNull TicketMessageNo messageNo,
+                                                          @NotNull String content,
+                                                          @NotNull String idempotencyKey) {
         CustomerServiceTicket ticket = requireUserTicket(userId, ticketNo);
         Long ticketId = requirePersistedTicketId(ticket);
 
@@ -477,7 +466,7 @@ public class UserTicketService implements IUserTicketService {
             if (latest.getRecalledAt() != null)
                 throw new ConflictException("消息已撤回, 不允许编辑");
             if (Objects.equals(latest.getContent(), content)) {
-                UserTicketMessageView idempotentResult = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                TicketMessageView idempotentResult = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
                         .orElseThrow(() -> new NotFoundException("消息不存在"));
                 ticketIdempotencyPort.markActionSucceeded(
                         IDEMPOTENCY_SCENE_MESSAGE_EDIT,
@@ -492,7 +481,7 @@ public class UserTicketService implements IUserTicketService {
             throw new ConflictException("消息已变化, 请刷新后重试");
         }
 
-        UserTicketMessageView updatedView = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+        TicketMessageView updatedView = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
                 .orElseThrow(() -> new NotFoundException("消息不存在"));
         ticketIdempotencyPort.markActionSucceeded(
                 IDEMPOTENCY_SCENE_MESSAGE_EDIT,
@@ -516,11 +505,11 @@ public class UserTicketService implements IUserTicketService {
      * @return 撤回后的消息
      */
     @Override
-    public @NotNull UserTicketMessageView recallMyTicketMessage(@NotNull Long userId,
-                                                                @NotNull TicketNo ticketNo,
-                                                                @NotNull TicketMessageNo messageNo,
-                                                                @Nullable String reason,
-                                                                @NotNull String idempotencyKey) {
+    public @NotNull TicketMessageView recallMyTicketMessage(@NotNull Long userId,
+                                                            @NotNull TicketNo ticketNo,
+                                                            @NotNull TicketMessageNo messageNo,
+                                                            @Nullable String reason,
+                                                            @NotNull String idempotencyKey) {
         CustomerServiceTicket ticket = requireUserTicket(userId, ticketNo);
         Long ticketId = requirePersistedTicketId(ticket);
 
@@ -561,7 +550,7 @@ public class UserTicketService implements IUserTicketService {
             TicketMessage latest = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
                     .orElseThrow(() -> new NotFoundException("消息不存在"));
             if (latest.getRecalledAt() != null) {
-                UserTicketMessageView idempotentResult = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                TicketMessageView idempotentResult = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
                         .orElseThrow(() -> new NotFoundException("消息不存在"));
                 ticketIdempotencyPort.markActionSucceeded(
                         IDEMPOTENCY_SCENE_MESSAGE_RECALL,
@@ -576,7 +565,7 @@ public class UserTicketService implements IUserTicketService {
             throw new ConflictException("消息已变化, 请刷新后重试");
         }
 
-        UserTicketMessageView recalledView = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+        TicketMessageView recalledView = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
                 .orElseThrow(() -> new NotFoundException("消息不存在"));
         ticketIdempotencyPort.markActionSucceeded(
                 IDEMPOTENCY_SCENE_MESSAGE_RECALL,
@@ -599,10 +588,10 @@ public class UserTicketService implements IUserTicketService {
      * @return 已读位点更新结果
      */
     @Override
-    public @NotNull UserTicketReadUpdateView markMyTicketRead(@NotNull Long userId,
-                                                              @NotNull TicketNo ticketNo,
-                                                              @NotNull Long lastReadMessageId,
-                                                              @NotNull String idempotencyKey) {
+    public @NotNull TicketReadUpdateView markMyTicketRead(@NotNull Long userId,
+                                                          @NotNull TicketNo ticketNo,
+                                                          @NotNull Long lastReadMessageId,
+                                                          @NotNull String idempotencyKey) {
         CustomerServiceTicket ticket = requireUserTicket(userId, ticketNo);
         Long ticketId = requirePersistedTicketId(ticket);
 
@@ -642,7 +631,7 @@ public class UserTicketService implements IUserTicketService {
                     .orElseThrow(() -> new ConflictException("当前用户不是工单活跃参与方"));
             Long latestReadMessageId = latest.getLastReadMessageId();
             if (latestReadMessageId != null && latestReadMessageId >= lastReadMessageId) {
-                UserTicketReadUpdateView idempotentView = toReadUpdateView(ticketId, latest);
+                TicketReadUpdateView idempotentView = toReadUpdateView(ticketId, latest);
                 ticketIdempotencyPort.markActionSucceeded(
                         IDEMPOTENCY_SCENE_MESSAGE_READ,
                         userId,
@@ -656,7 +645,7 @@ public class UserTicketService implements IUserTicketService {
             throw new ConflictException("已读位点已变化, 请刷新后重试");
         }
 
-        UserTicketReadUpdateView result = toReadUpdateView(ticketId, participant);
+        TicketReadUpdateView result = toReadUpdateView(ticketId, participant);
         ticketIdempotencyPort.markActionSucceeded(
                 IDEMPOTENCY_SCENE_MESSAGE_READ,
                 userId,
@@ -707,9 +696,9 @@ public class UserTicketService implements IUserTicketService {
      * @return 会话签发结果
      */
     @Override
-    public @NotNull UserTicketWsSessionIssueView createMyWsSession(@NotNull Long userId,
-                                                                   @NotNull UserTicketWsSessionCreateCommand command,
-                                                                   @NotNull String idempotencyKey) {
+    public @NotNull TicketWsSessionIssueView createMyWsSession(@NotNull Long userId,
+                                                               @NotNull TicketWsSessionCreateCommand command,
+                                                               @NotNull String idempotencyKey) {
         ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
                 IDEMPOTENCY_SCENE_WS_SESSION_CREATE,
                 userId,
@@ -769,9 +758,9 @@ public class UserTicketService implements IUserTicketService {
      * @param participant   参与方实体
      * @return 已读位点更新视图
      */
-    private @NotNull UserTicketReadUpdateView toReadUpdateView(@NotNull Long ticketId,
-                                                               @NotNull TicketParticipant participant) {
-        return new UserTicketReadUpdateView(
+    private @NotNull TicketReadUpdateView toReadUpdateView(@NotNull Long ticketId,
+                                                           @NotNull TicketParticipant participant) {
+        return new TicketReadUpdateView(
                 ticketId,
                 normalizeNotNull(participant.getId(), "participantId 不能为空"),
                 participant.getParticipantType(),
@@ -787,10 +776,10 @@ public class UserTicketService implements IUserTicketService {
      * @param wsToken WebSocket 令牌
      * @return 会话签发视图
      */
-    private @NotNull UserTicketWsSessionIssueView buildWsSessionIssue(@NotNull String wsToken) {
+    private @NotNull TicketWsSessionIssueView buildWsSessionIssue(@NotNull String wsToken) {
         LocalDateTime issuedAt = LocalDateTime.now();
         LocalDateTime expiresAt = issuedAt.plusSeconds(WS_TOKEN_TTL_SECONDS);
-        return new UserTicketWsSessionIssueView(
+        return new TicketWsSessionIssueView(
                 wsToken,
                 DEFAULT_USER_WS_URL,
                 issuedAt,

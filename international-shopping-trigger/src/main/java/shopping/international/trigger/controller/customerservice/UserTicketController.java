@@ -38,8 +38,8 @@ import shopping.international.domain.model.vo.customerservice.TicketMessageNo;
 import shopping.international.domain.model.vo.customerservice.TicketNo;
 import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
 import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
-import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
-import shopping.international.domain.model.vo.customerservice.UserTicketReadUpdateView;
+import shopping.international.domain.model.vo.customerservice.TicketMessageView;
+import shopping.international.domain.model.vo.customerservice.TicketReadUpdateView;
 import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
 import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
 import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
@@ -283,7 +283,7 @@ public class UserTicketController {
         boolean ascOrder = parseMessageOrder(order);
 
         Long userId = requireCurrentUserId();
-        List<UserTicketMessageView> messageViewList = userTicketService.listMyTicketMessages(
+        List<TicketMessageView> messageViewList = userTicketService.listMyTicketMessages(
                 userId,
                 TicketNo.of(normalizedTicketNo),
                 beforeId,
@@ -324,7 +324,7 @@ public class UserTicketController {
         request.validate();
 
         Long userId = requireCurrentUserId();
-        UserTicketMessageView created = userTicketService.createMyTicketMessage(
+        TicketMessageView created = userTicketService.createMyTicketMessage(
                 userId,
                 TicketNo.of(normalizedTicketNo),
                 request.getMessageType(),
@@ -372,7 +372,7 @@ public class UserTicketController {
         request.validate();
 
         Long userId = requireCurrentUserId();
-        UserTicketMessageView updated = userTicketService.editMyTicketMessage(
+        TicketMessageView updated = userTicketService.editMyTicketMessage(
                 userId,
                 TicketNo.of(normalizedTicketNo),
                 TicketMessageNo.of(normalizedMessageNo),
@@ -419,7 +419,7 @@ public class UserTicketController {
         recallRequest.validate();
 
         Long userId = requireCurrentUserId();
-        UserTicketMessageView recalled = userTicketService.recallMyTicketMessage(
+        TicketMessageView recalled = userTicketService.recallMyTicketMessage(
                 userId,
                 TicketNo.of(normalizedTicketNo),
                 TicketMessageNo.of(normalizedMessageNo),
@@ -456,7 +456,7 @@ public class UserTicketController {
         request.validate();
 
         Long userId = requireCurrentUserId();
-        UserTicketReadUpdateView updated = userTicketService.markMyTicketRead(
+        TicketReadUpdateView updated = userTicketService.markMyTicketRead(
                 userId,
                 TicketNo.of(normalizedTicketNo),
                 request.getLastReadMessageId(),

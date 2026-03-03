@@ -17,10 +17,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import shopping.international.api.req.customerservice.AdminTicketAssignRequest;
 import shopping.international.api.req.customerservice.AdminTicketPatchRequest;
+import shopping.international.api.req.customerservice.TicketMessageCreateRequest;
+import shopping.international.api.req.customerservice.TicketMessageRecallRequest;
+import shopping.international.api.req.customerservice.TicketMessageUpdateRequest;
+import shopping.international.api.req.customerservice.TicketReadRequest;
 import shopping.international.api.req.customerservice.TicketStatusTransitionRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.customerservice.AdminTicketDetailRespond;
 import shopping.international.api.resp.customerservice.AdminTicketSummaryRespond;
+import shopping.international.api.resp.customerservice.CsWsTicketReadUpdatedEventDataRespond;
+import shopping.international.api.resp.customerservice.TicketMessageRespond;
 import shopping.international.domain.model.enums.customerservice.TicketIssueType;
 import shopping.international.domain.model.enums.customerservice.TicketPriority;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
@@ -29,10 +35,13 @@ import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.customerservice.AdminTicketDetailView;
 import shopping.international.domain.model.vo.customerservice.AdminTicketPageCriteria;
 import shopping.international.domain.model.vo.customerservice.AdminTicketSummaryView;
+import shopping.international.domain.model.vo.customerservice.TicketMessageView;
+import shopping.international.domain.model.vo.customerservice.TicketReadUpdateView;
 import shopping.international.domain.service.common.ICurrencyConfigService;
 import shopping.international.domain.service.customerservice.IAdminTicketService;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.currency.CurrencyConfig;
+import shopping.international.types.enums.ApiCode;
 import shopping.international.types.exceptions.AccountException;
 import shopping.international.types.exceptions.IllegalParamException;
 
@@ -292,6 +301,183 @@ public class AdminTicketController {
     }
 
     /**
+     * 管理侧查询工单消息列表
+     *
+     * @param ticketId 工单 ID
+     * @param beforeId 向前翻页锚点
+     * @param afterId  向后增量锚点
+     * @param order    排序方向
+     * @param size     返回条数
+     * @return 消息列表
+     */
+    @GetMapping("/{ticket_id}/messages")
+    public ResponseEntity<Result<List<TicketMessageRespond>>> listTicketMessages(@PathVariable("ticket_id") Long ticketId,
+                                                                                 @RequestParam(value = "before_id", required = false) Long beforeId,
+                                                                                 @RequestParam(value = "after_id", required = false) Long afterId,
+                                                                                 @RequestParam(value = "order", required = false, defaultValue = "desc") String order,
+                                                                                 @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        int normalizedSize = size == null ? 20 : size;
+        require(normalizedSize >= 1 && normalizedSize <= 100, "size 必须在 1 到 100 之间");
+        if (beforeId != null)
+            require(beforeId >= 1, "before_id 必须大于等于 1");
+        if (afterId != null)
+            require(afterId >= 1, "after_id 必须大于等于 1");
+
+        boolean ascOrder = parseMessageOrder(order);
+        Long actorUserId = requireCurrentUserId();
+        List<TicketMessageView> messageViewList = adminTicketService.listTicketMessages(
+                actorUserId,
+                ticketId,
+                beforeId,
+                afterId,
+                ascOrder,
+                normalizedSize
+        );
+        List<TicketMessageRespond> data = messageViewList.stream()
+                .map(AdminTicketRespondAssembler::toMessageRespond)
+                .toList();
+        return ResponseEntity.ok(Result.ok(data));
+    }
+
+    /**
+     * 管理侧发送工单消息
+     *
+     * @param ticketId       工单 ID
+     * @param idempotencyKey 幂等键
+     * @param request        消息发送请求
+     * @return 发送后的消息
+     */
+    @PostMapping("/{ticket_id}/messages")
+    public ResponseEntity<Result<TicketMessageRespond>> createTicketMessage(@PathVariable("ticket_id") Long ticketId,
+                                                                            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                            @RequestBody TicketMessageCreateRequest request) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long actorUserId = requireCurrentUserId();
+        TicketMessageView created = adminTicketService.createTicketMessage(
+                actorUserId,
+                ticketId,
+                request.getMessageType(),
+                request.getContent(),
+                request.getAttachments(),
+                request.getClientMessageId(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
+                .body(Result.created(AdminTicketRespondAssembler.toMessageRespond(created)));
+    }
+
+    /**
+     * 管理侧编辑消息
+     *
+     * @param ticketId       工单 ID
+     * @param messageId      消息 ID
+     * @param idempotencyKey 幂等键
+     * @param request        消息编辑请求
+     * @return 编辑后的消息
+     */
+    @PatchMapping("/{ticket_id}/messages/{message_id}")
+    public ResponseEntity<Result<TicketMessageRespond>> editTicketMessage(@PathVariable("ticket_id") Long ticketId,
+                                                                          @PathVariable("message_id") Long messageId,
+                                                                          @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                          @RequestBody TicketMessageUpdateRequest request) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        require(messageId != null && messageId >= 1, "message_id 必须大于等于 1");
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long actorUserId = requireCurrentUserId();
+        TicketMessageView updated = adminTicketService.editTicketMessage(
+                actorUserId,
+                ticketId,
+                messageId,
+                request.getContent(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toMessageRespond(updated)));
+    }
+
+    /**
+     * 管理侧撤回消息
+     *
+     * @param ticketId       工单 ID
+     * @param messageId      消息 ID
+     * @param idempotencyKey 幂等键
+     * @param request        撤回请求
+     * @return 撤回后的消息
+     */
+    @PostMapping("/{ticket_id}/messages/{message_id}/recall")
+    public ResponseEntity<Result<TicketMessageRespond>> recallTicketMessage(@PathVariable("ticket_id") Long ticketId,
+                                                                            @PathVariable("message_id") Long messageId,
+                                                                            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                            @RequestBody(required = false) TicketMessageRecallRequest request) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        require(messageId != null && messageId >= 1, "message_id 必须大于等于 1");
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        TicketMessageRecallRequest recallRequest = request == null ? new TicketMessageRecallRequest() : request;
+        recallRequest.validate();
+
+        Long actorUserId = requireCurrentUserId();
+        TicketMessageView recalled = adminTicketService.recallTicketMessage(
+                actorUserId,
+                ticketId,
+                messageId,
+                recallRequest.getReason(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toMessageRespond(recalled)));
+    }
+
+    /**
+     * 管理侧标记工单消息已读
+     *
+     * @param ticketId       工单 ID
+     * @param idempotencyKey 幂等键
+     * @param request        已读请求
+     * @return 已读位点事件数据
+     */
+    @PostMapping("/{ticket_id}/read")
+    public ResponseEntity<Result<CsWsTicketReadUpdatedEventDataRespond>> markTicketRead(@PathVariable("ticket_id") Long ticketId,
+                                                                                        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                                        @RequestBody TicketReadRequest request) {
+        require(ticketId != null && ticketId >= 1, "ticket_id 必须大于等于 1");
+        String normalizedIdempotencyKey = normalizeNotNullField(
+                idempotencyKey,
+                "Idempotency-Key 不能为空",
+                value -> value.length() <= 64,
+                "Idempotency-Key 长度不能超过 64 个字符"
+        );
+        request.validate();
+
+        Long actorUserId = requireCurrentUserId();
+        TicketReadUpdateView updated = adminTicketService.markTicketRead(
+                actorUserId,
+                ticketId,
+                request.getLastReadMessageId(),
+                normalizedIdempotencyKey
+        );
+        return ResponseEntity.ok(Result.ok(AdminTicketRespondAssembler.toReadUpdatedEventDataRespond(updated)));
+    }
+
+    /**
      * 解析问题类型查询参数
      *
      * @param issueType 问题类型文本
@@ -340,6 +526,21 @@ public class AdminTicketController {
         } catch (IllegalArgumentException exception) {
             throw new IllegalParamException("priority 不合法: " + priority);
         }
+    }
+
+    /**
+     * 解析消息排序参数
+     *
+     * @param order 排序方向
+     * @return true 表示升序, false 表示降序
+     */
+    private boolean parseMessageOrder(@Nullable String order) {
+        if (order == null || order.isBlank())
+            return false;
+        String normalized = order.strip().toLowerCase(Locale.ROOT);
+        if (!"asc".equals(normalized) && !"desc".equals(normalized))
+            throw new IllegalParamException("order 只支持 asc 或 desc");
+        return "asc".equals(normalized);
     }
 
     /**

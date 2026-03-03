@@ -9,14 +9,7 @@ import shopping.international.api.resp.customerservice.TicketMessageRespond;
 import shopping.international.api.resp.customerservice.TicketStatusLogRespond;
 import shopping.international.api.resp.customerservice.UserTicketDetailRespond;
 import shopping.international.api.resp.customerservice.UserTicketSummaryRespond;
-import shopping.international.domain.model.vo.customerservice.UserTicketCreateResult;
-import shopping.international.domain.model.vo.customerservice.UserTicketDetailView;
-import shopping.international.domain.model.vo.customerservice.UserTicketMessageView;
-import shopping.international.domain.model.vo.customerservice.UserTicketReadUpdateView;
-import shopping.international.domain.model.vo.customerservice.UserTicketShipmentSummaryView;
-import shopping.international.domain.model.vo.customerservice.UserTicketStatusLogView;
-import shopping.international.domain.model.vo.customerservice.UserTicketSummaryView;
-import shopping.international.domain.model.vo.customerservice.UserTicketWsSessionIssueView;
+import shopping.international.domain.model.vo.customerservice.*;
 import shopping.international.types.currency.CurrencyConfig;
 
 /**
@@ -118,7 +111,7 @@ public final class UserTicketRespondAssembler {
      * @param view 消息视图
      * @return 消息响应 DTO
      */
-    public static @NotNull TicketMessageRespond toMessageRespond(@NotNull UserTicketMessageView view) {
+    public static @NotNull TicketMessageRespond toMessageRespond(@NotNull TicketMessageView view) {
         return TicketMessageRespond.builder()
                 .id(view.id())
                 .messageNo(view.messageNo())
@@ -188,7 +181,7 @@ public final class UserTicketRespondAssembler {
      * @param view 已读位点更新视图
      * @return 已读事件数据响应 DTO
      */
-    public static @NotNull CsWsTicketReadUpdatedEventDataRespond toReadUpdatedEventDataRespond(@NotNull UserTicketReadUpdateView view) {
+    public static @NotNull CsWsTicketReadUpdatedEventDataRespond toReadUpdatedEventDataRespond(@NotNull TicketReadUpdateView view) {
         return CsWsTicketReadUpdatedEventDataRespond.builder()
                 .ticketId(view.ticketId())
                 .participantId(view.participantId())
@@ -205,7 +198,7 @@ public final class UserTicketRespondAssembler {
      * @param view 会话签发视图
      * @return 会话签发响应 DTO
      */
-    public static @NotNull CsWsSessionIssueDataRespond toWsSessionIssueDataRespond(@NotNull UserTicketWsSessionIssueView view) {
+    public static @NotNull CsWsSessionIssueDataRespond toWsSessionIssueDataRespond(@NotNull TicketWsSessionIssueView view) {
         return CsWsSessionIssueDataRespond.builder()
                 .wsToken(view.wsToken())
                 .wsUrl(view.wsUrl())

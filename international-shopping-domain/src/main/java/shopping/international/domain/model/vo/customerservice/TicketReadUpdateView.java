@@ -15,11 +15,11 @@ import java.time.LocalDateTime;
  * @param lastReadMessageId  最后已读消息 ID
  * @param lastReadAt         最后已读时间
  */
-public record UserTicketReadUpdateView(Long ticketId,
-                                       Long participantId,
-                                       TicketParticipantType participantType,
-                                       @Nullable Long participantUserId,
-                                       Long lastReadMessageId,
-                                       LocalDateTime lastReadAt) {
+public record TicketReadUpdateView(Long ticketId,
+                                   Long participantId,
+                                   TicketParticipantType participantType,
+                                   @Nullable Long participantUserId,
+                                   Long lastReadMessageId,
+                                   LocalDateTime lastReadAt) {
 }
 

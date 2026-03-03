@@ -3,13 +3,12 @@ package shopping.international.domain.service.customerservice;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.enums.customerservice.TicketAssignmentActionType;
+import shopping.international.domain.model.enums.customerservice.TicketMessageType;
 import shopping.international.domain.model.enums.customerservice.TicketPriority;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
-import shopping.international.domain.model.vo.customerservice.AdminTicketDetailView;
-import shopping.international.domain.model.vo.customerservice.AdminTicketPageCriteria;
-import shopping.international.domain.model.vo.customerservice.AdminTicketSummaryView;
+import shopping.international.domain.model.vo.customerservice.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -103,4 +102,106 @@ public interface IAdminTicketService {
                                                  @Nullable String note,
                                                  @Nullable String sourceRef,
                                                  @NotNull String idempotencyKey);
+
+    /**
+     * 查询管理侧指定工单的消息列表
+     *
+     * @param actorUserId 操作者用户 ID
+     * @param ticketId    工单 ID
+     * @param beforeId    向前翻页锚点
+     * @param afterId     向后补偿锚点
+     * @param ascOrder    是否按升序返回
+     * @param size        返回条数
+     * @return 消息列表
+     */
+    @NotNull
+    List<TicketMessageView> listTicketMessages(@NotNull Long actorUserId,
+                                               @NotNull Long ticketId,
+                                               @Nullable Long beforeId,
+                                               @Nullable Long afterId,
+                                               boolean ascOrder,
+                                               int size);
+
+    /**
+     * 发送管理侧工单消息
+     *
+     * @param actorUserId      操作者用户 ID
+     * @param ticketId         工单 ID
+     * @param messageType      消息类型
+     * @param content          消息正文
+     * @param attachments      附件列表
+     * @param clientMessageId  客户端消息幂等键
+     * @param idempotencyKey   请求幂等键
+     * @return 发送后的消息
+     */
+    @NotNull
+    TicketMessageView createTicketMessage(@NotNull Long actorUserId,
+                                          @NotNull Long ticketId,
+                                          @Nullable TicketMessageType messageType,
+                                          @Nullable String content,
+                                          @Nullable List<String> attachments,
+                                          @NotNull String clientMessageId,
+                                          @NotNull String idempotencyKey);
+
+    /**
+     * 编辑管理侧工单消息
+     *
+     * @param actorUserId     操作者用户 ID
+     * @param ticketId        工单 ID
+     * @param messageId       消息 ID
+     * @param content         新正文
+     * @param idempotencyKey  请求幂等键
+     * @return 编辑后的消息
+     */
+    @NotNull
+    TicketMessageView editTicketMessage(@NotNull Long actorUserId,
+                                        @NotNull Long ticketId,
+                                        @NotNull Long messageId,
+                                        @NotNull String content,
+                                        @NotNull String idempotencyKey);
+
+    /**
+     * 撤回管理侧工单消息
+     *
+     * @param actorUserId     操作者用户 ID
+     * @param ticketId        工单 ID
+     * @param messageId       消息 ID
+     * @param reason          撤回原因
+     * @param idempotencyKey  请求幂等键
+     * @return 撤回后的消息
+     */
+    @NotNull
+    TicketMessageView recallTicketMessage(@NotNull Long actorUserId,
+                                          @NotNull Long ticketId,
+                                          @NotNull Long messageId,
+                                          @Nullable String reason,
+                                          @NotNull String idempotencyKey);
+
+    /**
+     * 标记管理侧工单消息已读位点
+     *
+     * @param actorUserId        操作者用户 ID
+     * @param ticketId           工单 ID
+     * @param lastReadMessageId  最后已读消息 ID
+     * @param idempotencyKey     请求幂等键
+     * @return 已读位点更新结果
+     */
+    @NotNull
+    TicketReadUpdateView markTicketRead(@NotNull Long actorUserId,
+                                        @NotNull Long ticketId,
+                                        @NotNull Long lastReadMessageId,
+                                        @NotNull String idempotencyKey);
+
+    /**
+     * 创建管理侧 WebSocket 会话签发结果
+     *
+     * @param actorUserId     操作者用户 ID
+     * @param command         会话创建命令
+     * @param idempotencyKey  请求幂等键
+     * @return 会话签发结果
+     */
+    @NotNull
+    TicketWsSessionIssueView createWsSession(@NotNull Long actorUserId,
+                                             @NotNull TicketWsSessionCreateCommand command,
+                                             @NotNull String idempotencyKey);
 }
