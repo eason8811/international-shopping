@@ -61,7 +61,7 @@ import static shopping.international.types.utils.FieldValidateUtils.require;
  */
 @Repository
 @RequiredArgsConstructor
-public class UserTicketRepository implements IUserTicketRepository, IAdminTicketRepository {
+public class TicketRepository implements IUserTicketRepository, IAdminTicketRepository {
 
     /**
      * 字符串列表 JSON 类型引用

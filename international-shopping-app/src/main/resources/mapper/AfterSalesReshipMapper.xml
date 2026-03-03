@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.customerservice.AfterSalesReshipMapper">
+
+    <select id="pageAdminReships" resultType="shopping.international.infrastructure.dao.customerservice.po.AfterSalesReshipPO">
+        SELECT r.id,
+               r.reship_no,
+               r.order_id,
+               r.ticket_id,
+               r.shipment_id,
+               r.reason_code,
+               r.status,
+               r.currency,
+               r.items_cost,
+               r.shipping_cost,
+               r.note,
+               r.created_at,
+               r.updated_at
+        FROM aftersales_reship r
+        <where>
+            <if test="reshipNo != null and reshipNo != ''">
+                AND r.reship_no = #{reshipNo}
+            </if>
+            <if test="orderId != null">
+                AND r.order_id = #{orderId}
+            </if>
+            <if test="ticketId != null">
+                AND r.ticket_id = #{ticketId}
+            </if>
+            <if test="status != null and status != ''">
+                AND r.status = #{status}
+            </if>
+            <if test="reasonCode != null and reasonCode != ''">
+                AND r.reason_code = #{reasonCode}
+            </if>
+            <if test="createdFrom != null">
+                AND r.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND r.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminReships" resultType="long">
+        SELECT COUNT(1)
+        FROM aftersales_reship r
+        <where>
+            <if test="reshipNo != null and reshipNo != ''">
+                AND r.reship_no = #{reshipNo}
+            </if>
+            <if test="orderId != null">
+                AND r.order_id = #{orderId}
+            </if>
+            <if test="ticketId != null">
+                AND r.ticket_id = #{ticketId}
+            </if>
+            <if test="status != null and status != ''">
+                AND r.status = #{status}
+            </if>
+            <if test="reasonCode != null and reasonCode != ''">
+                AND r.reason_code = #{reasonCode}
+            </if>
+            <if test="createdFrom != null">
+                AND r.created_at <![CDATA[ >= ]]> #{createdFrom}
+            </if>
+            <if test="createdTo != null">
+                AND r.created_at <![CDATA[ <= ]]> #{createdTo}
+            </if>
+        </where>
+    </select>
+
+    <select id="listReshipItemDetailsByReshipIds" resultType="shopping.international.infrastructure.dao.customerservice.po.AfterSalesReshipItemPO">
+        SELECT ri.id,
+               ri.reship_id,
+               ri.order_item_id,
+               ri.sku_id,
+               ri.quantity,
+               ri.created_at,
+               (oi.unit_price * ri.quantity) AS amount
+        FROM aftersales_reship_item ri
+                 JOIN order_item oi ON oi.id = ri.order_item_id
+        WHERE ri.reship_id IN
+        <foreach collection="reshipIds" item="reshipId" open="(" close=")" separator=",">
+            #{reshipId}
+        </foreach>
+        ORDER BY ri.reship_id, ri.id
+    </select>
+
+    <select id="listReshipShipmentsByReshipIds" resultType="shopping.international.infrastructure.dao.customerservice.po.AfterSalesReshipShipmentPO">
+        SELECT rs.reship_id,
+               rs.shipment_id,
+               rs.created_at
+        FROM aftersales_reship_shipment rs
+        WHERE rs.reship_id IN
+        <foreach collection="reshipIds" item="reshipId" open="(" close=")" separator=",">
+            #{reshipId}
+        </foreach>
+        ORDER BY rs.reship_id, rs.created_at, rs.shipment_id
+    </select>
+</mapper>
