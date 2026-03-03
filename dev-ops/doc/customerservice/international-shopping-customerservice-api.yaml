@@ -9115,10 +9115,25 @@ components:
           type:
             - integer
             - 'null'
+        order_no:
+          type: string
+          description: 订单号
+        order_status:
+          $ref: '#/components/schemas/OrderStatus'
+        pay_amount:
+          type: string
+        order_cover:
+          type: string
+          description: 订单封面，取 order_item 中第一项的 sku_attrs 的 sku 缩略图
         shipment_id:
           type:
             - integer
             - 'null'
+        shipment_status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        shipment_status_log_snapshot:
+          type: string
+          description: 最近的一条物流单 status_log 的 note
         assigned_to_user_id:
           type:
             - integer
@@ -9155,6 +9170,12 @@ components:
         - title
         - created_at
         - updated_at
+        - order_no
+        - order_status
+        - pay_amount
+        - order_cover
+        - shipment_status
+        - shipment_status_log_snapshot
       x-apifox-orders:
         - ticket_id
         - ticket_no
@@ -9166,7 +9187,13 @@ components:
         - title
         - order_id
         - order_item_id
+        - order_no
+        - order_status
+        - pay_amount
+        - order_cover
         - shipment_id
+        - shipment_status
+        - shipment_status_log_snapshot
         - assigned_to_user_id
         - assigned_at
         - last_message_at
@@ -9204,10 +9231,25 @@ components:
           type:
             - integer
             - 'null'
+        order_no:
+          type: string
+          description: 订单号
+        order_status:
+          $ref: '#/components/schemas/OrderStatus'
+        pay_amount:
+          type: string
+        order_cover:
+          type: string
+          description: 订单封面，取 order_item 中第一项的 sku_attrs 的 sku 缩略图
         shipment_id:
           type:
             - integer
             - 'null'
+        shipment_status:
+          $ref: '#/components/schemas/ShipmentStatus'
+        shipment_status_log_snapshot:
+          type: string
+          description: 最近的一条物流单 status_log 的 note
         assigned_to_user_id:
           type:
             - integer
@@ -9288,6 +9330,12 @@ components:
         - title
         - created_at
         - updated_at
+        - order_no
+        - pay_amount
+        - order_status
+        - order_cover
+        - shipment_status
+        - shipment_status_log_snapshot
       x-apifox-orders:
         - ticket_id
         - ticket_no
@@ -9299,7 +9347,13 @@ components:
         - title
         - order_id
         - order_item_id
+        - order_no
+        - order_status
+        - pay_amount
+        - order_cover
         - shipment_id
+        - shipment_status
+        - shipment_status_log_snapshot
         - assigned_to_user_id
         - assigned_at
         - last_message_at
