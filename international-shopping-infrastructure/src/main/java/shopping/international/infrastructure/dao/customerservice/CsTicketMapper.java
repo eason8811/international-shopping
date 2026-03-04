@@ -167,6 +167,18 @@ public interface CsTicketMapper extends BaseMapper<CsTicketPO> {
                             @Param("updatedAt") LocalDateTime updatedAt);
 
     /**
+     * 按状态和更新时间阈值分批扫描自动关单候选工单
+     *
+     * @param status 候选状态
+     * @param updatedBefore 更新时间上限
+     * @param limit 单批返回数量上限
+     * @return 候选工单列表
+     */
+    List<CsTicketPO> listAutoCloseCandidatesByStatusAndUpdatedBefore(@Param("status") String status,
+                                                                     @Param("updatedBefore") LocalDateTime updatedBefore,
+                                                                     @Param("limit") int limit);
+
+    /**
      * 更新工单最近消息时间, 使用单调更新避免并发覆盖
      *
      * @param ticketId     工单 ID

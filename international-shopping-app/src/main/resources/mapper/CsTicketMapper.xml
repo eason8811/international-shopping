@@ -320,6 +320,15 @@
         LIMIT 1
     </select>
 
+    <select id="listAutoCloseCandidatesByStatusAndUpdatedBefore" resultType="shopping.international.infrastructure.dao.customerservice.po.CsTicketPO">
+        SELECT t.*
+        FROM cs_ticket t FORCE INDEX (idx_ticket_status_update)
+        WHERE t.status = #{status}
+          AND t.updated_at <![CDATA[ <= ]]> #{updatedBefore}
+        ORDER BY t.updated_at, t.id
+        LIMIT #{limit}
+    </select>
+
     <update id="updateStatusWithCas">
         UPDATE cs_ticket
         SET status            = #{toStatus},

@@ -181,6 +181,17 @@ shipping:
     fixed-delay: 2h
     batch-size: 100
 
+customerservice:
+  auto-close:
+    awaiting-user:
+      fixed-delay: 15m
+      timeout: 3d
+      batch-size: 100
+    resolved:
+      fixed-delay: 30m
+      timeout: 7d
+      batch-size: 100
+
 seventeen-track:
   base-url: https://api.17track.net
   token: ${SEVENTEEN_TRACK_TOKEN}

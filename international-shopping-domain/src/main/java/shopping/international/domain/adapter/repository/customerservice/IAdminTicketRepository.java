@@ -56,6 +56,19 @@ public interface IAdminTicketRepository {
     Optional<CustomerServiceTicket> findByTicketId(@NotNull Long ticketId);
 
     /**
+     * 按状态和更新时间阈值分批扫描自动关单候选工单
+     *
+     * @param status 候选状态
+     * @param updatedBefore 更新时间上限, 仅返回小于等于该时间的记录
+     * @param limit 单批返回数量上限
+     * @return 候选工单列表
+     */
+    @NotNull
+    List<CustomerServiceTicket> listAutoCloseCandidatesByStatusAndUpdatedBefore(@NotNull TicketStatus status,
+                                                                                @NotNull LocalDateTime updatedBefore,
+                                                                                int limit);
+
+    /**
      * 基于更新时间 CAS 更新工单元数据
      *
      * @param ticket             已完成元数据变更的工单聚合
