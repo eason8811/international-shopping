@@ -114,6 +114,7 @@ public class SecurityConfig {
                             API_PREFIX + "/products/categories/tree",
                             API_PREFIX + "/products",
                             API_PREFIX + "/products/*",
+                            API_PREFIX + "/ws/customerservice",
                             API_PREFIX + "/webhooks/paypal",
                             API_PREFIX + "/webhooks/17track"
                     ).permitAll();
