@@ -3,8 +3,6 @@ package shopping.international.trigger.controller.customerservice;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import shopping.international.api.req.customerservice.CsWsSessionCreateRequest;
 import shopping.international.api.resp.Result;
@@ -14,8 +12,8 @@ import shopping.international.domain.model.vo.customerservice.TicketWsSessionIss
 import shopping.international.domain.service.customerservice.IAdminTicketService;
 import shopping.international.domain.service.customerservice.IUserTicketService;
 import shopping.international.types.constant.SecurityConstants;
-import shopping.international.types.exceptions.AccountException;
 
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.requireCurrentUserId;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
 
 /**
@@ -111,24 +109,4 @@ public class TicketWsSessionController {
         return new PreprocessResult(normalizedIdempotencyKey, userId, command);
     }
 
-    /**
-     * 从安全上下文读取当前用户主键
-     *
-     * @return 当前用户主键
-     */
-    private @NotNull Long requireCurrentUserId() {
-        Authentication authentication = null;
-        if (SecurityContextHolder.getContext() != null)
-            authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated())
-            throw new AccountException("未登录");
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof Long userId)
-            return userId;
-        if (principal instanceof String userId)
-            return Long.parseLong(userId);
-        throw new AccountException("无法解析当前用户");
-    }
 }
-

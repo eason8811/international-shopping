@@ -4,8 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,16 +34,15 @@ import shopping.international.domain.service.customerservice.IAdminReshipService
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
-import shopping.international.types.exceptions.AccountException;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.parseDateTime;
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.parseEnumIgnoreBlank;
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.requireCurrentUserId;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 import static shopping.international.types.utils.FieldValidateUtils.require;
@@ -151,8 +148,8 @@ public class AdminReshipController {
         if (ticketId != null)
             require(ticketId >= 1, "ticket_id 必须大于等于 1");
 
-        ReshipStatus statusEnum = parseReshipStatus(status);
-        ReshipReasonCode reasonCodeEnum = parseReshipReasonCode(reasonCode);
+        ReshipStatus statusEnum = parseEnumIgnoreBlank(status, ReshipStatus.class, "status");
+        ReshipReasonCode reasonCodeEnum = parseEnumIgnoreBlank(reasonCode, ReshipReasonCode.class, "reason_code");
         LocalDateTime createdFromTime = parseDateTime(createdFrom);
         LocalDateTime createdToTime = parseDateTime(createdTo);
         if (createdFromTime != null && createdToTime != null)
@@ -326,61 +323,6 @@ public class AdminReshipController {
     }
 
     /**
-     * 解析补发状态查询参数
-     *
-     * @param status 补发状态文本
-     * @return 补发状态枚举
-     */
-    private @Nullable ReshipStatus parseReshipStatus(@Nullable String status) {
-        if (status == null || status.isBlank())
-            return null;
-        String normalized = status.strip().toUpperCase(Locale.ROOT);
-        try {
-            return ReshipStatus.valueOf(normalized);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalParamException("status 不合法: " + status);
-        }
-    }
-
-    /**
-     * 解析补发原因查询参数
-     *
-     * @param reasonCode 补发原因文本
-     * @return 补发原因枚举
-     */
-    private @Nullable ReshipReasonCode parseReshipReasonCode(@Nullable String reasonCode) {
-        if (reasonCode == null || reasonCode.isBlank())
-            return null;
-        String normalized = reasonCode.strip().toUpperCase(Locale.ROOT);
-        try {
-            return ReshipReasonCode.valueOf(normalized);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalParamException("reason_code 不合法: " + reasonCode);
-        }
-    }
-
-    /**
-     * 解析时间文本, 支持 ISO_OFFSET_DATE_TIME 和 yyyy-MM-dd HH:mm:ss
-     *
-     * @param value 时间文本
-     * @return 本地时间
-     */
-    private @Nullable LocalDateTime parseDateTime(@Nullable String value) {
-        if (value == null || value.isBlank())
-            return null;
-        String text = value.strip();
-        try {
-            return OffsetDateTime.parse(text).toLocalDateTime();
-        } catch (Exception ignore) {
-            try {
-                return LocalDateTime.parse(text, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            } catch (Exception exception) {
-                throw new IllegalParamException("时间格式不合法: " + value);
-            }
-        }
-    }
-
-    /**
      * 将金额字符串转换为 Minor 形式, 空值返回 null
      *
      * @param currencyConfig 币种配置
@@ -402,23 +344,4 @@ public class AdminReshipController {
         }
     }
 
-    /**
-     * 从安全上下文读取当前用户主键
-     *
-     * @return 当前用户主键
-     */
-    private @NotNull Long requireCurrentUserId() {
-        Authentication authentication = null;
-        if (SecurityContextHolder.getContext() != null)
-            authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated())
-            throw new AccountException("未登录");
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof Long userId)
-            return userId;
-        if (principal instanceof String userId)
-            return Long.parseLong(userId);
-        throw new AccountException("无法解析当前用户");
-    }
 }

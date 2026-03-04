@@ -116,20 +116,7 @@ public final class AdminTicketRespondAssembler {
      * @return 消息响应 DTO
      */
     public static @NotNull TicketMessageRespond toMessageRespond(@NotNull TicketMessageView view) {
-        return TicketMessageRespond.builder()
-                .id(view.id())
-                .messageNo(view.messageNo())
-                .ticketId(view.ticketId())
-                .senderType(view.senderType())
-                .senderUserId(view.senderUserId())
-                .messageType(view.messageType())
-                .content(view.content())
-                .attachments(view.attachments())
-                .clientMessageId(view.clientMessageId())
-                .sentAt(view.sentAt())
-                .editedAt(view.editedAt())
-                .recalledAt(view.recalledAt())
-                .build();
+        return TicketCommonRespondAssembler.toMessageRespond(view);
     }
 
     /**
@@ -206,14 +193,7 @@ public final class AdminTicketRespondAssembler {
      * @return 已读事件数据响应 DTO
      */
     public static @NotNull CsWsTicketReadUpdatedEventDataRespond toReadUpdatedEventDataRespond(@NotNull TicketReadUpdateView view) {
-        return CsWsTicketReadUpdatedEventDataRespond.builder()
-                .ticketId(view.ticketId())
-                .participantId(view.participantId())
-                .participantType(view.participantType())
-                .participantUserId(view.participantUserId())
-                .lastReadMessageId(view.lastReadMessageId())
-                .lastReadAt(view.lastReadAt())
-                .build();
+        return TicketCommonRespondAssembler.toReadUpdatedEventDataRespond(view);
     }
 
     /**
@@ -223,13 +203,6 @@ public final class AdminTicketRespondAssembler {
      * @return 会话签发响应 DTO
      */
     public static @NotNull CsWsSessionIssueDataRespond toWsSessionIssueDataRespond(@NotNull TicketWsSessionIssueView view) {
-        return CsWsSessionIssueDataRespond.builder()
-                .wsToken(view.wsToken())
-                .wsUrl(view.wsUrl())
-                .issuedAt(view.issuedAt())
-                .expiresAt(view.expiresAt())
-                .heartbeatIntervalSeconds(view.heartbeatIntervalSeconds())
-                .resumeTtlSeconds(view.resumeTtlSeconds())
-                .build();
+        return TicketCommonRespondAssembler.toWsSessionIssueDataRespond(view);
     }
 }

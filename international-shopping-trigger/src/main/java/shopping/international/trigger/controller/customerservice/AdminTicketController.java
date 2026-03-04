@@ -2,10 +2,7 @@ package shopping.international.trigger.controller.customerservice;
 
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,15 +47,14 @@ import shopping.international.domain.service.customerservice.IAdminTicketService
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.currency.CurrencyConfig;
 import shopping.international.types.enums.ApiCode;
-import shopping.international.types.exceptions.AccountException;
-import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.parseDateTime;
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.parseEnumIgnoreBlank;
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.parseMessageOrder;
+import static shopping.international.trigger.controller.customerservice.support.CustomerServiceControllerSupport.requireCurrentUserId;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNullField;
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNullableField;
 import static shopping.international.types.utils.FieldValidateUtils.require;
@@ -142,9 +138,9 @@ public class AdminTicketController {
                 "claim_external_id 长度不能超过 128 个字符"
         );
 
-        TicketIssueType issueTypeEnum = parseIssueType(issueType);
-        TicketStatus statusEnum = parseStatus(status);
-        TicketPriority priorityEnum = parsePriority(priority);
+        TicketIssueType issueTypeEnum = parseEnumIgnoreBlank(issueType, TicketIssueType.class, "issue_type");
+        TicketStatus statusEnum = parseEnumIgnoreBlank(status, TicketStatus.class, "status");
+        TicketPriority priorityEnum = parseEnumIgnoreBlank(priority, TicketPriority.class, "priority");
         LocalDateTime slaDueFromTime = parseDateTime(slaDueFrom);
         LocalDateTime slaDueToTime = parseDateTime(slaDueTo);
         LocalDateTime createdFromTime = parseDateTime(createdFrom);
@@ -677,110 +673,4 @@ public class AdminTicketController {
         return PageQuery.of(normalizedPage, normalizedSize, 200);
     }
 
-    /**
-     * 解析问题类型查询参数
-     *
-     * @param issueType 问题类型文本
-     * @return 问题类型枚举
-     */
-    private @Nullable TicketIssueType parseIssueType(@Nullable String issueType) {
-        if (issueType == null || issueType.isBlank())
-            return null;
-        String normalized = issueType.strip().toUpperCase(Locale.ROOT);
-        try {
-            return TicketIssueType.valueOf(normalized);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalParamException("issue_type 不合法: " + issueType);
-        }
-    }
-
-    /**
-     * 解析工单状态查询参数
-     *
-     * @param status 工单状态文本
-     * @return 工单状态枚举
-     */
-    private @Nullable TicketStatus parseStatus(@Nullable String status) {
-        if (status == null || status.isBlank())
-            return null;
-        String normalized = status.strip().toUpperCase(Locale.ROOT);
-        try {
-            return TicketStatus.valueOf(normalized);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalParamException("status 不合法: " + status);
-        }
-    }
-
-    /**
-     * 解析工单优先级查询参数
-     *
-     * @param priority 工单优先级文本
-     * @return 工单优先级枚举
-     */
-    private @Nullable TicketPriority parsePriority(@Nullable String priority) {
-        if (priority == null || priority.isBlank())
-            return null;
-        String normalized = priority.strip().toUpperCase(Locale.ROOT);
-        try {
-            return TicketPriority.valueOf(normalized);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalParamException("priority 不合法: " + priority);
-        }
-    }
-
-    /**
-     * 解析消息排序参数
-     *
-     * @param order 排序方向
-     * @return true 表示升序, false 表示降序
-     */
-    private boolean parseMessageOrder(@Nullable String order) {
-        if (order == null || order.isBlank())
-            return false;
-        String normalized = order.strip().toLowerCase(Locale.ROOT);
-        if (!"asc".equals(normalized) && !"desc".equals(normalized))
-            throw new IllegalParamException("order 只支持 asc 或 desc");
-        return "asc".equals(normalized);
-    }
-
-    /**
-     * 解析时间文本, 支持 ISO_OFFSET_DATE_TIME 和 yyyy-MM-dd HH:mm:ss
-     *
-     * @param value 时间文本
-     * @return 本地时间
-     */
-    private @Nullable LocalDateTime parseDateTime(@Nullable String value) {
-        if (value == null || value.isBlank())
-            return null;
-        String text = value.strip();
-        try {
-            return OffsetDateTime.parse(text).toLocalDateTime();
-        } catch (Exception ignore) {
-            try {
-                return LocalDateTime.parse(text, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            } catch (Exception exception) {
-                throw new IllegalParamException("时间格式不合法: " + value);
-            }
-        }
-    }
-
-    /**
-     * 从安全上下文读取当前用户主键
-     *
-     * @return 当前用户主键
-     */
-    private @NotNull Long requireCurrentUserId() {
-        Authentication authentication = null;
-        if (SecurityContextHolder.getContext() != null)
-            authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated())
-            throw new AccountException("未登录");
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof Long userId)
-            return userId;
-        if (principal instanceof String userId)
-            return Long.parseLong(userId);
-        throw new AccountException("无法解析当前用户");
-    }
 }

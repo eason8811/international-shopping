@@ -1,11 +1,5 @@
 package shopping.international.domain.service.customerservice.impl;
 
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
@@ -19,63 +13,43 @@ import shopping.international.domain.model.enums.customerservice.TicketActorType
 import shopping.international.domain.model.enums.customerservice.TicketChannel;
 import shopping.international.domain.model.enums.customerservice.TicketIssueType;
 import shopping.international.domain.model.enums.customerservice.TicketMessageType;
-import shopping.international.domain.model.enums.customerservice.TicketParticipantType;
 import shopping.international.domain.model.enums.customerservice.TicketStatus;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
 import shopping.international.domain.model.vo.customerservice.*;
-import shopping.international.domain.model.vo.user.JwtIssueSpec;
+import shopping.international.domain.service.customerservice.AbstractTicketIdempotentActionService;
+import shopping.international.domain.service.customerservice.impl.support.TicketActorStrategy;
+import shopping.international.domain.service.customerservice.impl.support.TicketReadUpdateViewMapper;
+import shopping.international.domain.service.customerservice.impl.support.TicketWsTokenIssuer;
 import shopping.international.domain.service.customerservice.IUserTicketService;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.exceptions.AppException;
 import shopping.international.types.exceptions.ConflictException;
 import shopping.international.types.exceptions.NotFoundException;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 
 import static shopping.international.types.utils.FieldValidateUtils.normalizeNotNull;
 import static shopping.international.types.utils.FieldValidateUtils.require;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
 
 /**
  * 用户侧工单领域服务实现
  */
 @Service
-@RequiredArgsConstructor
-public class UserTicketService implements IUserTicketService {
+public class UserTicketService extends AbstractTicketIdempotentActionService implements IUserTicketService {
 
     /**
      * 用户侧工单仓储
      */
     private final IUserTicketRepository userTicketRepository;
     /**
-     * 工单幂等端口
+     * WebSocket 会话令牌签发器
      */
-    private final ITicketIdempotencyPort ticketIdempotencyPort;
-    /**
-     * JWT 签发配置
-     */
-    private final JwtIssueSpec jwtIssueSpec;
-
-    /**
-     * 幂等占位状态 TTL
-     */
-    private static final Duration IDEMPOTENCY_PENDING_TTL = Duration.ofMinutes(5);
-    /**
-     * 幂等成功状态 TTL
-     */
-    private static final Duration IDEMPOTENCY_SUCCESS_TTL = Duration.ofHours(24);
+    private final TicketWsTokenIssuer ticketWsTokenIssuer;
 
     /**
      * 消息发送幂等场景
@@ -118,6 +92,21 @@ public class UserTicketService implements IUserTicketService {
      * 续传窗口秒数
      */
     private static final int WS_RESUME_TTL_SECONDS = 600;
+
+    /**
+     * 构造用户侧工单领域服务
+     *
+     * @param userTicketRepository  用户侧工单仓储
+     * @param ticketIdempotencyPort 工单幂等端口
+     * @param ticketWsTokenIssuer   WebSocket 会话令牌签发器
+     */
+    public UserTicketService(@NotNull IUserTicketRepository userTicketRepository,
+                             @NotNull ITicketIdempotencyPort ticketIdempotencyPort,
+                             @NotNull TicketWsTokenIssuer ticketWsTokenIssuer) {
+        super(ticketIdempotencyPort);
+        this.userTicketRepository = userTicketRepository;
+        this.ticketWsTokenIssuer = ticketWsTokenIssuer;
+    }
 
     /**
      * 分页查询当前用户工单列表
@@ -168,7 +157,7 @@ public class UserTicketService implements IUserTicketService {
     public @NotNull UserTicketCreateResult createMyTicket(@NotNull Long userId,
                                                           @NotNull TicketCreateCommand command,
                                                           @NotNull String idempotencyKey) {
-        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerCreateOrGet(
+        ITicketIdempotencyPort.TokenStatus tokenStatus = idempotencyPort().registerCreateOrGet(
                 userId,
                 idempotencyKey,
                 IDEMPOTENCY_PENDING_TTL
@@ -210,7 +199,7 @@ public class UserTicketService implements IUserTicketService {
         );
 
         UserTicketCreateResult created = userTicketRepository.saveNewTicket(newTicket, userId, sourceRef);
-        ticketIdempotencyPort.markCreateSucceeded(userId, idempotencyKey, created.ticketNo(), IDEMPOTENCY_SUCCESS_TTL);
+        idempotencyPort().markCreateSucceeded(userId, idempotencyKey, created.ticketNo(), IDEMPOTENCY_SUCCESS_TTL);
         return created;
     }
 
@@ -242,7 +231,7 @@ public class UserTicketService implements IUserTicketService {
                                                        @NotNull TicketNo ticketNo,
                                                        @Nullable String note,
                                                        @NotNull String idempotencyKey) {
-        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerCloseOrGet(
+        ITicketIdempotencyPort.TokenStatus tokenStatus = idempotencyPort().registerCloseOrGet(
                 userId,
                 ticketNo.getValue(),
                 idempotencyKey,
@@ -259,7 +248,7 @@ public class UserTicketService implements IUserTicketService {
 
         if (ticket.getStatus() == TicketStatus.CLOSED) {
             UserTicketDetailView detailView = getMyTicketDetail(userId, ticketNo);
-            ticketIdempotencyPort.markCloseSucceeded(userId, ticketNo.getValue(), idempotencyKey, IDEMPOTENCY_SUCCESS_TTL);
+            idempotencyPort().markCloseSucceeded(userId, ticketNo.getValue(), idempotencyKey, IDEMPOTENCY_SUCCESS_TTL);
             return detailView;
         }
 
@@ -284,14 +273,14 @@ public class UserTicketService implements IUserTicketService {
             CustomerServiceTicket latest = requireUserTicket(userId, ticketNo);
             if (latest.getStatus() == TicketStatus.CLOSED) {
                 UserTicketDetailView detailView = getMyTicketDetail(userId, ticketNo);
-                ticketIdempotencyPort.markCloseSucceeded(userId, ticketNo.getValue(), idempotencyKey, IDEMPOTENCY_SUCCESS_TTL);
+                idempotencyPort().markCloseSucceeded(userId, ticketNo.getValue(), idempotencyKey, IDEMPOTENCY_SUCCESS_TTL);
                 return detailView;
             }
             throw new ConflictException("工单状态已变化, 请刷新后重试");
         }
 
         UserTicketDetailView detailView = getMyTicketDetail(userId, ticketNo);
-        ticketIdempotencyPort.markCloseSucceeded(userId, ticketNo.getValue(), idempotencyKey, IDEMPOTENCY_SUCCESS_TTL);
+        idempotencyPort().markCloseSucceeded(userId, ticketNo.getValue(), idempotencyKey, IDEMPOTENCY_SUCCESS_TTL);
         return detailView;
     }
 
@@ -351,65 +340,48 @@ public class UserTicketService implements IUserTicketService {
         if (ticket.getStatus() == TicketStatus.CLOSED)
             throw new ConflictException("工单已关闭, 不允许继续发送消息");
 
-        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+        return executeActionWithIdempotency(
                 IDEMPOTENCY_SCENE_MESSAGE_CREATE,
                 userId,
                 ticketNo.getValue(),
                 idempotencyKey,
-                IDEMPOTENCY_PENDING_TTL
-        );
+                "相同幂等键的发送消息请求正在处理中",
+                resultRef -> {
+                    if (resultRef != null && !resultRef.isBlank()) {
+                        return userTicketRepository.findTicketMessageViewByNo(ticketId, TicketMessageNo.of(resultRef))
+                                .orElseThrow(() -> new AppException("幂等消息结果已存在, 但消息记录不存在"));
+                    }
+                    return userTicketRepository.findMessageViewByClientMessageId(
+                                    ticketId,
+                                    TicketActorStrategy.USER.participantType(),
+                                    userId,
+                                    clientMessageId
+                            )
+                            .orElseThrow(() -> new AppException("幂等消息结果已存在, 但消息记录不存在"));
+                },
+                () -> {
+                    Optional<TicketMessageView> duplicatedByClientMessageId = userTicketRepository.findMessageViewByClientMessageId(
+                            ticketId,
+                            TicketActorStrategy.USER.participantType(),
+                            userId,
+                            clientMessageId
+                    );
+                    if (duplicatedByClientMessageId.isPresent())
+                        return duplicatedByClientMessageId.get();
 
-        if (tokenStatus.isSucceeded()) {
-            String resultRef = tokenStatus.ticketNo();
-            if (resultRef != null && !resultRef.isBlank()) {
-                return userTicketRepository.findTicketMessageViewByNo(ticketId, TicketMessageNo.of(resultRef))
-                        .orElseThrow(() -> new AppException("幂等消息结果已存在, 但消息记录不存在"));
-            }
-            return userTicketRepository.findMessageViewByClientMessageId(ticketId, TicketParticipantType.USER, userId, clientMessageId)
-                    .orElseThrow(() -> new AppException("幂等消息结果已存在, 但消息记录不存在"));
-        }
-
-        if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
-            throw new ConflictException("相同幂等键的发送消息请求正在处理中");
-
-        Optional<TicketMessageView> duplicatedByClientMessageId = userTicketRepository.findMessageViewByClientMessageId(
-                ticketId,
-                TicketParticipantType.USER,
-                userId,
-                clientMessageId
+                    TicketMessage message = ticket.appendMessage(
+                            TicketActorStrategy.USER.participantType(),
+                            userId,
+                            messageType,
+                            content,
+                            attachments,
+                            null,
+                            clientMessageId
+                    );
+                    return userTicketRepository.saveTicketMessageAndTouchTicket(userId, ticket, message);
+                },
+                TicketMessageView::messageNo
         );
-        if (duplicatedByClientMessageId.isPresent()) {
-            TicketMessageView duplicated = duplicatedByClientMessageId.get();
-            ticketIdempotencyPort.markActionSucceeded(
-                    IDEMPOTENCY_SCENE_MESSAGE_CREATE,
-                    userId,
-                    ticketNo.getValue(),
-                    idempotencyKey,
-                    duplicated.messageNo(),
-                    IDEMPOTENCY_SUCCESS_TTL
-            );
-            return duplicated;
-        }
-
-        TicketMessage message = ticket.appendMessage(
-                TicketParticipantType.USER,
-                userId,
-                messageType,
-                content,
-                attachments,
-                null,
-                clientMessageId
-        );
-        TicketMessageView created = userTicketRepository.saveTicketMessageAndTouchTicket(userId, ticket, message);
-        ticketIdempotencyPort.markActionSucceeded(
-                IDEMPOTENCY_SCENE_MESSAGE_CREATE,
-                userId,
-                ticketNo.getValue(),
-                idempotencyKey,
-                created.messageNo(),
-                IDEMPOTENCY_SUCCESS_TTL
-        );
-        return created;
     }
 
     /**
@@ -432,66 +404,43 @@ public class UserTicketService implements IUserTicketService {
         Long ticketId = requirePersistedTicketId(ticket);
 
         String resource = ticketNo.getValue() + ":" + messageNo.getValue();
-        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+        return executeActionWithIdempotency(
                 IDEMPOTENCY_SCENE_MESSAGE_EDIT,
                 userId,
                 resource,
                 idempotencyKey,
-                IDEMPOTENCY_PENDING_TTL
+                "相同幂等键的编辑消息请求正在处理中",
+                resultRef -> userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                        .orElseThrow(() -> new AppException("幂等编辑结果已存在, 但消息记录不存在")),
+                () -> {
+                    TicketMessage message = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
+                            .orElseThrow(() -> new NotFoundException("消息不存在"));
+                    TicketActorStrategy.USER.validateMessageOperator(userId, message);
+                    message.editContent(content);
+
+                    boolean updated = userTicketRepository.updateTicketMessageContentWithCas(
+                            ticketId,
+                            normalizeNotNull(message.getId(), "messageId 不能为空"),
+                            normalizeNotNull(message.getContent(), "content 不能为空"),
+                            normalizeNotNull(message.getEditedAt(), "editedAt 不能为空"),
+                            message.getUpdatedAt()
+                    );
+
+                    if (!updated) {
+                        TicketMessage latest = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
+                                .orElseThrow(() -> new NotFoundException("消息不存在"));
+                        if (latest.getRecalledAt() != null)
+                            throw new ConflictException("消息已撤回, 不允许编辑");
+                        if (Objects.equals(latest.getContent(), content))
+                            return userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                                    .orElseThrow(() -> new NotFoundException("消息不存在"));
+                        throw new ConflictException("消息已变化, 请刷新后重试");
+                    }
+                    return userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                            .orElseThrow(() -> new NotFoundException("消息不存在"));
+                },
+                TicketMessageView::messageNo
         );
-
-        if (tokenStatus.isSucceeded())
-            return userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
-                    .orElseThrow(() -> new AppException("幂等编辑结果已存在, 但消息记录不存在"));
-
-        if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
-            throw new ConflictException("相同幂等键的编辑消息请求正在处理中");
-
-        TicketMessage message = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
-                .orElseThrow(() -> new NotFoundException("消息不存在"));
-        validateUserMessageOperator(userId, message);
-        message.editContent(content);
-
-        boolean updated = userTicketRepository.updateTicketMessageContentWithCas(
-                ticketId,
-                normalizeNotNull(message.getId(), "messageId 不能为空"),
-                normalizeNotNull(message.getContent(), "content 不能为空"),
-                normalizeNotNull(message.getEditedAt(), "editedAt 不能为空"),
-                message.getUpdatedAt()
-        );
-
-        if (!updated) {
-            TicketMessage latest = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
-                    .orElseThrow(() -> new NotFoundException("消息不存在"));
-            if (latest.getRecalledAt() != null)
-                throw new ConflictException("消息已撤回, 不允许编辑");
-            if (Objects.equals(latest.getContent(), content)) {
-                TicketMessageView idempotentResult = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
-                        .orElseThrow(() -> new NotFoundException("消息不存在"));
-                ticketIdempotencyPort.markActionSucceeded(
-                        IDEMPOTENCY_SCENE_MESSAGE_EDIT,
-                        userId,
-                        resource,
-                        idempotencyKey,
-                        idempotentResult.messageNo(),
-                        IDEMPOTENCY_SUCCESS_TTL
-                );
-                return idempotentResult;
-            }
-            throw new ConflictException("消息已变化, 请刷新后重试");
-        }
-
-        TicketMessageView updatedView = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
-                .orElseThrow(() -> new NotFoundException("消息不存在"));
-        ticketIdempotencyPort.markActionSucceeded(
-                IDEMPOTENCY_SCENE_MESSAGE_EDIT,
-                userId,
-                resource,
-                idempotencyKey,
-                updatedView.messageNo(),
-                IDEMPOTENCY_SUCCESS_TTL
-        );
-        return updatedView;
     }
 
     /**
@@ -514,68 +463,45 @@ public class UserTicketService implements IUserTicketService {
         Long ticketId = requirePersistedTicketId(ticket);
 
         String resource = ticketNo.getValue() + ":" + messageNo.getValue();
-        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+        return executeActionWithIdempotency(
                 IDEMPOTENCY_SCENE_MESSAGE_RECALL,
                 userId,
                 resource,
                 idempotencyKey,
-                IDEMPOTENCY_PENDING_TTL
+                "相同幂等键的撤回消息请求正在处理中",
+                resultRef -> userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                        .orElseThrow(() -> new AppException("幂等撤回结果已存在, 但消息记录不存在")),
+                () -> {
+                    TicketMessage message = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
+                            .orElseThrow(() -> new NotFoundException("消息不存在"));
+                    TicketActorStrategy.USER.validateMessageOperator(userId, message);
+                    message.recall();
+
+                    String recalledContent = reason == null || reason.isBlank()
+                            ? MESSAGE_RECALLED_PLACEHOLDER
+                            : MESSAGE_RECALLED_PLACEHOLDER + "(" + reason.strip() + ")";
+
+                    boolean updated = userTicketRepository.recallTicketMessageWithCas(
+                            ticketId,
+                            normalizeNotNull(message.getId(), "messageId 不能为空"),
+                            recalledContent,
+                            normalizeNotNull(message.getRecalledAt(), "recalledAt 不能为空"),
+                            message.getUpdatedAt()
+                    );
+
+                    if (!updated) {
+                        TicketMessage latest = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
+                                .orElseThrow(() -> new NotFoundException("消息不存在"));
+                        if (latest.getRecalledAt() != null)
+                            return userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                                    .orElseThrow(() -> new NotFoundException("消息不存在"));
+                        throw new ConflictException("消息已变化, 请刷新后重试");
+                    }
+                    return userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
+                            .orElseThrow(() -> new NotFoundException("消息不存在"));
+                },
+                TicketMessageView::messageNo
         );
-
-        if (tokenStatus.isSucceeded())
-            return userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
-                    .orElseThrow(() -> new AppException("幂等撤回结果已存在, 但消息记录不存在"));
-
-        if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
-            throw new ConflictException("相同幂等键的撤回消息请求正在处理中");
-
-        TicketMessage message = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
-                .orElseThrow(() -> new NotFoundException("消息不存在"));
-        validateUserMessageOperator(userId, message);
-        message.recall();
-
-        String recalledContent = reason == null || reason.isBlank()
-                ? MESSAGE_RECALLED_PLACEHOLDER
-                : MESSAGE_RECALLED_PLACEHOLDER + "(" + reason.strip() + ")";
-
-        boolean updated = userTicketRepository.recallTicketMessageWithCas(
-                ticketId,
-                normalizeNotNull(message.getId(), "messageId 不能为空"),
-                recalledContent,
-                normalizeNotNull(message.getRecalledAt(), "recalledAt 不能为空"),
-                message.getUpdatedAt()
-        );
-
-        if (!updated) {
-            TicketMessage latest = userTicketRepository.findTicketMessageByNo(ticketId, messageNo)
-                    .orElseThrow(() -> new NotFoundException("消息不存在"));
-            if (latest.getRecalledAt() != null) {
-                TicketMessageView idempotentResult = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
-                        .orElseThrow(() -> new NotFoundException("消息不存在"));
-                ticketIdempotencyPort.markActionSucceeded(
-                        IDEMPOTENCY_SCENE_MESSAGE_RECALL,
-                        userId,
-                        resource,
-                        idempotencyKey,
-                        idempotentResult.messageNo(),
-                        IDEMPOTENCY_SUCCESS_TTL
-                );
-                return idempotentResult;
-            }
-            throw new ConflictException("消息已变化, 请刷新后重试");
-        }
-
-        TicketMessageView recalledView = userTicketRepository.findTicketMessageViewByNo(ticketId, messageNo)
-                .orElseThrow(() -> new NotFoundException("消息不存在"));
-        ticketIdempotencyPort.markActionSucceeded(
-                IDEMPOTENCY_SCENE_MESSAGE_RECALL,
-                userId,
-                resource,
-                idempotencyKey,
-                recalledView.messageNo(),
-                IDEMPOTENCY_SUCCESS_TTL
-        );
-        return recalledView;
     }
 
     /**
@@ -595,66 +521,56 @@ public class UserTicketService implements IUserTicketService {
         CustomerServiceTicket ticket = requireUserTicket(userId, ticketNo);
         Long ticketId = requirePersistedTicketId(ticket);
 
-        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+        return executeActionWithIdempotency(
                 IDEMPOTENCY_SCENE_MESSAGE_READ,
                 userId,
                 ticketNo.getValue(),
                 idempotencyKey,
-                IDEMPOTENCY_PENDING_TTL
+                "相同幂等键的已读请求正在处理中",
+                resultRef -> {
+                    TicketParticipant participant = userTicketRepository.findActiveParticipant(
+                                    ticketId,
+                                    TicketActorStrategy.USER.participantType(),
+                                    userId
+                            )
+                            .orElseThrow(() -> new AppException("幂等已读结果已存在, 但参与方记录不存在"));
+                    return TicketReadUpdateViewMapper.toReadUpdateView(ticketId, participant);
+                },
+                () -> {
+                    require(userTicketRepository.existsMessageInTicket(ticketId, lastReadMessageId), "lastReadMessageId 不属于当前工单");
+
+                    TicketParticipant participant = userTicketRepository.findActiveParticipant(
+                                    ticketId,
+                                    TicketActorStrategy.USER.participantType(),
+                                    userId
+                            )
+                            .orElseThrow(() -> new ConflictException("当前用户不是工单活跃参与方"));
+                    participant.markRead(lastReadMessageId, null);
+
+                    boolean updated = userTicketRepository.updateParticipantReadWithCas(
+                            normalizeNotNull(participant.getId(), "participantId 不能为空"),
+                            ticketId,
+                            normalizeNotNull(participant.getLastReadMessageId(), "lastReadMessageId 不能为空"),
+                            normalizeNotNull(participant.getLastReadAt(), "lastReadAt 不能为空"),
+                            participant.getUpdatedAt()
+                    );
+
+                    if (!updated) {
+                        TicketParticipant latest = userTicketRepository.findActiveParticipant(
+                                        ticketId,
+                                        TicketActorStrategy.USER.participantType(),
+                                        userId
+                                )
+                                .orElseThrow(() -> new ConflictException("当前用户不是工单活跃参与方"));
+                        Long latestReadMessageId = latest.getLastReadMessageId();
+                        if (latestReadMessageId != null && latestReadMessageId >= lastReadMessageId)
+                            return TicketReadUpdateViewMapper.toReadUpdateView(ticketId, latest);
+                        throw new ConflictException("已读位点已变化, 请刷新后重试");
+                    }
+                    return TicketReadUpdateViewMapper.toReadUpdateView(ticketId, participant);
+                },
+                result -> String.valueOf(result.lastReadMessageId())
         );
-
-        if (tokenStatus.isSucceeded()) {
-            TicketParticipant participant = userTicketRepository.findActiveParticipant(ticketId, TicketParticipantType.USER, userId)
-                    .orElseThrow(() -> new AppException("幂等已读结果已存在, 但参与方记录不存在"));
-            return toReadUpdateView(ticketId, participant);
-        }
-
-        if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
-            throw new ConflictException("相同幂等键的已读请求正在处理中");
-
-        require(userTicketRepository.existsMessageInTicket(ticketId, lastReadMessageId), "lastReadMessageId 不属于当前工单");
-
-        TicketParticipant participant = userTicketRepository.findActiveParticipant(ticketId, TicketParticipantType.USER, userId)
-                .orElseThrow(() -> new ConflictException("当前用户不是工单活跃参与方"));
-        participant.markRead(lastReadMessageId, null);
-
-        boolean updated = userTicketRepository.updateParticipantReadWithCas(
-                normalizeNotNull(participant.getId(), "participantId 不能为空"),
-                ticketId,
-                normalizeNotNull(participant.getLastReadMessageId(), "lastReadMessageId 不能为空"),
-                normalizeNotNull(participant.getLastReadAt(), "lastReadAt 不能为空"),
-                participant.getUpdatedAt()
-        );
-
-        if (!updated) {
-            TicketParticipant latest = userTicketRepository.findActiveParticipant(ticketId, TicketParticipantType.USER, userId)
-                    .orElseThrow(() -> new ConflictException("当前用户不是工单活跃参与方"));
-            Long latestReadMessageId = latest.getLastReadMessageId();
-            if (latestReadMessageId != null && latestReadMessageId >= lastReadMessageId) {
-                TicketReadUpdateView idempotentView = toReadUpdateView(ticketId, latest);
-                ticketIdempotencyPort.markActionSucceeded(
-                        IDEMPOTENCY_SCENE_MESSAGE_READ,
-                        userId,
-                        ticketNo.getValue(),
-                        idempotencyKey,
-                        String.valueOf(idempotentView.lastReadMessageId()),
-                        IDEMPOTENCY_SUCCESS_TTL
-                );
-                return idempotentView;
-            }
-            throw new ConflictException("已读位点已变化, 请刷新后重试");
-        }
-
-        TicketReadUpdateView result = toReadUpdateView(ticketId, participant);
-        ticketIdempotencyPort.markActionSucceeded(
-                IDEMPOTENCY_SCENE_MESSAGE_READ,
-                userId,
-                ticketNo.getValue(),
-                idempotencyKey,
-                String.valueOf(result.lastReadMessageId()),
-                IDEMPOTENCY_SUCCESS_TTL
-        );
-        return result;
     }
 
     /**
@@ -699,7 +615,7 @@ public class UserTicketService implements IUserTicketService {
     public @NotNull TicketWsSessionIssueView createMyWsSession(@NotNull Long userId,
                                                                @NotNull TicketWsSessionCreateCommand command,
                                                                @NotNull String idempotencyKey) {
-        ITicketIdempotencyPort.TokenStatus tokenStatus = ticketIdempotencyPort.registerActionOrGet(
+        ITicketIdempotencyPort.TokenStatus tokenStatus = idempotencyPort().registerActionOrGet(
                 IDEMPOTENCY_SCENE_WS_SESSION_CREATE,
                 userId,
                 "user",
@@ -710,7 +626,13 @@ public class UserTicketService implements IUserTicketService {
         if (tokenStatus.isSucceeded()) {
             String existedToken = tokenStatus.ticketNo();
             if (existedToken != null && !existedToken.isBlank())
-                return buildWsSessionIssue(existedToken);
+                return ticketWsTokenIssuer.buildSessionIssueView(
+                        existedToken,
+                        DEFAULT_USER_WS_URL,
+                        WS_TOKEN_TTL_SECONDS,
+                        WS_HEARTBEAT_INTERVAL_SECONDS,
+                        WS_RESUME_TTL_SECONDS
+                );
         }
 
         if (tokenStatus.status() == ITicketIdempotencyPort.TokenStatus.Status.IN_PROGRESS)
@@ -725,115 +647,21 @@ public class UserTicketService implements IUserTicketService {
             require(ownedTicketIds.size() == command.ticketIds().size(), "存在无权限订阅的 ticket_id");
         }
 
-        String wsToken = generateWsToken(userId);
-        ticketIdempotencyPort.markActionSucceeded(
+        String wsToken = ticketWsTokenIssuer.issueWsToken(userId, TicketActorStrategy.USER, WS_TOKEN_TTL_SECONDS);
+        markActionSucceeded(
                 IDEMPOTENCY_SCENE_WS_SESSION_CREATE,
                 userId,
                 "user",
                 idempotencyKey,
-                wsToken,
-                IDEMPOTENCY_SUCCESS_TTL
+                wsToken
         );
-        return buildWsSessionIssue(wsToken);
-    }
-
-    /**
-     * 校验消息操作者是否为当前用户
-     *
-     * @param userId   当前用户 ID
-     * @param message  消息实体
-     */
-    private void validateUserMessageOperator(@NotNull Long userId,
-                                             @NotNull TicketMessage message) {
-        if (message.getSenderType() != TicketParticipantType.USER)
-            throw new ConflictException("当前消息不允许用户执行该操作");
-        if (!Objects.equals(message.getSenderUserId(), userId))
-            throw new ConflictException("无权操作该消息");
-    }
-
-    /**
-     * 构建已读位点更新视图
-     *
-     * @param ticketId      工单 ID
-     * @param participant   参与方实体
-     * @return 已读位点更新视图
-     */
-    private @NotNull TicketReadUpdateView toReadUpdateView(@NotNull Long ticketId,
-                                                           @NotNull TicketParticipant participant) {
-        return new TicketReadUpdateView(
-                ticketId,
-                normalizeNotNull(participant.getId(), "participantId 不能为空"),
-                participant.getParticipantType(),
-                participant.getParticipantUserId(),
-                normalizeNotNull(participant.getLastReadMessageId(), "lastReadMessageId 不能为空"),
-                normalizeNotNull(participant.getLastReadAt(), "lastReadAt 不能为空")
-        );
-    }
-
-    /**
-     * 构造 WebSocket 会话签发视图
-     *
-     * @param wsToken WebSocket 令牌
-     * @return 会话签发视图
-     */
-    private @NotNull TicketWsSessionIssueView buildWsSessionIssue(@NotNull String wsToken) {
-        LocalDateTime issuedAt = LocalDateTime.now();
-        LocalDateTime expiresAt = issuedAt.plusSeconds(WS_TOKEN_TTL_SECONDS);
-        return new TicketWsSessionIssueView(
+        return ticketWsTokenIssuer.buildSessionIssueView(
                 wsToken,
                 DEFAULT_USER_WS_URL,
-                issuedAt,
-                expiresAt,
+                WS_TOKEN_TTL_SECONDS,
                 WS_HEARTBEAT_INTERVAL_SECONDS,
                 WS_RESUME_TTL_SECONDS
         );
-    }
-
-    /**
-     * 生成 WebSocket 会话令牌
-     *
-     * @param userId 当前用户 ID
-     * @return 会话令牌
-     */
-    private @NotNull String generateWsToken(@NotNull Long userId) {
-        Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(WS_TOKEN_TTL_SECONDS);
-        try {
-            JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder()
-                    .subject(userId.toString())
-                    .claim("uid", userId)
-                    .claim("typ", "ws")
-                    .claim("scope", "customerservice:ws")
-                    .claim("jti", UUID.randomUUID().toString())
-                    .issueTime(Date.from(now))
-                    .notBeforeTime(Date.from(now))
-                    .expirationTime(Date.from(expiresAt));
-
-            if (jwtIssueSpec.issuer() != null && !jwtIssueSpec.issuer().isBlank())
-                claimsBuilder.issuer(jwtIssueSpec.issuer());
-            if (jwtIssueSpec.audience() != null && !jwtIssueSpec.audience().isBlank())
-                claimsBuilder.audience(Collections.singletonList(jwtIssueSpec.audience()));
-
-            SignedJWT wsJwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claimsBuilder.build());
-            wsJwt.sign(new MACSigner(hmacKey()));
-            return wsJwt.serialize();
-        } catch (Exception e) {
-            throw new IllegalStateException("WebSocket 会话令牌签发失败: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 构建 WebSocket 会话令牌签名所需密钥
-     *
-     * @return HMAC 密钥字节数组
-     */
-    private byte[] hmacKey() {
-        requireNotBlank(jwtIssueSpec.secretBase64(), "JWT 密钥未配置");
-        try {
-            return Base64.getDecoder().decode(jwtIssueSpec.secretBase64().getBytes(StandardCharsets.UTF_8));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("JWT 密钥 Base64 格式非法", e);
-        }
     }
 
     /**
