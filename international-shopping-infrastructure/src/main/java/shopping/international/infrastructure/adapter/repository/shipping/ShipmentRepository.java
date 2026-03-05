@@ -327,7 +327,23 @@ public class ShipmentRepository implements IShipmentRepository {
         if (!acquired)
             return new FillLabelResult(shipment, true);
 
-        int updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
+        int updated;
+        try {
+            updated = updateShipmentWithStatusCas(shipment, oldStatus, oldUpdatedAt);
+        } catch (DuplicateKeyException e) {
+            String errorMessage = e.getMessage();
+            String[] split = errorMessage.substring(
+                    errorMessage.indexOf("Duplicate entry '") + "Duplicate entry '".length(),
+                    errorMessage.indexOf("' for key ")).split("-"
+            );
+            if (split.length < 2) {
+                String key = split[0];
+                throw new ConflictException("外部对接 ID : " + key + "重复");
+            }
+            String carrierCode = split[0];
+            String trackingNo = split[1];
+            throw new ConflictException("承运商代码: " + carrierCode + " 下已有运单号为: " + trackingNo + " 的运单", e);
+        }
         if (updated <= 0)
             throw new ConflictException("物流单并发更新失败");
         Shipment reloaded = findShipmentDetailById(shipmentId, true)
