@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="shopping.international.infrastructure.dao.user.UserAddressExtMapper">
+
+    <insert id="upsertBatch">
+        INSERT INTO user_address_ext (
+        address_id,
+        google_place_id,
+        formatted_address,
+        latitude,
+        longitude,
+        raw_input,
+        postal_address_json,
+        place_response_json,
+        validation_response_id,
+        validation_granularity,
+        geocode_granularity,
+        address_complete,
+        possible_next_action,
+        validation_response_json
+        ) VALUES
+        <foreach collection="items" item="item" separator=",">
+            (
+            #{item.addressId},
+            #{item.googlePlaceId},
+            #{item.formattedAddress},
+            #{item.latitude},
+            #{item.longitude},
+            #{item.rawInput},
+            #{item.postalAddressJson},
+            #{item.placeResponseJson},
+            #{item.validationResponseId},
+            #{item.validationGranularity},
+            #{item.geocodeGranularity},
+            #{item.addressComplete},
+            #{item.possibleNextAction},
+            #{item.validationResponseJson}
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        google_place_id = VALUES(google_place_id),
+        formatted_address = VALUES(formatted_address),
+        latitude = VALUES(latitude),
+        longitude = VALUES(longitude),
+        raw_input = VALUES(raw_input),
+        postal_address_json = VALUES(postal_address_json),
+        place_response_json = VALUES(place_response_json),
+        validation_response_id = VALUES(validation_response_id),
+        validation_granularity = VALUES(validation_granularity),
+        geocode_granularity = VALUES(geocode_granularity),
+        address_complete = VALUES(address_complete),
+        possible_next_action = VALUES(possible_next_action),
+        validation_response_json = VALUES(validation_response_json)
+    </insert>
+
+</mapper>

@@ -2,8 +2,13 @@ package shopping.international.api.req.user;
 
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.user.AddressSource;
 
-import static shopping.international.types.utils.FieldValidateUtils.*;
+import java.util.Locale;
+import java.util.Map;
+
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
  * 新增收货地址请求
@@ -25,6 +30,7 @@ public class CreateAddressRequest {
     /**
      * 国家/省/市/区县
      */
+    private String countryCode;
     @Nullable
     private String country;
     @Nullable
@@ -41,6 +47,24 @@ public class CreateAddressRequest {
     private String addressLine2;
     @Nullable
     private String zipcode;
+    /**
+     * 地址语言
+     */
+    @Nullable
+    private String languageCode;
+    /**
+     * 地址来源
+     */
+    private String addressSource;
+    /**
+     * Google 扩展输入
+     */
+    @Nullable
+    private String rawInput;
+    @Nullable
+    private String googlePlaceId;
+    @Nullable
+    private Map<String, Object> placeResponse;
     /**
      * 是否默认
      */
@@ -62,21 +86,28 @@ public class CreateAddressRequest {
         require(phoneCountryCode.matches("^[1-9][0-9]{0,2}$"), "country_code 格式不正确");
         require(phoneNationalNumber.matches("^[0-9]{1,14}$"), "national_number 格式不正确");
         require((phoneCountryCode.length() + phoneNationalNumber.length()) <= 15, "手机号格式不正确");
+        requireNotBlank(countryCode, "国家编码不能为空");
+        countryCode = countryCode.strip().toUpperCase(Locale.ROOT);
+        require(countryCode.matches("^[A-Z]{2}$"), "countryCode 格式不正确");
         requireNotBlank(addressLine1, "地址行1不能为空");
         addressLine1 = addressLine1.strip();
         requireNotBlank(country, "国家不能为空");
         country = country.strip();
-        requireNotBlank(province, "省份不能为空");
-        province = province.strip();
-        requireNotBlank(city, "城市不能为空");
-        city = city.strip();
-        requireNotBlank(district, "区县不能为空");
-        district = district.strip();
-        if (addressLine2 != null) {
-            requireNotBlank(addressLine2, "地址行2不能为空");
-            addressLine2 = addressLine2.strip();
-        }
-        requireNotBlank(zipcode, "邮编不能为空");
-        zipcode = zipcode.strip();
+        province = normalizeNullable(province);
+        city = normalizeNullable(city);
+        district = normalizeNullable(district);
+        addressLine2 = normalizeNullable(addressLine2);
+        zipcode = normalizeNullable(zipcode);
+        languageCode = normalizeNullable(languageCode);
+        rawInput = normalizeNullable(rawInput);
+        googlePlaceId = normalizeNullable(googlePlaceId);
+        addressSource = AddressSource.parse(addressSource).name();
+    }
+
+    private static String normalizeNullable(String value) {
+        if (value == null)
+            return null;
+        String normalized = value.strip();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

@@ -292,6 +292,50 @@ def _extract_list(data: Any) -> List[Any]:
     return data
 
 
+def _extract_meta(body: Any) -> Dict[str, Any]:
+    _require(isinstance(body, dict), f"response body should be object, got={body}")
+    meta = body.get("meta")
+    _require(isinstance(meta, dict), f"response meta should be object, got={body}")
+    return meta
+
+
+def _assert_page_meta(r: ApiResult, *, page: int, size: int, ctx: str, min_total: Optional[int] = None) -> Dict[str, Any]:
+    meta = _extract_meta(r.body)
+    actual_page = _pick(meta, "page")
+    actual_size = _pick(meta, "size")
+    actual_total = _pick(meta, "total")
+    _require(actual_page == page, f"{ctx}: meta.page={actual_page}, expect={page}, body={_pretty(r.body)}")
+    _require(actual_size == size, f"{ctx}: meta.size={actual_size}, expect={size}, body={_pretty(r.body)}")
+    _require(isinstance(actual_total, int) and actual_total >= 0, f"{ctx}: meta.total invalid, body={_pretty(r.body)}")
+    if isinstance(r.data, list):
+        _require(actual_total >= len(r.data), f"{ctx}: meta.total={actual_total} < data.size={len(r.data)}, body={_pretty(r.body)}")
+    if min_total is not None:
+        _require(actual_total >= min_total, f"{ctx}: meta.total={actual_total}, expect>={min_total}, body={_pretty(r.body)}")
+    return meta
+
+
+def _find_item(items: Any, **expected: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(items, list):
+        return None
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        matched = True
+        for key, value in expected.items():
+            if _pick(item, key) != value:
+                matched = False
+                break
+        if matched:
+            return item
+    return None
+
+
+def _require_list_contains(items: Any, ctx: str, **expected: Any) -> Dict[str, Any]:
+    row = _find_item(items, **expected)
+    _require(row is not None, f"{ctx}: expected={expected}, rows={_pretty(items)}")
+    return row
+
+
 def _find_participant(
     items: Any,
     *,
@@ -416,17 +460,94 @@ def main() -> int:
     admin_user_id = _resolve_user_id(args.admin_user_id, admin, "admin")
     print(f"  user_id={user_user_id}, admin_id={admin_user_id}")
 
-    print("[2/17] /users/me/tickets query validation")
-    r = user.request("GET", "/users/me/tickets", params={"page": 1, "size": 20})
-    _assert_success(r, (200,), "GET /users/me/tickets positive")
-    _extract_list(r.data)
+    print("[2/17] bootstrap seed ticket + /users/me/tickets query validation")
+    seed_created, _, seed_issue_type = _create_main_ticket(
+        user,
+        args.order_id,
+        args.order_item_id,
+        args.shipment_id,
+        args.main_issue_type,
+    )
+    _assert_success(seed_created, (201,), "bootstrap seed ticket for /users/me/tickets query")
+    seed_ticket_id, seed_ticket_no = _extract_ticket_identity(seed_created.data)
+    seed_ticket_status = str(_pick(seed_created.data, "status") or "")
+    _require(bool(seed_ticket_status), f"seed ticket status missing: {seed_created.data}")
 
-    r = user.request("GET", "/users/me/tickets", params={"page": 1, "size": 200})
+    seed_detail = user.request("GET", f"/users/me/tickets/{seed_ticket_no}")
+    _assert_success(seed_detail, (200,), "GET bootstrap seed ticket detail")
+    seed_order_no = _pick(seed_detail.data, "order_no")
+    _require(bool(seed_order_no), f"seed ticket order_no missing: {seed_detail.data}")
+    print(
+        f"  seed ticket: ticket_id={seed_ticket_id}, ticket_no={seed_ticket_no}, "
+        f"issue_type={seed_issue_type}, status={seed_ticket_status}"
+    )
+
+    r = user.request(
+        "GET",
+        "/users/me/tickets",
+        params={
+            "page": 1,
+            "size": 20,
+            "order_no": str(seed_order_no),
+            "issue_type": seed_issue_type,
+            "status": seed_ticket_status,
+        },
+    )
+    _assert_success(r, (200,), "GET /users/me/tickets positive")
+    seed_ticket_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=20, min_total=1, ctx="GET /users/me/tickets positive")
+    _require_list_contains(
+        seed_ticket_rows,
+        "GET /users/me/tickets should contain bootstrap seed ticket",
+        ticket_no=seed_ticket_no,
+    )
+
+    r = user.request(
+        "GET",
+        "/users/me/tickets",
+        params={
+            "page": 1,
+            "size": 200,
+            "order_no": str(seed_order_no),
+            "issue_type": seed_issue_type,
+            "status": seed_ticket_status,
+        },
+    )
     _assert_success(r, (200,), "GET /users/me/tickets size=200")
+    seed_ticket_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=200, min_total=1, ctx="GET /users/me/tickets size=200")
+    _require_list_contains(
+        seed_ticket_rows,
+        "GET /users/me/tickets size=200 should contain bootstrap seed ticket",
+        ticket_no=seed_ticket_no,
+    )
     r = user.request("GET", "/users/me/tickets", params={"page": 0})
     _assert_bad_request(r, "page", "GET /users/me/tickets page=0")
-    r = user.request("GET", "/users/me/tickets", params={"size": 201})
-    _assert_bad_request(r, "size", "GET /users/me/tickets size=201")
+    r = user.request(
+        "GET",
+        "/users/me/tickets",
+        params={
+            "page": 1,
+            "size": 201,
+            "order_no": str(seed_order_no),
+            "issue_type": seed_issue_type,
+            "status": seed_ticket_status,
+        },
+    )
+    _assert_success(r, (200,), "GET /users/me/tickets size=201 should be clamped to 200")
+    seed_ticket_rows = _extract_list(r.data)
+    _assert_page_meta(
+        r,
+        page=1,
+        size=200,
+        min_total=1,
+        ctx="GET /users/me/tickets size=201 should be clamped to 200",
+    )
+    _require_list_contains(
+        seed_ticket_rows,
+        "GET /users/me/tickets size=201 should still contain bootstrap seed ticket",
+        ticket_no=seed_ticket_no,
+    )
     r = user.request("GET", "/users/me/tickets", params={"status": "INVALID"})
     _assert_bad_request(r, "status", "GET /users/me/tickets invalid status")
     r = user.request("GET", "/users/me/tickets", params={"order_no": ""})
@@ -437,6 +558,14 @@ def main() -> int:
         params={"created_from": "2026-03-03T00:00:00Z", "created_to": "2026-03-01T00:00:00Z"},
     )
     _assert_bad_request(r, "created_from", "GET /users/me/tickets invalid date range")
+
+    r = user.request(
+        "POST",
+        f"/users/me/tickets/{seed_ticket_no}/close",
+        json_body={"note": "bootstrap cleanup"},
+        headers={"Idempotency-Key": _idem_key()},
+    )
+    _assert_success(r, (200,), "POST bootstrap seed ticket close")
 
     print("[3/17] /users/me/tickets create validation + positive + duplicate conflict")
     bad_payload_base = {
@@ -490,6 +619,8 @@ def main() -> int:
     )
     _assert_success(created, (201,), "POST /users/me/tickets positive main")
     ticket_id, ticket_no = _extract_ticket_identity(created.data)
+    created_ticket_status = str(_pick(created.data, "status") or "")
+    _require(bool(created_ticket_status), f"created ticket status missing: {created.data}")
     print(f"  main ticket created: ticket_id={ticket_id}, ticket_no={ticket_no}, issue_type={selected_issue_type}")
 
     r = user.request(
@@ -505,6 +636,28 @@ def main() -> int:
     _assert_success(r, (200,), "GET /users/me/tickets/{ticket_no} positive")
     detail_ticket_id, detail_ticket_no = _extract_ticket_identity(r.data)
     _require(detail_ticket_id == ticket_id and detail_ticket_no == ticket_no, "ticket detail identity mismatch")
+    order_no = _pick(r.data, "order_no")
+    _require(bool(order_no), f"ticket detail order_no missing: {r.data}")
+
+    r = user.request(
+        "GET",
+        "/users/me/tickets",
+        params={
+            "page": 1,
+            "size": 200,
+            "order_no": str(order_no),
+            "issue_type": selected_issue_type,
+            "status": created_ticket_status,
+        },
+    )
+    _assert_success(r, (200,), "GET /users/me/tickets should contain created ticket")
+    user_ticket_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=200, min_total=1, ctx="GET /users/me/tickets should contain created ticket")
+    _require_list_contains(
+        user_ticket_rows,
+        "GET /users/me/tickets should contain created ticket",
+        ticket_no=ticket_no,
+    )
 
     r = user.request("GET", f"/users/me/tickets/{_str_len(9, 'A')}")
     _assert_bad_request(r, "ticket_no", "GET /users/me/tickets/{ticket_no} length<10")
@@ -589,6 +742,16 @@ def main() -> int:
     _assert_success(r, (201,), "POST /users/me/tickets/{ticket_no}/messages positive")
     user_message_id, user_message_no = _extract_message_identity(r.data)
     print(f"  user message: id={user_message_id}, no={user_message_no}")
+
+    r = user.request("GET", f"/users/me/tickets/{ticket_no}/messages", params={"size": 100})
+    _assert_success(r, (200,), "GET /users/me/tickets/{ticket_no}/messages should contain created user message")
+    user_message_rows = _extract_list(r.data)
+    _require_list_contains(
+        user_message_rows,
+        "GET /users/me/tickets/{ticket_no}/messages should contain created user message",
+        id=user_message_id,
+        message_no=user_message_no,
+    )
 
     r = user.request(
         "PATCH",
@@ -709,7 +872,14 @@ def main() -> int:
 
     r = user.request("GET", f"/users/me/tickets/{ticket_no}/status-logs", params={"page": 1, "size": 200})
     _assert_success(r, (200,), "GET /users/me/tickets/{ticket_no}/status-logs positive")
-    _extract_list(r.data)
+    user_status_log_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=200, min_total=1, ctx="GET /users/me/tickets/{ticket_no}/status-logs positive")
+    _require_list_contains(
+        user_status_log_rows,
+        "GET /users/me/tickets/{ticket_no}/status-logs should contain created status log",
+        ticket_id=ticket_id,
+        to_status=created_ticket_status,
+    )
     r = user.request("GET", f"/users/me/tickets/{ticket_no}/status-logs", params={"size": 201})
     _assert_bad_request(r, "size", "GET /users/me/tickets/{ticket_no}/status-logs size=201")
     r = user.request("GET", f"/users/me/tickets/{_rand_ticket_no()}/status-logs")
@@ -761,7 +931,14 @@ def main() -> int:
     print("[6/17] admin tickets page/detail/patch/assign")
     r = admin.request("GET", "/admin/tickets", params={"page": 1, "size": 200, "ticket_no": ticket_no})
     _assert_success(r, (200,), "GET /admin/tickets positive")
-    _extract_list(r.data)
+    admin_ticket_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=200, min_total=1, ctx="GET /admin/tickets positive")
+    _require_list_contains(
+        admin_ticket_rows,
+        "GET /admin/tickets should contain created ticket",
+        ticket_id=ticket_id,
+        ticket_no=ticket_no,
+    )
     r = admin.request("GET", "/admin/tickets", params={"size": 201})
     _assert_bad_request(r, "size", "GET /admin/tickets size=201")
     r = admin.request("GET", "/admin/tickets", params={"status": "INVALID"})
@@ -905,6 +1082,16 @@ def main() -> int:
     _assert_success(r, (201,), "POST /admin/tickets/{ticket_id}/messages positive")
     admin_message_id, admin_message_no = _extract_message_identity(r.data)
     print(f"  admin message: id={admin_message_id}, no={admin_message_no}")
+
+    r = admin.request("GET", f"/admin/tickets/{ticket_id}/messages", params={"size": 100})
+    _assert_success(r, (200,), "GET /admin/tickets/{ticket_id}/messages should contain created admin message")
+    admin_message_rows = _extract_list(r.data)
+    _require_list_contains(
+        admin_message_rows,
+        "GET /admin/tickets/{ticket_id}/messages should contain created admin message",
+        id=admin_message_id,
+        message_no=admin_message_no,
+    )
 
     r = admin.request("PATCH", f"/admin/tickets/{ticket_id}/messages/{admin_message_id}", json_body={"content": "edit"})
     _assert_bad_request(r, "Idempotency-Key", "PATCH /admin/tickets/{ticket_id}/messages/{message_id} missing idem")
@@ -1182,7 +1369,14 @@ def main() -> int:
 
     r = admin.request("GET", f"/admin/tickets/{ticket_id}/status-logs", params={"page": 1, "size": 200})
     _assert_success(r, (200,), "GET /admin/tickets/{ticket_id}/status-logs positive")
-    _extract_list(r.data)
+    admin_status_log_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=200, min_total=1, ctx="GET /admin/tickets/{ticket_id}/status-logs positive")
+    _require_list_contains(
+        admin_status_log_rows,
+        "GET /admin/tickets/{ticket_id}/status-logs should contain IN_PROGRESS log",
+        ticket_id=ticket_id,
+        to_status="IN_PROGRESS",
+    )
     r = admin.request("GET", f"/admin/tickets/{ticket_id}/status-logs", params={"size": 201})
     _assert_bad_request(r, "size", "GET /admin/tickets/{ticket_id}/status-logs size=201")
     r = admin.request("GET", "/admin/tickets/999999999999/status-logs")
@@ -1190,7 +1384,15 @@ def main() -> int:
 
     r = admin.request("GET", f"/admin/tickets/{ticket_id}/assignment-logs", params={"page": 1, "size": 200})
     _assert_success(r, (200,), "GET /admin/tickets/{ticket_id}/assignment-logs positive")
-    _extract_list(r.data)
+    admin_assignment_log_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=200, min_total=1, ctx="GET /admin/tickets/{ticket_id}/assignment-logs positive")
+    _require_list_contains(
+        admin_assignment_log_rows,
+        "GET /admin/tickets/{ticket_id}/assignment-logs should contain ASSIGN log",
+        ticket_id=ticket_id,
+        action_type="ASSIGN",
+        to_assignee_user_id=admin_user_id,
+    )
     r = admin.request("GET", f"/admin/tickets/{ticket_id}/assignment-logs", params={"size": 201})
     _assert_bad_request(r, "size", "GET /admin/tickets/{ticket_id}/assignment-logs size=201")
     r = admin.request("GET", "/admin/tickets/999999999999/assignment-logs")
@@ -1261,9 +1463,17 @@ def main() -> int:
     reship_id, reship_no = _extract_reship_identity(r.data)
     print(f"  reship created: id={reship_id}, no={reship_no}")
 
-    r = admin.request("GET", "/admin/reships", params={"page": 1, "size": 200, "ticket_id": ticket_id})
+    r = admin.request("GET", "/admin/reships", params={"page": 1, "size": 200, "reship_no": reship_no, "ticket_id": ticket_id})
     _assert_success(r, (200,), "GET /admin/reships positive")
-    _extract_list(r.data)
+    admin_reship_rows = _extract_list(r.data)
+    _assert_page_meta(r, page=1, size=200, min_total=1, ctx="GET /admin/reships positive")
+    _require_list_contains(
+        admin_reship_rows,
+        "GET /admin/reships should contain created reship",
+        id=reship_id,
+        reship_no=reship_no,
+        ticket_id=ticket_id,
+    )
     r = admin.request("GET", "/admin/reships", params={"size": 201})
     _assert_bad_request(r, "size", "GET /admin/reships size=201")
     r = admin.request("GET", "/admin/reships", params={"status": "INVALID"})

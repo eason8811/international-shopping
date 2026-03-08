@@ -15,25 +15,14 @@ import shopping.international.domain.adapter.repository.user.IUserRepository;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.entity.user.AuthBinding;
 import shopping.international.domain.model.entity.user.UserAddress;
-import shopping.international.domain.model.enums.user.AccountStatus;
-import shopping.international.domain.model.enums.user.AuthProvider;
-import shopping.international.domain.model.enums.user.Gender;
+import shopping.international.domain.model.enums.user.*;
 import shopping.international.domain.model.vo.user.*;
-import shopping.international.infrastructure.dao.user.UserAccountMapper;
-import shopping.international.infrastructure.dao.user.UserAddressMapper;
-import shopping.international.infrastructure.dao.user.UserAuthMapper;
-import shopping.international.infrastructure.dao.user.UserProfileMapper;
-import shopping.international.infrastructure.dao.user.po.UserAccountPO;
-import shopping.international.infrastructure.dao.user.po.UserAddressPO;
-import shopping.international.infrastructure.dao.user.po.UserAuthPO;
-import shopping.international.infrastructure.dao.user.po.UserProfilePO;
+import shopping.international.infrastructure.dao.user.*;
+import shopping.international.infrastructure.dao.user.po.*;
 import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -62,6 +51,10 @@ public class UserRepository implements IUserRepository {
      * user_address Mapper
      */
     private final UserAddressMapper addressMapper;
+    /**
+     * user_address_ext Mapper
+     */
+    private final UserAddressExtMapper addressExtMapper;
     /**
      * JSON 序列化/反序列化工具
      */
@@ -579,7 +572,7 @@ public class UserRepository implements IUserRepository {
                 .orderByDesc(UserAddressPO::getIsDefault)
                 .orderByDesc(UserAddressPO::getId)
                 .last("limit " + limit + " offset " + offset));
-        return list.stream().map(this::toDomainAddress).toList();
+        return list.stream().map(addressPO -> toDomainAddress(addressPO, null)).toList();
     }
 
     /**
@@ -608,7 +601,7 @@ public class UserRepository implements IUserRepository {
                 .last("limit 1"));
         if (po == null)
             return Optional.empty();
-        return Optional.of(toDomainAddress(po));
+        return Optional.of(toDomainAddress(po, addressExtMapper.selectById(addressId)));
     }
 
     /**
@@ -628,46 +621,44 @@ public class UserRepository implements IUserRepository {
                 new LambdaQueryWrapper<UserAddressPO>()
                         .eq(UserAddressPO::getUserId, userId)
         );
+        Map<Long, UserAddressExtPO> existingExtMap = loadExtMap(existing);
 
         // 2. 以 ID 为 key 做 diff, 决定 insert / update / delete
         Map<Long, UserAddressPO> existingMap = existing.stream()
                 .collect(Collectors.toMap(UserAddressPO::getId, Function.identity()));
-
-        // 创建映射 (key: UserAddress 实体的 HashCode, value: UserAddress)
-        Map<Integer, UserAddressPO> toInsertMap = new HashMap<>();
-        Map<Integer, UserAddressPO> toUpdateMap = new HashMap<>();
-        Map<Integer, Long> toDeleteMap = new HashMap<>();
+        Map<UserAddress, Long> insertedIds = new IdentityHashMap<>();
+        List<UserAddressExtPO> extUpserts = new ArrayList<>();
         for (UserAddress address : addressList) {
             if (address.getId() == null) {
                 // 新增
-                toInsertMap.put(address.hashCode(), toAddressPO(userId, address));
+                UserAddressPO insertPO = toAddressPO(userId, address);
+                addressMapper.insert(insertPO);
+                insertedIds.put(address, insertPO.getId());
+                collectAddressExtUpsert(extUpserts, insertPO.getId(), null, address.getExtension());
                 continue;
             }
 
-            UserAddressPO addressPO = existingMap.remove(address.getId());
-            if (addressPO != null) {
-                // 更新
-                UserAddressPO updatedAddressPO = toAddressPO(userId, address);
-                updatedAddressPO.setId(addressPO.getId());
-                toUpdateMap.put(address.hashCode(), updatedAddressPO);
-                continue;
-            }
-            // 理论上不该出现, 防御性处理
-            toInsertMap.put(address.hashCode(), toAddressPO(userId, address));
+            UserAddressPO currentPO = existingMap.remove(address.getId());
+            UserAddressExtPO currentExtPO = existingExtMap.remove(address.getId());
+            if (currentPO == null)
+                throw new IllegalStateException("地址已存在领域ID但数据库记录不存在, id=" + address.getId());
+
+            UserAddressPO nextPO = toAddressPO(userId, address);
+            nextPO.setId(address.getId());
+            if (!sameAddressMain(currentPO, nextPO))
+                addressMapper.updateById(nextPO);
+            collectAddressExtUpsert(extUpserts, address.getId(), currentExtPO, address.getExtension());
         }
 
+        if (!extUpserts.isEmpty())
+            addressExtMapper.upsertBatch(extUpserts);
 
         // 3. 余下 existingMap 中的是 domain 里已删除而 DB 里还存在的, 按需 delete
         for (UserAddressPO toDelete : existingMap.values())
-            toDeleteMap.put(toDelete.hashCode(), toDelete.getId());
+            addressMapper.deleteById(toDelete.getId());
 
-        addressMapper.insert(toInsertMap.values());
-        addressMapper.updateById(toUpdateMap.values());
-        addressMapper.deleteByIds(toDeleteMap.values());
-
-        for (UserAddress userAddress : addressList)
-            if (userAddress.getId() == null)
-                userAddress.assignId(toInsertMap.get(userAddress.hashCode()).getId());
+        for (Map.Entry<UserAddress, Long> entry : insertedIds.entrySet())
+            entry.getKey().assignId(entry.getValue());
     }
 
     /**
@@ -709,7 +700,7 @@ public class UserRepository implements IUserRepository {
 
         // 映射子实体
         List<AuthBinding> bindings = authList.stream().map(this::toDomainAuth).toList();
-        List<UserAddress> addresses = addrList.stream().map(this::toDomainAddress).toList();
+        List<UserAddress> addresses = addrList.stream().map(addressPO -> toDomainAddress(addressPO, null)).toList();
 
         // Profile → 值对象 (你的 UserProfile API 若不同, 可在此适配)
         UserProfile profileVO = (profile == null) ? UserProfile.empty() : UserProfile.of(
@@ -774,22 +765,28 @@ public class UserRepository implements IUserRepository {
      * @param addressPO 用户地址持久化对象, 包含了用户地址的所有信息
      * @return 转换后的 {@link UserAddress} 实体, 代表用户的某个收货地址的详细信息
      */
-    private UserAddress toDomainAddress(UserAddressPO addressPO) {
-        return new UserAddress(
-                addressPO.getId(),
-                addressPO.getReceiverName(),
-                PhoneNumber.nullableOfParts(addressPO.getPhoneCountryCode(), addressPO.getPhoneNationalNumber()),
-                addressPO.getCountry(),
-                addressPO.getProvince(),
-                addressPO.getCity(),
-                addressPO.getDistrict(),
-                addressPO.getAddressLine1(),
-                addressPO.getAddressLine2(),
-                addressPO.getZipcode(),
-                Boolean.TRUE.equals(addressPO.getIsDefault()),
-                addressPO.getCreatedAt(),
-                addressPO.getUpdatedAt()
-        );
+    private UserAddress toDomainAddress(UserAddressPO addressPO, @Nullable UserAddressExtPO addressExtPO) {
+        return UserAddress.builder()
+                .id(addressPO.getId())
+                .receiverName(addressPO.getReceiverName())
+                .phone(PhoneNumber.nullableOfParts(addressPO.getPhoneCountryCode(), addressPO.getPhoneNationalNumber()))
+                .countryCode(addressPO.getCountryCode())
+                .country(addressPO.getCountry())
+                .province(addressPO.getProvince())
+                .city(addressPO.getCity())
+                .district(addressPO.getDistrict())
+                .addressLine1(addressPO.getAddressLine1())
+                .addressLine2(addressPO.getAddressLine2())
+                .zipcode(addressPO.getZipcode())
+                .languageCode(addressPO.getLanguageCode())
+                .addressSource(parseAddressSource(addressPO.getAddressSource()))
+                .validationStatus(parseValidationStatus(addressPO.getValidationStatus()))
+                .validatedAt(addressPO.getValidatedAt())
+                .defaultAddress(Boolean.TRUE.equals(addressPO.getIsDefault()))
+                .createdAt(addressPO.getCreatedAt())
+                .updatedAt(addressPO.getUpdatedAt())
+                .extension(toAddressExtension(addressExtPO))
+                .build();
     }
 
     /**
@@ -805,6 +802,7 @@ public class UserRepository implements IUserRepository {
                 .receiverName(address.getReceiverName())
                 .phoneCountryCode(address.getPhone() == null ? null : address.getPhone().requireCountryCode())
                 .phoneNationalNumber(address.getPhone() == null ? null : address.getPhone().requireNationalNumber())
+                .countryCode(address.getCountryCode())
                 .country(address.getCountry())
                 .province(address.getProvince())
                 .city(address.getCity())
@@ -812,10 +810,193 @@ public class UserRepository implements IUserRepository {
                 .addressLine1(address.getAddressLine1())
                 .addressLine2(address.getAddressLine2())
                 .zipcode(address.getZipcode())
+                .languageCode(address.getLanguageCode())
+                .addressSource(address.getAddressSource() == null ? null : address.getAddressSource().name())
+                .validationStatus(address.getValidationStatus() == null ? null : address.getValidationStatus().name())
+                .validatedAt(address.getValidatedAt())
                 .isDefault(address.isDefaultAddress())
                 .createdAt(address.getCreatedAt())
                 .updatedAt(address.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * 收集需要写入数据库的地址扩展变更。
+     *
+     * <p>该方法只负责比较当前快照与目标快照, 将新增或变更过的扩展记录放入批量 upsert 集合,
+     * 不直接执行数据库操作。</p>
+     *
+     * @param upserts       批量 upsert 集合
+     * @param addressId     地址的唯一标识符, 可以为 <code>null</code>
+     * @param current       当前存储于系统中的用户地址扩展信息, 可以为 <code>null</code>
+     * @param nextExtension 用户即将设置的新地址扩展信息, 包含了额外的地址详情, 可以为 <code>null</code>
+     */
+    private void collectAddressExtUpsert(@NotNull List<UserAddressExtPO> upserts,
+                                         @Nullable Long addressId,
+                                         @Nullable UserAddressExtPO current,
+                                         @Nullable UserAddressExtension nextExtension) {
+        if (addressId == null || nextExtension == null)
+            return;
+        UserAddressExtPO next = toAddressExtPO(addressId, nextExtension);
+        if (current == null) {
+            upserts.add(next);
+            return;
+        }
+        if (!sameAddressExt(current, next))
+            upserts.add(next);
+    }
+
+    /**
+     * 根据给定的 <code>UserAddressPO</code> 列表加载相关的扩展信息, 并将其以 <code>Map</code> 形式返回
+     * 其中键为 <code>UserAddressPO</code> 的 id, 值为其对应的 <code>UserAddressExtPO</code> 对象
+     *
+     * @param addressPOList 一个包含多个 <code>UserAddressPO</code> 对象的列表
+     * @return 返回一个 <code>Map</code>, 键是地址 ID, 值是与之关联的 <code>UserAddressExtPO</code> 对象
+     * 如果输入列表为空或 null, 则返回空映射
+     */
+    private Map<Long, UserAddressExtPO> loadExtMap(List<UserAddressPO> addressPOList) {
+        if (addressPOList == null || addressPOList.isEmpty())
+            return Map.of();
+        List<Long> addressIds = addressPOList.stream().map(UserAddressPO::getId).toList();
+        return addressExtMapper.selectList(new LambdaQueryWrapper<UserAddressExtPO>()
+                        .in(UserAddressExtPO::getAddressId, addressIds))
+                .stream()
+                .collect(Collectors.toMap(UserAddressExtPO::getAddressId, Function.identity()));
+    }
+
+    /**
+     * 将 <code>UserAddressExtPO</code> 对象转换为 <code>UserAddressExtension</code> 对象
+     *
+     * @param addressExtPO 用于转换的 <code>UserAddressExtPO</code> 对象 如果为 null, 则返回 null
+     * @return 转换后的 <code>UserAddressExtension</code> 对象 或 null (当输入为 null 时)
+     */
+    private @Nullable UserAddressExtension toAddressExtension(@Nullable UserAddressExtPO addressExtPO) {
+        if (addressExtPO == null)
+            return null;
+        return UserAddressExtension.builder()
+                .googlePlaceId(addressExtPO.getGooglePlaceId())
+                .formattedAddress(addressExtPO.getFormattedAddress())
+                .latitude(addressExtPO.getLatitude())
+                .longitude(addressExtPO.getLongitude())
+                .rawInput(addressExtPO.getRawInput())
+                .postalAddressJson(addressExtPO.getPostalAddressJson())
+                .placeResponseJson(addressExtPO.getPlaceResponseJson())
+                .validationResponseId(addressExtPO.getValidationResponseId())
+                .validationGranularity(addressExtPO.getValidationGranularity())
+                .geocodeGranularity(addressExtPO.getGeocodeGranularity())
+                .addressComplete(addressExtPO.getAddressComplete())
+                .possibleNextAction(addressExtPO.getPossibleNextAction())
+                .validationResponseJson(addressExtPO.getValidationResponseJson())
+                .build();
+    }
+
+    /**
+     * 将 <code>UserAddressExtension</code> 对象转换为 <code>UserAddressExtPO</code> 对象
+     *
+     * @param addressId 地址的唯一标识符 不能为 null
+     * @param extension 包含地址扩展信息的对象 不能为 null
+     * @return 转换后的 <code>UserAddressExtPO</code> 对象
+     */
+    private UserAddressExtPO toAddressExtPO(@NotNull Long addressId, @NotNull UserAddressExtension extension) {
+        return UserAddressExtPO.builder()
+                .addressId(addressId)
+                .googlePlaceId(extension.getGooglePlaceId())
+                .formattedAddress(extension.getFormattedAddress())
+                .latitude(extension.getLatitude())
+                .longitude(extension.getLongitude())
+                .rawInput(extension.getRawInput())
+                .postalAddressJson(extension.getPostalAddressJson())
+                .placeResponseJson(extension.getPlaceResponseJson())
+                .validationResponseId(extension.getValidationResponseId())
+                .validationGranularity(extension.getValidationGranularity())
+                .geocodeGranularity(extension.getGeocodeGranularity())
+                .addressComplete(extension.getAddressComplete())
+                .possibleNextAction(extension.getPossibleNextAction())
+                .validationResponseJson(extension.getValidationResponseJson())
+                .build();
+    }
+
+    /**
+     * 比较两个用户地址对象是否包含相同的信息
+     *
+     * @param current 第一个 <code>UserAddressPO</code> 对象, 代表当前的用户地址信息
+     * @param next    第二个 <code>UserAddressPO</code> 对象, 用于与第一个对象进行比较
+     * @return 如果两个地址对象的所有属性都相等, 则返回 <code>true</code>; 否则返回 <code>false</code>
+     */
+    private boolean sameAddressMain(UserAddressPO current, UserAddressPO next) {
+        return Objects.equals(current.getUserId(), next.getUserId())
+                && Objects.equals(current.getReceiverName(), next.getReceiverName())
+                && Objects.equals(current.getPhoneCountryCode(), next.getPhoneCountryCode())
+                && Objects.equals(current.getPhoneNationalNumber(), next.getPhoneNationalNumber())
+                && Objects.equals(current.getCountryCode(), next.getCountryCode())
+                && Objects.equals(current.getCountry(), next.getCountry())
+                && Objects.equals(current.getProvince(), next.getProvince())
+                && Objects.equals(current.getCity(), next.getCity())
+                && Objects.equals(current.getDistrict(), next.getDistrict())
+                && Objects.equals(current.getAddressLine1(), next.getAddressLine1())
+                && Objects.equals(current.getAddressLine2(), next.getAddressLine2())
+                && Objects.equals(current.getZipcode(), next.getZipcode())
+                && Objects.equals(current.getLanguageCode(), next.getLanguageCode())
+                && Objects.equals(current.getAddressSource(), next.getAddressSource())
+                && Objects.equals(current.getValidationStatus(), next.getValidationStatus())
+                && Objects.equals(current.getValidatedAt(), next.getValidatedAt())
+                && Objects.equals(current.getIsDefault(), next.getIsDefault());
+    }
+
+    /**
+     * 比较两个 <code>UserAddressExtPO</code> 对象是否具有相同的地址信息
+     *
+     * @param current 当前的 <code>UserAddressExtPO</code> 对象
+     * @param next    下一个 <code>UserAddressExtPO</code> 对象
+     * @return 如果两个对象的所有相关字段都相等, 则返回 true; 否则返回 false
+     */
+    private boolean sameAddressExt(UserAddressExtPO current, UserAddressExtPO next) {
+        return Objects.equals(current.getGooglePlaceId(), next.getGooglePlaceId())
+                && Objects.equals(current.getFormattedAddress(), next.getFormattedAddress())
+                && Objects.equals(current.getLatitude(), next.getLatitude())
+                && Objects.equals(current.getLongitude(), next.getLongitude())
+                && Objects.equals(current.getRawInput(), next.getRawInput())
+                && Objects.equals(current.getPostalAddressJson(), next.getPostalAddressJson())
+                && Objects.equals(current.getPlaceResponseJson(), next.getPlaceResponseJson())
+                && Objects.equals(current.getValidationResponseId(), next.getValidationResponseId())
+                && Objects.equals(current.getValidationGranularity(), next.getValidationGranularity())
+                && Objects.equals(current.getGeocodeGranularity(), next.getGeocodeGranularity())
+                && Objects.equals(current.getAddressComplete(), next.getAddressComplete())
+                && Objects.equals(current.getPossibleNextAction(), next.getPossibleNextAction())
+                && Objects.equals(current.getValidationResponseJson(), next.getValidationResponseJson());
+    }
+
+    /**
+     * 解析原始字符串为 {@link AddressSource} 枚举值
+     * 如果输入为空或无法匹配到任何 {@link AddressSource} 枚举值, 则返回 {@link AddressSource#MANUAL}
+     *
+     * @param raw 输入的原始字符串, 代表地址来源
+     * @return 返回解析后的 {@link AddressSource} 枚举值 或 {@link AddressSource#MANUAL} 如果无法解析
+     */
+    private AddressSource parseAddressSource(String raw) {
+        if (raw == null || raw.isBlank())
+            return AddressSource.MANUAL;
+        try {
+            return AddressSource.valueOf(raw);
+        } catch (IllegalArgumentException exception) {
+            return AddressSource.MANUAL;
+        }
+    }
+
+    /**
+     * 解析原始字符串为 {@link AddressValidationStatus} 枚举值
+     *
+     * @param raw 原始字符串, 代表地址验证状态的文本表示形式 如果为空或空白, 则返回 {@link AddressValidationStatus#UNVALIDATED}
+     * @return 返回与给定字符串对应的 {@link AddressValidationStatus} 枚举值 若无法匹配到任何枚举成员, 或者输入为空白, 则返回 {@link AddressValidationStatus#UNVALIDATED}
+     */
+    private AddressValidationStatus parseValidationStatus(String raw) {
+        if (raw == null || raw.isBlank())
+            return AddressValidationStatus.UNVALIDATED;
+        try {
+            return AddressValidationStatus.valueOf(raw);
+        } catch (IllegalArgumentException exception) {
+            return AddressValidationStatus.UNVALIDATED;
+        }
     }
 
     /**

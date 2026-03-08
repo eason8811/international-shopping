@@ -1,15 +1,7 @@
 package shopping.international.infrastructure.dao.customerservice.po;
 
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import com.baomidou.mybatisplus.annotation.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -147,7 +139,7 @@ public class CsTicketPO {
     /**
      * 当前状态进入时间
      */
-    @TableField("status_changed_at")
+    @TableField(value = "status_changed_at", exist = false)
     private LocalDateTime statusChangedAt;
     /**
      * 来源引用 ID

@@ -12,8 +12,10 @@ import shopping.international.api.req.user.UpdateAddressRequest;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.user.AddressRespond;
 import shopping.international.domain.model.entity.user.UserAddress;
+import shopping.international.domain.model.enums.user.AddressSource;
 import shopping.international.domain.model.vo.PageQuery;
 import shopping.international.domain.model.vo.PageResult;
+import shopping.international.domain.model.vo.user.AddressChangeCommand;
 import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.domain.service.user.IAddressService;
 import shopping.international.types.constant.SecurityConstants;
@@ -86,17 +88,31 @@ public class AddressController {
         req.validate();
         Long uid = requireCurrentUserId();
 
-        PhoneNumber phoneNumber = PhoneNumber.ofParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber());
-        UserAddress newAddress = UserAddress.of(req.getReceiverName(), phoneNumber, req.getCountry(),
-                req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
-                req.getZipcode(), Boolean.TRUE.equals(req.getIsDefault()));
+        AddressChangeCommand command = AddressChangeCommand.builder()
+                .receiverName(req.getReceiverName())
+                .phone(PhoneNumber.ofParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber()))
+                .countryCode(req.getCountryCode())
+                .country(req.getCountry())
+                .province(req.getProvince())
+                .city(req.getCity())
+                .district(req.getDistrict())
+                .addressLine1(req.getAddressLine1())
+                .addressLine2(req.getAddressLine2())
+                .zipcode(req.getZipcode())
+                .languageCode(req.getLanguageCode())
+                .addressSource(AddressSource.parse(req.getAddressSource()))
+                .makeDefault(Boolean.TRUE.equals(req.getIsDefault()))
+                .rawInput(req.getRawInput())
+                .googlePlaceId(req.getGooglePlaceId())
+                .placeResponse(req.getPlaceResponse())
+                .build();
 
         try {
-            UserAddress created = addressService.create(uid, newAddress, idempotencyKey);
+            UserAddress created = addressService.create(uid, command, idempotencyKey);
             return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
                     .body(Result.created(AddressRespond.from(created)));
         } catch (IdempotencyException ignore) {
-            log.warn("参数为 uid={}, newAddress={}, idempotencyKey={} 的请求已处理过, 忽略本次请求", uid, newAddress, idempotencyKey);
+            log.warn("参数为 uid={}, command={}, idempotencyKey={} 的请求已处理过, 忽略本次请求", uid, command, idempotencyKey);
             return ResponseEntity.status(ApiCode.ACCEPTED.toHttpStatus())
                     .body(Result.accepted("该地址已提交"));
         }
@@ -130,10 +146,25 @@ public class AddressController {
         req.validate();
         Long uid = requireCurrentUserId();
 
-        PhoneNumber phone = PhoneNumber.nullableOfParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber());
-        UserAddress updated = addressService.update(uid, id, req.getReceiverName(), phone, req.getCountry(),
-                req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
-                req.getZipcode(), req.getIsDefault());
+        AddressChangeCommand command = AddressChangeCommand.builder()
+                .receiverName(req.getReceiverName())
+                .phone(PhoneNumber.nullableOfParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber()))
+                .countryCode(req.getCountryCode())
+                .country(req.getCountry())
+                .province(req.getProvince())
+                .city(req.getCity())
+                .district(req.getDistrict())
+                .addressLine1(req.getAddressLine1())
+                .addressLine2(req.getAddressLine2())
+                .zipcode(req.getZipcode())
+                .languageCode(req.getLanguageCode())
+                .addressSource(req.getAddressSource() == null ? null : AddressSource.parse(req.getAddressSource()))
+                .makeDefault(req.getIsDefault())
+                .rawInput(req.getRawInput())
+                .googlePlaceId(req.getGooglePlaceId())
+                .placeResponse(req.getPlaceResponse())
+                .build();
+        UserAddress updated = addressService.update(uid, id, command);
         return ResponseEntity.ok(Result.ok(AddressRespond.from(updated), "地址已更新"));
     }
 

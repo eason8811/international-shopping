@@ -2,8 +2,13 @@ package shopping.international.api.req.user;
 
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
+import shopping.international.domain.model.enums.user.AddressSource;
 
-import static shopping.international.types.utils.FieldValidateUtils.*;
+import java.util.Locale;
+import java.util.Map;
+
+import static shopping.international.types.utils.FieldValidateUtils.require;
+import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
 
 /**
  * 修改收货地址请求
@@ -29,6 +34,8 @@ public class UpdateAddressRequest {
      * 国家/省/市/区县 (可空)
      */
     @Nullable
+    private String countryCode;
+    @Nullable
     private String country;
     @Nullable
     private String province;
@@ -45,6 +52,22 @@ public class UpdateAddressRequest {
     private String addressLine2;
     @Nullable
     private String zipcode;
+    /**
+     * 地址语言、来源 (可空)
+     */
+    @Nullable
+    private String languageCode;
+    @Nullable
+    private String addressSource;
+    /**
+     * Google 扩展输入 (可空)
+     */
+    @Nullable
+    private String rawInput;
+    @Nullable
+    private String googlePlaceId;
+    @Nullable
+    private Map<String, Object> placeResponse;
     /**
      * 是否设为默认 (可空)
      */
@@ -68,6 +91,11 @@ public class UpdateAddressRequest {
             require(phoneCountryCode.matches("^[1-9][0-9]{0,2}$"), "country_code 格式不正确");
             require(phoneNationalNumber.matches("^[0-9]{1,14}$"), "national_number 格式不正确");
             require((phoneCountryCode.length() + phoneNationalNumber.length()) <= 15, "手机号格式不正确");
+        }
+        if (countryCode != null) {
+            requireNotBlank(countryCode, "国家编码不能为空");
+            countryCode = countryCode.strip().toUpperCase(Locale.ROOT);
+            require(countryCode.matches("^[A-Z]{2}$"), "countryCode 格式不正确");
         }
         if (country != null) {
             requireNotBlank(country, "国家不能为空");
@@ -96,6 +124,20 @@ public class UpdateAddressRequest {
         if (zipcode != null) {
             requireNotBlank(zipcode, "邮编不能为空");
             zipcode = zipcode.strip();
+        }
+        if (languageCode != null) {
+            requireNotBlank(languageCode, "languageCode 不能为空");
+            languageCode = languageCode.strip();
+        }
+        if (addressSource != null)
+            addressSource = AddressSource.parse(addressSource).name();
+        if (rawInput != null) {
+            requireNotBlank(rawInput, "rawInput 不能为空");
+            rawInput = rawInput.strip();
+        }
+        if (googlePlaceId != null) {
+            requireNotBlank(googlePlaceId, "googlePlaceId 不能为空");
+            googlePlaceId = googlePlaceId.strip();
         }
     }
 }
