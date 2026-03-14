@@ -27,7 +27,7 @@ CREATE TABLE user_account
     phone_e164            VARCHAR(16) GENERATED ALWAYS AS (
         IF(phone_country_code IS NULL, NULL, CONCAT('+', phone_country_code, phone_national_number))
         ) STORED COMMENT '手机号(E.164, 由phone_country_code+phone_national_number生成)',
-    status                ENUM ('ACTIVE','UNAUTHORIZE','DISABLED') NOT NULL DEFAULT 'DISABLED' COMMENT '账户状态',
+    status                ENUM ('ACTIVE','UNAUTHORIZE','DISABLED') NOT NULL DEFAULT 'UNAUTHORIZE' COMMENT '账户状态',
     last_login_at         DATETIME(3)                              NULL COMMENT '最近登录时间',
     is_deleted            TINYINT(1)                               NOT NULL DEFAULT 0 COMMENT '软删除标记(0否1是)',
     created_at            DATETIME(3)                              NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
