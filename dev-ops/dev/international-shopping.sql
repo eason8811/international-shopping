@@ -18,20 +18,20 @@ idx_user_last_login：近期登录活跃度排序/检索
 */
 CREATE TABLE user_account
 (
-    id                    BIGINT UNSIGNED            NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    username              VARCHAR(64)                NOT NULL COMMENT '用户名(登录名)',
-    nickname              VARCHAR(64)                NOT NULL COMMENT '昵称/显示名',
-    email                 VARCHAR(255)               NULL COMMENT '邮箱(可空)',
-    phone_country_code    VARCHAR(3)                 NULL COMMENT '手机号国家码(E.164, 不含+)',
-    phone_national_number VARCHAR(14)                NULL COMMENT '手机号(E.164, 国家码之后的national number, 仅数字)',
+    id                    BIGINT UNSIGNED                          NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    username              VARCHAR(64)                              NOT NULL COMMENT '用户名(登录名)',
+    nickname              VARCHAR(64)                              NOT NULL COMMENT '昵称/显示名',
+    email                 VARCHAR(255)                             NULL COMMENT '邮箱(可空)',
+    phone_country_code    VARCHAR(3)                               NULL COMMENT '手机号国家码(E.164, 不含+)',
+    phone_national_number VARCHAR(14)                              NULL COMMENT '手机号(E.164, 国家码之后的national number, 仅数字)',
     phone_e164            VARCHAR(16) GENERATED ALWAYS AS (
         IF(phone_country_code IS NULL, NULL, CONCAT('+', phone_country_code, phone_national_number))
         ) STORED COMMENT '手机号(E.164, 由phone_country_code+phone_national_number生成)',
-    status                ENUM ('ACTIVE','DISABLED') NOT NULL DEFAULT 'DISABLED' COMMENT '账户状态',
-    last_login_at         DATETIME(3)                NULL COMMENT '最近登录时间',
-    is_deleted            TINYINT(1)                 NOT NULL DEFAULT 0 COMMENT '软删除标记(0否1是)',
-    created_at            DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at            DATETIME(3)                NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    status                ENUM ('ACTIVE','UNAUTHORIZE','DISABLED') NOT NULL DEFAULT 'DISABLED' COMMENT '账户状态',
+    last_login_at         DATETIME(3)                              NULL COMMENT '最近登录时间',
+    is_deleted            TINYINT(1)                               NOT NULL DEFAULT 0 COMMENT '软删除标记(0否1是)',
+    created_at            DATETIME(3)                              NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at            DATETIME(3)                              NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_username (username),
     UNIQUE KEY uk_user_email (email),
@@ -112,32 +112,32 @@ CREATE TABLE user_profile
 */
 CREATE TABLE user_address
 (
-    id                    BIGINT UNSIGNED                                                          NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    user_id               BIGINT UNSIGNED                                                          NOT NULL COMMENT '用户ID, 指向 user_account.id',
-    receiver_name         VARCHAR(64)                                                              NOT NULL COMMENT '收货人',
-    phone_country_code    VARCHAR(3)                                                               NOT NULL COMMENT '联系电话国家码(E.164, 不含+)',
-    phone_national_number VARCHAR(14)                                                              NOT NULL COMMENT '联系电话(E.164, 国家码之后的national number, 仅数字)',
+    id                    BIGINT UNSIGNED                                           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    user_id               BIGINT UNSIGNED                                           NOT NULL COMMENT '用户ID, 指向 user_account.id',
+    receiver_name         VARCHAR(64)                                               NOT NULL COMMENT '收货人',
+    phone_country_code    VARCHAR(3)                                                NOT NULL COMMENT '联系电话国家码(E.164, 不含+)',
+    phone_national_number VARCHAR(14)                                               NOT NULL COMMENT '联系电话(E.164, 国家码之后的national number, 仅数字)',
     phone_e164            VARCHAR(16) GENERATED ALWAYS AS (
         CONCAT('+', phone_country_code, phone_national_number)
         ) STORED COMMENT '联系电话(E.164, 由phone_country_code+phone_national_number生成)',
-    country_code          CHAR(2)                                                                  NOT NULL COMMENT '国家/地区代码(CLDR/ISO风格, 如 CN/US/DE)',
-    country               VARCHAR(64)                                                              NOT NULL COMMENT '国家/地区名称',
-    province              VARCHAR(64)                                                              NULL COMMENT '省/州/行政区',
-    city                  VARCHAR(64)                                                              NULL COMMENT '城市',
-    district              VARCHAR(64)                                                              NULL COMMENT '区/县/街区等次级区域',
+    country_code          CHAR(2)                                                   NOT NULL COMMENT '国家/地区代码(CLDR/ISO风格, 如 CN/US/DE)',
+    country               VARCHAR(64)                                               NOT NULL COMMENT '国家/地区名称',
+    province              VARCHAR(64)                                               NULL COMMENT '省/州/行政区',
+    city                  VARCHAR(64)                                               NULL COMMENT '城市',
+    district              VARCHAR(64)                                               NULL COMMENT '区/县/街区等次级区域',
 
-    address_line1         VARCHAR(255)                                                             NOT NULL COMMENT '地址行1（街道、门牌号等主地址）',
-    address_line2         VARCHAR(255)                                                             NULL COMMENT '地址行2（公寓/单元/楼层/公司名等补充信息）',
-    zipcode               VARCHAR(20)                                                              NULL COMMENT '邮编',
+    address_line1         VARCHAR(255)                                              NOT NULL COMMENT '地址行1（街道、门牌号等主地址）',
+    address_line2         VARCHAR(255)                                              NULL COMMENT '地址行2（公寓/单元/楼层/公司名等补充信息）',
+    zipcode               VARCHAR(20)                                               NULL COMMENT '邮编',
 
-    language_code         VARCHAR(16)                                                              NULL COMMENT '地址语言代码(BCP-47, 如 en / zh-Hant)',
+    language_code         VARCHAR(16)                                               NULL COMMENT '地址语言代码(BCP-47, 如 en / zh-Hant)',
     address_source        ENUM ('MANUAL', 'GOOGLE_AUTOCOMPLETE', 'GOOGLE_MAP_PICK') NOT NULL DEFAULT 'MANUAL' COMMENT '地址来源',
-    validation_status     ENUM ('UNVALIDATED', 'ACCEPT', 'REVIEW', 'FIX', 'REJECT')                NOT NULL DEFAULT 'UNVALIDATED' COMMENT '地址校验状态',
-    validated_at          DATETIME(3)                                                              NULL COMMENT '最近一次地址校验时间',
+    validation_status     ENUM ('UNVALIDATED', 'ACCEPT', 'REVIEW', 'FIX', 'REJECT') NOT NULL DEFAULT 'UNVALIDATED' COMMENT '地址校验状态',
+    validated_at          DATETIME(3)                                               NULL COMMENT '最近一次地址校验时间',
 
-    is_default            TINYINT(1)                                                               NOT NULL DEFAULT 0 COMMENT '是否默认地址',
-    created_at            DATETIME(3)                                                              NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at            DATETIME(3)                                                              NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    is_default            TINYINT(1)                                                NOT NULL DEFAULT 0 COMMENT '是否默认地址',
+    created_at            DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at            DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
 
     KEY idx_addr_user (user_id),
