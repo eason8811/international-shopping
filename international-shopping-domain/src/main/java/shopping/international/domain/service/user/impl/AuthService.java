@@ -271,8 +271,10 @@ public class AuthService implements IAuthService {
         if (localPasswordHash == null || !bcrypt.matches(rawPassword.getValue(), localPasswordHash))
             throw new IllegalParamException("用户名或密码错误");
 
-        if (user.getStatus() != AccountStatus.ACTIVE)
-            throw new AccountException("账户未激活或已禁用");
+        if (user.getStatus() == AccountStatus.UNAUTHORIZE)
+            throw new AccountUnAuthorizeException("账户未激活");
+        if (user.getStatus() == AccountStatus.DISABLED)
+            throw new AccountDisableException("账户已被禁用");
 
         // 登录审计
         LocalDateTime now = LocalDateTime.now();

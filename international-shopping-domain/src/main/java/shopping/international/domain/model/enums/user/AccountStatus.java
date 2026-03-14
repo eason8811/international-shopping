@@ -9,6 +9,8 @@ import lombok.Getter;
 public enum AccountStatus {
     /** 已激活，可登录 */
     ACTIVE,
-    /** 未激活或禁用 */
+    /** 未激活 */
+    UNAUTHORIZE,
+    /** 禁用 */
     DISABLED
 }
