@@ -143,4 +143,28 @@ public class UserAddress {
             throw new IllegalStateException("UserAddress 实体已存在 ID, 不允许重新赋值, current: " + this.id + ", new: " + id);
         this.id = id;
     }
+
+    /**
+     * 为用户地址分配一个 createdAt, 如果该用户地址已存在一个非空的 createdAt, 则不允许重新赋值
+     *
+     * @param createdAt 要分配给用户地址的 createdAt
+     * @throws IllegalStateException 如果尝试给已经拥有非空 createdAt 的 UserAddress 对象重新赋值 createdAt
+     */
+    public void assignCreatedAt(LocalDateTime createdAt) {
+        if (this.createdAt != null && !this.createdAt.equals(createdAt))
+            throw new IllegalStateException("UserAddress 实体已存在 createdAt, 不允许重新赋值, current: " + this.createdAt + ", new: " + createdAt);
+        this.createdAt = createdAt;
+    }
+
+    /**
+     * 为用户地址分配一个 updatedAt, 如果该用户地址已存在一个非空的 updatedAt, 则不允许重新赋值
+     *
+     * @param updatedAt 要分配给用户地址的 updatedAt
+     * @throws IllegalStateException 如果尝试给已经拥有非空 updatedAt 的 UserAddress 对象重新赋值 updatedAt
+     */
+    public void assignUpdatedAt(LocalDateTime updatedAt) {
+        if (this.updatedAt != null && !this.updatedAt.equals(updatedAt))
+            throw new IllegalStateException("UserAddress 实体已存在 updatedAt, 不允许重新赋值, current: " + this.updatedAt + ", new: " + updatedAt);
+        this.updatedAt = updatedAt;
+    }
 }

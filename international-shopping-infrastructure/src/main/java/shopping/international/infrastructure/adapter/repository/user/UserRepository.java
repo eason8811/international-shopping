@@ -665,9 +665,22 @@ public class UserRepository implements IUserRepository {
         addressMapper.updateById(toUpdateMap.values());
         addressMapper.deleteByIds(toDeleteMap.values());
 
+        List<Long> idList = toInsertMap.values().stream().map(UserAddressPO::getId).toList();
+        if (idList.isEmpty()) {
+            for (UserAddress userAddress : addressList)
+                if (userAddress.getId() == null)
+                    userAddress.assignId(toInsertMap.get(userAddress.hashCode()).getId());
+            return;
+        }
+        List<UserAddressPO> addressPOList = addressMapper.selectByIds(idList);
+        Map<Long, UserAddressPO> userAddressPOMap = addressPOList.stream().collect(Collectors.toMap(UserAddressPO::getId, Function.identity()));
+
         for (UserAddress userAddress : addressList)
-            if (userAddress.getId() == null)
+            if (userAddress.getId() == null) {
                 userAddress.assignId(toInsertMap.get(userAddress.hashCode()).getId());
+                userAddress.assignUpdatedAt(userAddressPOMap.get(userAddress.getId()).getUpdatedAt());
+                userAddress.assignCreatedAt(userAddressPOMap.get(userAddress.getId()).getCreatedAt());
+            }
     }
 
     /**
