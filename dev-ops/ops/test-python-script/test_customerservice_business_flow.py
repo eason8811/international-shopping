@@ -432,19 +432,19 @@ def main() -> int:
     parser.add_argument("--base-url", default="http://127.0.0.1:8080/api/v1", help="API base URL")
     parser.add_argument("--timeout-s", type=int, default=30)
 
-    parser.add_argument("--user-account", required=True)
-    parser.add_argument("--user-password", required=True)
-    parser.add_argument("--admin-account", required=True)
-    parser.add_argument("--admin-password", required=True)
+    parser.add_argument("--user-account", default="leila9468555@gmail.com")
+    parser.add_argument("--user-password", default="Passw0rd!")
+    parser.add_argument("--admin-account", default="leila9468555@gmail.com")
+    parser.add_argument("--admin-password", default="Passw0rd!")
 
     parser.add_argument("--user-user-id", type=int, default=0, help="optional, auto decode from JWT if <=0")
     parser.add_argument("--admin-user-id", type=int, default=0, help="optional, auto decode from JWT if <=0")
 
-    parser.add_argument("--order-id", type=int, required=True, help="order_id for create ticket and reship")
-    parser.add_argument("--order-item-id", type=int, required=True, help="order_item_id for create ticket and reship")
-    parser.add_argument("--order-item-sku-id", type=int, required=True, help="sku_id of --order-item-id")
-    parser.add_argument("--shipment-id", type=int, required=True, help="shipment_id linked to the ticket")
-    parser.add_argument("--reship-bind-shipment-id", type=int, required=True, help="shipment_id to bind into reship, must belong to same order and not bound by another reship")
+    parser.add_argument("--order-id", type=int, default=174, help="order_id for create ticket and reship")
+    parser.add_argument("--order-item-id", type=int, default=122, help="order_item_id for create ticket and reship")
+    parser.add_argument("--order-item-sku-id", type=int, default=1, help="sku_id of --order-item-id")
+    parser.add_argument("--shipment-id", type=int, default=143, help="shipment_id linked to the ticket")
+    parser.add_argument("--reship-bind-shipment-id", type=int, default=145, help="shipment_id to bind into reship, must belong to same order and not bound by another reship")
     parser.add_argument("--main-issue-type", default="REFUND", choices=list(ALL_ISSUE_TYPES))
     args = parser.parse_args()
 

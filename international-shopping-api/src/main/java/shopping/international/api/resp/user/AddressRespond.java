@@ -34,7 +34,6 @@ public class AddressRespond {
     /**
      * 国家/省/市/区县
      */
-    private String countryCode;
     private String country;
     private String province;
     private String city;
@@ -45,9 +44,6 @@ public class AddressRespond {
     private String addressLine1;
     private String addressLine2;
     private String zipcode;
-    private String languageCode;
-    private String addressSource;
-    private String validationStatus;
     /**
      * 是否默认
      */
@@ -55,8 +51,6 @@ public class AddressRespond {
     /**
      * 创建/更新时间
      */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime validatedAt;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -74,7 +68,6 @@ public class AddressRespond {
                 address.getReceiverName(),
                 address.getPhone() == null ? null : address.getPhone().getCountryCode(),
                 address.getPhone() == null ? null : address.getPhone().getNationalNumber(),
-                address.getCountryCode(),
                 address.getCountry(),
                 address.getProvince(),
                 address.getCity(),
@@ -82,11 +75,7 @@ public class AddressRespond {
                 address.getAddressLine1(),
                 address.getAddressLine2(),
                 address.getZipcode(),
-                address.getLanguageCode(),
-                address.getAddressSource() == null ? null : address.getAddressSource().name(),
-                address.getValidationStatus() == null ? null : address.getValidationStatus().name(),
                 address.isDefaultAddress(),
-                address.getValidatedAt(),
                 address.getCreatedAt(),
                 address.getUpdatedAt()
         );

@@ -351,16 +351,27 @@ public class User {
     }
 
     /**
-     * 更新用户的指定地址信息 (按 id 定位)
+     * 更新用户的指定地址信息 (按 id 定位), 包括收件人姓名、电话号码、国家、省份、城市、区县、详细地址以及邮政编码
+     * 如果设置了 <code>makeDefault</code> 为 <code>true</code>, 则会将该地址设为默认地址, 并取消其他所有地址的默认状态
      *
      * @param addressId    地址的唯一标识符
-     * @param newAddress   新地址快照
+     * @param receiverName 收件人姓名
+     * @param phone        手机号, 必须符合 E.164 格式
+     * @param country      国家名称
+     * @param province     省份或州名
+     * @param city         城市名
+     * @param district     区县名
+     * @param addressLine1 第一行地址
+     * @param addressLine2 第二行地址 (可选)
+     * @param zipcode      邮政编码
      * @param makeDefault  是否将此地址设为默认地址
-     * @throws IllegalParamException 如果根据提供的ID找不到任何地址时抛出
+     * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 或手机号格式不正确时抛出
      */
-    public void updateAddress(Long addressId, UserAddress newAddress, Boolean makeDefault) {
+    public void updateAddress(Long addressId, String receiverName, PhoneNumber phone, String country, String province,
+                              String city, String district, String addressLine1, String addressLine2, String zipcode,
+                              Boolean makeDefault) {
         UserAddress address = findAddress(addressId);
-        address.replaceWith(newAddress);
+        address.update(receiverName, phone, country, province, city, district, addressLine1, addressLine2, zipcode);
         if (Boolean.TRUE.equals(makeDefault)) {
             addressList.forEach(a -> a.setDefault(false));
             address.setDefault(true);

@@ -47,11 +47,6 @@ public class UserAddressPO {
     @TableField(value = "phone_e164", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private String phoneE164;
     /**
-     * 国家/地区编码
-     */
-    @TableField("country_code")
-    private String countryCode;
-    /**
      * 国家
      */
     @TableField("country")
@@ -86,26 +81,6 @@ public class UserAddressPO {
      */
     @TableField("zipcode")
     private String zipcode;
-    /**
-     * 地址语言代码
-     */
-    @TableField("language_code")
-    private String languageCode;
-    /**
-     * 地址来源
-     */
-    @TableField("address_source")
-    private String addressSource;
-    /**
-     * 地址校验状态
-     */
-    @TableField("validation_status")
-    private String validationStatus;
-    /**
-     * 最近一次校验时间
-     */
-    @TableField("validated_at")
-    private LocalDateTime validatedAt;
     /**
      * 是否默认地址
      */

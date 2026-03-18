@@ -120,11 +120,6 @@ oauth2:
       default-success-redirect: http://localhost:8080
       clock-skew-seconds: 120
 
-google:
-  address-validation:
-    base-url: https://addressvalidation.googleapis.com
-    api-key: ${GOOGLE_ADDRESS_VALIDATION_API_KEY:}
-
 # Resend 配置
 resend:
   api-key: ${RESEND_API_KEY}

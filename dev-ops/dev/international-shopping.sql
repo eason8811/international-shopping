@@ -102,108 +102,40 @@ CREATE TABLE user_profile
     PRIMARY KEY (user_id)
 ) ENGINE = InnoDB COMMENT ='用户资料(扩展)';
 
--- 1.4 用户收货地址（修改版）
+-- 1.4 用户收货地址（1:N）
 /*
-设计说明：
-1) 保留你原来的业务字段结构，避免订单、物流、前端展示层大面积改动
-2) 新增 country_code / language_code / address_source / validation_status / validated_at
-3) 主表只存“规范化后的业务真相”，Google 原始响应和校验细节放扩展表
-4) province/city/district 继续允许为空，兼容不同国家的地址结构差异
-*/
+idx_addr_user：用户地址列表
+idx_addr_user_default (user_id, is_default)：快速命中默认地址
+ */
 CREATE TABLE user_address
 (
-    id                    BIGINT UNSIGNED                                           NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    user_id               BIGINT UNSIGNED                                           NOT NULL COMMENT '用户ID, 指向 user_account.id',
-    receiver_name         VARCHAR(64)                                               NOT NULL COMMENT '收货人',
-    phone_country_code    VARCHAR(3)                                                NOT NULL COMMENT '联系电话国家码(E.164, 不含+)',
-    phone_national_number VARCHAR(14)                                               NOT NULL COMMENT '联系电话(E.164, 国家码之后的national number, 仅数字)',
+    id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    user_id               BIGINT UNSIGNED NOT NULL COMMENT '用户ID, 指向 user_account.id',
+    receiver_name         VARCHAR(64)     NOT NULL COMMENT '收货人',
+    phone_country_code    VARCHAR(3)      NOT NULL COMMENT '联系电话国家码(E.164, 不含+)',
+    phone_national_number VARCHAR(14)     NOT NULL COMMENT '联系电话(E.164, 国家码之后的national number, 仅数字)',
     phone_e164            VARCHAR(16) GENERATED ALWAYS AS (
         CONCAT('+', phone_country_code, phone_national_number)
         ) STORED COMMENT '联系电话(E.164, 由phone_country_code+phone_national_number生成)',
-    country_code          CHAR(2)                                                   NOT NULL COMMENT '国家/地区代码(CLDR/ISO风格, 如 CN/US/DE)',
-    country               VARCHAR(64)                                               NOT NULL COMMENT '国家/地区名称',
-    province              VARCHAR(64)                                               NULL COMMENT '省/州/行政区',
-    city                  VARCHAR(64)                                               NULL COMMENT '城市',
-    district              VARCHAR(64)                                               NULL COMMENT '区/县/街区等次级区域',
-
-    address_line1         VARCHAR(255)                                              NOT NULL COMMENT '地址行1（街道、门牌号等主地址）',
-    address_line2         VARCHAR(255)                                              NULL COMMENT '地址行2（公寓/单元/楼层/公司名等补充信息）',
-    zipcode               VARCHAR(20)                                               NULL COMMENT '邮编',
-
-    language_code         VARCHAR(16)                                               NULL COMMENT '地址语言代码(BCP-47, 如 en / zh-Hant)',
-    address_source        ENUM ('MANUAL', 'GOOGLE_AUTOCOMPLETE', 'GOOGLE_MAP_PICK') NOT NULL DEFAULT 'MANUAL' COMMENT '地址来源',
-    validation_status     ENUM ('UNVALIDATED', 'ACCEPT', 'REVIEW', 'FIX', 'REJECT') NOT NULL DEFAULT 'UNVALIDATED' COMMENT '地址校验状态',
-    validated_at          DATETIME(3)                                               NULL COMMENT '最近一次地址校验时间',
-
-    is_default            TINYINT(1)                                                NOT NULL DEFAULT 0 COMMENT '是否默认地址',
-    created_at            DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at            DATETIME(3)                                               NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    country               VARCHAR(64)     NULL COMMENT '国家',
+    province              VARCHAR(64)     NULL COMMENT '省/州',
+    city                  VARCHAR(64)     NULL COMMENT '城市',
+    district              VARCHAR(64)     NULL COMMENT '区/县',
+    address_line1         VARCHAR(255)    NOT NULL COMMENT '地址行1',
+    address_line2         VARCHAR(255)    NULL COMMENT '地址行2',
+    zipcode               VARCHAR(20)     NULL COMMENT '邮编',
+    is_default            TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '是否默认地址',
+    created_at            DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at            DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
-
     KEY idx_addr_user (user_id),
     KEY idx_addr_user_default (user_id, is_default),
     KEY idx_addr_phone_e164 (phone_e164),
-    KEY idx_addr_country_code (country_code),
-    KEY idx_addr_validation_status (validation_status),
-    KEY idx_addr_user_updated (user_id, updated_at),
-
-    CONSTRAINT chk_addr_phone_country_code
-        CHECK (phone_country_code REGEXP '^[1-9][0-9]{0,2}$'),
-
-    CONSTRAINT chk_addr_phone_national_number
-        CHECK (phone_national_number REGEXP '^[0-9]{1,14}$'),
-
-    CONSTRAINT chk_addr_phone_e164_len
-        CHECK ((CHAR_LENGTH(phone_country_code) + CHAR_LENGTH(phone_national_number)) <= 15),
-
-    CONSTRAINT chk_addr_country_code
-        CHECK (country_code REGEXP '^[A-Z]{2}$'),
-
-    CONSTRAINT chk_addr_language_code
-        CHECK (language_code IS NULL OR CHAR_LENGTH(language_code) BETWEEN 2 AND 16)
+    CONSTRAINT chk_addr_phone_country_code CHECK (phone_country_code REGEXP '^[1-9][0-9]{0,2}$'),
+    CONSTRAINT chk_addr_phone_national_number CHECK (phone_national_number REGEXP '^[0-9]{1,14}$'),
+    CONSTRAINT chk_addr_phone_e164_len CHECK ((CHAR_LENGTH(phone_country_code) + CHAR_LENGTH(phone_national_number)) <=
+                                              15)
 ) ENGINE = InnoDB COMMENT ='用户收货地址';
-
--- 1.5 用户收货地址扩展表（1:1）
-/*
-设计说明：
-1) address_id 与 user_address.id 一一对应
-2) 保存 Google Place / Geocoding / Address Validation 的附加信息
-3) 原始响应尽量放 JSON，避免主表和列模型被第三方 API 绑死
-*/
-CREATE TABLE user_address_ext
-(
-    address_id               BIGINT UNSIGNED NOT NULL COMMENT '地址ID, 对应 user_address.id',
-
-    google_place_id          VARCHAR(255)    NULL COMMENT 'Google Place ID',
-    formatted_address        VARCHAR(512)    NULL COMMENT 'Google 返回的格式化地址',
-    latitude                 DECIMAL(10, 7)  NULL COMMENT '纬度',
-    longitude                DECIMAL(10, 7)  NULL COMMENT '经度',
-
-    raw_input                TEXT            NULL COMMENT '用户原始输入/粘贴文本',
-    postal_address_json      JSON            NULL COMMENT 'Google PostalAddress 快照',
-    place_response_json      JSON            NULL COMMENT 'Google Place/Geocoding 响应快照',
-
-    validation_response_id   VARCHAR(128)    NULL COMMENT 'Google Address Validation responseId',
-    validation_granularity   VARCHAR(32)     NULL COMMENT '校验粒度(validationGranularity)',
-    geocode_granularity      VARCHAR(32)     NULL COMMENT '地理编码粒度(geocodeGranularity)',
-    address_complete         TINYINT(1)      NULL COMMENT '地址是否完整',
-    possible_next_action     VARCHAR(32)     NULL COMMENT 'Google 建议动作(如 ACCEPT/CONFIRM/REVIEW 类)',
-    validation_response_json JSON            NULL COMMENT 'Google Address Validation 完整响应快照',
-
-    created_at               DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-    updated_at               DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-
-    PRIMARY KEY (address_id),
-
-    KEY idx_addr_ext_place_id (google_place_id),
-    KEY idx_addr_ext_validation_response_id (validation_response_id),
-    KEY idx_addr_ext_lat_lng (latitude, longitude),
-
-    CONSTRAINT fk_addr_ext_address
-        FOREIGN KEY (address_id) REFERENCES user_address (id)
-            ON DELETE CASCADE
-            ON UPDATE RESTRICT
-) ENGINE = InnoDB COMMENT ='用户收货地址扩展信息（Google Place / 校验 / 原始输入）';
 
 -- =========================================================
 -- 2. 商品领域 (product)

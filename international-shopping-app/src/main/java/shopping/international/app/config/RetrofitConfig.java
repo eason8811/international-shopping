@@ -18,7 +18,6 @@ import retrofit2.converter.jackson.JacksonConverterFactory;
 import shopping.international.infrastructure.gateway.common.IExchangeRateApi;
 import shopping.international.infrastructure.gateway.payment.IPayPalApi;
 import shopping.international.infrastructure.gateway.shipping.SeventeenTrackApi;
-import shopping.international.infrastructure.gateway.user.GoogleAddressValidationApi;
 import shopping.international.infrastructure.gateway.user.IOAuth2TokenApi;
 import shopping.international.infrastructure.gateway.user.IOidcUserInfoApi;
 
@@ -195,16 +194,5 @@ public class RetrofitConfig {
     @Bean
     public SeventeenTrackApi seventeenTrackApi(Retrofit retrofit) {
         return retrofit.create(SeventeenTrackApi.class);
-    }
-
-    /**
-     * 创建并返回 Google Address Validation API 客户端
-     *
-     * @param retrofit 已配置好的 Retrofit 实例
-     * @return Google Address Validation API 客户端
-     */
-    @Bean
-    public GoogleAddressValidationApi googleAddressValidationApi(Retrofit retrofit) {
-        return retrofit.create(GoogleAddressValidationApi.class);
     }
 }

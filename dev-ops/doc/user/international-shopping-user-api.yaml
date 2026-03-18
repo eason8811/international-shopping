@@ -3944,8 +3944,6 @@ components:
           type:
             - string
             - 'null'
-        country_code:
-          type: string
         country:
           type:
             - string
@@ -3986,38 +3984,6 @@ components:
             - 'null'
           examples:
             - 160-0023
-        language_code:
-          type:
-            - string
-            - 'null'
-        address_source:
-          type:
-            - string
-            - 'null'
-          enum:
-            - MANUAL
-            - GOOGLE_AUTOCOMPLETE
-            - GOOGLE_MAP_PICK
-          x-apifox-enum:
-            - value: MANUAL
-              name: ''
-              description: ''
-            - value: GOOGLE_AUTOCOMPLETE
-              name: ''
-              description: ''
-            - value: GOOGLE_MAP_PICK
-              name: ''
-              description: ''
-        raw_input:
-          type: string
-        google_placeId:
-          type:
-            - string
-            - 'null'
-        place_response:
-          type:
-            - string
-            - 'null'
         is_default:
           type: boolean
           examples:
@@ -4026,7 +3992,6 @@ components:
         - receiver_name
         - phone_country_code
         - phone_national_number
-        - country_code
         - country
         - province
         - city
@@ -4034,15 +3999,7 @@ components:
         - address_line1
         - address_line2
         - zipcode
-        - language_code
-        - address_source
-        - raw_input
-        - google_placeId
-        - place_response
         - is_default
-      required:
-        - country_code
-        - raw_input
       x-apifox-ignore-properties: []
       x-apifox-folder: user
     CreateAddressRequest:
@@ -4057,8 +4014,6 @@ components:
         - city
         - district
         - zipcode
-        - country_code
-        - address_source
       properties:
         receiver_name:
           type: string
@@ -4069,8 +4024,6 @@ components:
           examples:
             - +81-90-1234-5678
         phone_national_number:
-          type: string
-        country_code:
           type: string
         country:
           type: string
@@ -4102,38 +4055,6 @@ components:
           type: string
           examples:
             - 160-0023
-        language_code:
-          type:
-            - string
-            - 'null'
-        address_source:
-          type: string
-          enum:
-            - MANUAL
-            - GOOGLE_AUTOCOMPLETE
-            - GOOGLE_MAP_PICK
-          x-apifox-enum:
-            - value: MANUAL
-              name: ''
-              description: ''
-            - value: GOOGLE_AUTOCOMPLETE
-              name: ''
-              description: ''
-            - value: GOOGLE_MAP_PICK
-              name: ''
-              description: ''
-        raw_input:
-          type:
-            - string
-            - 'null'
-        google_placeId:
-          type:
-            - string
-            - 'null'
-        place_response:
-          type:
-            - string
-            - 'null'
         is_default:
           type: boolean
           default: false
@@ -4143,7 +4064,6 @@ components:
         - receiver_name
         - phone_country_code
         - phone_national_number
-        - country_code
         - country
         - province
         - city
@@ -4151,11 +4071,6 @@ components:
         - address_line1
         - address_line2
         - zipcode
-        - language_code
-        - address_source
-        - raw_input
-        - google_placeId
-        - place_response
         - is_default
       x-apifox-ignore-properties: []
       x-apifox-folder: user
@@ -4393,8 +4308,6 @@ components:
             - +81-90-1234-5678
         phone_national_number:
           type: string
-        country_code:
-          type: string
         country:
           type:
             - string
@@ -4435,59 +4348,10 @@ components:
             - 'null'
           examples:
             - 160-0023
-        language_code:
-          type: string
-        address_source:
-          type:
-            - string
-            - 'null'
-          enum:
-            - MANUAL
-            - GOOGLE_AUTOCOMPLETE
-            - GOOGLE_MAP_PICK
-          x-apifox-enum:
-            - value: MANUAL
-              name: ''
-              description: ''
-            - value: GOOGLE_AUTOCOMPLETE
-              name: ''
-              description: ''
-            - value: GOOGLE_MAP_PICK
-              name: ''
-              description: ''
-        validation_status:
-          type:
-            - string
-            - 'null'
-          enum:
-            - UNVALIDATED
-            - ACCEPT
-            - REVIEW
-            - FIX
-            - REJECT
-          x-apifox-enum:
-            - value: UNVALIDATED
-              name: ''
-              description: ''
-            - value: ACCEPT
-              name: ''
-              description: ''
-            - value: REVIEW
-              name: ''
-              description: ''
-            - value: FIX
-              name: ''
-              description: ''
-            - value: REJECT
-              name: ''
-              description: ''
         is_default:
           type: boolean
           examples:
             - true
-        validated_at:
-          type: string
-          format: date-time
         created_at:
           type: string
           format: date-time
@@ -4507,15 +4371,11 @@ components:
         - created_at
         - updated_at
         - phone_national_number
-        - country_code
-        - language_code
-        - validated_at
       x-apifox-orders:
         - id
         - receiver_name
         - phone_country_code
         - phone_national_number
-        - country_code
         - country
         - province
         - city
@@ -4523,11 +4383,7 @@ components:
         - address_line1
         - address_line2
         - zipcode
-        - language_code
-        - address_source
-        - validation_status
         - is_default
-        - validated_at
         - created_at
         - updated_at
       x-apifox-ignore-properties: []
