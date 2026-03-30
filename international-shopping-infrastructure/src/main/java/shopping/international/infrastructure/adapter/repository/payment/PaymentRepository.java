@@ -756,9 +756,10 @@ public class PaymentRepository implements IPaymentRepository, IAdminPaymentRepos
         LambdaUpdateWrapper<PaymentOrderPO> paymentW = new LambdaUpdateWrapper<>();
         paymentW.eq(PaymentOrderPO::getId, cmd.paymentId())
                 .ne(PaymentOrderPO::getStatus, PaymentStatus.SUCCESS.name())
-                .set(PaymentOrderPO::getStatus, effectivePaymentStatus.name())
-                .set(PaymentOrderPO::getNotifyPayload, notifyJson)
-                .set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt());
+                .set(PaymentOrderPO::getStatus, effectivePaymentStatus.name());
+        if (notifyJson != null && !notifyJson.isBlank())
+            paymentW.set(PaymentOrderPO::getNotifyPayload, notifyJson)
+                    .set(PaymentOrderPO::getLastNotifiedAt, cmd.lastNotifiedAt());
         if (captureIdNotBlank)
             paymentW.set(PaymentOrderPO::getCaptureId, cmd.captureId().strip());
         if (existingExternalId == null || existingExternalId.isBlank())

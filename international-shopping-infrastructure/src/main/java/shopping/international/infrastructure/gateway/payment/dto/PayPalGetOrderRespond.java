@@ -25,5 +25,8 @@ public class PayPalGetOrderRespond {
      * purchase_units
      */
     private List<PurchaseUnitItem> purchaseUnits;
+    /**
+     * payment_source
+     */
+    private PayPalPaymentSource paymentSource;
 }
-

@@ -39,6 +39,10 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
 @RequiredArgsConstructor
 @EnableConfigurationProperties(PayPalProperties.class)
 public class PayPalPort implements IPayPalPort {
+    /**
+     * 查询订单时显式要求返回 payment_source，避免 opsSync 覆盖掉买家身份字段
+     */
+    private static final String SHOW_ORDER_DETAILS_QUERY = "?fields=payment_source";
 
     /**
      * Redis 防重放 key 前缀
@@ -173,7 +177,9 @@ public class PayPalPort implements IPayPalPort {
         requireNotBlank(paypalOrderId, "paypalOrderId 不能为空");
         String bearer = "Bearer " + requireAccessToken();
 
-        String url = properties.getBaseUrl() + SHOW_ORDER_DETAILS_PATH_TEMPLATE.fill("id", paypalOrderId);
+        String url = properties.getBaseUrl()
+                + SHOW_ORDER_DETAILS_PATH_TEMPLATE.fill("id", paypalOrderId.strip())
+                + SHOW_ORDER_DETAILS_QUERY;
         PayPalGetOrderRespond resp = executeOrThrow(api.getOrder(url, bearer), "查询 PayPal Order 失败");
 
         String approveUrl = findApproveUrl(resp.getLinks()).orElse(null);

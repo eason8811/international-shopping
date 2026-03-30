@@ -21,5 +21,8 @@ public class PayPalCreateOrderRespond {
      * links
      */
     private List<PayPalLink> links;
+    /**
+     * payment_source
+     */
+    private PayPalPaymentSource paymentSource;
 }
-
