@@ -3,7 +3,6 @@ package shopping.international.app.products;
 import org.junit.jupiter.api.Test;
 import shopping.international.domain.model.enums.products.ProductStatus;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -74,9 +73,9 @@ class ProductPublicApiIntegrationTest extends ProductApiIntegrationTestBase {
     @Test
     void shouldFilterByTagAndSortByPriceAsc() throws Exception {
         SeedProduct cheap = seedOnSaleProduct("cheap", "en-US", "USD",
-                List.of("cheap"), new BigDecimal("10.00"), new BigDecimal("9.00"));
+                List.of("cheap"), 10L, 9L);
         SeedProduct expensive = seedOnSaleProduct("expensive", "en-US", "USD",
-                List.of("expensive"), new BigDecimal("200.00"), new BigDecimal("180.00"));
+                List.of("expensive"),20L, 18L);
 
         // tag 过滤
         mockMvc.perform(
@@ -106,7 +105,7 @@ class ProductPublicApiIntegrationTest extends ProductApiIntegrationTestBase {
         SeedProduct p1 = seedOnSaleProduct("page1", "en-US", "USD");
         SeedProduct p2 = seedOnSaleProduct("page2", "en-US", "USD");
         seedProduct("off-shelf", "en-US", "USD", ProductStatus.OFF_SHELF,
-                List.of("tag3"), new BigDecimal("50.00"), new BigDecimal("45.00"));
+                List.of("tag3"), 50L, 45L);
 
         mockMvc.perform(
                         get(API_PREFIX + "/products")
