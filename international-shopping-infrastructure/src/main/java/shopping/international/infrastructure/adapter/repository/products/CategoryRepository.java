@@ -240,6 +240,7 @@ public class CategoryRepository implements ICategoryRepository {
                 .level(category.getLevel())
                 .path(category.getPath())
                 .sortOrder(category.getSortOrder())
+                .cover(category.getCover())
                 .status(category.getStatus().name())
                 .build();
         try {
@@ -271,6 +272,7 @@ public class CategoryRepository implements ICategoryRepository {
                 .set(ProductCategoryPO::getLevel, category.getLevel())
                 .set(ProductCategoryPO::getPath, category.getPath())
                 .set(ProductCategoryPO::getSortOrder, category.getSortOrder())
+                .set(ProductCategoryPO::getCover, category.getCover())
                 .set(ProductCategoryPO::getStatus, category.getStatus().name());
         try {
             categoryMapper.update(null, wrapper);
@@ -479,7 +481,7 @@ public class CategoryRepository implements ICategoryRepository {
                 po.getId(), po.getParentId(), po.getName(), po.getSlug(),
                 po.getLevel() == null ? 1 : po.getLevel(),
                 po.getPath(), po.getSortOrder() == null ? 0 : po.getSortOrder(),
-                status, null, i18nList, po.getCreatedAt(), po.getUpdatedAt()
+                status, po.getCover(), null, i18nList, po.getCreatedAt(), po.getUpdatedAt()
         );
     }
 

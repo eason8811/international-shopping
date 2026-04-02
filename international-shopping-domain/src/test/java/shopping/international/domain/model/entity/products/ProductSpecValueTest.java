@@ -18,7 +18,7 @@ class ProductSpecValueTest {
         ProductSpecValue value = ProductSpecValue.create(1L, 2L, "v1", "Value1", Map.of("c", "r"), 1, true,
                 java.util.List.of(ProductSpecValueI18n.of("en-US", "Value1")));
 
-        value.update("Blue", Map.of("color", "blue"), 3, false);
+        value.update("Blue", "Blue", Map.of("color", "blue"), 3, false);
 
         assertEquals("Blue", value.getValueName());
         assertEquals("blue", value.getAttributes().get("color"));

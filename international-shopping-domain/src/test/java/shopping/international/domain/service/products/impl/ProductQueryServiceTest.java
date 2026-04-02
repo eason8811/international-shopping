@@ -25,7 +25,6 @@ import shopping.international.domain.support.LoggingTestWatcher;
 import shopping.international.domain.support.TestDataFactory;
 import shopping.international.types.exceptions.IllegalParamException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -55,8 +54,8 @@ class ProductQueryServiceTest {
         Product product = TestDataFactory.product(1L, 2L, SkuType.VARIANT, ProductStatus.ON_SALE, List.of(enabledSpec, disabledSpec));
         when(productRepository.findOnSaleBySlug("slug-1", "en-US")).thenReturn(Optional.of(product));
         Sku sku = Sku.reconstitute(100L, 1L, "SKU-100", 3, null, SkuStatus.ENABLED, true, "BAR",
-                List.of(ProductPrice.of("USD", new BigDecimal("10"), null, true),
-                        ProductPrice.of("EUR", new BigDecimal("11"), null, true)),
+                List.of(ProductPrice.of("USD", 10L, null, true),
+                        ProductPrice.of("EUR", 11L, null, true)),
                 List.of(SkuSpecRelation.of(11L, "color", "Color", 21L, "v1", "Value1")),
                 List.of(ProductImage.of("img", true, 0)), LocalDateTime.now(), LocalDateTime.now());
         when(skuRepository.listByProductId(1L, SkuStatus.ENABLED)).thenReturn(List.of(sku));

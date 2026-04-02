@@ -155,6 +155,7 @@ CREATE TABLE product_category
     parent_id  BIGINT UNSIGNED             NULL COMMENT '父分类ID(根为空)',
     name       VARCHAR(64)                 NOT NULL COMMENT '分类名',
     slug       VARCHAR(64)                 NOT NULL COMMENT '分类别名(SEO/路由)',
+    cover      VARCHAR(500)                NULL COMMENT '分类封面图 URL(OSS 链接)',
     level      TINYINT                     NOT NULL DEFAULT 1 COMMENT '层级(根=1)',
     path       VARCHAR(255)                NULL COMMENT '祖先路径 如 /1/3/5/',
     sort_order INT                         NOT NULL DEFAULT 0 COMMENT '排序(小在前)',
@@ -1346,4 +1347,3 @@ CREATE TABLE locale
     KEY idx_locale_enabled (enabled),
     CHECK (code REGEXP '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$')
 ) ENGINE = InnoDB COMMENT ='站点语言字典';
-

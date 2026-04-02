@@ -88,7 +88,7 @@ public class AdminCategoryController {
         req.createValidate();
         List<CategoryI18n> i18nList = toCreateI18n(req.getI18n());
         Category created = categoryService.create(req.getName(), req.getSlug(), req.getParentId(),
-                req.getSortOrder(), req.getIsEnabled(), i18nList);
+                req.getSortOrder(), req.getCover(), req.getIsEnabled(), i18nList);
         return ResponseEntity.status(ApiCode.CREATED.toHttpStatus())
                 .body(Result.created(toAdminNode(created)));
     }
@@ -118,7 +118,7 @@ public class AdminCategoryController {
         req.updateValidate();
         List<ICategoryService.CategoryI18nPatch> patches = toPatchI18n(req.getI18n());
         Category updated = categoryService.update(categoryId, req.getName(), req.getSlug(), req.getParentId(),
-                req.getSortOrder(), req.getIsEnabled(), patches);
+                req.getSortOrder(), req.getCover(), req.getIsEnabled(), patches);
         return ResponseEntity.ok(Result.ok(toAdminNode(updated)));
     }
 
@@ -227,6 +227,7 @@ public class AdminCategoryController {
                 .level(category.getLevel())
                 .path(category.getPath())
                 .sortOrder(category.getSortOrder())
+                .cover(category.getCover())
                 .brand(category.getBrand())
                 .children(new ArrayList<>())
                 .isEnabled(category.getStatus() == CategoryStatus.ENABLED)

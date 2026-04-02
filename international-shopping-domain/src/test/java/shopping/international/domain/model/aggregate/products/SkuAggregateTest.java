@@ -22,7 +22,7 @@ class SkuAggregateTest {
     @Test
     void adjustStockShouldFollowModes() {
         Sku sku = Sku.create(1L, "code", 10, new BigDecimal("1.1"), SkuStatus.ENABLED, false, "bar",
-                List.of(ProductPrice.of("USD", new BigDecimal("9.90"), null, true)),
+                List.of(ProductPrice.of("USD", (long) 9.90, null, true)),
                 List.of(SkuSpecRelation.of(1L, "color", "Color", 11L, "red", "Red")),
                 List.of(ProductImage.of("url", true, 0)));
 
@@ -41,21 +41,21 @@ class SkuAggregateTest {
     @Test
     void updatePriceShouldValidateSalePrice() {
         Sku sku = Sku.create(1L, "code", 5, null, SkuStatus.ENABLED, false, null,
-                List.of(ProductPrice.of("USD", new BigDecimal("10"), null, true)),
+                List.of(ProductPrice.of("USD", 10L, null, true)),
                 List.of(SkuSpecRelation.of(1L, "color", "Color", 11L, "red", "Red")),
                 List.of(ProductImage.of("url", true, 0)));
 
         IllegalParamException ex = assertThrows(IllegalParamException.class,
-                () -> sku.patchPrice(Collections.singletonList(ProductPrice.of("USD", new BigDecimal("10"), new BigDecimal("12"), true))));
+                () -> sku.patchPrice(Collections.singletonList(ProductPrice.of("USD", 10L, 12L, true))));
         assertTrue(ex.getMessage().contains("促销价不能高于标价"));
         assertThrows(IllegalStateException.class,
-                () -> sku.patchPrice(Collections.singletonList(ProductPrice.of("EUR", new BigDecimal("10"), null, true))));
+                () -> sku.patchPrice(Collections.singletonList(ProductPrice.of("EUR", 10L, null, true))));
     }
 
     @Test
     void addSpecSelectionShouldPreventDuplicateKey() {
         Sku sku = Sku.create(1L, "code", 5, null, SkuStatus.ENABLED, false, null,
-                List.of(ProductPrice.of("USD", new BigDecimal("10"), null, true)),
+                List.of(ProductPrice.of("USD", 10L, null, true)),
                 List.of(SkuSpecRelation.of(1L, "color", "Color", 11L, "red", "Red")),
                 List.of(ProductImage.of("url", true, 0)));
 
@@ -67,7 +67,7 @@ class SkuAggregateTest {
     @Test
     void assignIdShouldBeIdempotent() {
         Sku sku = Sku.create(1L, "code", 0, null, SkuStatus.ENABLED, false, null,
-                List.of(ProductPrice.of("USD", new BigDecimal("10"), null, true)),
+                List.of(ProductPrice.of("USD", 10L, null, true)),
                 List.of(SkuSpecRelation.of(1L, "color", "Color", 11L, "red", "Red")),
                 List.of(ProductImage.of("url", true, 0)));
 

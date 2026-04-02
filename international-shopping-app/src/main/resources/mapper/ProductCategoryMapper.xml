@@ -24,6 +24,7 @@
         <result column="category_level" property="level"/>
         <result column="category_path" property="path"/>
         <result column="category_sort_order" property="sortOrder"/>
+        <result column="category_cover" property="cover"/>
         <result column="category_status" property="status"/>
         <result column="category_created_at" property="createdAt"/>
         <result column="category_updated_at" property="updatedAt"/>
@@ -39,6 +40,7 @@
                category.level            AS category_level,
                category.path             AS category_path,
                category.sort_order       AS category_sort_order,
+               category.cover            AS category_cover,
                category.status           AS category_status,
                category.created_at       AS category_created_at,
                category.updated_at       AS category_updated_at,
@@ -64,6 +66,7 @@
                category.level            AS category_level,
                category.path             AS category_path,
                category.sort_order       AS category_sort_order,
+               category.cover            AS category_cover,
                category.status           AS category_status,
                category.created_at       AS category_created_at,
                category.updated_at       AS category_updated_at,
@@ -82,6 +85,7 @@
                      c.level,
                      c.path,
                      c.sort_order,
+                     c.cover,
                      c.status,
                      c.created_at,
                      c.updated_at
@@ -168,7 +172,7 @@
                     )
                 </when>
                 <otherwise>
-                    AND 1 = 0
+                    AND FALSE
                 </otherwise>
             </choose>
         </where>

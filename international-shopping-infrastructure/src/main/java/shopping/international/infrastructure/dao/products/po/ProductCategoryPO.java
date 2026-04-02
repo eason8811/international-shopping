@@ -66,6 +66,12 @@ public class ProductCategoryPO {
     private Integer sortOrder;
 
     /**
+     * 分类封面图 OSS 链接
+     */
+    @TableField("cover")
+    private String cover;
+
+    /**
      * 启用状态, ENABLED 或 DISABLED
      */
     @TableField("status")

@@ -55,6 +55,10 @@ public class Category implements Verifiable {
      */
     private int sortOrder;
     /**
+     * 分类封面图 OSS 链接
+     */
+    private String cover;
+    /**
      * 启用状态
      */
     private CategoryStatus status;
@@ -87,13 +91,14 @@ public class Category implements Verifiable {
      * @param path      分类路径
      * @param sortOrder 排序值
      * @param status    启用状态
+     * @param cover     分类封面图 OSS 链接
      * @param brand     品牌文案
      * @param i18nList  多语言列表
      * @param createdAt 创建时间
      * @param updatedAt 更新时间
      */
     private Category(Long id, Long parentId, String name, String slug, int level, String path, int sortOrder,
-                     CategoryStatus status, String brand, List<CategoryI18n> i18nList,
+                     CategoryStatus status, String cover, String brand, List<CategoryI18n> i18nList,
                      LocalDateTime createdAt, LocalDateTime updatedAt) {
         requireNotBlank(name, "分类名称不能为空");
         requireNotBlank(slug, "分类 slug 不能为空");
@@ -105,6 +110,7 @@ public class Category implements Verifiable {
         this.level = level;
         this.path = path;
         this.sortOrder = sortOrder;
+        this.cover = cover == null ? null : cover.strip();
         this.status = status == null ? CategoryStatus.ENABLED : status;
         this.brand = brand == null ? null : brand.strip();
         this.i18nList = normalizeDistinctList(i18nList, CategoryI18n::validate, CategoryI18n::getLocale, "分类多语言 locale 不能重复");
@@ -120,14 +126,15 @@ public class Category implements Verifiable {
      * @param name      分类名称, 不可为空
      * @param slug      分类 slug, 不可为空
      * @param sortOrder 排序值, 默认 0
+     * @param cover     分类封面图 OSS 链接, 可空
      * @param brand     品牌文案, 可空
      * @param i18nList  多语言列表, locale 唯一
      * @return 新建的分类聚合根, id 为 null 表示未持久化
      */
     public static Category create(Long parentId, int level, String name, String slug,
-                                  int sortOrder, String brand, List<CategoryI18n> i18nList) {
+                                  int sortOrder, String cover, String brand, List<CategoryI18n> i18nList) {
         return new Category(null, parentId, name, slug, level, null, sortOrder, CategoryStatus.ENABLED,
-                brand, i18nList, LocalDateTime.now(), LocalDateTime.now());
+                cover, brand, i18nList, LocalDateTime.now(), LocalDateTime.now());
     }
 
     /**
@@ -141,6 +148,7 @@ public class Category implements Verifiable {
      * @param path      分类路径
      * @param sortOrder 排序值
      * @param status    启用状态
+     * @param cover     分类封面图 OSS 链接
      * @param brand     品牌文案
      * @param i18nList  多语言列表
      * @param createdAt 创建时间
@@ -148,19 +156,20 @@ public class Category implements Verifiable {
      * @return 重建后的分类聚合根
      */
     public static Category reconstitute(Long id, Long parentId, String name, String slug, int level, String path,
-                                        int sortOrder, CategoryStatus status, String brand,
+                                        int sortOrder, CategoryStatus status, String cover, String brand,
                                         List<CategoryI18n> i18nList, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        return new Category(id, parentId, name, slug, level, path, sortOrder, status, brand, i18nList, createdAt, updatedAt);
+        return new Category(id, parentId, name, slug, level, path, sortOrder, status, cover, brand, i18nList, createdAt, updatedAt);
     }
 
     /**
-     * 更新分类基本信息 (名称/slug/品牌)
+     * 更新分类基本信息 (名称/slug/cover/品牌)
      *
      * @param name  新分类名称, 为空则忽略
      * @param slug  新 slug, 为空则忽略
+     * @param cover 新封面图 OSS 链接, 为空则忽略
      * @param brand 新品牌文案, 为空则忽略
      */
-    public void updateBasic(String name, String slug, String brand) {
+    public void updateBasic(String name, String slug, String cover, String brand) {
         if (name != null) {
             requireNotBlank(name, "分类名称不能为空");
             this.name = name.strip();
@@ -169,6 +178,8 @@ public class Category implements Verifiable {
             requireNotBlank(slug, "分类 slug 不能为空");
             this.slug = slug.strip();
         }
+        if (cover != null)
+            this.cover = cover.strip();
         if (brand != null)
             this.brand = brand.strip();
     }

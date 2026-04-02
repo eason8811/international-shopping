@@ -40,6 +40,11 @@ public class CategoryUpsertRequest implements Verifiable {
     @Nullable
     private Integer sortOrder;
     /**
+     * 分类封面图 OSS 链接
+     */
+    @Nullable
+    private String cover;
+    /**
      * 是否启用 ( 默认 true )
      */
     @Nullable
@@ -71,6 +76,7 @@ public class CategoryUpsertRequest implements Verifiable {
         validate();
         name = normalizeNotNullField(name, "分类名称不能为空", s -> s.length() <= 64, "分类名称长度不能超过 64 个字符");
         slug = normalizeNotNullField(slug, "分类 slug 不能为空", s -> s.length() <= 64, "分类 slug 长度不能超过 64 个字符");
+        cover = normalizeNullableField(cover, "分类封面图不能为空", s -> s.length() <= 500, "分类封面图长度不能超过 500 个字符");
         i18n = normalizeDistinctList(i18n, CategoryI18nPayload::createValidate, CategoryI18nPayload::getLocale, "重复的多语言 locale");
     }
 
@@ -84,6 +90,7 @@ public class CategoryUpsertRequest implements Verifiable {
         validate();
         name = normalizeNullableField(name, "分类名称不能为空", s -> s.length() <= 64, "分类名称长度不能超过 64 个字符");
         slug = normalizeNullableField(slug, "分类 slug 不能为空", s -> s.length() <= 64, "分类 slug 长度不能超过 64 个字符");
+        cover = normalizeNullableField(cover, "分类封面图不能为空", s -> s.length() <= 500, "分类封面图长度不能超过 500 个字符");
         i18n = normalizeDistinctList(i18n, CategoryI18nPayload::updateValidate, CategoryI18nPayload::getLocale, "重复的多语言 locale");
     }
 }

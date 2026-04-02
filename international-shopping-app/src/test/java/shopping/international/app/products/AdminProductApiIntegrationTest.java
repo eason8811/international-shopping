@@ -23,6 +23,7 @@ class AdminProductApiIntegrationTest extends ProductApiIntegrationTestBase {
                   "slug": "admin-cat",
                   "parent_id": null,
                   "sort_order": 1,
+                  "cover": "https://oss.example.com/category/admin-cat.jpg",
                   "is_enabled": true,
                   "i18n": [
                     {"locale": "en-US", "name": "Admin Cat EN", "slug": "admin-cat-en", "brand": "EN Brand"}
@@ -37,6 +38,7 @@ class AdminProductApiIntegrationTest extends ProductApiIntegrationTestBase {
                 )
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.id").exists())
+                .andExpect(jsonPath("$.data.cover").value("https://oss.example.com/category/admin-cat.jpg"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();

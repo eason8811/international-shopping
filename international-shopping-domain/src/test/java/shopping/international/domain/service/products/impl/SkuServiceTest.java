@@ -13,7 +13,6 @@ import shopping.international.domain.model.enums.products.ProductStatus;
 import shopping.international.domain.model.enums.products.SkuStatus;
 import shopping.international.domain.model.enums.products.SkuType;
 import shopping.international.domain.model.enums.products.StockAdjustMode;
-import shopping.international.domain.model.vo.products.ProductPrice;
 import shopping.international.domain.model.vo.products.SkuSpecRelation;
 import shopping.international.domain.support.LoggingTestWatcher;
 import shopping.international.domain.support.TestDataFactory;
@@ -48,7 +47,7 @@ class SkuServiceTest {
         when(skuRepository.sumStockByProduct(1L)).thenReturn(5);
 
         Sku result = skuService.create(1L, " code ", 5, new BigDecimal("1.1"), SkuStatus.ENABLED, true, " bar ",
-                List.of(TestDataFactory.price("USD", new BigDecimal("9.9"), null, true)),
+                List.of(TestDataFactory.price("USD", (long) 9.9, null, true)),
                 List.of(SkuSpecRelation.of(1L, "color", "Color", 11L, "red", "Red")),
                 List.of(TestDataFactory.image("sku.jpg", true, 0)));
 
@@ -97,30 +96,26 @@ class SkuServiceTest {
     void upsertPricesShouldMergeAndReturnAffectedCurrencies() {
         Sku existing = TestDataFactory.sku(10L, 1L, 5, false);
         when(skuRepository.findById(1L, 10L)).thenReturn(Optional.of(existing));
-        when(skuRepository.upsertPrices(eq(10L), any())).thenAnswer(invocation -> {
-            List<ProductPrice> prices = invocation.getArgument(1);
-            return prices.stream().map(ProductPrice::getCurrency).toList();
-        });
 
         List<String> affected = skuService.upsertPrices(1L, 10L, List.of(
-                TestDataFactory.price("USD", new BigDecimal("11"), new BigDecimal("9"), true),
-                TestDataFactory.price("EUR", new BigDecimal("12"), null, true)
+                TestDataFactory.price("USD", 11L, 9L, true),
+                TestDataFactory.price("EUR", 12L, null, true)
         ));
 
         assertEquals(List.of("USD", "EUR"), affected);
-        BigDecimal usdPrice = existing.getPrices().stream()
+        Long usdPrice = existing.getPrices().stream()
                 .filter(p -> p.getCurrency().equals("USD"))
                 .findFirst()
                 .orElseThrow()
                 .getListPrice();
-        assertEquals(0, usdPrice.compareTo(new BigDecimal("11")));
+        assertEquals(11L, usdPrice);
     }
 
     @Test
     void adjustStockShouldUpdateRepositoryAndProduct() {
         Sku existing = TestDataFactory.sku(10L, 1L, 3, false);
         when(skuRepository.findById(1L, 10L)).thenReturn(Optional.of(existing));
-        when(skuRepository.updateStock(10L, 5)).thenReturn(5);
+        when(skuRepository.updateStock(10L, StockAdjustMode.SET, 5)).thenReturn(5);
         when(skuRepository.sumStockByProduct(1L)).thenReturn(5);
 
         int stock = skuService.adjustStock(1L, 10L, StockAdjustMode.SET, 5);

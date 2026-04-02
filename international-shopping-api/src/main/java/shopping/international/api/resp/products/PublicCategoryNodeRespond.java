@@ -37,6 +37,7 @@ public class PublicCategoryNodeRespond extends AbstractCategoryNodeRespond {
      * @param level     节点层级
      * @param path      节点路径
      * @param sortOrder 节点排序号
+     * @param cover     分类封面图 OSS 链接
      * @param brand     品牌信息
      * @param children  子节点列表
      * @param isEnabled 是否启用
@@ -44,8 +45,8 @@ public class PublicCategoryNodeRespond extends AbstractCategoryNodeRespond {
      * @param updatedAt 更新时间
      * @param locale    当前返回的语言代码
      */
-    public PublicCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String brand, List<PublicCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, String locale) {
-        super(id, parentId, name, slug, level, path, sortOrder, brand, isEnabled, createdAt, updatedAt);
+    public PublicCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String cover, String brand, List<PublicCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, String locale) {
+        super(id, parentId, name, slug, level, path, sortOrder, cover, brand, isEnabled, createdAt, updatedAt);
         this.children = children;
         this.locale = locale;
     }

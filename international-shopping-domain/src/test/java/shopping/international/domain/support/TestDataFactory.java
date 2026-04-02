@@ -24,7 +24,7 @@ public final class TestDataFactory {
         return ProductImage.of(url, main, sortOrder);
     }
 
-    public static ProductPrice price(String currency, BigDecimal list, BigDecimal sale, boolean active) {
+    public static ProductPrice price(String currency, Long list, Long sale, boolean active) {
         return ProductPrice.of(currency, list, sale, active);
     }
 
@@ -52,7 +52,7 @@ public final class TestDataFactory {
     public static Sku sku(Long id, Long productId, int stock, boolean defaultSku) {
         return Sku.reconstitute(id, productId, "SKU-" + id, stock, new BigDecimal("1.2"),
                 SkuStatus.ENABLED, defaultSku, "BAR-" + id,
-                List.of(price("USD", new BigDecimal("9.99"), new BigDecimal("8.99"), true)),
+                List.of(price("USD", (long) 9.99, (long) 8.99, true)),
                 List.of(SkuSpecRelation.of(1L, "spec-1", "Spec-1", 11L, "value-1", "Value-1")),
                 List.of(image("sku-" + id + ".jpg", true, 0)),
                 LocalDateTime.now(), LocalDateTime.now());
@@ -60,7 +60,7 @@ public final class TestDataFactory {
 
     public static Category category(Long id, Long parentId, int level, String name, String slug) {
         return Category.reconstitute(id, parentId, name, slug, level, parentId == null ? null : "/%d/".formatted(parentId),
-                0, CategoryStatus.ENABLED, "Brand", List.of(CategoryI18n.of("en-US", name, slug, "Brand")),
+                0, CategoryStatus.ENABLED, "https://oss.example.com/category/%s.jpg".formatted(slug), "Brand", List.of(CategoryI18n.of("en-US", name, slug, "Brand")),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 }

@@ -77,6 +77,7 @@ public class CategoryController {
                 .level(category.getLevel())
                 .path(category.getPath())
                 .sortOrder(category.getSortOrder())
+                .cover(category.getCover())
                 .brand(brand)
                 .children(new ArrayList<>())
                 .isEnabled(category.getStatus() == CategoryStatus.ENABLED)

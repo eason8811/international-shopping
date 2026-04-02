@@ -63,8 +63,8 @@ class ProductSpecServiceTest {
         when(productSpecRepository.findById(1L, 5L)).thenReturn(Optional.of(spec));
         when(productSpecRepository.update(any(ProductSpec.class), eq(true))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Long id = productSpecService.update(1L, 5L, "NewColor", SpecType.SIZE, false, 3, false,
-                List.of(ProductSpecI18n.of("fr-FR", "Couleur")), true);
+        Long id = productSpecService.update(1L, 5L, "NewColor", "NewColor", SpecType.SIZE, false, 3, false,
+                List.of(ProductSpecI18n.of("fr-FR", "Couleur")));
 
         assertEquals(5L, id);
         assertEquals("NewColor", spec.getSpecName());
@@ -94,7 +94,7 @@ class ProductSpecServiceTest {
         when(productSpecRepository.updateValue(any(ProductSpecValue.class), eq(true))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Long id = productSpecService.updateValue(1L, 5L, 20L, null, "New", Map.of("tone", "dark"), 4, false,
-                List.of(ProductSpecValueI18n.of("fr-FR", "Valeur")), true);
+                List.of(ProductSpecValueI18n.of("fr-FR", "Valeur")));
 
         assertEquals(20L, id);
         ProductSpecValue updated = spec.getValues().get(0);

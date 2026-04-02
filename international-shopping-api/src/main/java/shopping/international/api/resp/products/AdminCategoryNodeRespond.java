@@ -33,6 +33,7 @@ public class AdminCategoryNodeRespond extends AbstractCategoryNodeRespond {
      * @param level     分类层级
      * @param path      分类路径
      * @param sortOrder 分类排序
+     * @param cover     分类封面图 OSS 链接
      * @param brand     品牌文案
      * @param children  子分类节点列表
      * @param isEnabled 是否启用
@@ -40,8 +41,8 @@ public class AdminCategoryNodeRespond extends AbstractCategoryNodeRespond {
      * @param updatedAt 更新时间
      * @param i18nList  全量 i18n 列表
      */
-    private AdminCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String brand, List<AdminCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, List<CategoryI18nPayloadRespond> i18nList) {
-        super(id, parentId, name, slug, level, path, sortOrder, brand, isEnabled, createdAt, updatedAt);
+    private AdminCategoryNodeRespond(Long id, Long parentId, String name, String slug, Integer level, String path, Integer sortOrder, String cover, String brand, List<AdminCategoryNodeRespond> children, Boolean isEnabled, LocalDateTime createdAt, LocalDateTime updatedAt, List<CategoryI18nPayloadRespond> i18nList) {
+        super(id, parentId, name, slug, level, path, sortOrder, cover, brand, isEnabled, createdAt, updatedAt);
         this.children = children;
         this.i18nList = i18nList;
     }

@@ -86,19 +86,20 @@ public class CategoryService implements ICategoryService {
      * @param slug      唯一 slug
      * @param parentId  父分类 ID, 可空
      * @param sortOrder 排序
+     * @param cover     分类封面图 OSS 链接, 可空
      * @param isEnabled 启用状态
      * @param i18nList  多语言列表, 可空
      * @return 新建聚合
      */
     @Override
     public @NotNull Category create(@NotNull String name, @NotNull String slug, @Nullable Long parentId,
-                                    @NotNull Integer sortOrder, @NotNull Boolean isEnabled,
+                                    @NotNull Integer sortOrder, @Nullable String cover, @NotNull Boolean isEnabled,
                                     @NotNull List<CategoryI18n> i18nList) {
         Category parent = parentId == null ? null : categoryRepository.findById(parentId)
                 .orElseThrow(() -> new IllegalParamException("父分类不存在"));
         int level = parent == null ? 1 : parent.getLevel() + 1;
         String path = buildPath(parent);
-        Category category = Category.create(parentId, level, name, slug, sortOrder, null, i18nList);
+        Category category = Category.create(parentId, level, name, slug, sortOrder, cover, null, i18nList);
 
         category.moveTo(parentId, level, path);
         if (!isEnabled)
@@ -123,13 +124,14 @@ public class CategoryService implements ICategoryService {
      * @param slug        新 slug, 可空
      * @param parentId    新父级, 可空
      * @param sortOrder   新排序, 可空
+     * @param cover       新分类封面图 OSS 链接, 可空
      * @param isEnabled   新启用状态, 可空
      * @param i18nPatches 多语言增量列表, 可空
      * @return 更新后的聚合
      */
     @Override
     public @NotNull Category update(@NotNull Long categoryId, @Nullable String name, @Nullable String slug,
-                                    @Nullable Long parentId, @Nullable Integer sortOrder, @Nullable Boolean isEnabled,
+                                    @Nullable Long parentId, @Nullable Integer sortOrder, @Nullable String cover, @Nullable Boolean isEnabled,
                                     @Nullable List<CategoryI18nPatch> i18nPatches) {
         Category current = get(categoryId);
 
@@ -149,8 +151,8 @@ public class CategoryService implements ICategoryService {
             current.moveTo(parentId, newLevel, newPath);
         }
 
-        if (name != null || slug != null)
-            current.updateBasic(name, slug, null);
+        if (name != null || slug != null || cover != null)
+            current.updateBasic(name, slug, cover, null);
         if (sortOrder != null)
             current.updateSortOrder(sortOrder);
         if (isEnabled != null)

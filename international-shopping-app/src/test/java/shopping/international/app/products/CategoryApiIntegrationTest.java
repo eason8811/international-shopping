@@ -24,7 +24,9 @@ class CategoryApiIntegrationTest extends ProductApiIntegrationTestBase {
         result.andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].slug").value("root-en-US"))
+                .andExpect(jsonPath("$.data[0].cover").value("https://oss.example.com/category/root.jpg"))
                 .andExpect(jsonPath("$.data[0].children[0].slug").value("phone-en-US"))
+                .andExpect(jsonPath("$.data[0].children[0].cover").value("https://oss.example.com/category/phone.jpg"))
                 .andExpect(jsonPath("$.data[0].children[0].parent_id").value(root.getId()));
     }
 

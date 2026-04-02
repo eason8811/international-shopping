@@ -46,6 +46,10 @@ public abstract class AbstractCategoryNodeRespond {
      */
     protected Integer sortOrder;
     /**
+     * 分类封面图 OSS 链接
+     */
+    protected String cover;
+    /**
      * 品牌文案
      */
     protected String brand;

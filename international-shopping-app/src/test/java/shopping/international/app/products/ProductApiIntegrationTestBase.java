@@ -77,6 +77,7 @@ public abstract class ProductApiIntegrationTestBase {
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         if (SCHEMA_INITIALIZED.compareAndSet(false, true)) {
             initializeSchemaIfMissing();
+            ensureCategoryCoverColumn();
         }
     }
 
@@ -123,11 +124,31 @@ public abstract class ProductApiIntegrationTestBase {
     }
 
     /**
+     * 兼容已存在的旧测试库结构, 补齐分类 cover 字段
+     */
+    private void ensureCategoryCoverColumn() {
+        boolean coverColumnMissing = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM information_schema.columns
+                        WHERE table_schema = DATABASE()
+                          AND table_name = 'product_category'
+                          AND column_name = 'cover'
+                        """,
+                Integer.class) == 0;
+        if (coverColumnMissing) {
+            jdbcTemplate.execute("""
+                    ALTER TABLE product_category
+                        ADD COLUMN cover VARCHAR(500) NULL COMMENT '分类封面图 URL(OSS 链接)' AFTER slug
+                    """);
+        }
+    }
+
+    /**
      * 创建一个启用的根分类并返回
      */
     protected Category seedCategory(String name, String slug, String locale) {
         CategoryI18n i18n = CategoryI18n.of(locale, name + " " + locale, slug + "-" + locale, null);
-        return categoryService.create(name, slug, null, 1, true, List.of(i18n));
+        return categoryService.create(name, slug, null, 1, "https://oss.example.com/category/" + slug + ".jpg", true, List.of(i18n));
     }
 
     /**
@@ -135,7 +156,7 @@ public abstract class ProductApiIntegrationTestBase {
      */
     protected Category seedChildCategory(Category parent, String name, String slug, String locale) {
         CategoryI18n i18n = CategoryI18n.of(locale, name + " " + locale, slug + "-" + locale, null);
-        return categoryService.create(name, slug, parent.getId(), parent.getSortOrder() + 1, true, List.of(i18n));
+        return categoryService.create(name, slug, parent.getId(), parent.getSortOrder() + 1, "https://oss.example.com/category/" + slug + ".jpg", true, List.of(i18n));
     }
 
     /**
@@ -143,16 +164,16 @@ public abstract class ProductApiIntegrationTestBase {
      */
     protected SeedProduct seedOnSaleProduct(String slug, String locale, String currency) {
         return seedOnSaleProduct(slug, locale, currency, List.of("tag1", "tag2"),
-                new BigDecimal("99.99"), new BigDecimal("79.99"));
+                (long) 99.99, (long) 79.99);
     }
 
     protected SeedProduct seedOnSaleProduct(String slug, String locale, String currency,
-                                            List<String> tags, BigDecimal listPrice, BigDecimal salePrice) {
+                                            List<String> tags, Long listPrice, Long salePrice) {
         return seedProduct(slug, locale, currency, ProductStatus.ON_SALE, tags, listPrice, salePrice);
     }
 
     protected SeedProduct seedProduct(String slug, String locale, String currency, ProductStatus status,
-                                      List<String> tags, BigDecimal listPrice, BigDecimal salePrice) {
+                                      List<String> tags, Long listPrice, Long salePrice) {
         String categorySlug = slug + "-cat";
         Category category = seedCategory("Electronics " + slug, categorySlug, locale);
         Product product = productService.createBasic(
