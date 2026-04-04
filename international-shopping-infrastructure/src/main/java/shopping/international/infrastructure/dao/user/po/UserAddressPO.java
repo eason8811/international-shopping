@@ -82,6 +82,11 @@ public class UserAddressPO {
     @TableField("zipcode")
     private String zipcode;
     /**
+     * 地址标签代码
+     */
+    @TableField("tag")
+    private String tag;
+    /**
      * 是否默认地址
      */
     @TableField("is_default")

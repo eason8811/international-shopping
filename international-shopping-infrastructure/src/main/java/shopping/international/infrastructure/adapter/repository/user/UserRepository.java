@@ -276,6 +276,7 @@ public class UserRepository implements IUserRepository {
                         .addressLine1(a.getAddressLine1())
                         .addressLine2(a.getAddressLine2())
                         .zipcode(a.getZipcode())
+                        .tag(a.getTag())
                         .isDefault(a.isDefaultAddress())
                         .build();
                 addressMapper.insert(addressPO);
@@ -799,6 +800,7 @@ public class UserRepository implements IUserRepository {
                 addressPO.getAddressLine1(),
                 addressPO.getAddressLine2(),
                 addressPO.getZipcode(),
+                addressPO.getTag(),
                 Boolean.TRUE.equals(addressPO.getIsDefault()),
                 addressPO.getCreatedAt(),
                 addressPO.getUpdatedAt()
@@ -825,6 +827,7 @@ public class UserRepository implements IUserRepository {
                 .addressLine1(address.getAddressLine1())
                 .addressLine2(address.getAddressLine2())
                 .zipcode(address.getZipcode())
+                .tag(address.getTag())
                 .isDefault(address.isDefaultAddress())
                 .createdAt(address.getCreatedAt())
                 .updatedAt(address.getUpdatedAt())

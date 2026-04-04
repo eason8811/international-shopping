@@ -89,7 +89,7 @@ public class AddressController {
         PhoneNumber phoneNumber = PhoneNumber.ofParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber());
         UserAddress newAddress = UserAddress.of(req.getReceiverName(), phoneNumber, req.getCountry(),
                 req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
-                req.getZipcode(), Boolean.TRUE.equals(req.getIsDefault()));
+                req.getZipcode(), req.getTag(), Boolean.TRUE.equals(req.getIsDefault()));
 
         try {
             UserAddress created = addressService.create(uid, newAddress, idempotencyKey);
@@ -133,7 +133,7 @@ public class AddressController {
         PhoneNumber phone = PhoneNumber.nullableOfParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber());
         UserAddress updated = addressService.update(uid, id, req.getReceiverName(), phone, req.getCountry(),
                 req.getProvince(), req.getCity(), req.getDistrict(), req.getAddressLine1(), req.getAddressLine2(),
-                req.getZipcode(), req.getIsDefault());
+                req.getZipcode(), req.isTagSpecified(), req.getTag(), req.getIsDefault());
         return ResponseEntity.ok(Result.ok(AddressRespond.from(updated), "地址已更新"));
     }
 

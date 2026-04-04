@@ -124,6 +124,7 @@ CREATE TABLE user_address
     address_line1         VARCHAR(255)    NOT NULL COMMENT '地址行1',
     address_line2         VARCHAR(255)    NULL COMMENT '地址行2',
     zipcode               VARCHAR(20)     NULL COMMENT '邮编',
+    tag                   VARCHAR(32)     NULL COMMENT '地址标签代码',
     is_default            TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '是否默认地址',
     created_at            DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_at            DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',

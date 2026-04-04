@@ -2,13 +2,12 @@ package shopping.international.domain.model.entity.user;
 
 import lombok.*;
 import lombok.experimental.Accessors;
-import shopping.international.types.exceptions.IllegalParamException;
 import shopping.international.domain.model.vo.user.PhoneNumber;
+import shopping.international.types.exceptions.IllegalParamException;
 
 import java.time.LocalDateTime;
 
-import static shopping.international.types.utils.FieldValidateUtils.requireNotBlank;
-import static shopping.international.types.utils.FieldValidateUtils.requireNotNull;
+import static shopping.international.types.utils.FieldValidateUtils.*;
 
 /**
  * 用户收货地址实体 (对应表 user_address), 归属 User 聚合
@@ -44,6 +43,10 @@ public class UserAddress {
     private String addressLine2;
     private String zipcode;
     /**
+     * 地址标签代码, 如 HOME/OFFICE
+     */
+    private String tag;
+    /**
      * 是否默认地址 (聚合根保证唯一)
      */
     private boolean defaultAddress;
@@ -65,19 +68,20 @@ public class UserAddress {
      * @param addressLine1 地址行1 不能为空
      * @param addressLine2 地址行2 可选
      * @param zipcode      邮编 可选
+     * @param tag          地址标签代码, 可选
      * @param isDefault    是否设为默认地址
      * @return 新建的 {@link UserAddress} 对象, 其 id 为 null 表示尚未持久化到数据库
      * @throws IllegalParamException 如果收货人姓名或地址行1为空白时抛出
      */
     public static UserAddress of(String receiverName, PhoneNumber phone,
                                  String country, String province, String city, String district,
-                                 String addressLine1, String addressLine2, String zipcode,
+                                 String addressLine1, String addressLine2, String zipcode, String tag,
                                  boolean isDefault) {
         requireNotBlank(receiverName, "收货人不能为空");
         requireNotBlank(addressLine1, "地址行1 不能为空");
         requireNotNull(phone, "联系电话不能为空");
         return new UserAddress(null, receiverName, phone, country, province, city, district,
-                addressLine1, addressLine2, zipcode, isDefault, null, null);
+                addressLine1, addressLine2, zipcode, normalizeAddressTagCode(tag), isDefault, null, null);
     }
 
     /**
@@ -93,11 +97,14 @@ public class UserAddress {
      * @param addressLine1 地址行1 不得为空白
      * @param addressLine2 地址行2 可选
      * @param zipcode      邮编 可选
+     * @param tagSpecified 是否显式更新地址标签
+     * @param tag          地址标签代码, tagSpecified=true 且为 null 时表示清空
      * @throws IllegalParamException 当 <code>receiverName</code> 或 <code>addressLine1</code> 为空白时抛出
      */
     public void update(String receiverName, PhoneNumber phone,
                        String country, String province, String city, String district,
-                       String addressLine1, String addressLine2, String zipcode) {
+                       String addressLine1, String addressLine2, String zipcode,
+                       boolean tagSpecified, String tag) {
         if (receiverName != null && receiverName.isBlank())
             throw new IllegalParamException("收货人不能为空");
         if (addressLine1 != null && addressLine1.isBlank())
@@ -121,6 +128,8 @@ public class UserAddress {
             this.addressLine2 = addressLine2;
         if (zipcode != null)
             this.zipcode = zipcode;
+        if (tagSpecified)
+            this.tag = normalizeAddressTagCode(tag);
     }
 
     /**

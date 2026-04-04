@@ -364,14 +364,17 @@ public class User {
      * @param addressLine1 第一行地址
      * @param addressLine2 第二行地址 (可选)
      * @param zipcode      邮政编码
+     * @param tagSpecified 是否显式更新地址标签
+     * @param tag          地址标签代码
      * @param makeDefault  是否将此地址设为默认地址
      * @throws IllegalParamException 如果根据提供的ID找不到任何地址, 或手机号格式不正确时抛出
      */
     public void updateAddress(Long addressId, String receiverName, PhoneNumber phone, String country, String province,
                               String city, String district, String addressLine1, String addressLine2, String zipcode,
-                              Boolean makeDefault) {
+                              boolean tagSpecified, String tag, Boolean makeDefault) {
         UserAddress address = findAddress(addressId);
-        address.update(receiverName, phone, country, province, city, district, addressLine1, addressLine2, zipcode);
+        address.update(receiverName, phone, country, province, city, district,
+                addressLine1, addressLine2, zipcode, tagSpecified, tag);
         if (Boolean.TRUE.equals(makeDefault)) {
             addressList.forEach(a -> a.setDefault(false));
             address.setDefault(true);

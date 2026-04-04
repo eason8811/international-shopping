@@ -1,6 +1,8 @@
 package shopping.international.api.resp.user;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class AddressRespond {
     /**
      * 地址ID
@@ -45,6 +48,10 @@ public class AddressRespond {
     private String addressLine2;
     private String zipcode;
     /**
+     * 地址标签代码
+     */
+    private String tag;
+    /**
      * 是否默认
      */
     private Boolean isDefault;
@@ -75,6 +82,7 @@ public class AddressRespond {
                 address.getAddressLine1(),
                 address.getAddressLine2(),
                 address.getZipcode(),
+                address.getTag(),
                 address.isDefaultAddress(),
                 address.getCreatedAt(),
                 address.getUpdatedAt()

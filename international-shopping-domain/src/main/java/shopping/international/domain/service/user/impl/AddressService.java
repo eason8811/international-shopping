@@ -155,6 +155,8 @@ public class AddressService implements IAddressService {
      * @param addressLine1 地址行1, 可为空, 若不为空则更新该字段
      * @param addressLine2 地址行2, 可为空, 若不为空则更新该字段
      * @param zipcode      邮编, 可为空, 若不为空则更新该字段
+     * @param tagSpecified 是否显式更新地址标签
+     * @param tag          地址标签代码, tagSpecified=true 且为 null 时表示清空
      * @param makeDefault  是否设为默认地址, 可为空, 若不为空则根据其值设置当前地址是否为默认
      * @return 返回一个 {@link UserAddress} 对象, 包含了更新后的地址详细信息
      * @throws IllegalParamException 如果提供的 <code>receiverName</code> 或 <code>addressLine1</code> 为空白但不为 null 时抛出
@@ -171,6 +173,8 @@ public class AddressService implements IAddressService {
                                        @Nullable String addressLine1,
                                        @Nullable String addressLine2,
                                        @Nullable String zipcode,
+                                       boolean tagSpecified,
+                                       @Nullable String tag,
                                        @Nullable Boolean makeDefault) {
         // 1) 装载聚合, 让聚合负责"是否存在该地址"和字段合法性检查
         User user = userRepository.findById(userId)
@@ -178,7 +182,7 @@ public class AddressService implements IAddressService {
 
         // 2) 在聚合中完成业务语义 (不存在会抛 IllegalParamException; receiverName/addressLine1 为空白会抛错)
         user.updateAddress(addressId, receiverName, phone, country, province, city, district,
-                addressLine1, addressLine2, zipcode, makeDefault);
+                addressLine1, addressLine2, zipcode, tagSpecified, tag, makeDefault);
 
         // 3) 从聚合快照中找到更新后的地址实体
         UserAddress updatedAddressInAggregate = user.getAddressesSnapshot().stream()

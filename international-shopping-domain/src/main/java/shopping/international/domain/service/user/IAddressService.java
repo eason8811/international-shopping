@@ -59,6 +59,8 @@ public interface IAddressService {
      * @param addressLine1 地址行1, 可为空, 若不为空则更新该字段
      * @param addressLine2 地址行2, 可为空, 若不为空则更新该字段
      * @param zipcode      邮编, 可为空, 若不为空则更新该字段
+     * @param tagSpecified 是否显式更新地址标签
+     * @param tag          地址标签代码, tagSpecified=true 且为 null 时表示清空
      * @param makeDefault  是否设为默认地址, 可为空, 若不为空则根据其值设置当前地址是否为默认
      * @return 返回一个 {@link UserAddress} 对象, 包含了更新后的地址详细信息
      * @throws IllegalParamException 如果提供的 <code>receiverName</code> 或 <code>addressLine1</code> 为空白但不为 null 时抛出
@@ -75,6 +77,8 @@ public interface IAddressService {
                        @Nullable String addressLine1,
                        @Nullable String addressLine2,
                        @Nullable String zipcode,
+                       boolean tagSpecified,
+                       @Nullable String tag,
                        @Nullable Boolean makeDefault);
 
     /**

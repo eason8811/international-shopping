@@ -3984,6 +3984,12 @@ components:
             - 'null'
           examples:
             - 160-0023
+        tag:
+          type:
+            - string
+            - 'null'
+        tag_specified:
+          type: boolean
         is_default:
           type: boolean
           examples:
@@ -3999,7 +4005,11 @@ components:
         - address_line1
         - address_line2
         - zipcode
+        - tag
+        - tag_specified
         - is_default
+      required:
+        - tag_specified
       x-apifox-ignore-properties: []
       x-apifox-folder: user
     CreateAddressRequest:
@@ -4055,6 +4065,10 @@ components:
           type: string
           examples:
             - 160-0023
+        tag:
+          type:
+            - string
+            - 'null'
         is_default:
           type: boolean
           default: false
@@ -4071,6 +4085,7 @@ components:
         - address_line1
         - address_line2
         - zipcode
+        - tag
         - is_default
       x-apifox-ignore-properties: []
       x-apifox-folder: user
@@ -4308,6 +4323,8 @@ components:
             - +81-90-1234-5678
         phone_national_number:
           type: string
+        country_code:
+          type: string
         country:
           type:
             - string
@@ -4348,6 +4365,8 @@ components:
             - 'null'
           examples:
             - 160-0023
+        tag:
+          type: string
         is_default:
           type: boolean
           examples:
@@ -4371,11 +4390,14 @@ components:
         - created_at
         - updated_at
         - phone_national_number
+        - country_code
+        - tag
       x-apifox-orders:
         - id
         - receiver_name
         - phone_country_code
         - phone_national_number
+        - country_code
         - country
         - province
         - city
@@ -4383,6 +4405,7 @@ components:
         - address_line1
         - address_line2
         - zipcode
+        - tag
         - is_default
         - created_at
         - updated_at

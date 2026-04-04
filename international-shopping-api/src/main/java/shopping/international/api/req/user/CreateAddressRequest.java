@@ -1,5 +1,7 @@
 package shopping.international.api.req.user;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
 import org.jetbrains.annotations.Nullable;
 
@@ -9,6 +11,7 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
  * 新增收货地址请求
  */
 @Data
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class CreateAddressRequest {
     /**
      * 收货人
@@ -41,6 +44,11 @@ public class CreateAddressRequest {
     private String addressLine2;
     @Nullable
     private String zipcode;
+    /**
+     * 地址标签代码 (可空)
+     */
+    @Nullable
+    private String tag;
     /**
      * 是否默认
      */
@@ -78,5 +86,7 @@ public class CreateAddressRequest {
         }
         requireNotBlank(zipcode, "邮编不能为空");
         zipcode = zipcode.strip();
+        if (tag != null)
+            tag = normalizeAddressTagCode(tag);
     }
 }

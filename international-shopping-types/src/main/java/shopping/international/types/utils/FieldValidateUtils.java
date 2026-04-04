@@ -25,6 +25,10 @@ public final class FieldValidateUtils {
      * 货币格式: 3 位大写字母
      */
     public static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Z]{3}$");
+    /**
+     * 地址标签代码: 大写字母/数字/下划线, 1-32 位
+     */
+    public static final Pattern ADDRESS_TAG_CODE_PATTERN = Pattern.compile("^[A-Z0-9_]{1,32}$");
 
     /**
      * 工具类不能实例化
@@ -157,6 +161,22 @@ public final class FieldValidateUtils {
         if (!CURRENCY_PATTERN.matcher(trimmed).matches())
             throw new IllegalParamException("currency 需为 3 位字母代码");
         return trimmed;
+    }
+
+    /**
+     * 规范化地址标签代码
+     *
+     * @param tag 地址标签, 可为空
+     * @return 合法的大写标签代码, 若输入为 null 则返回 null
+     */
+    public static @Nullable String normalizeAddressTagCode(@Nullable String tag) {
+        if (tag == null)
+            return null;
+        String normalized = tag.strip();
+        requireNotBlank(normalized, "tag 不能为空");
+        normalized = normalized.toUpperCase(Locale.ROOT);
+        require(ADDRESS_TAG_CODE_PATTERN.matcher(normalized).matches(), "tag 格式不正确");
+        return normalized;
     }
 
     /**
