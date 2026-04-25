@@ -88,21 +88,20 @@ public class AuthService implements IAuthService {
     /**
      * 注册新用户并发送激活邮件 (账户初始状态为 DISABLED)
      *
-     * @param username    用户名 (唯一登录名)
      * @param rawPassword 明文密码 (领域服务内负责安全哈希)
-     * @param nickname    昵称
-     * @param email       邮箱 (可空, 为空则不发送激活邮件)
+     * @param email       邮箱, 同时作为本地注册用户名与初始昵称来源
      * @param phone       手机 (可空)
      * @throws IllegalParamException 当用户名/邮箱/手机存在唯一性冲突, 或参数非法时抛出
      * @throws EmailSendException    如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
     @Override
-    public void register(@NotNull Username username, @NotNull Password rawPassword, @NotNull Nickname nickname,
-                         @NotNull EmailAddress email, @Nullable PhoneNumber phone) {
+    public void register(@NotNull Password rawPassword, @NotNull EmailAddress email, @Nullable PhoneNumber phone) {
+        Username username = Username.of(email.getValue());
+        Nickname nickname = Nickname.of(username.getValue());
 
         // 1. 幂等唯一性前置校验 (DB 层仍需唯一索引兜底)
         try {
-            require(!userRepository.existsByUsername(username), "用户名已存在");
+            require(!userRepository.existsByUsername(username), "邮箱已存在");
             require(!userRepository.existsByEmail(email), "邮箱已存在");
             if (phone != null)
                 require(!userRepository.existsByPhone(phone), "手机号已存在");
@@ -149,7 +148,7 @@ public class AuthService implements IAuthService {
 
         // 竟态保证, 防止无异议的并发激活
         User target = user != null ? user : userRepository.findByEmail(email)
-                .orElseThrow(() -> new VerificationCodeInvalidException("账户不存在或邮箱未绑定"));
+                                            .orElseThrow(() -> new VerificationCodeInvalidException("账户不存在或邮箱未绑定"));
         if (target.getStatus() == AccountStatus.ACTIVE)
             return target; // 防止并发重复激活
 

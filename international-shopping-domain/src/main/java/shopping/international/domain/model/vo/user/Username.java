@@ -11,16 +11,16 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
 
 /**
  * 用户名 (登录名) 值对象
- * <p>不可变, 持有规范化后的用户名 (去首尾空格)</p>
+ * <p>不可变, 持有规范化后的用户名 (去首尾空格). 本地注册用户名可直接使用邮箱.</p>
  */
 @Getter
 @EqualsAndHashCode
 @ToString
 public final class Username {
     /**
-     * 用户名正则表达式
+     * 传统用户名正则表达式
      */
-    private static final Pattern PATTERN = Pattern.compile("^(?=.*[^0-9])[A-Za-z0-9_-]{3,64}$");
+    private static final Pattern LEGACY_PATTERN = Pattern.compile("^(?=.*[^0-9])[A-Za-z0-9_-]{3,255}$");
 
     /**
      * 规范化后的用户名
@@ -45,7 +45,9 @@ public final class Username {
     public static Username of(String raw) {
         requireNotNull(raw, "用户名不能为空");
         String val = raw.trim();
-        require(PATTERN.matcher(val).matches(), "用户名必须是3-64位字母数字下划线或 (_) 连字符 (-)");
+        if (val.contains("@"))
+            return new Username(EmailAddress.of(val).getValue());
+        require(LEGACY_PATTERN.matcher(val).matches(), "用户名必须为长度 <= 255 的合法邮箱");
         return new Username(val);
     }
 }

@@ -3,7 +3,9 @@ package shopping.international.domain.service.user;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import shopping.international.domain.model.aggregate.user.User;
-import shopping.international.domain.model.vo.user.*;
+import shopping.international.domain.model.vo.user.EmailAddress;
+import shopping.international.domain.model.vo.user.Password;
+import shopping.international.domain.model.vo.user.PhoneNumber;
 import shopping.international.types.enums.EmailDeliveryStatus;
 import shopping.international.types.exceptions.*;
 
@@ -28,16 +30,13 @@ public interface IAuthService {
     /**
      * 注册新用户并发送激活邮件 (账户初始状态为 DISABLED)
      *
-     * @param username    用户名 (唯一登录名)
      * @param rawPassword 明文密码 (领域服务内负责安全哈希)
-     * @param nickname    昵称
-     * @param email       邮箱 (可空, 为空则不发送激活邮件)
+     * @param email       邮箱, 同时作为本地注册用户名与初始昵称来源
      * @param phone       手机 (可空)
      * @throws IllegalParamException 当用户名/邮箱/手机存在唯一性冲突, 或参数非法时抛出
      * @throws EmailSendException    如果在发送邮件过程中发生错误 (例如, 邮件服务不可用)
      */
-    void register(@NotNull Username username, @NotNull Password rawPassword, @NotNull Nickname nickname,
-                  @NotNull EmailAddress email, @Nullable PhoneNumber phone);
+    void register(@NotNull Password rawPassword, @NotNull EmailAddress email, @Nullable PhoneNumber phone);
 
     /**
      * 校验邮箱验证码并激活账户 (状态从 DISABLED → ACTIVE), 返回激活后的用户聚合快照

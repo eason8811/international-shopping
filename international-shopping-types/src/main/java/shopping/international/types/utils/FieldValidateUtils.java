@@ -123,6 +123,8 @@ public final class FieldValidateUtils {
                         "(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$"
         );
         requireNotBlank(email, "邮箱不能为空");
+        if (email.length() > 255)
+            throw IllegalParamException.of("邮箱长度不能超过 255 个字符");
         if (!EMAIL_REGEX.matcher(email).matches())
             throw IllegalParamException.of(msg);
     }

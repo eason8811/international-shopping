@@ -1,6 +1,8 @@
 package shopping.international.trigger.controller.user;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -10,12 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.*;
-import shopping.international.api.req.user.LoginRequest;
-import shopping.international.api.req.user.ForgotPasswordRequest;
-import shopping.international.api.req.user.RegisterRequest;
-import shopping.international.api.req.user.ResendActivationRequest;
-import shopping.international.api.req.user.ResetPasswordRequest;
-import shopping.international.api.req.user.VerifyEmailRequest;
+import shopping.international.api.req.user.*;
 import shopping.international.api.resp.Result;
 import shopping.international.api.resp.user.CsrfTokenRespond;
 import shopping.international.api.resp.user.EmailStatusRespond;
@@ -23,9 +20,6 @@ import shopping.international.api.resp.user.UserAccountRespond;
 import shopping.international.domain.model.aggregate.user.User;
 import shopping.international.domain.model.vo.user.*;
 import shopping.international.domain.service.user.IAuthService;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import shopping.international.types.constant.SecurityConstants;
 import shopping.international.types.enums.EmailDeliveryStatus;
 
@@ -68,7 +62,7 @@ public class AuthController {
     /**
      * 本地注册, 创建 DISABLED 账户并发送激活邮件
      *
-     * @param req 注册请求体 (用户名, 密码哈希由应用服务处理, 昵称, 邮箱, 可选手机)
+     * @param req 注册请求体 (密码哈希由应用服务处理, 邮箱, 可选手机)
      * @return 202 Accepted 的统一返回体
      */
     @PostMapping("/register")
@@ -77,9 +71,7 @@ public class AuthController {
         req.validate();
         // 领域服务处理注册与发送激活邮件 (基础设施层后续用 SendGrid 实现)
         authService.register(
-                Username.of(req.getUsername()),
                 Password.of(req.getPassword()),
-                Nickname.of(req.getNickname()),
                 EmailAddress.of(req.getEmail()),
                 PhoneNumber.nullableOfParts(req.getPhoneCountryCode(), req.getPhoneNationalNumber()));
         return ResponseEntity

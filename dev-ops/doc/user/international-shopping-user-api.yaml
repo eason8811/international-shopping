@@ -4185,6 +4185,7 @@ components:
           type: string
           examples:
             - Eason Chen
+          maxLength: 64
         phone_country_code:
           type:
             - string
@@ -4206,30 +4207,21 @@ components:
     RegisterRequest:
       type: object
       required:
-        - username
         - password
         - email
-        - nickname
       properties:
-        username:
-          type: string
-          examples:
-            - eason
         password:
           type: string
           format: password
           minLength: 8
           examples:
             - Passw0rd!
-        nickname:
-          type: string
-          examples:
-            - Eason
         email:
           type: string
           format: email
           examples:
             - eason@example.com
+          description: 注册邮箱；后端会将 username 自动派生为该邮箱，初始 nickname 自动派生为 username
         phone_country_code:
           type:
             - string
@@ -4245,9 +4237,7 @@ components:
             - '13800135767'
           description: phone_country_code 和 phone_national_number 必须同时传或同时为空
       x-apifox-orders:
-        - username
         - password
-        - nickname
         - email
         - phone_country_code
         - phone_national_number
@@ -4614,12 +4604,6 @@ components:
       x-apifox-ignore-properties: []
       x-apifox-folder: user
   responses:
-    已创建:
-      description: ''
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Result'
     参数错误:
       description: ''
       content:
@@ -4634,18 +4618,6 @@ components:
                 code: BAD_REQUEST
                 message: 用户名不能为空
                 timestamp: '2025-11-06 11:38:39'
-    已接受:
-      description: ''
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Result'
-    重定向:
-      description: ''
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Result'
     未鉴权:
       description: ''
       content:
@@ -4702,12 +4674,6 @@ components:
                 code: UNPROCESSABLE_ENTITY
                 message: 验证码错误或已过期
                 timestamp: '2025-11-06 15:28:11'
-    服务器内部错误:
-      description: ''
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Result'
     请求过多:
       description: ''
       content:
@@ -4722,12 +4688,6 @@ components:
                 code: TOO_MANY_REQUESTS
                 message: 尝试次数过多, 请过段时间再试
                 timestamp: '2025-11-15 14:25:35'
-    未找到:
-      description: ''
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Result'
   securitySchemes: {}
 servers: []
 security: []

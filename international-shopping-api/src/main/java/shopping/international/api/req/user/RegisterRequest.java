@@ -15,17 +15,9 @@ import static shopping.international.types.utils.FieldValidateUtils.*;
 @AllArgsConstructor
 public class RegisterRequest {
     /**
-     * 用户名 (唯一登录名)
-     */
-    private String username;
-    /**
      * 登录密码 (明文, 应用服务内会进行哈希)
      */
     private String password;
-    /**
-     * 昵称
-     */
-    private String nickname;
     /**
      * 邮箱
      */
@@ -45,10 +37,8 @@ public class RegisterRequest {
      * @throws IllegalParamException 如果任一被验证的字段不符合预期条件
      */
     public void validate() {
-        requireNotBlank(username, "用户名不能为空");
         requireNotBlank(password, "密码不能为空");
-        requireNotBlank(nickname, "昵称不能为空");
-        requireNotBlank(email, "邮箱不能为空");
+        requireIsEmail(email, "邮箱格式不正确");
 
         boolean ccBlank = (phoneCountryCode == null || phoneCountryCode.isBlank());
         boolean nnBlank = (phoneNationalNumber == null || phoneNationalNumber.isBlank());

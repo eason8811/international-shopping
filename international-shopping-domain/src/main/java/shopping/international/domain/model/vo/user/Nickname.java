@@ -15,6 +15,10 @@ import static shopping.international.types.utils.FieldValidateUtils.requireNotNu
 @ToString
 public final class Nickname {
     /**
+     * 昵称最大长度. 本地注册初始昵称会从邮箱用户名派生, 因此对齐邮箱长度上限
+     */
+    private static final int MAX_LENGTH = 255;
+    /**
      * 昵称值
      */
     private final String value;
@@ -37,7 +41,7 @@ public final class Nickname {
     public static Nickname of(String raw) {
         requireNotNull(raw, "昵称不能为空");
         String val = raw.trim();
-        require(!val.isEmpty() && val.length() <= 64, "昵称长度必须为 1~64 个字符");
+        require(!val.isEmpty() && val.length() <= MAX_LENGTH, "昵称长度必须为 1~" + MAX_LENGTH + " 个字符");
         return new Nickname(val);
     }
 }

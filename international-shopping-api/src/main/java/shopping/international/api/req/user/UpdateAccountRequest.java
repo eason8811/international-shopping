@@ -36,7 +36,7 @@ public class UpdateAccountRequest {
      */
     public void validate() {
         if (nickname != null) {
-            require(!nickname.isBlank() && nickname.strip().length() <= 64, "昵称长度必须为 1~64 个字符");
+            require(!nickname.isBlank() && nickname.strip().length() <= 255, "昵称长度必须为 1~255 个字符");
             nickname = nickname.strip();
         }
 

@@ -19,8 +19,8 @@ idx_user_last_login：近期登录活跃度排序/检索
 CREATE TABLE user_account
 (
     id                    BIGINT UNSIGNED                          NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    username              VARCHAR(64)                              NOT NULL COMMENT '用户名(登录名)',
-    nickname              VARCHAR(64)                              NOT NULL COMMENT '昵称/显示名',
+    username              VARCHAR(255)                             NOT NULL COMMENT '用户名(登录名, 本地注册时等同邮箱)',
+    nickname              VARCHAR(255)                             NOT NULL COMMENT '昵称/显示名',
     email                 VARCHAR(255)                             NULL COMMENT '邮箱(可空)',
     phone_country_code    VARCHAR(3)                               NULL COMMENT '手机号国家码(E.164, 不含+)',
     phone_national_number VARCHAR(14)                              NULL COMMENT '手机号(E.164, 国家码之后的national number, 仅数字)',

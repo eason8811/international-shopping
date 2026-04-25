@@ -23,6 +23,10 @@ public final class EmailAddress {
      */
     private static final Pattern PATTERN =
             Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    /**
+     * 邮箱最大长度, 对齐 user_account.email 与本地注册 username 派生值
+     */
+    private static final int MAX_LENGTH = 255;
 
     /**
      * 邮箱值
@@ -48,6 +52,7 @@ public final class EmailAddress {
     public static EmailAddress of(String raw) {
         requireNotNull(raw, "邮箱不能为空");
         String val = raw.trim().toLowerCase(Locale.ROOT);
+        require(val.length() <= MAX_LENGTH, "邮箱长度不能超过 " + MAX_LENGTH + " 个字符");
         require(PATTERN.matcher(val).matches(), "邮箱格式不正确");
         return new EmailAddress(val);
     }
