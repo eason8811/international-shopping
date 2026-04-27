@@ -54,7 +54,7 @@ public class UserAccountPO {
     @TableField(value = "phone_e164", insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
     private String phoneE164;
     /**
-     * 账户状态 (ACTIVE/DISABLED)
+     * 账户状态 (ACTIVE/UNAUTHORIZE/DISABLED)
      */
     @TableField("status")
     private String status;

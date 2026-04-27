@@ -60,7 +60,7 @@ public class AuthController {
     private final JwtIssueSpec jwtIssueSpec;
 
     /**
-     * 本地注册, 创建 DISABLED 账户并发送激活邮件
+     * 本地注册, 创建 UNAUTHORIZE 账户并发送激活邮件
      *
      * @param req 注册请求体 (密码哈希由应用服务处理, 邮箱, 可选手机)
      * @return 202 Accepted 的统一返回体

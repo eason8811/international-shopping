@@ -28,7 +28,7 @@ import shopping.international.types.exceptions.*;
 public interface IAuthService {
 
     /**
-     * 注册新用户并发送激活邮件 (账户初始状态为 DISABLED)
+     * 注册新用户并发送激活邮件 (账户初始状态为 UNAUTHORIZE)
      *
      * @param rawPassword 明文密码 (领域服务内负责安全哈希)
      * @param email       邮箱, 同时作为本地注册用户名与初始昵称来源
@@ -39,7 +39,7 @@ public interface IAuthService {
     void register(@NotNull Password rawPassword, @NotNull EmailAddress email, @Nullable PhoneNumber phone);
 
     /**
-     * 校验邮箱验证码并激活账户 (状态从 DISABLED → ACTIVE), 返回激活后的用户聚合快照
+     * 校验邮箱验证码并激活账户 (状态从 UNAUTHORIZE → ACTIVE), 返回激活后的用户聚合快照
      *
      * @param email 收到验证码的邮箱
      * @param code  验证码

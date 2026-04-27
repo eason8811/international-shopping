@@ -218,7 +218,7 @@ public class UserRepository implements IUserRepository {
                 .email(user.getEmail().getValue())
                 .phoneCountryCode(user.getPhone() == null ? null : user.getPhone().requireCountryCode())
                 .phoneNationalNumber(user.getPhone() == null ? null : user.getPhone().requireNationalNumber())
-                .status(user.getStatus() == null ? AccountStatus.DISABLED.name() : user.getStatus().name())
+                .status(user.getStatus() == null ? AccountStatus.UNAUTHORIZE.name() : user.getStatus().name())
                 .lastLoginAt(user.getLastLoginAt())
                 .isDeleted(Boolean.FALSE)
                 .build();
@@ -288,7 +288,7 @@ public class UserRepository implements IUserRepository {
     }
 
     /**
-     * 更新账户状态 (如 DISABLED → ACTIVE)
+     * 更新账户状态 (如 UNAUTHORIZE → ACTIVE)
      *
      * @param userId 用户 ID
      * @param status 新状态

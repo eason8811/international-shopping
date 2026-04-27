@@ -59,7 +59,7 @@ public class User {
      */
     private PhoneNumber phone;
     /**
-     * 账户状态 (默认 {@link AccountStatus#DISABLED DISABLED})
+     * 账户状态 (默认 {@link AccountStatus#UNAUTHORIZE UNAUTHORIZE})
      */
     private AccountStatus status;
     /**
@@ -111,7 +111,7 @@ public class User {
      * @param nickname    昵称, 必须非空
      * @param email       邮箱地址, 可为空
      * @param phone       手机号码, 可为空
-     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#DISABLED DISABLED}
+     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#UNAUTHORIZE UNAUTHORIZE}
      * @param lastLoginAt 上次登录时间, 可为空
      * @param deleted     是否已删除 (软删除标记), 默认为 false
      * @param createdAt   创建时间, 可为空
@@ -128,7 +128,7 @@ public class User {
         this.nickname = nickname;
         this.email = email;
         this.phone = phone;
-        this.status = status == null ? AccountStatus.DISABLED : status;
+        this.status = status == null ? AccountStatus.UNAUTHORIZE : status;
         this.lastLoginAt = lastLoginAt;
         this.deleted = deleted;
         this.createdAt = createdAt;
@@ -137,7 +137,7 @@ public class User {
     }
 
     /**
-     * 注册工厂, 创建一个新用户 (DISABLED), 并附带本地账号绑定
+     * 注册工厂, 创建一个新用户 (UNAUTHORIZE), 并附带本地账号绑定
      *
      * @param username          用户名
      * @param nickname          昵称
@@ -180,7 +180,7 @@ public class User {
      * @param nickname    昵称, 必须非空
      * @param email       邮箱地址, 可为空
      * @param phone       手机号码, 可为空
-     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#DISABLED DISABLED}
+     * @param status      账户状态, 如果为 null, 默认设置为 {@link AccountStatus#UNAUTHORIZE UNAUTHORIZE}
      * @param lastLoginAt 上次登录时间, 可为空
      * @param deleted     是否已删除 (软删除标记), 默认为 false
      * @param createdAt   创建时间, 可为空
@@ -208,7 +208,7 @@ public class User {
     // ========== 账户行为 ==========
 
     /**
-     * 幂等激活账户 (从 DISABLED → ACTIVE)
+     * 幂等激活账户 (从 UNAUTHORIZE → ACTIVE)
      */
     public void activate() {
         if (this.status == AccountStatus.ACTIVE)

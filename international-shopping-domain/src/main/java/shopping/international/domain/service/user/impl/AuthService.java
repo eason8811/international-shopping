@@ -86,7 +86,7 @@ public class AuthService implements IAuthService {
     // ========= 注册 / 激活 =========
 
     /**
-     * 注册新用户并发送激活邮件 (账户初始状态为 DISABLED)
+     * 注册新用户并发送激活邮件 (账户初始状态为 UNAUTHORIZE)
      *
      * @param rawPassword 明文密码 (领域服务内负责安全哈希)
      * @param email       邮箱, 同时作为本地注册用户名与初始昵称来源
@@ -99,7 +99,17 @@ public class AuthService implements IAuthService {
         Username username = Username.of(email.getValue());
         Nickname nickname = Nickname.of(username.getValue());
 
-        // 1. 幂等唯一性前置校验 (DB 层仍需唯一索引兜底)
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            if (user.getStatus() == AccountStatus.UNAUTHORIZE) {
+                sendActivationEmail(email);
+                return;
+            }
+            throw new ConflictException("邮箱已存在");
+        }
+
+        // 1. 唯一性前置校验 (DB 层仍需唯一索引兜底)
         try {
             require(!userRepository.existsByUsername(username), "邮箱已存在");
             require(!userRepository.existsByEmail(email), "邮箱已存在");
@@ -123,13 +133,17 @@ public class AuthService implements IAuthService {
         userRepository.saveNewUserWithBindings(toSave);
 
         // 4. 下发邮箱验证码 (覆盖式存储, 最后一次生效)
+        sendActivationEmail(email);
+    }
+
+    private void sendActivationEmail(@NotNull EmailAddress email) {
         String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);
         emailPort.sendActivationEmail(email, code);
     }
 
     /**
-     * 校验邮箱验证码并激活账户 (状态从 DISABLED → ACTIVE), 返回激活后的用户聚合快照
+     * 校验邮箱验证码并激活账户 (状态从 UNAUTHORIZE → ACTIVE), 返回激活后的用户聚合快照
      *
      * @param email 收到验证码的邮箱
      * @param code  验证码

@@ -92,7 +92,7 @@ public interface IUserRepository {
     @NotNull User saveNewUserWithBindings(User user);
 
     /**
-     * 更新账户状态 (如 DISABLED → ACTIVE)
+     * 更新账户状态 (如 UNAUTHORIZE → ACTIVE)
      *
      * @param userId 用户 ID
      * @param status 新状态
