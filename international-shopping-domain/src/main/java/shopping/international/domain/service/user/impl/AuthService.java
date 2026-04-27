@@ -103,7 +103,7 @@ public class AuthService implements IAuthService {
         if (existingUser.isPresent()) {
             User user = existingUser.get();
             if (user.getStatus() == AccountStatus.UNAUTHORIZE) {
-                sendActivationEmail(email);
+                sendActivationEmailIfNoPendingCode(email);
                 return;
             }
             throw new ConflictException("邮箱已存在");
@@ -136,10 +136,43 @@ public class AuthService implements IAuthService {
         sendActivationEmail(email);
     }
 
+    /**
+     * 生成新的邮箱激活验证码并发送激活邮件
+     *
+     * <p>该方法会无条件生成新的验证码, 并通过 {@link IVerificationCodePort} 覆盖当前邮箱已有的激活验证码,
+     * 随后通过 {@link IEmailPort} 发送激活邮件调用方应当在进入该方法前完成账户状态判断, 唯一性校验以及必要的
+     * 重复发送保护</p>
+     *
+     * <p>典型使用场景是新账户首次注册成功后的激活邮件发送, 此时需要立刻产生一个新的有效验证码</p>
+     *
+     * @param email 需要接收激活邮件的注册邮箱, 不可为 {@code null}
+     * @throws EmailSendException 邮件服务发送失败时抛出
+     */
     private void sendActivationEmail(@NotNull EmailAddress email) {
         String code = generateNumericCode(EMAIL_CODE_LENGTH);
         verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);
         emailPort.sendActivationEmail(email, code);
+    }
+
+    /**
+     * 在当前邮箱没有待验证激活码时发送激活邮件
+     *
+     * <p>该方法会先从 {@link IVerificationCodePort} 查询邮箱对应的激活验证码如果验证码仍然存在且不为空,
+     * 说明用户在验证码有效期内已经收到过激活邮件, 本次调用将直接返回, 不会生成新验证码, 也不会再次调用邮件发送端口
+     * 这可以避免重复注册或重复点击重发入口在短时间内消耗邮件发送额度</p>
+     *
+     * <p>如果没有待验证验证码, 方法会委托 {@link #sendActivationEmail(EmailAddress)} 生成新验证码并发送邮件</p>
+     *
+     * @param email 需要接收激活邮件的注册邮箱, 不可为 {@code null}
+     * @throws EmailSendException 邮件服务发送失败时抛出
+     */
+    private void sendActivationEmailIfNoPendingCode(@NotNull EmailAddress email) {
+        String existingCode = verificationCodePort.getEmailActivationCode(email);
+        if (existingCode != null && !existingCode.isBlank()) {
+            log.info("邮箱 {} 在验证码 TTL 内已有待验证的激活码, 跳过重复发送", email.getValue());
+            return;
+        }
+        sendActivationEmail(email);
     }
 
     /**
@@ -185,15 +218,7 @@ public class AuthService implements IAuthService {
         if (user.getStatus() == AccountStatus.ACTIVE)
             throw new IllegalParamException("账户已激活, 无需重发");
 
-        String existingCode = verificationCodePort.getEmailActivationCode(email);
-        if (existingCode != null && !existingCode.isBlank()) {
-            log.info("邮箱 {} 在验证码 TTL 内已有待验证的激活码, 跳过重复发送", email.getValue());
-            return;
-        }
-
-        String code = generateNumericCode(EMAIL_CODE_LENGTH);
-        verificationCodePort.storeEmailActivationCode(email, code, activationCodeTtl);
-        emailPort.sendActivationEmail(email, code);
+        sendActivationEmailIfNoPendingCode(email);
     }
 
     /**
