@@ -148,7 +148,7 @@ public class User {
      */
     public static User register(Username username, Nickname nickname, EmailAddress email, PhoneNumber phone, String localPasswordHash) {
         // 创建新用户
-        User user = new User(null, username, nickname, email, phone, AccountStatus.DISABLED, null,
+        User user = new User(null, username, nickname, email, phone, AccountStatus.UNAUTHORIZE, null,
                 false, LocalDateTime.now(), LocalDateTime.now(), UserProfile.empty());
         // 绑定 LOCAL 登录方式
         user.addBinding(AuthBinding.local(localPasswordHash));
