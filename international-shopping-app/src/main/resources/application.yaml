@@ -123,7 +123,7 @@ oauth2:
 # Resend 配置
 resend:
   api-key: ${RESEND_API_KEY}
-  from-email: leila@eason.xin
+  from-email: leila@international-shopping.online
   from-name: international-shopping
   activation-subject: Your verification code
   password-reset-subject: Your password reset code
